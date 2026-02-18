@@ -1,56 +1,25 @@
 import 'package:flutter/material.dart';
 import '../../data/onboarding_data.dart';
 
-class OnboardingContentWidget extends StatelessWidget {
+class OnboardingImageWidget extends StatelessWidget {
     final OnboardingModel model;
 
-    const OnboardingContentWidget({super.key, required this.model});
+    const OnboardingImageWidget({super.key, required this.model});
 
     @override
     Widget build(BuildContext context) {
-        return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 22),
-            child: Column(
-                children: [
-                  const Spacer(),
-
-                    Container(
-                        height: 300,
-                        width: 300,
-                        decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            shape: BoxShape.rectangle
-                        )
-                    ),
-
-                  const Spacer(flex: 5),
-
-                    Text(
-                        model.title,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF344E41),
-                            height: 1.3
-                        )
-                    ),
-
-                    const SizedBox(height: 10),
-                    Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 30),
-                        child: Text(
-                            model.description,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                fontSize: 15,
-                                color: Color(0xFF0A0F0D)
-                            )
-                        )
-                    ),
-
-                  const Spacer(),
-                ]
+        // Just the Image Container (No Text)
+        return Center(
+            child: Container(
+                height: 300,
+                width: 300,
+                decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.circular(20)
+                ),
+                // In the future: child: Image.asset(model.image),
+                child: const Icon(Icons.image, size: 80, color: Colors.grey)
             )
         );
     }
