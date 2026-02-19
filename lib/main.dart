@@ -9,7 +9,6 @@ import 'features/onboarding/presentation/pages/onboarding_page.dart';
 
 void main() {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  // Keep the native splash up while we think
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   runApp(const MyApp());
