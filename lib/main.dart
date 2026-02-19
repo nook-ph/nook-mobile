@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:nook/core/app_bloc.dart';
+import 'package:nook/core/app_event.dart';
+import 'package:nook/core/app_state.dart';
+import 'package:nook/features/home_page/presentation/pages/home_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
 
 void main() {
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  // Keep the native splash up while we think
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
   runApp(const MyApp());
 }
 
@@ -10,15 +20,30 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Nook',
-      theme: ThemeData(
-        useMaterial3: true,
-        primarySwatch: Colors.green,
-        fontFamily: 'Poppins',
+    return BlocProvider(
+    
+      create: (context) => AppBloc()..add(AppStarted()),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Nook',
+        home: BlocConsumer<AppBloc, AppState>(
+          listener: (context, state) {
+            if (state is! AppInitial) {
+              FlutterNativeSplash.remove();
+            }
+          },
+          
+          builder: (context, state) {
+            return switch (state) {
+              ShowOnboarding() => const OnboardingPage(),
+              ShowHome() => const HomePage(),
+              AppInitial() => const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              ),
+            };
+          },
+        ),
       ),
-      home: const OnboardingPage(),
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/app_bloc.dart';
+import 'package:nook/core/app_event.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../bloc/onboarding_bloc.dart';
 import '../../data/onboarding_data.dart';
@@ -7,7 +9,6 @@ import '../widgets/onboarding_image.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
-
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
@@ -60,9 +61,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         vertical: 22,
                       ),
                       child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          const Spacer(),
-
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 300),
                             child: Column(
@@ -79,6 +79,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     height: 1.3,
                                   ),
                                 ),
+
                                 const SizedBox(height: 10),
                                 // subtitle
                                 Text(
@@ -117,7 +118,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             child: ElevatedButton(
                               onPressed: () {
                                 if (state.isLastPage) {
-                                  print("Go home");
+                                  context.read<AppBloc>().add(OnboardingCompleted());
                                 } else {
                                   _pageController.nextPage(
                                     duration: const Duration(milliseconds: 300),
