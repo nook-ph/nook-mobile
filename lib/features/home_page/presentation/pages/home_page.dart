@@ -10,7 +10,6 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      bottomNavigationBar: _buildBottomNav(),
       body: SafeArea (
         child: Column(
           children: [
@@ -68,57 +67,6 @@ class HomePage extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-
-  Widget _buildBottomNav() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade300, 
-            width: 1.0,
-          ),
-        ),
-      ),
-      
-      child: Theme(
-        data: ThemeData(
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent, 
-        ),
-
-        child: BottomNavigationBar(
-          elevation: 0, 
-          backgroundColor: Colors.white, 
-          type: BottomNavigationBarType.fixed,
-          iconSize: 28.0, 
-          selectedItemColor: const Color(0xFF344E41), 
-          unselectedItemColor: Colors.grey,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(LucideIcons.house), 
-              label: "Home"
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(LucideIcons.search), 
-              label: "Search"
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(LucideIcons.heart), 
-              label: "Favorites"
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(LucideIcons.user), 
-              label: "Profile"
-            ),
-          ],
-        ),
       ),
     );
   }
