@@ -5,7 +5,6 @@ import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/app_state.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
-import 'package:nook/features/home_page/presentation/pages/home_page.dart';
 import 'features/onboarding/presentation/pages/onboarding_page.dart';
 
 void main() {
