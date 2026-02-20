@@ -33,7 +33,7 @@ class HomePage extends StatelessWidget {
               const SizedBox(height: 12),
 
               SizedBox(
-                height: 300,
+                height: 312,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -46,6 +46,39 @@ class HomePage extends StatelessWidget {
                   },
                 ),
               ),
+
+              const SizedBox(height: 24),
+
+              Padding(
+                padding: EdgeInsetsGeometry.symmetric(horizontal: 22),
+                child: Text(
+                  "Recommended",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              Padding(
+                padding: EdgeInsetsGeometry.symmetric(horizontal: 22),
+                child: Column(
+                  children: [
+                    _buildRecommendedCart(),
+
+                    const SizedBox(height: 14),
+
+                    _buildRecommendedCart(),
+
+                    const SizedBox(height: 14),
+
+                    _buildRecommendedCart(),
+
+                    const SizedBox(height: 14),
+
+                    _buildRecommendedCart(),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -53,9 +86,145 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  Widget _buildRecommendedCart() {
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
+      ),
+      height: 112,
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Image.network(
+              'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          Expanded(
+            flex: 8,
+            child: Padding(
+              padding: EdgeInsetsGeometry.all(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Coffee Madness',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                '5.0',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+
+                              const SizedBox(width: 6),
+
+                              Icon(
+                                Icons.star,
+                                color: Color(0xFF588157),
+
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      Row(
+                        children: [
+                          Icon(
+                            LucideIcons.mapPin500,
+                            size: 12,
+                            color: const Color(0xFF848586),
+                          ),
+
+                          const SizedBox(width: 4),
+
+                          Text(
+                            'Tayud, Liloan',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: const Color(0xFF848586),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE0E0E0),
+                              ),
+                            ),
+                            child: const Text(
+                              'Student Friendly',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 6),
+                        ],
+                      ),
+
+                      Text(
+                        '5.0 km',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF848685),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFeaturedCard({required double width}) {
     return Container(
-      height: 300,
+      height: 312,
       width: width,
       clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
@@ -87,7 +256,7 @@ class HomePage extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Coffee Madess',
+                            'Coffee Madness',
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w500,
