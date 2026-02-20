@@ -56,9 +56,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   Expanded(
                     flex: 2,
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 22,
+                      padding: const EdgeInsets.only(
+                        left: 22,
+                        right: 22,
+                        bottom: 32,
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.end,
