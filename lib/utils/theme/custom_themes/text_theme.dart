@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class TTextTheme {
   TTextTheme._();
-
+  
   static TextTheme lightTextTheme = TextTheme(
     headlineLarge: const TextStyle(
       fontSize: 48.0,
