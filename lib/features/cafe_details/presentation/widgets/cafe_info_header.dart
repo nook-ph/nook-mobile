@@ -25,7 +25,7 @@ class CafeInfoHeader extends StatelessWidget {
                 children: [
                   const Text(
                     '4.9',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(width: 4),
                   const Row(
@@ -44,7 +44,7 @@ class CafeInfoHeader extends StatelessWidget {
                   const SizedBox(width: 4),
                   const Text(
                     '(32)',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -58,7 +58,7 @@ class CafeInfoHeader extends StatelessWidget {
                   const Text(
                     '2.1 km',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w400,
                       color: Color(0xFF868584),
                     ),
@@ -76,7 +76,7 @@ class CafeInfoHeader extends StatelessWidget {
                   const Text(
                     'Tayud, Liloan',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w400,
                       color: Color(0xFF868584),
                     ),
@@ -101,7 +101,7 @@ class CafeInfoHeader extends StatelessWidget {
                   const Text(
                     'OPEN NOW',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w500,
                       color: Color(0xFF344E41),
                     ),
@@ -110,7 +110,7 @@ class CafeInfoHeader extends StatelessWidget {
                   const Text(
                     '|',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w400,
                       color: Color(0xFF868584),
                     ),
@@ -119,7 +119,7 @@ class CafeInfoHeader extends StatelessWidget {
                   const Text(
                     'Closes at 10 PM',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w400,
                       color: Color(0xFF868584),
                     ),

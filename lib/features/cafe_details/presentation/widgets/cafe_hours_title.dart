@@ -21,7 +21,7 @@ class CafeHoursTile extends StatelessWidget {
           title: const Text(
             'Hours',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
               color: Colors.black,
             ),
