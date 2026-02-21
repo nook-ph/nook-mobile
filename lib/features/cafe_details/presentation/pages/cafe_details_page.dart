@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_app_bar.dart';
 
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_hours_title.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_tags_list.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
@@ -13,7 +14,7 @@ class CafeDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
-    final double menuCardWidth = ((screenWidth - 22) / 2) - 6;
+    final double menuCardWidth = ((screenWidth - 44) / 2) - 6;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -49,7 +50,7 @@ class CafeDetailsPage extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 22),
               child: Text(
                 'A refined retreat in the heart of Tayud, Liloan. Cafe Summit Galleria blends contemporary elegance with warm hospitality, featuring plush seating, polished interiors, and ambient lighting. ',
-                style: TextStyle(fontSize: 14, color: Colors.black54),
+                style: TextStyle(fontSize: 15, color: Colors.black54),
               ),
             ),
 
@@ -65,6 +66,10 @@ class CafeDetailsPage extends StatelessWidget {
             const SizedBox(height: 24),
 
             MenuHighlights(width: menuCardWidth),
+
+            const SizedBox(height: 24),
+
+            CafeInfo(),
 
             const SizedBox(height: 40),
           ],

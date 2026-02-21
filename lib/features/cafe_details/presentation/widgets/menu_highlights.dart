@@ -65,12 +65,12 @@ class MenuHighlights extends StatelessWidget {
                           children: [
                             Text(
                               'Iced Spanish Latte',
-                              style: TextStyle(fontSize: 14),
+                              style: TextStyle(fontSize: 15),
                             ),
 
                             Gap(2),
 
-                            Text('₱150.00', style: TextStyle(fontSize: 14)),
+                            Text('₱150.00', style: TextStyle(fontSize: 15)),
                           ],
                         ),
                       ),
