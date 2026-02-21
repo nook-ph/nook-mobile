@@ -1,14 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
+import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 
 class RecommendedCard extends StatelessWidget {
-  const RecommendedCard({super.key, required this.heroTag});
-
-  final String heroTag;
+  final CafeSummaryEntity cafe;
+  const RecommendedCard({super.key, required this.cafe});
 
   @override
   Widget build(BuildContext context) {
+    final String heroTag = 'recommended_${cafe.id}';
+    final String imageUrl = cafe.featuredImageUrl?.trim().isNotEmpty == true
+        ? cafe.featuredImageUrl!.trim()
+        : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+    final String ratingText = cafe.rating.toStringAsFixed(1);
+    final String? primaryTag = cafe.tags.isNotEmpty ? cafe.tags.first : null;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -33,7 +40,7 @@ class RecommendedCard extends StatelessWidget {
               child: Hero(
                 tag: heroTag,
                 child: Image.network(
-                  'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
+                  imageUrl,
                   width: double.infinity,
                   height: double.infinity,
                   fit: BoxFit.cover,
@@ -52,25 +59,29 @@ class RecommendedCard extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              'Coffee Madness',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
+                            Expanded(
+                              child: Text(
+                                cafe.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                            const Row(
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  '5.0',
-                                  style: TextStyle(
+                                  ratingText,
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                SizedBox(width: 6),
-                                Icon(
+                                const SizedBox(width: 6),
+                                const Icon(
                                   Icons.star,
                                   color: Color(0xFF588157),
                                   size: 16,
@@ -79,20 +90,24 @@ class RecommendedCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const Row(
+                        Row(
                           children: [
-                            Icon(
+                            const Icon(
                               LucideIcons.mapPin500,
                               size: 12,
                               color: Color(0xFF848586),
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Tayud, Liloan',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF848586),
-                                fontWeight: FontWeight.w500,
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                cafe.address,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF848586),
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
                           ],
@@ -104,26 +119,30 @@ class RecommendedCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: const Color(0xFFE0E0E0),
+                            if (primaryTag != null &&
+                                primaryTag.trim().isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFFE0E0E0),
+                                  ),
+                                ),
+                                child: Text(
+                                  primaryTag,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
                                 ),
                               ),
-                              child: const Text(
-                                'Student Friendly',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
+                            if (primaryTag != null &&
+                                primaryTag.trim().isNotEmpty)
+                              const SizedBox(width: 6),
                           ],
                         ),
                         const Text(
