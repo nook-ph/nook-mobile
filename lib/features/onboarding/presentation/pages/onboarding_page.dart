@@ -62,43 +62,45 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         bottom: 32,
                       ),
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: Column(
-                              key: ValueKey<int>(state.pageIndex),
-                              children: [
-                                // title
-                                Text(
-                                  currentData.title,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF344E41),
-                                    height: 1.3,
-                                  ),
-                                ),
+                          Expanded(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: SingleChildScrollView(
+                                key: ValueKey<int>(state.pageIndex),
+                                physics: const BouncingScrollPhysics(),
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      currentData.title,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF344E41),
+                                        height: 1.3,
+                                      ),
+                                    ),
 
-                                const SizedBox(height: 10),
-                                // subtitle
-                                Text(
-                                  currentData.description,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    color: Color(0xFF0A0F0D),
-                                    height: 1.5,
-                                  ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      currentData.description,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        color: Color(0xFF0A0F0D),
+                                        height: 1.5,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
 
                           const SizedBox(height: 30),
 
-                          SmoothPageIndicator(
+                          SmoothPageIndicator(                
                             controller: _pageController,
                             count: OnboardingData.items.length,
                             effect: const ExpandingDotsEffect(
@@ -114,7 +116,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           const SizedBox(height: 20),
 
                           SizedBox(
-                            width: double.infinity,
+                            width: double.infinity,                                       
                             height: 46,
                             child: ElevatedButton(
                               onPressed: () {
