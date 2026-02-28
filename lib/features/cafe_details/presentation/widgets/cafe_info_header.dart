@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 
 class CafeInfoHeader extends StatelessWidget {
-  const CafeInfoHeader({super.key});
+  final CafeDetailsResult? cafe;
+  const CafeInfoHeader({super.key, required this.cafe});
 
   @override
   Widget build(BuildContext context) {
@@ -10,8 +13,8 @@ class CafeInfoHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Cafe Summit Galleria Cebu',
+          Text(
+            cafe?.cafeDetails.name ?? 'Cafe Name',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
           ),
 
