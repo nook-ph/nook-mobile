@@ -16,9 +16,9 @@ class GetHomeCafesUseCase {
   Future<HomeCafesResult> call() async {
     final results = await Future.wait([
       repository.getFeaturedCafes(),
-      repository.getRecommendedCafes(),
+      repository.getRecommendedCafes(),                             
     ]);
 
-    return HomeCafesResult(featured: results[0], recommended: results[1])                         ;
+    return HomeCafesResult(featured: results[0], recommended: results[1]);
   }
 }

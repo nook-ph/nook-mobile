@@ -86,7 +86,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     Text(
                                       currentData.description,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
+                                      style: const TextStyle(                       
                                         fontSize: 15,
                                         color: Color(0xFF0A0F0D),
                                         height: 1.5,

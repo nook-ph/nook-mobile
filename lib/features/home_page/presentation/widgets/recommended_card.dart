@@ -21,7 +21,7 @@ class RecommendedCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CafeDetailsPage(heroTag: heroTag),
+            builder: (context) => CafeDetailsPage(heroTag: heroTag, cafeId: cafe.id),
           ),
         );
       },

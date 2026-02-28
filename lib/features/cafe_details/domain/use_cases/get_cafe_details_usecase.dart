@@ -39,16 +39,19 @@ class GetCafeDetailsUseCase {
   GetCafeDetailsUseCase(this.repository);
 
   Future<CafeDetailsResult> call(GetCafeDetailsParams params) async {
+
     final detailsFuture = repository.getCafeDetails(
       params.cafeId,
       menuHighlightsLimit: params.menuHighlightsLimit,
       latestReviewsLimit: params.latestReviewsLimit,
     );
+
     final allMenuFuture = repository.getCafeMenuItems(
       params.cafeId,
       limit: params.allMenuLimit,
       offset: 0,
     );
+
     final allReviewsFuture = repository.getCafeReviews(
       params.cafeId,
       limit: params.allReviewsLimit,

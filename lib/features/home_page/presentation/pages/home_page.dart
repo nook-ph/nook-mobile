@@ -82,7 +82,7 @@ class HomePage extends StatelessWidget {
                           itemBuilder: (context, index) {
                             return FeaturedCard(
                               width: cardWidth,
-                              cafe: state.featuredCafes[index], 
+                              cafe: state.featuredCafes[index],
                             );
                           },
                         ),

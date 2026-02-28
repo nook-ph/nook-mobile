@@ -1,23 +1,35 @@
-import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 
-abstract class CafeDetailsStates {}
 
-class CafeDetailsInitialState extends CafeDetailsStates {}
+import 'package:equatable/equatable.dart';
+import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 
-class CafeDetailsLodingState extends CafeDetailsStates {}
+abstract class CafeDetailsState extends Equatable {
+  const CafeDetailsState();
 
-class CafeDetailsLoadedState extends CafeDetailsStates {
-  final CafeDetailsEntity cafeDetails;
-  final List<MenuItemEntity> menuHighlights;
-  final List<MenuItemEntity> allMenuItems;
-  final List<ReviewEntity> latestReviews;
-  final List<ReviewEntity> allReviews;
+  @override
+  List<Object?> get props => [];
+}
 
-  CafeDetailsLoadedState({
-    required this.cafeDetails,
-    required this.menuHighlights,
-    required this.allMenuItems,
-    required this.latestReviews,
-    required this.allReviews,
-  });
+class CafeDetailsInitial extends CafeDetailsState {
+  const CafeDetailsInitial();
+}
+
+class CafeDetailsLoading extends CafeDetailsState {
+  const CafeDetailsLoading();
+}
+
+class CafeDetailsLoaded extends CafeDetailsState {
+  final CafeDetailsResult data;
+  const CafeDetailsLoaded(this.data);
+
+  @override
+  List<Object?> get props => [data];
+}
+
+class CafeDetailsError extends CafeDetailsState {
+  final String message;
+  const CafeDetailsError(this.message);
+
+  @override
+  List<Object?> get props => [message];
 }

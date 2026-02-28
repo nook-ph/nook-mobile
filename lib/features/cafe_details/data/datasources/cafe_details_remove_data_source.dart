@@ -21,7 +21,6 @@ class CafeDetailsRemoteDataSource {
           featured_image_url,
           rating,
           review_count,
-          is_new,
           operating_hours,
           social_links
         ''')
@@ -97,7 +96,7 @@ class CafeDetailsRemoteDataSource {
           created_at,
           updated_at,
           profiles (
-            name,
+            username,
             full_name
           )
         ''')
