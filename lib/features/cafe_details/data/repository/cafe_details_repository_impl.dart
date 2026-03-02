@@ -1,4 +1,4 @@
-import 'package:nook/features/cafe_details/data/datasources/cafe_details_remove_data_source.dart';
+import 'package:nook/features/cafe_details/data/datasources/cafe_details_remote_data_source.dart';
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/repositories/i_cafe_details_repository.dart';

@@ -46,6 +46,9 @@ class MenuItemEntity {
   final String? imageUrl;
   final bool isHighlight;
 
+  final String? categoryId;
+  final String? categoryName;
+
   MenuItemEntity({
     required this.id,
     required this.cafeId,
@@ -53,6 +56,9 @@ class MenuItemEntity {
     required this.price,
     this.imageUrl,
     required this.isHighlight,
+
+    this.categoryId,
+    this.categoryName,
   });
 }
 
@@ -65,11 +71,11 @@ class TagEntity {
   final bool isFeatured;
 
   TagEntity({
-    required this.id,                                         
+    required this.id,
     required this.name,
     this.category,
     this.iconName,
-    this.createdAt,                                  
+    this.createdAt,
     this.isFeatured = false,
   });
 }

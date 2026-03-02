@@ -12,7 +12,6 @@ class FeaturedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String heroTag = 'featured_${cafe.id}';
     final String imageUrl = cafe.featuredImageUrl?.trim().isNotEmpty == true
         ? cafe.featuredImageUrl!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
@@ -23,7 +22,7 @@ class FeaturedCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CafeDetailsPage(heroTag: heroTag, cafeId: cafe.id),
+            builder: (context) => CafeDetailsPage(cafeId: cafe.id),
           ),
         );
       },
@@ -39,13 +38,10 @@ class FeaturedCard extends StatelessWidget {
           children: [
             Expanded(
               flex: 19,
-              child: Hero(
-                tag: heroTag,
-                child: Image.network(
-                  imageUrl,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+              child: Image.network(
+                imageUrl,
+                width: double.infinity,
+                fit: BoxFit.cover,
               ),
             ),
             Expanded(
