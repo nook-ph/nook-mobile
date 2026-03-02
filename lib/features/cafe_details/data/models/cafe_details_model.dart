@@ -140,6 +140,9 @@ class MenuItemModel extends MenuItemEntity {
     required super.price,
     super.imageUrl,
     required super.isHighlight,
+
+    super.categoryId,
+    super.categoryName,
   });
 
   factory MenuItemModel.fromJson(Map<String, dynamic> json) {
@@ -153,6 +156,14 @@ class MenuItemModel extends MenuItemEntity {
       ),
       isHighlight: CafeDetailsModel._asBool(
         json['is_highlight'] ?? json['isHighlight'],
+      ),
+
+      categoryId: CafeDetailsModel._asNullableString(
+        json['category_id'] ?? json['menu_categories']?['id'],
+      ),
+
+      categoryName: CafeDetailsModel._asNullableString(
+        json['menu_categories']?['name'],
       ),
     );
   }

@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 
 class MenuHighlights extends StatelessWidget {
-  const MenuHighlights({super.key, required this.width});
+  const MenuHighlights({super.key, required this.width, required this.cafe});
 
   final double width;
+  final CafeDetailsResult? cafe;
+
+  String _formatPrice(double price) {
+    return '₱${price.toStringAsFixed(2)}';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final highlights = cafe?.menuHighlights ?? const [];
+
+    if (highlights.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
+        const Padding(
           padding: EdgeInsets.symmetric(horizontal: 22),
           child: Text(
             'Menu Highlights',
@@ -30,9 +42,11 @@ class MenuHighlights extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 22),
-            itemCount: 5,
+            itemCount: highlights.length,
             separatorBuilder: (context, index) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
+              final item = highlights[index];
+
               return Container(
                 width: width,
                 height: 178,
@@ -49,28 +63,52 @@ class MenuHighlights extends StatelessWidget {
                   children: [
                     Expanded(
                       flex: 3,
-                      child: Image.network(
-                        'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                      child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                          ? Image.network(
+                              item.imageUrl!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) {
+                                return Container(
+                                  color: const Color(0xFFF5F5F5),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.image_not_supported_outlined,
+                                    color: Color(0xFFBDBDBD),
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              color: const Color(0xFFF5F5F5),
+                              alignment: Alignment.center,
+                              child: const Icon(
+                                Icons.image_outlined,
+                                color: Color(0xFFBDBDBD),
+                              ),
+                            ),
                     ),
 
                     Expanded(
                       flex: 2,
                       child: Padding(
-                        padding: EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(12),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Iced Spanish Latte',
-                              style: TextStyle(fontSize: 15),
+                              item.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 15),
                             ),
 
-                            Gap(2),
+                            const Gap(2),
 
-                            Text('₱150.00', style: TextStyle(fontSize: 15)),
+                            Text(
+                              _formatPrice(item.price),
+                              style: const TextStyle(fontSize: 15),
+                            ),
                           ],
                         ),
                       ),

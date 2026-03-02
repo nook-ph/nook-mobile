@@ -1,12 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/day_row.dart';
 
 class CafeHoursTile extends StatelessWidget {
-  const CafeHoursTile({super.key});
+  final CafeDetailsResult? cafe;
+
+  static const List<String> _orderedDays = [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ];
+
+  const CafeHoursTile({super.key, required this.cafe});
+
+  String _formatDayLabel(String day) {
+    return day[0].toUpperCase() + day.substring(1);
+  }
+
+  String _formatTime(String value) {
+    final parts = value.split(':');
+    if (parts.length < 2) {
+      return value;
+    }
+
+    final hour24 = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour24 == null || minute == null) {
+      return value;
+    }
+
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+    final minuteText = minute.toString().padLeft(2, '0');
+    return '$hour12:$minuteText $period';
+  }
+
+  String _formatHours(Map<String, dynamic> dayHours) {
+    final open = dayHours['open']?.toString();
+    final close = dayHours['close']?.toString();
+
+    if (open == null || close == null || open.isEmpty || close.isEmpty) {
+      return 'Closed';
+    }
+
+    return '${_formatTime(open)} - ${_formatTime(close)}';
+  }
 
   @override
   Widget build(BuildContext context) {
+    final operatingHours = cafe?.cafeDetails.operatingHours ?? {};
+    final weekday = DateTime.now().weekday;
+    final todayDay = weekday == DateTime.sunday
+        ? 'sunday'
+        : _orderedDays[weekday];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Theme(
@@ -33,15 +85,18 @@ class CafeHoursTile extends StatelessWidget {
             right: 0,
             bottom: 16,
           ),
-          children: const [
-            DayRow('Sunday', 'Closed', isToday: false),
-            DayRow('Monday', '8:30 AM - 10:00 PM', isToday: false),
-            DayRow('Tuesday', '8:30 AM - 10:00 PM', isToday: false),
-            DayRow('Wednesday', '8:30 AM - 10:00 PM', isToday: false),
-            DayRow('Thursday', '8:30 AM - 10:00 PM', isToday: true),
-            DayRow('Friday', '8:30 AM - 10:00 PM', isToday: false),
-            DayRow('Saturday', '8:30 AM - 10:00 PM', isToday: false),
-          ],
+          children: _orderedDays.map((day) {
+            final dayHoursRaw = operatingHours[day];
+            final dayHours = dayHoursRaw is Map
+                ? Map<String, dynamic>.from(dayHoursRaw)
+                : <String, dynamic>{};
+
+            return DayRow(
+              _formatDayLabel(day),
+              _formatHours(dayHours),
+              isToday: day == todayDay,
+            );
+          }).toList(),
         ),
       ),
     );

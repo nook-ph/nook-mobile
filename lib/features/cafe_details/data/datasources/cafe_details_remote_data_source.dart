@@ -1,5 +1,6 @@
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 class CafeDetailsRemoteDataSource {
   final SupabaseClient supabase;
@@ -38,7 +39,18 @@ class CafeDetailsRemoteDataSource {
   }) async {
     var query = supabase
         .from('menu_items')
-        .select('id, cafe_id, name, price, image_url, is_highlight')
+        .select('''
+        id,
+        cafe_id,
+        name,
+        price,
+        image_url,
+        is_highlight,
+        menu_categories (
+          id,
+          name
+        )
+      ''')
         .eq('cafe_id', cafeId);
 
     if (isHighlight != null) {
@@ -60,7 +72,7 @@ class CafeDetailsRemoteDataSource {
         .from('cafe_tags')
         .select('''
           is_featured,
-          tags (
+          tag:tags!cafe_tags_tag_id_fkey (
             id,
             name,
             category,
@@ -70,14 +82,19 @@ class CafeDetailsRemoteDataSource {
         ''')
         .eq('cafe_id', cafeId);
 
+    if (kDebugMode) {
+      debugPrint('[CafeDetailsRemoteDataSource] cafe_id=$cafeId cafe_tags_rows=${(response as List).length}');
+    }
+
     return (response as List).map((row) {
       final map = Map<String, dynamic>.from(row);
-      final tagMap = map['tags'] is Map
-          ? Map<String, dynamic>.from(map['tags'] as Map)
+      final rawTag = map['tag'] ?? map['tags'];
+      final tagMap = rawTag is Map
+          ? Map<String, dynamic>.from(rawTag)
           : <String, dynamic>{};
 
       return TagModel.fromJson({...tagMap, 'is_featured': map['is_featured']});
-    }).toList();
+    }).where((tag) => tag.id.isNotEmpty && tag.name.isNotEmpty).toList();
   }
 
   Future<List<ReviewModel>> fetchCafeReviews(

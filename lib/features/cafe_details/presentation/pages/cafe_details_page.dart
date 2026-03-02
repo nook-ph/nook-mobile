@@ -6,7 +6,7 @@ import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
 
-import 'package:nook/features/cafe_details/data/datasources/cafe_details_remove_data_source.dart';
+import 'package:nook/features/cafe_details/data/datasources/cafe_details_remote_data_source.dart';
 import 'package:nook/features/cafe_details/data/repository/cafe_details_repository_impl.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 
@@ -20,14 +20,9 @@ import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CafeDetailsPage extends StatelessWidget {
-  const CafeDetailsPage({
-    super.key,
-    required this.heroTag,
-    required this.cafeId,
-  });
+  const CafeDetailsPage({super.key, required this.cafeId});
 
   final String cafeId;
-  final String heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -64,24 +59,25 @@ class CafeDetailsPage extends StatelessWidget {
 
             return Skeletonizer(
               enabled: isLoading,
+              effect: const PulseEffect(),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     /// Hero Image
-                    Hero(
-                      tag: heroTag,
-                      child: Container(
-                        height: 350,
-                        width: double.infinity,
-                        color: Colors.grey[300],
-                        child: isLoading
-                            ? null
-                            : Image.network(
-                                'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
-                                fit: BoxFit.cover,
-                              ),
-                      ),
+                    Container(
+                      height: 350,
+                      width: double.infinity,
+                      color: Colors.grey[300],
+                      child: isLoading
+                          ? null
+                          : Image.network(
+                              state is CafeDetailsLoaded
+                                  ? (state.data.cafeDetails.featuredImageUrl ??
+                                        '')
+                                  : '',
+                              fit: BoxFit.cover,
+                            ),
                     ),
 
                     const SizedBox(height: 24),
@@ -99,18 +95,25 @@ class CafeDetailsPage extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     /// Description
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 22),
                       child: Text(
-                        "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore",
-                        style: TextStyle(fontSize: 15, color: Colors.black54),
+                        state is CafeDetailsLoaded
+                            ? state.data.cafeDetails.description
+                            : '',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          color: Colors.black54,
+                        ),
                       ),
                     ),
 
                     const SizedBox(height: 24),
 
                     /// Hours
-                    const CafeHoursTile(),
+                    CafeHoursTile(
+                      cafe: state is CafeDetailsLoaded ? state.data : null,
+                    ),
 
                     const Padding(
                       padding: EdgeInsets.only(left: 66, right: 22),
@@ -124,12 +127,17 @@ class CafeDetailsPage extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     /// Menu
-                    MenuHighlights(width: menuCardWidth),
+                    MenuHighlights(
+                      width: menuCardWidth,
+                      cafe: state is CafeDetailsLoaded ? state.data : null,
+                    ),
 
                     const SizedBox(height: 24),
 
                     /// Info
-                    CafeInfo(),
+                    CafeInfo(
+                      cafe: state is CafeDetailsLoaded ? state.data : null,
+                    ),
 
                     const SizedBox(height: 40),
                   ],

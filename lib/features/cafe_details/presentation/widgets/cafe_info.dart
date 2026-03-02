@@ -1,18 +1,125 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 
 class CafeInfo extends StatelessWidget {
-  const CafeInfo({super.key});
+  const CafeInfo({super.key, required this.cafe});
+
+  final CafeDetailsResult? cafe;
+
+  static const TextStyle _sectionTitleStyle = TextStyle(
+    fontSize: 15,
+    color: Color(0xFF848685),
+  );
+
+  String _normalizeCategory(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  List<TagEntity> _tagsByCategory(List<TagEntity> tags, List<String> aliases) {
+    final normalizedAliases = aliases.map(_normalizeCategory).toSet();
+    return tags.where((tag) {
+      final category = _normalizeCategory(tag.category ?? '');
+      return normalizedAliases.contains(category);
+    }).toList();
+  }
+
+  bool _isPaymentLikeTag(TagEntity tag) {
+    final text = tag.name.toLowerCase();
+    return text.contains('cash') ||
+        text.contains('card') ||
+        text.contains('credit') ||
+        text.contains('debit') ||
+        text.contains('wallet') ||
+        text.contains('gcash') ||
+        text.contains('maya');
+  }
+
+  IconData _amenityIcon(String name) {
+    final text = name.toLowerCase();
+    if (text.contains('wifi') || text.contains('wi-fi'))
+      return LucideIcons.wifi;
+    if (text.contains('air') || text.contains('ac'))
+      return LucideIcons.snowflake;
+    if (text.contains('plug') ||
+        text.contains('outlet') ||
+        text.contains('socket')) {
+      return LucideIcons.plug;
+    }
+    if (text.contains('park')) return LucideIcons.parkingMeter;
+    if (text.contains('restroom') || text.contains('toilet')) {
+      return LucideIcons.toilet;
+    }
+    return Icons.circle_outlined;
+  }
+
+  IconData _paymentIcon(String name) {
+    final text = name.toLowerCase();
+    if (text.contains('cash')) return LucideIcons.banknote;
+    if (text.contains('card') ||
+        text.contains('credit') ||
+        text.contains('debit')) {
+      return LucideIcons.creditCard;
+    }
+    if (text.contains('wallet') ||
+        text.contains('gcash') ||
+        text.contains('maya')) {
+      return LucideIcons.wallet;
+    }
+    return LucideIcons.wallet;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final allTags = cafe?.cafeDetails.tags ?? const <TagEntity>[];
+
+    final amenities = _tagsByCategory(allTags, const ['amenities', 'amenity']);
+
+    var bestFor = _tagsByCategory(allTags, const [
+      'best_for',
+      'best for',
+      'bestfor',
+      'best',
+    ]);
+
+    var paymentOptions = _tagsByCategory(allTags, const [
+      'payment_options',
+      'payment option',
+      'payment options',
+      'payment',
+      'payments',
+      'accepted payment',
+      'accepted payments',
+    ]);
+
+    if (paymentOptions.isEmpty) {
+      paymentOptions = allTags.where(_isPaymentLikeTag).toList();
+    }
+
+    if (bestFor.isEmpty) {
+      final categorized = <String>{
+        ...amenities.map((t) => t.id),
+        ...paymentOptions.map((t) => t.id),
+      };
+      bestFor = allTags.where((t) => !categorized.contains(t.id)).toList();
+    }
+
+    final socialLinks = cafe?.cafeDetails.socialLinks ?? {};
+    final address = cafe?.cafeDetails.address ?? '';
+
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Details',
             style: TextStyle(
               fontSize: 18,
@@ -21,175 +128,125 @@ class CafeInfo extends StatelessWidget {
             ),
           ),
 
-          Gap(16),
+          const Gap(16),
 
           //amenities
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'AMENITIES',
-                style: TextStyle(fontSize: 15, color: Color(0xFF848685)),
-              ),
+              const Text('AMENITIES', style: _sectionTitleStyle),
 
-              Gap(12),
+              const Gap(12),
 
-              Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(LucideIcons.wifi),
-
-                      Gap(18),
-
-                      Text(
-                        'Free High-Speed Wifi',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF848685),
-                        ),
+              if (amenities.isEmpty)
+                const Text(
+                  'No amenities listed',
+                  style: TextStyle(fontSize: 15, color: Color(0xFF848685)),
+                )
+              else
+                Column(
+                  children: amenities.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final tag = entry.value;
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index == amenities.length - 1 ? 0 : 18,
                       ),
-                    ],
-                  ),
-
-                  Gap(18),
-
-                  Row(
-                    children: [
-                      Icon(LucideIcons.snowflake),
-
-                      Gap(18),
-
-                      Text(
-                        'Air Conditioned',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF848685),
-                        ),
+                      child: Row(
+                        children: [
+                          Icon(_amenityIcon(tag.name)),
+                          const Gap(18),
+                          Expanded(
+                            child: Text(
+                              tag.name,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF848685),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-
-                  Gap(18),
-
-                  Row(
-                    children: [
-                      Icon(LucideIcons.plug),
-
-                      Gap(18),
-
-                      Text(
-                        'Power Outlets',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF848685),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  Gap(18),
-
-                  Row(
-                    children: [
-                      Icon(LucideIcons.parkingMeter),
-
-                      Gap(18),
-
-                      Text(
-                        'Parking',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF848685),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    );
+                  }).toList(),
+                ),
             ],
           ),
 
-          Gap(28),
+          const Gap(28),
 
-          Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
 
-          Gap(28),
+          const Gap(28),
 
           //best for
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'BEST FOR',
-                style: TextStyle(fontSize: 15, color: Color(0xFF848685)),
-              ),
+              const Text('BEST FOR', style: _sectionTitleStyle),
 
-              Gap(12),
+              const Gap(12),
 
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: const [
-                  _BestForTag(label: 'Work'),
-                  _BestForTag(label: 'Study'),
-                  _BestForTag(label: 'Meetings'),
-                  _BestForTag(label: 'Groups'),
-                  _BestForTag(label: 'Solo Time'),
-                  _BestForTag(label: 'Solo Time'),
-                ],
+                children: bestFor.isEmpty
+                    ? const [_BestForTag(label: 'No tags available')]
+                    : bestFor
+                          .map((tag) => _BestForTag(label: tag.name))
+                          .toList(),
               ),
             ],
           ),
 
-          Gap(28),
+          const Gap(28),
 
-          Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
 
-          Gap(28),
+          const Gap(28),
 
           //accepted payments
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'ACCEPTED PAYMENTS',
-                style: TextStyle(fontSize: 15, color: Color(0xFF848685)),
-              ),
+              const Text('ACCEPTED PAYMENTS', style: _sectionTitleStyle),
 
-              Gap(18),
+              const Gap(18),
 
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: const [
-                  _PaymentType(icon: LucideIcons.banknote, label: 'Cash'),
-
-                  Gap(16),
-                  _PaymentType(icon: LucideIcons.wallet, label: 'E-Wallet'),
-
-                  Gap(16),
-                  _PaymentType(icon: LucideIcons.creditCard, label: 'Card'),
-                ],
-              ),
+              if (paymentOptions.isEmpty)
+                const Text(
+                  'No payment options listed',
+                  style: TextStyle(fontSize: 15, color: Color(0xFF848685)),
+                )
+              else
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 12,
+                  children: paymentOptions
+                      .map(
+                        (payment) => _PaymentType(
+                          icon: _paymentIcon(payment.name),
+                          label: payment.name,
+                        ),
+                      )
+                      .toList(),
+                ),
             ],
           ),
 
-          Gap(28),
+          const Gap(28),
 
-          Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
+          const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
 
-          Gap(28),
+          const Gap(28),
 
           //location & contacts
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'LOCATION & CONTACTS',
-                style: TextStyle(fontSize: 15, color: Color(0xFF848685)),
-              ),
+              const Text('LOCATION & CONTACTS', style: _sectionTitleStyle),
 
-              Gap(16),
+              const Gap(16),
 
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -201,16 +258,16 @@ class CafeInfo extends StatelessWidget {
                 ),
               ),
 
-              Gap(16),
+              const Gap(16),
 
               Text(
-                'Ground Floor, Summit Galleria Cebu, Cebu City Philippines',
-                style: TextStyle(fontSize: 16, color: Colors.black),
+                address,
+                style: const TextStyle(fontSize: 16, color: Colors.black),
               ),
 
-              Gap(10),
+              const Gap(10),
 
-              Text(
+              const Text(
                 'Get Directions',
                 style: TextStyle(
                   fontSize: 16,
@@ -219,23 +276,32 @@ class CafeInfo extends StatelessWidget {
                 ),
               ),
 
-              Gap(16),
+              const Gap(16),
 
-              Row(
-                children: [
-                  Icon(
-                    LucideIcons.instagram,
-                    size: 28,
-                    color: Color(0xFF848685),
-                  ),
-                  Gap(18),
-                  Icon(
-                    LucideIcons.facebook,
-                    size: 28,
-                    color: Color(0xFF848685),
-                  ),
-                ],
-              ),
+              if (socialLinks.isNotEmpty)
+                Row(
+                  children: [
+                    if ((socialLinks['instagram']?.toString().isNotEmpty ??
+                        false))
+                      const Icon(
+                        LucideIcons.instagram,
+                        size: 28,
+                        color: Color(0xFF848685),
+                      ),
+                    if ((socialLinks['instagram']?.toString().isNotEmpty ??
+                            false) &&
+                        (socialLinks['facebook']?.toString().isNotEmpty ??
+                            false))
+                      const Gap(18),
+                    if ((socialLinks['facebook']?.toString().isNotEmpty ??
+                        false))
+                      const Icon(
+                        LucideIcons.facebook,
+                        size: 28,
+                        color: Color(0xFF848685),
+                      ),
+                  ],
+                ),
             ],
           ),
         ],
