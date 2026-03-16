@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 	<dict>
-        <key>NSLocationWhenInUseUsageDescription</key>
-        <string>[Explain why the app needs the user's location]</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Nook needs your location to find the best cafes and study spots near you.</string>
+		<key>NSLocationAlwaysUsageDescription</key>
+		<string>Nook needs your location to find the best cafes and study spots near you.</string>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
@@ -25,7 +27,7 @@
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
-		<true/>
+		<true />
 		<key>UILaunchStoryboardName</key>
 		<string>LaunchScreen</string>
 		<key>UIMainStoryboardFile</key>
@@ -44,10 +46,10 @@
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
 		<key>CADisableMinimumFrameDurationOnPhone</key>
-		<true/>
+		<true />
 		<key>UIApplicationSupportsIndirectInputEvents</key>
-		<true/>
+		<true />
 		<key>UIStatusBarHidden</key>
-		<false/>
+		<false />
 	</dict>
 </plist>
