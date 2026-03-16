@@ -10,7 +10,9 @@
 .history
 .svn/
 .swiftpm/
+Dockerfile
 migrate_working_dir/
+
 
 # Environment Variables
 .env
