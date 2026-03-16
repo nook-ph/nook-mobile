@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:nook/features/cafe_details/presentation/pages/menu_full_page.dart';
 
 class MenuHighlights extends StatelessWidget {
   const MenuHighlights({super.key, required this.width, required this.cafe});
@@ -41,24 +42,27 @@ class MenuHighlights extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => Scaffold(
-                        appBar: AppBar(title: const Text("Menu")),
-                        body: const Center(
-                          child: Text("menu brooskie"),
-                        ),
+                      builder: (context) => MenuFullPage(
+                        menuItems: cafe?.allMenuItems ?? [],
+                        highlights: cafe?.menuHighlights ?? [],
+                        cafeName: cafe?.cafeDetails.name,
                       ),
                     ),
                   );
                 },
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF344E41),
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: const Text(
                   'See All',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
             ],
@@ -134,7 +138,10 @@ class MenuHighlights extends StatelessWidget {
                             const Gap(2),
                             Text(
                               _formatPrice(item.price),
-                              style: const TextStyle(fontSize: 15),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF848685),
+                              ),
                             ),
                           ],
                         ),
@@ -146,7 +153,7 @@ class MenuHighlights extends StatelessWidget {
             },
           ),
         ),
-      ], // ADDED the missing closing brackets here at the end
+      ],
     );
   }
 }
