@@ -23,15 +23,45 @@ class MenuHighlights extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 22),
-          child: Text(
-            'Menu Highlights',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Menu Highlights',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => Scaffold(
+                        appBar: AppBar(title: const Text("Menu")),
+                        body: const Center(
+                          child: Text("menu brooskie"),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF344E41),
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'See All',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
         ),
 
@@ -88,7 +118,6 @@ class MenuHighlights extends StatelessWidget {
                               ),
                             ),
                     ),
-
                     Expanded(
                       flex: 2,
                       child: Padding(
@@ -102,9 +131,7 @@ class MenuHighlights extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 15),
                             ),
-
                             const Gap(2),
-
                             Text(
                               _formatPrice(item.price),
                               style: const TextStyle(fontSize: 15),
@@ -119,7 +146,7 @@ class MenuHighlights extends StatelessWidget {
             },
           ),
         ),
-      ],
+      ], // ADDED the missing closing brackets here at the end
     );
   }
 }
