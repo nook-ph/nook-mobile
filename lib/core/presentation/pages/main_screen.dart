@@ -25,15 +25,29 @@ class MainScreen extends StatelessWidget {
         builder: (context, state) {
           return Scaffold(
             backgroundColor: Colors.white,
-
             body: IndexedStack(index: state.tabIndex, children: _pages),
-
             bottomNavigationBar: BottomNav(
               currentIndex: state.tabIndex,
               onTap: (index) {
                 context.read<NavigationBloc>().add(TabChange(tabIndex: index));
               },
             ),
+            // body: Stack(                         could do this
+            //   children: [
+            //     IndexedStack(index: state.tabIndex, children: _pages),
+            //     Align(
+            //       alignment: Alignment.bottomCenter,
+            //       child: BottomNav(
+            //         currentIndex: state.tabIndex,
+            //         onTap: (index) {
+            //           context.read<NavigationBloc>().add(
+            //             TabChange(tabIndex: index),
+            //           );
+            //         },
+            //       ),
+            //     ),
+            //   ],
+            // ),
           );
         },
       ),
