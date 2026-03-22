@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -48,7 +49,7 @@ class _MapPageState extends State<MapPage> {
                 child: const Icon(Icons.my_location),
               ),
             ),
-          if (_styleLoaded) BottomSheet(),
+          if (_styleLoaded) BottomModalSheet(),
         ],
       ),
     );
@@ -60,62 +61,3 @@ class _MapPageState extends State<MapPage> {
   }
 }
 
-class BottomSheet extends StatefulWidget {
-  const BottomSheet({super.key});
-
-  @override
-  State<BottomSheet> createState() => _BottomSheetState();
-}
-
-class _BottomSheetState extends State<BottomSheet> {
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.5,
-      minChildSize: 0.06,
-      maxChildSize: 0.85,
-      snap: true,
-      snapSizes: [0.06, 0.5, 0.85],
-      snapAnimationDuration: Duration(milliseconds: 80),
-      builder: (BuildContext context, ScrollController scrollController) {
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: <Widget>[
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Flexible(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: 25,
-                  itemBuilder: (BuildContext context, int index) {
-                    return ListTile(
-                      title: Text(
-                        'Item $index',
-                        style: TextStyle(color: colorScheme.surface),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}

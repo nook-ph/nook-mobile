@@ -4,7 +4,7 @@ import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/features/favorites/presentation/page/favorites_page.dart';
 import 'package:nook/features/home_page/presentation/pages/home_page.dart';
-import 'package:nook/features/map/presentation/map_page.dart';
+import 'package:nook/features/map/presentation/pages/map_page.dart';
 import 'package:nook/features/profile/presentation/pages/profile_page.dart';
 
 class MainScreen extends StatelessWidget {
