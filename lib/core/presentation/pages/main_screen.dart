@@ -4,7 +4,7 @@ import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/features/favorites/presentation/page/favorites_page.dart';
 import 'package:nook/features/home_page/presentation/pages/home_page.dart';
-import 'package:nook/features/map/presentation/map_page.dart';
+import 'package:nook/features/map/presentation/pages/map_page.dart';
 import 'package:nook/features/profile/presentation/pages/profile_page.dart';
 
 class MainScreen extends StatelessWidget {
@@ -25,15 +25,29 @@ class MainScreen extends StatelessWidget {
         builder: (context, state) {
           return Scaffold(
             backgroundColor: Colors.white,
-
             body: IndexedStack(index: state.tabIndex, children: _pages),
-
             bottomNavigationBar: BottomNav(
               currentIndex: state.tabIndex,
               onTap: (index) {
                 context.read<NavigationBloc>().add(TabChange(tabIndex: index));
               },
             ),
+            // body: Stack(                         could do this
+            //   children: [
+            //     IndexedStack(index: state.tabIndex, children: _pages),
+            //     Align(
+            //       alignment: Alignment.bottomCenter,
+            //       child: BottomNav(
+            //         currentIndex: state.tabIndex,
+            //         onTap: (index) {
+            //           context.read<NavigationBloc>().add(
+            //             TabChange(tabIndex: index),
+            //           );
+            //         },
+            //       ),
+            //     ),
+            //   ],
+            // ),
           );
         },
       ),
