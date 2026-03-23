@@ -60,4 +60,3 @@ class _MapPageState extends State<MapPage> {
     await c.animateCamera(CameraUpdate.newCameraPosition(_initial));
   }
 }
-

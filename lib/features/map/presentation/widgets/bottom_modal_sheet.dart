@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sliding_panel_kit/sliding_panel_kit.dart';
 import 'package:nook/features/map/presentation/widgets/cafe_card.dart';
 
 class BottomModalSheet extends StatefulWidget {
@@ -9,6 +10,14 @@ class BottomModalSheet extends StatefulWidget {
 }
 
 class _BottomModalSheetState extends State<BottomModalSheet> {
+  final controller = SlidingPanelController();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
   final List<Map<String, dynamic>> _cafes = [
     {
       "name": "Mellow Mug",
@@ -77,35 +86,29 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.85,
-      minChildSize: 0.06,
-      maxChildSize: 0.85,
-      snap: true,
-      snapSizes: const [0.06, 0.85],
-      snapAnimationDuration: const Duration(milliseconds: 100),
-      builder: (BuildContext context, ScrollController scrollController) {
-        return DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
+    return SlidingPanelBuilder(
+      // TODO remove shadow
+      controller: controller,
+      snapConfig: SlidingPanelSnapConfig(
+        extents: [0.06, 0.85],
+        velocityRange: (400, 2400),
+        animation: SpringSnapAnimation.fixed(
+          SpringDescription(mass: 1, stiffness: 350, damping: 30),
+        ),
+      ),
+
+      // other options: consider them !!
+      // SpringSnapAnimation()
+      // SpringSnapAnimation.adaptive()
+      // CurvedSnapAnimation()
+      handle: const SlidingPanelHandle(),
+      builder: (context, handle) {
+        return SlidingPanelBody(
           child: Column(
-            children: <Widget>[
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+            children: [
+              if (handle != null) handle,
               Flexible(
                 child: ListView.separated(
-                  controller: scrollController,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 48,

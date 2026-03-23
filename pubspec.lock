@@ -733,6 +733,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  sliding_panel_kit:
+    dependency: "direct main"
+    description:
+      name: sliding_panel_kit
+      sha256: "423d0569d915f6ca175683d0bcc5036430e96383996e8fe05e976564856b0d98"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.0"
   smooth_page_indicator:
     dependency: "direct main"
     description:
