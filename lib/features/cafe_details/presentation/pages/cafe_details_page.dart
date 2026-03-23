@@ -91,7 +91,11 @@ class CafeDetailsPage extends StatelessWidget {
                     const SizedBox(height: 24),
 
                     /// Tags
-                    const CafeTagsList(),
+                    CafeTagsList(
+                      tags: state is CafeDetailsLoaded
+                          ? state.data.cafeDetails.tags
+                          : const [],
+                    ),
 
                     const SizedBox(height: 24),
 

@@ -60,14 +60,18 @@ class CafeDetailsModel extends CafeDetailsEntity {
   static List<TagModel> _parseTags(Map<String, dynamic> json) {
     if (json['cafe_tags'] is List) {
       return _parseList(json['cafe_tags']).map((item) {
+        final tagPayload = item['tags'] is Map<String, dynamic>
+            ? item['tags'] as Map<String, dynamic>
+            : item['tag'] is Map<String, dynamic>
+            ? item['tag'] as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        final featuredFromJoin = item['is_featured'] ?? item['isFeatured'];
+        final featuredFromTag = tagPayload['is_featured'] ?? tagPayload['isFeatured'];
+
         final merged = <String, dynamic>{
-          ...(item['tags'] is Map<String, dynamic>
-              ? item['tags'] as Map<String, dynamic>
-              : <String, dynamic>{}),
-          ...(item['tag'] is Map<String, dynamic>
-              ? item['tag'] as Map<String, dynamic>
-              : <String, dynamic>{}),
-          'is_featured': item['is_featured'] ?? item['isFeatured'],
+          ...tagPayload,
+          'is_featured': featuredFromJoin ?? featuredFromTag,
         };
         return TagModel.fromJson(merged);
       }).toList();
