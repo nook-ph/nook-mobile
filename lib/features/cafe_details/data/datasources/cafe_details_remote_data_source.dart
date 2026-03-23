@@ -77,7 +77,6 @@ class CafeDetailsRemoteDataSource {
             id,
             name,
             category,
-            icon_name,
             created_at
           )
         ''')

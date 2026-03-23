@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class CafeInfo extends StatelessWidget {
   const CafeInfo({super.key, required this.cafe});
@@ -42,38 +42,76 @@ class CafeInfo extends StatelessWidget {
         text.contains('maya');
   }
 
-  IconData _amenityIcon(String name) {
-    final text = name.toLowerCase();
-    if (text.contains('wifi') || text.contains('wi-fi'))
-      return LucideIcons.wifi;
-    if (text.contains('air') || text.contains('ac'))
-      return LucideIcons.snowflake;
-    if (text.contains('plug') ||
-        text.contains('outlet') ||
-        text.contains('socket')) {
-      return LucideIcons.plug;
+  IconData? _iconFromTagName(String? tagName) {
+    if (tagName == null || tagName.trim().isEmpty) {
+      return null;
     }
-    if (text.contains('park')) return LucideIcons.parkingMeter;
-    if (text.contains('restroom') || text.contains('toilet')) {
-      return LucideIcons.toilet;
-    }
-    return Icons.circle_outlined;
-  }
 
-  IconData _paymentIcon(String name) {
-    final text = name.toLowerCase();
-    if (text.contains('cash')) return LucideIcons.banknote;
-    if (text.contains('card') ||
-        text.contains('credit') ||
-        text.contains('debit')) {
-      return LucideIcons.creditCard;
+    final normalized = tagName.trim().toLowerCase();
+
+    switch (normalized) {
+      case 'date spot':
+        return PhosphorIcons.heart();
+      case 'solo work / study':
+        return PhosphorIcons.laptop();
+      case 'group hangout':
+        return PhosphorIcons.users();
+      case 'book cafe':
+        return PhosphorIcons.bookOpen();
+      case 'late night':
+        return PhosphorIcons.moon();
+      case 'quick coffee':
+        return PhosphorIcons.coffee();
+      case 'family friendly':
+        return PhosphorIcons.users();
+      case 'nature cafe':
+        return PhosphorIcons.leaf();
+      case 'special occasion':
+        return PhosphorIcons.sparkle();
+      case 'specialty coffee':
+        return PhosphorIcons.coffee();
+      case 'student friendly':
+        return PhosphorIcons.graduationCap();
+      case 'aesthetic / ig-worthy':
+        return PhosphorIcons.instagramLogo();
+      case 'pet friendly':
+        return PhosphorIcons.dog();
+      case 'free wifi':
+        return PhosphorIcons.wifiHigh();
+      case 'power outlets':
+        return PhosphorIcons.plug();
+      case 'air conditioned':
+        return PhosphorIcons.snowflake();
+      case 'outdoor seating':
+        return PhosphorIcons.chair();
+      case 'parking available':
+        return PhosphorIcons.park();
+      case 'reservations accepted':
+        return PhosphorIcons.calendarCheck();
+      case 'private rooms':
+        return PhosphorIcons.doorOpen();
+      case 'wheelchair accessible':
+        return PhosphorIcons.wheelchair();
+      case 'takeaway available':
+        return PhosphorIcons.shoppingBag();
+      case 'smoking area':
+        return PhosphorIcons.cigarette();
+      case 'open 24 hours':
+        return PhosphorIcons.clock();
+      default:
+        if (normalized.contains('cash')) return PhosphorIcons.money();
+        if (normalized.contains('card') ||
+            normalized.contains('credit') ||
+            normalized.contains('debit')) {
+          return PhosphorIcons.creditCard();
+        }
+        if (normalized.contains('wallet') ||
+            normalized.contains('gcash') ||
+            normalized.contains('maya')) {
+          return PhosphorIcons.wallet();
+        }
+        return null;
     }
-    if (text.contains('wallet') ||
-        text.contains('gcash') ||
-        text.contains('maya')) {
-      return LucideIcons.wallet;
-    }
-    return LucideIcons.wallet;
   }
 
   @override
@@ -154,7 +192,9 @@ class CafeInfo extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          Icon(_amenityIcon(tag.name)),
+                          Icon(
+                            _iconFromTagName(tag.name) ?? Icons.circle_outlined,
+                          ),
                           const Gap(18),
                           Expanded(
                             child: Text(
@@ -193,7 +233,12 @@ class CafeInfo extends StatelessWidget {
                 children: bestFor.isEmpty
                     ? const [_BestForTag(label: 'No tags available')]
                     : bestFor
-                          .map((tag) => _BestForTag(label: tag.name))
+                          .map(
+                            (tag) => _BestForTag(
+                              label: tag.name,
+                              icon: _iconFromTagName(tag.name),
+                            ),
+                          )
                           .toList(),
               ),
             ],
@@ -225,7 +270,9 @@ class CafeInfo extends StatelessWidget {
                   children: paymentOptions
                       .map(
                         (payment) => _PaymentType(
-                          icon: _paymentIcon(payment.name),
+                          icon:
+                              _iconFromTagName(payment.name) ??
+                              Icons.circle_outlined,
                           label: payment.name,
                         ),
                       )
@@ -283,8 +330,8 @@ class CafeInfo extends StatelessWidget {
                   children: [
                     if ((socialLinks['instagram']?.toString().isNotEmpty ??
                         false))
-                      const Icon(
-                        LucideIcons.instagram,
+                      PhosphorIcon(
+                        PhosphorIcons.instagramLogo(PhosphorIconsStyle.regular),
                         size: 28,
                         color: Color(0xFF848685),
                       ),
@@ -295,8 +342,8 @@ class CafeInfo extends StatelessWidget {
                       const Gap(18),
                     if ((socialLinks['facebook']?.toString().isNotEmpty ??
                         false))
-                      const Icon(
-                        LucideIcons.facebook,
+                      PhosphorIcon(
+                        PhosphorIcons.facebookLogo(PhosphorIconsStyle.regular),
                         size: 28,
                         color: Color(0xFF848685),
                       ),
@@ -311,9 +358,10 @@ class CafeInfo extends StatelessWidget {
 }
 
 class _BestForTag extends StatelessWidget {
-  const _BestForTag({required this.label});
+  const _BestForTag({required this.label, this.icon});
 
   final String label;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -324,17 +372,22 @@ class _BestForTag extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF868584)),
       ),
-      child: Center(
-        widthFactor: 1,
-        heightFactor: 1,
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF868584),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: const Color(0xFF868584)),
+            const Gap(4),
+          ],
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF868584),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

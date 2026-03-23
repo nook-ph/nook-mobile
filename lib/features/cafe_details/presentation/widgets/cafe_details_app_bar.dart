@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class CafeDetailsAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CafeDetailsAppBar({super.key});
@@ -45,11 +45,7 @@ class CafeDetailsAppBar extends StatelessWidget implements PreferredSizeWidget {
                 shape: BoxShape.circle,
                 color: Colors.white,
               ),
-              child: const Icon(
-                LucideIcons.share,
-                color: Colors.black,
-                size: 16,
-              ),
+              child: Icon(PhosphorIcons.share(), color: Colors.black, size: 16),
             ),
           ),
         ),
@@ -64,11 +60,7 @@ class CafeDetailsAppBar extends StatelessWidget implements PreferredSizeWidget {
                 shape: BoxShape.circle,
                 color: Colors.white,
               ),
-              child: const Icon(
-                LucideIcons.heart,
-                color: Colors.black,
-                size: 16,
-              ),
+              child: Icon(PhosphorIcons.heart(), color: Colors.black, size: 16),
             ),
           ),
         ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class CafeTagsList extends StatelessWidget {
   const CafeTagsList({super.key, required this.tags});
@@ -24,7 +24,7 @@ class CafeTagsList extends StatelessWidget {
         separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final tag = featuredTags[index];
-          final tagIcon = _resolveIcon(tag.iconName);
+          final tagIcon = _resolveIcon(tag.name);
 
           return Container(
             alignment: Alignment.center,
@@ -63,35 +63,74 @@ class CafeTagsList extends StatelessWidget {
     );
   }
 
-  IconData? _resolveIcon(String? iconName) {
-    if (iconName == null || iconName.trim().isEmpty) {
+  IconData? _resolveIcon(String? tagName) {
+    if (tagName == null || tagName.trim().isEmpty) {
       return null;
     }
 
-    final normalized = iconName.trim().toLowerCase();
+    final name = tagName.trim().toLowerCase();
 
-    const iconMap = <String, IconData>{
-      'coffee': LucideIcons.coffee,
-      'cup-soda': LucideIcons.cupSoda,
-      'wifi': LucideIcons.wifi,
-      'book-open': LucideIcons.bookOpen,
-      'laptop': LucideIcons.laptop,
-      'armchair': LucideIcons.armchair,
-      'leaf': LucideIcons.leaf,
-      'music': LucideIcons.music,
-      'dog': LucideIcons.dog,
-      'car': LucideIcons.car,
-      'sun': LucideIcons.sun,
-      'moon': LucideIcons.moon,
-      'clock': LucideIcons.clock,
-      'sparkles': LucideIcons.sparkles,
-      'graduation-cap': LucideIcons.graduationCap,
-      'users': LucideIcons.users,
-      'user': LucideIcons.user,
-      'map-pin': LucideIcons.mapPin,
-      'heart': LucideIcons.heart,
-    };
-
-    return iconMap[normalized];
+    switch (name) {
+      case 'date spot':
+        return PhosphorIcons.heart();
+      case 'solo work / study':
+        return PhosphorIcons.laptop();
+      case 'group hangout':
+      case 'family friendly':
+        return PhosphorIcons.users();
+      case 'book cafe':
+        return PhosphorIcons.bookOpen();
+      case 'late night':
+        return PhosphorIcons.moon();
+      case 'quick coffee':
+      case 'specialty coffee':
+        return PhosphorIcons.coffee();
+      case 'nature cafe':
+        return PhosphorIcons.leaf();
+      case 'special occasion':
+        return PhosphorIcons.sparkle();
+      case 'student friendly':
+        return PhosphorIcons.graduationCap();
+      case 'aesthetic / ig-worthy':
+        return PhosphorIcons.instagramLogo();
+      case 'pet friendly':
+        return PhosphorIcons.dog();
+      case 'free wifi':
+        return PhosphorIcons.wifiHigh();
+      case 'power outlets':
+        return PhosphorIcons.plug();
+      case 'air conditioned':
+        return PhosphorIcons.snowflake();
+      case 'outdoor seating':
+        return PhosphorIcons.chair();
+      case 'parking available':
+        return PhosphorIcons.park();
+      case 'reservations accepted':
+        return PhosphorIcons.calendarCheck();
+      case 'private rooms':
+        return PhosphorIcons.doorOpen();
+      case 'wheelchair accessible':
+        return PhosphorIcons.wheelchair();
+      case 'takeaway available':
+        return PhosphorIcons.shoppingBag();
+      case 'smoking area':
+        return PhosphorIcons.cigarette();
+      case 'open 24 hours':
+        return PhosphorIcons.clock();
+      default:
+        if (name.contains('wifi')) return PhosphorIcons.wifiHigh();
+        if (name.contains('cash')) return PhosphorIcons.money();
+        if (name.contains('card') ||
+            name.contains('credit') ||
+            name.contains('debit')) {
+          return PhosphorIcons.creditCard();
+        }
+        if (name.contains('wallet') ||
+            name.contains('gcash') ||
+            name.contains('maya')) {
+          return PhosphorIcons.wallet();
+        }
+        return null;
+    }
   }
 }

@@ -67,7 +67,8 @@ class CafeDetailsModel extends CafeDetailsEntity {
             : <String, dynamic>{};
 
         final featuredFromJoin = item['is_featured'] ?? item['isFeatured'];
-        final featuredFromTag = tagPayload['is_featured'] ?? tagPayload['isFeatured'];
+        final featuredFromTag =
+            tagPayload['is_featured'] ?? tagPayload['isFeatured'];
 
         final merged = <String, dynamic>{
           ...tagPayload,
@@ -196,7 +197,6 @@ class TagModel extends TagEntity {
     required super.id,
     required super.name,
     super.category,
-    super.iconName,
     super.createdAt,
     super.isFeatured = false,
   });
@@ -206,9 +206,6 @@ class TagModel extends TagEntity {
       id: CafeDetailsModel._asString(json['id']),
       name: CafeDetailsModel._asString(json['name']),
       category: CafeDetailsModel._asNullableString(json['category']),
-      iconName: CafeDetailsModel._asNullableString(
-        json['icon_name'] ?? json['iconName'],
-      ),
       createdAt: json['created_at'] != null
           ? CafeDetailsModel._asDateTime(json['created_at'])
           : null,
