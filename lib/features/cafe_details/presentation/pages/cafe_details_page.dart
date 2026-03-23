@@ -15,6 +15,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_hours_title
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_tags_list.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/hero_image_slider.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -47,6 +48,19 @@ class CafeDetailsPage extends StatelessWidget {
             final isLoading =
                 state is CafeDetailsInitial || state is CafeDetailsLoading;
 
+            final heroImages = state is CafeDetailsLoaded
+                ? [
+                    if ((state.data.cafeDetails.featuredImageUrl ?? '')
+                        .isNotEmpty)
+                      state.data.cafeDetails.featuredImageUrl!,
+                    ...state.data.cafeDetails.photos.where(
+                      (url) =>
+                          url.isNotEmpty &&
+                          url != state.data.cafeDetails.featuredImageUrl,
+                    ),
+                  ]
+                : const <String>[];
+
             if (state is CafeDetailsError) {
               return Center(
                 child: Text(
@@ -65,20 +79,7 @@ class CafeDetailsPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     /// Hero Image
-                    Container(
-                      height: 350,
-                      width: double.infinity,
-                      color: Colors.grey[300],
-                      child: isLoading
-                          ? null
-                          : Image.network(
-                              state is CafeDetailsLoaded
-                                  ? (state.data.cafeDetails.featuredImageUrl ??
-                                        '')
-                                  : '',
-                              fit: BoxFit.cover,
-                            ),
-                    ),
+                    HeroImageSlider(images: heroImages, isLoading: isLoading),
 
                     const SizedBox(height: 24),
 

@@ -10,7 +10,7 @@ class GetCafeDetailsParams {
 
   GetCafeDetailsParams({
     required this.cafeId,
-    this.menuHighlightsLimit = 3,
+    this.menuHighlightsLimit = 6,
     this.latestReviewsLimit = 5,
     this.allMenuLimit = 50,
     this.allReviewsLimit = 50,
@@ -39,7 +39,6 @@ class GetCafeDetailsUseCase {
   GetCafeDetailsUseCase(this.repository);
 
   Future<CafeDetailsResult> call(GetCafeDetailsParams params) async {
-
     final detailsFuture = repository.getCafeDetails(
       params.cafeId,
       menuHighlightsLimit: params.menuHighlightsLimit,

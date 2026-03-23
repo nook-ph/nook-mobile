@@ -8,6 +8,7 @@ class CafeDetailsEntity {
   final double lat;
   final double lng;
   final String? featuredImageUrl;
+  final List<String> photos;
   final double rating;
   final int reviewCount;
   final bool isNew;
@@ -27,6 +28,7 @@ class CafeDetailsEntity {
     required this.lat,
     required this.lng,
     this.featuredImageUrl,
+    this.photos = const [],
     required this.rating,
     required this.reviewCount,
     required this.isNew,

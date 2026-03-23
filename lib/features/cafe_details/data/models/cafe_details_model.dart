@@ -11,6 +11,7 @@ class CafeDetailsModel extends CafeDetailsEntity {
     required super.lat,
     required super.lng,
     super.featuredImageUrl,
+    super.photos = const [],
     required super.rating,
     required super.reviewCount,
     required super.isNew,
@@ -44,6 +45,7 @@ class CafeDetailsModel extends CafeDetailsEntity {
       featuredImageUrl: _asNullableString(
         json['featured_image_url'] ?? json['featuredImageUrl'],
       ),
+      photos: _asStringList(json['photo_urls'] ?? json['photoUrls']),
       rating: _asDouble(json['rating']),
       reviewCount: _asInt(json['review_count'] ?? json['reviewCount']),
       isNew: _asBool(json['is_new'] ?? json['isNew']),
@@ -121,6 +123,22 @@ class CafeDetailsModel extends CafeDetailsEntity {
     if (value is String)
       return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
     return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  static List<String> _asStringList(dynamic value) {
+    if (value is List) {
+      return value
+          .where((item) => item != null)
+          .map((item) => item.toString())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+
+    if (value is String && value.isNotEmpty) {
+      return [value];
+    }
+
+    return const [];
   }
 
   static Map<String, dynamic> _asMap(dynamic value) {

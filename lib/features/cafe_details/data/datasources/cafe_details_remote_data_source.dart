@@ -20,6 +20,7 @@ class CafeDetailsRemoteDataSource {
           lat,
           lng,
           featured_image_url,
+          photo_urls,
           rating,
           review_count,
           operating_hours,
@@ -83,18 +84,26 @@ class CafeDetailsRemoteDataSource {
         .eq('cafe_id', cafeId);
 
     if (kDebugMode) {
-      debugPrint('[CafeDetailsRemoteDataSource] cafe_id=$cafeId cafe_tags_rows=${(response as List).length}');
+      debugPrint(
+        '[CafeDetailsRemoteDataSource] cafe_id=$cafeId cafe_tags_rows=${(response as List).length}',
+      );
     }
 
-    return (response as List).map((row) {
-      final map = Map<String, dynamic>.from(row);
-      final rawTag = map['tag'] ?? map['tags'];
-      final tagMap = rawTag is Map
-          ? Map<String, dynamic>.from(rawTag)
-          : <String, dynamic>{};
+    return (response as List)
+        .map((row) {
+          final map = Map<String, dynamic>.from(row);
+          final rawTag = map['tag'] ?? map['tags'];
+          final tagMap = rawTag is Map
+              ? Map<String, dynamic>.from(rawTag)
+              : <String, dynamic>{};
 
-      return TagModel.fromJson({...tagMap, 'is_featured': map['is_featured']});
-    }).where((tag) => tag.id.isNotEmpty && tag.name.isNotEmpty).toList();
+          return TagModel.fromJson({
+            ...tagMap,
+            'is_featured': map['is_featured'],
+          });
+        })
+        .where((tag) => tag.id.isNotEmpty && tag.name.isNotEmpty)
+        .toList();
   }
 
   Future<List<ReviewModel>> fetchCafeReviews(
