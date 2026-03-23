@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../bloc/onboarding_bloc.dart';
 import '../../data/onboarding_data.dart';
 import '../widgets/onboarding_image.dart';
@@ -20,6 +21,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _requestLocationAndFinish(BuildContext context) async {
+    await Permission.location.request();
+
+    if (!mounted) return;
+
+    context.read<AppBloc>().add(OnboardingCompleted());
   }
 
   @override
@@ -86,7 +95,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     Text(
                                       currentData.description,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(                       
+                                      style: const TextStyle(
                                         fontSize: 15,
                                         color: Color(0xFF0A0F0D),
                                         height: 1.5,
@@ -100,7 +109,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
                           const SizedBox(height: 30),
 
-                          SmoothPageIndicator(                
+                          SmoothPageIndicator(
                             controller: _pageController,
                             count: OnboardingData.items.length,
                             effect: const ExpandingDotsEffect(
@@ -116,12 +125,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           const SizedBox(height: 20),
 
                           SizedBox(
-                            width: double.infinity,                                       
+                            width: double.infinity,
                             height: 46,
                             child: ElevatedButton(
                               onPressed: () {
                                 if (state.isLastPage) {
-                                  context.read<AppBloc>().add(OnboardingCompleted());
+                                  _requestLocationAndFinish(context);
                                 } else {
                                   _pageController.nextPage(
                                     duration: const Duration(milliseconds: 300),
@@ -136,7 +145,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                 ),
                               ),
                               child: Text(
-                                state.isLastPage ? "Get Started" : "Next",
+                                state.isLastPage
+                                    ? "Enable Location & Start"
+                                    : "Next",
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 15,

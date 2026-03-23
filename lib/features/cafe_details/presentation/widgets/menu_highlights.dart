@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:nook/features/cafe_details/presentation/pages/menu_full_page.dart';
 
 class MenuHighlights extends StatelessWidget {
   const MenuHighlights({super.key, required this.width, required this.cafe});
@@ -23,15 +24,48 @@ class MenuHighlights extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 22),
-          child: Text(
-            'Menu Highlights',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Menu Highlights',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MenuFullPage(
+                        menuItems: cafe?.allMenuItems ?? [],
+                        highlights: cafe?.menuHighlights ?? [],
+                        cafeName: cafe?.cafeDetails.name,
+                      ),
+                    ),
+                  );
+                },
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'See All',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
 
@@ -88,7 +122,6 @@ class MenuHighlights extends StatelessWidget {
                               ),
                             ),
                     ),
-
                     Expanded(
                       flex: 2,
                       child: Padding(
@@ -102,12 +135,13 @@ class MenuHighlights extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(fontSize: 15),
                             ),
-
                             const Gap(2),
-
                             Text(
                               _formatPrice(item.price),
-                              style: const TextStyle(fontSize: 15),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF848685),
+                              ),
                             ),
                           ],
                         ),
