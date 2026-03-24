@@ -11,6 +11,7 @@ class CafeDetailsModel extends CafeDetailsEntity {
     required super.lat,
     required super.lng,
     super.featuredImageUrl,
+    super.photos = const [],
     required super.rating,
     required super.reviewCount,
     required super.isNew,
@@ -44,6 +45,7 @@ class CafeDetailsModel extends CafeDetailsEntity {
       featuredImageUrl: _asNullableString(
         json['featured_image_url'] ?? json['featuredImageUrl'],
       ),
+      photos: _asStringList(json['photo_urls'] ?? json['photoUrls']),
       rating: _asDouble(json['rating']),
       reviewCount: _asInt(json['review_count'] ?? json['reviewCount']),
       isNew: _asBool(json['is_new'] ?? json['isNew']),
@@ -58,14 +60,19 @@ class CafeDetailsModel extends CafeDetailsEntity {
   static List<TagModel> _parseTags(Map<String, dynamic> json) {
     if (json['cafe_tags'] is List) {
       return _parseList(json['cafe_tags']).map((item) {
+        final tagPayload = item['tags'] is Map<String, dynamic>
+            ? item['tags'] as Map<String, dynamic>
+            : item['tag'] is Map<String, dynamic>
+            ? item['tag'] as Map<String, dynamic>
+            : <String, dynamic>{};
+
+        final featuredFromJoin = item['is_featured'] ?? item['isFeatured'];
+        final featuredFromTag =
+            tagPayload['is_featured'] ?? tagPayload['isFeatured'];
+
         final merged = <String, dynamic>{
-          ...(item['tags'] is Map<String, dynamic>
-              ? item['tags'] as Map<String, dynamic>
-              : <String, dynamic>{}),
-          ...(item['tag'] is Map<String, dynamic>
-              ? item['tag'] as Map<String, dynamic>
-              : <String, dynamic>{}),
-          'is_featured': item['is_featured'] ?? item['isFeatured'],
+          ...tagPayload,
+          'is_featured': featuredFromJoin ?? featuredFromTag,
         };
         return TagModel.fromJson(merged);
       }).toList();
@@ -123,6 +130,22 @@ class CafeDetailsModel extends CafeDetailsEntity {
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
+  static List<String> _asStringList(dynamic value) {
+    if (value is List) {
+      return value
+          .where((item) => item != null)
+          .map((item) => item.toString())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+
+    if (value is String && value.isNotEmpty) {
+      return [value];
+    }
+
+    return const [];
+  }
+
   static Map<String, dynamic> _asMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
     if (value is Map) {
@@ -174,7 +197,6 @@ class TagModel extends TagEntity {
     required super.id,
     required super.name,
     super.category,
-    super.iconName,
     super.createdAt,
     super.isFeatured = false,
   });
@@ -184,9 +206,6 @@ class TagModel extends TagEntity {
       id: CafeDetailsModel._asString(json['id']),
       name: CafeDetailsModel._asString(json['name']),
       category: CafeDetailsModel._asNullableString(json['category']),
-      iconName: CafeDetailsModel._asNullableString(
-        json['icon_name'] ?? json['iconName'],
-      ),
       createdAt: json['created_at'] != null
           ? CafeDetailsModel._asDateTime(json['created_at'])
           : null,

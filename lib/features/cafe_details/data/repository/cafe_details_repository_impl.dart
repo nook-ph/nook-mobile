@@ -36,6 +36,7 @@ class CafeDetailsRepositoryImpl implements ICafeDetailsRepository {
       lat: base.lat,
       lng: base.lng,
       featuredImageUrl: base.featuredImageUrl,
+      photos: base.photos,
       rating: base.rating,
       reviewCount: base.reviewCount,
       isNew: base.isNew,

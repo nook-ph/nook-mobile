@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/day_row.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class CafeHoursTile extends StatelessWidget {
   final CafeDetailsResult? cafe;
@@ -69,7 +69,7 @@ class CafeHoursTile extends StatelessWidget {
         ),
         child: ExpansionTile(
           tilePadding: EdgeInsets.zero,
-          leading: const Icon(LucideIcons.clock, color: Colors.black, size: 20),
+          leading: Icon(PhosphorIcons.clock(), color: Colors.black, size: 20),
           title: const Text(
             'Hours',
             style: TextStyle(

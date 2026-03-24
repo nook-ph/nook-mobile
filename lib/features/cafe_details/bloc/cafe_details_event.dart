@@ -14,10 +14,10 @@ class LoadCafeDetailsRequested extends CafeDetailsEvent {
 
   const LoadCafeDetailsRequested({
     required this.cafeId,
-    this.menuHighlightsLimit = 3,
+    this.menuHighlightsLimit = 6,
     this.latestReviewsLimit = 5,
   });
 
   @override
-  List<Object?> get props => [cafeId, menuHighlightsLimit, latestReviewsLimit]; 
+  List<Object?> get props => [cafeId, menuHighlightsLimit, latestReviewsLimit];
 }
