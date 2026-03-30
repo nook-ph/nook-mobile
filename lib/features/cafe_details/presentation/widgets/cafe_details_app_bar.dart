@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart'; // Added go_router import
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class CafeDetailsAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -17,6 +18,8 @@ class CafeDetailsAppBar extends StatelessWidget implements PreferredSizeWidget {
         padding: const EdgeInsets.only(left: 22.0),
         child: Center(
           child: GestureDetector(
+            // You might also want to update this to context.pop()
+            // if you are migrating everything to go_router
             onTap: () => Navigator.pop(context),
             child: Container(
               width: 36,
@@ -56,7 +59,9 @@ class CafeDetailsAppBar extends StatelessWidget implements PreferredSizeWidget {
         const SizedBox(width: 12),
         Center(
           child: GestureDetector(
-            onTap: () {},
+            onTap: () {
+              context.push('/login');
+            },
             child: Container(
               width: 36,
               height: 36,
