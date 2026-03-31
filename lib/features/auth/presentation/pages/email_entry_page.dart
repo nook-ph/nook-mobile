@@ -2,11 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 
-class EmailEntryScreen extends StatelessWidget {
+class EmailEntryScreen extends StatefulWidget {
   const EmailEntryScreen({super.key});
 
   @override
+  State<EmailEntryScreen> createState() => _EmailEntryScreenState();
+}
+
+class _EmailEntryScreenState extends State<EmailEntryScreen> {
+  final TextEditingController _emailController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bool isEmailValid = _emailController.text.trim().isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -21,7 +44,7 @@ class EmailEntryScreen extends StatelessWidget {
         ),
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Center(
           child: Column(
             children: [
@@ -30,12 +53,10 @@ class EmailEntryScreen extends StatelessWidget {
               Column(
                 children: [
                   Image.asset('assets/logos/logoT.png', width: 110),
-
                   const Gap(22),
-
-                  Text(
+                  const Text(
                     'Log in or Sign up',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.black,
                       fontSize: 24,
                       fontWeight: FontWeight.w500,
@@ -43,13 +64,12 @@ class EmailEntryScreen extends StatelessWidget {
                   ),
                 ],
               ),
-
               const Gap(24),
-
               //input fields
               Column(
                 children: [
                   TextField(
+                    controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       hintText: 'Email Address',
@@ -67,13 +87,18 @@ class EmailEntryScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const Gap(12),
-
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: null,
+                      onPressed: isEmailValid
+                          ? () {
+                              context.push(
+                                '/signup-details',
+                                extra: _emailController.text.trim(),
+                              );
+                            }
+                          : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF344E41),
                         disabledBackgroundColor: const Color(
@@ -96,9 +121,7 @@ class EmailEntryScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-
                   const Gap(24),
-
                   Row(
                     children: [
                       const Expanded(
@@ -119,13 +142,9 @@ class EmailEntryScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   const Gap(24),
-
                   _buildSocialButton(
                     text: 'Continue with Google',
-                    // Using a standard color icon for mockup.
-                    // See note below for the official multi-color Google logo.
                     icon: Image.asset(
                       'assets/logos/googleLogo.png',
                       height: 20,
@@ -162,7 +181,6 @@ class EmailEntryScreen extends StatelessWidget {
     );
   }
 
-  // Helper method to keep the social buttons clean and reusable
   Widget _buildSocialButton({
     required String text,
     required Widget icon,
@@ -177,8 +195,8 @@ class EmailEntryScreen extends StatelessWidget {
           text,
           style: const TextStyle(
             color: Colors.black87,
-            fontSize: 16, // 👇 Changed to 14
-            fontWeight: FontWeight.w600, // 👇 w600 is semi-bold
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
           ),
         ),
         style: OutlinedButton.styleFrom(

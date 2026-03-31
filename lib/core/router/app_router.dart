@@ -6,6 +6,7 @@ import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_state.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
 import 'package:nook/features/auth/presentation/pages/email_entry_page.dart';
+import 'package:nook/features/auth/presentation/pages/signup_details_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -35,6 +36,14 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const EmailEntryScreen(),
+    ),
+
+    GoRoute(
+      path: '/signup-details',
+      builder: (context, state) {
+        final email = state.extra as String? ?? '';
+        return SignupDetailsScreen(email: email);
+      },
     ),
   ],
 );
