@@ -41,7 +41,7 @@ class SignupDetailsScreen extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  const Gap(8),
+                  const Gap(4),
                   Text(
                     'Signing up as $email',
                     style: const TextStyle(color: Colors.black87, fontSize: 14),
