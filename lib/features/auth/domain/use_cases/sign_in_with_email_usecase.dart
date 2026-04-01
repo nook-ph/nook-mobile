@@ -1,22 +1,15 @@
 import 'package:nook/features/auth/domain/repository/auth_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class SignInWithEmailUsecase {
-  final AuthRepository repository;
+class SignInWithEmailUseCase {
+  final AuthRepository _repository;
 
-  SignInWithEmailUsecase(this.repository);
+  SignInWithEmailUseCase(this._repository);
 
-  Future<void> call({
+  Future<AuthResponse> call({
     required String email,
     required String password,
   }) async {
-    
-    if (password.trim().isEmpty) {
-      throw Exception('Password cannot be empty');
-    }
-    
-    return await repository.signInWithEmail(
-      email: email,
-      password: password,
-    );
+    return _repository.signIn(email: email, password: password);
   }
 }

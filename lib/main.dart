@@ -5,6 +5,8 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/router/app_router.dart';
+import 'package:nook/features/auth/auth_injection.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -26,8 +28,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => AppBloc()..add(AppStarted()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AppBloc>(
+          create: (context) => AppBloc()..add(AppStarted()),
+        ),
+        BlocProvider<AuthBloc>(
+          create: (context) =>
+              AuthInjection.createAuthBloc()
+                ..add(const AuthSessionCheckEvent()),
+        ),
+      ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
         title: 'Nook',

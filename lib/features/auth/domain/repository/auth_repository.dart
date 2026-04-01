@@ -1,20 +1,20 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 abstract class AuthRepository {
-  Future<bool> checkEmailExists(String email);
+  Future<bool> emailExists(String email);
 
-  Future<void> signUp({
+  Future<AuthResponse> signUp({
     required String email,
-    required String fullName,
+    required String name,
     required String password,
   });
 
-  Future<void> signInWithEmail({
+  Future<AuthResponse> signIn({
     required String email,
     required String password,
   });
-
-  Future<void> signInWithGoogle();
-  Future<void> signInWithApple();
-  Future<void> signInWithFacebook();
 
   Future<void> signOut();
+
+  Session? getCurrentSession();
 }

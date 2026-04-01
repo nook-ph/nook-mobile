@@ -1,23 +1,16 @@
 import 'package:nook/features/auth/domain/repository/auth_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class SignUpWithEmailUsecase {
-  final AuthRepository repository;
+class SignUpWithEmailUseCase {
+  final AuthRepository _repository;
 
-  SignUpWithEmailUsecase(this.repository);
+  SignUpWithEmailUseCase(this._repository);
 
-  Future<void> call({
+  Future<AuthResponse> call({
     required String email,
-    required String fullName,
+    required String name,
     required String password,
   }) async {
-    if (password.length < 8) {
-      throw Exception('Password must contain at least 8 characters');
-    }
-
-    return await repository.signUp(
-      email: email,
-      fullName: fullName,
-      password: password,
-    );
+    return _repository.signUp(email: email, name: name, password: password);
   }
 }

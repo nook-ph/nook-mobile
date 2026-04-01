@@ -1,15 +1,11 @@
 import 'package:nook/features/auth/domain/repository/auth_repository.dart';
 
-class CheckEmailExistsUsecase {
-  final AuthRepository repository;
+class CheckEmailExistsUseCase {
+  final AuthRepository _repository;
 
-  CheckEmailExistsUsecase(this.repository);
+  CheckEmailExistsUseCase(this._repository);
 
   Future<bool> call(String email) async {
-    if (email.isEmpty || !email.contains('@')) {
-      throw Exception('Invalid email format');
-    }
-
-    return await repository.checkEmailExists(email);
+    return _repository.emailExists(email);
   }
 }

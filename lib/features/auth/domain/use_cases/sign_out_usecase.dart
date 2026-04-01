@@ -1,11 +1,11 @@
 import 'package:nook/features/auth/domain/repository/auth_repository.dart';
 
 class SignOutUseCase {
-  final AuthRepository repository;
+  final AuthRepository _repository;
 
-  SignOutUseCase(this.repository);
+  SignOutUseCase(this._repository);
 
   Future<void> call() async {
-    return await repository.signOut();
+    await _repository.signOut();
   }
 }

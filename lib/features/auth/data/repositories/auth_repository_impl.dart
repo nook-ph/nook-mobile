@@ -8,99 +8,41 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._remoteDataSource);
 
   @override
-  Future<bool> checkEmailExists(String email) async {
-    try {
-      return await _remoteDataSource.checkEmailExists(email);
-    } on AuthException catch (e) {
-      throw Exception(_mapAuthException(e));
-    } catch (_) {
-      throw Exception('Unable to check email right now. Please try again.');
-    }
+  Future<bool> emailExists(String email) async {
+    return _remoteDataSource.checkEmailExists(email);
   }
 
   @override
-  Future<void> signUp({
+  Future<AuthResponse> signUp({
     required String email,
-    required String fullName,
+    required String name,
     required String password,
   }) async {
-    try {
-      await _remoteDataSource.signUp(
-        email: email,
-        password: password,
-        fullName: fullName,
-      );
-    } on AuthException catch (e) {
-      throw Exception(_mapAuthException(e));
-    } catch (_) {
-      throw Exception(
-        'Unable to create your account right now. Please try again.',
-      );
-    }
+    return await _remoteDataSource.signUp(
+      email: email,
+      name: name,
+      password: password,
+    );
   }
 
   @override
-  Future<void> signInWithEmail({
+  Future<AuthResponse> signIn({
     required String email,
     required String password,
   }) async {
-    try {
-      await _remoteDataSource.signInWithPassword(
-        email: email,
-        password: password,
-      );
-    } on AuthException catch (e) {
-      throw Exception(_mapAuthException(e));
-    } catch (_) {
-      throw Exception('Unable to sign in right now. Please try again.');
-    }
+    return Supabase.instance.client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
   }
 
   @override
   Future<void> signOut() async {
-    try {
-      await _remoteDataSource.signOut();
-    } on AuthException catch (e) {
-      throw Exception(_mapAuthException(e));
-    } catch (_) {
-      throw Exception('Unable to sign out right now. Please try again.');
-    }
+    await _remoteDataSource.signOut();
   }
 
   @override
-  Future<void> signInWithGoogle() {
-    throw Exception('Google sign-in is not implemented yet.');
-  }
-
-  @override
-  Future<void> signInWithApple() {
-    throw Exception('Apple sign-in is not implemented yet.');
-  }
-
-  @override
-  Future<void> signInWithFacebook() {
-    throw Exception('Facebook sign-in is not implemented yet.');
-  }
-
-  String _mapAuthException(AuthException exception) {
-    final message = exception.message.toLowerCase();
-
-    if (message.contains('already registered') ||
-        message.contains('user already registered')) {
-      return 'An account with this email already exists.';
-    }
-
-    if (message.contains('invalid_credentials') ||
-        message.contains('invalid login credentials')) {
-      return 'Invalid email or password.';
-    }
-
-    if (message.contains('email not confirmed')) {
-      return 'Please verify your email before signing in.';
-    }
-
-    return exception.message.isNotEmpty
-        ? exception.message
-        : 'Authentication failed. Please try again.';
+  Session? getCurrentSession() {
+    return Supabase.instance.client.auth.currentSession;
   }
 }

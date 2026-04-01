@@ -7,24 +7,23 @@ class SupabaseAuthRemoteDataSource {
     : _client = client ?? Supabase.instance.client;
 
   Future<bool> checkEmailExists(String email) async {
-    final result = await _client
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .limit(1);
+    final result = await _client.rpc(
+      'check_email_exists',
+      params: {'check_email': email},
+    );
 
-    return (result as List).isNotEmpty;
+    return result as bool;
   }
 
-  Future<void> signUp({
+  Future<AuthResponse> signUp({
     required String email,
+    required String name,
     required String password,
-    required String fullName,
   }) async {
-    await _client.auth.signUp(
+    return await _client.auth.signUp(
       email: email,
       password: password,
-      data: {'name': fullName},
+      data: {'full_name': name},
     );
   }
 
