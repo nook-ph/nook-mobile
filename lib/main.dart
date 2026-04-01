@@ -4,12 +4,12 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
-import 'package:nook/core/app_state.dart';
-import 'package:nook/core/presentation/pages/main_screen.dart';
+import 'package:nook/core/router/app_router.dart';
+import 'package:nook/features/auth/auth_injection.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'features/onboarding/presentation/pages/onboarding_page.dart';
 
-void main() async{
+void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
@@ -28,29 +28,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-    
-      create: (context) => AppBloc()..add(AppStarted()),
-      child: MaterialApp(
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AppBloc>(
+          create: (context) => AppBloc()..add(AppStarted()),
+        ),
+        BlocProvider<AuthBloc>(
+          create: (context) =>
+              AuthInjection.createAuthBloc()
+                ..add(const AuthSessionCheckEvent()),
+        ),
+      ],
+      child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
         title: 'Nook',
-        home: BlocConsumer<AppBloc, AppState>(
-          listener: (context, state) {
-            if (state is! AppInitial) {
-              FlutterNativeSplash.remove();
-            }
-          },
-          
-          builder: (context, state) {
-            return switch (state) {
-              ShowOnboarding() => const OnboardingPage(),
-              ShowHome() => const MainScreen(),
-              AppInitial() => const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              ),
-            };
-          },
-        ),
+        routerConfig: appRouter,
       ),
     );
   }

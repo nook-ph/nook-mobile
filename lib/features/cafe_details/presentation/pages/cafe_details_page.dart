@@ -6,6 +6,7 @@ import 'package:skeletonizer/skeletonizer.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:nook/features/cafe_details/data/datasources/cafe_details_remote_data_source.dart';
 import 'package:nook/features/cafe_details/data/repository/cafe_details_repository_impl.dart';
@@ -166,7 +167,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                         child: _AppBarIconButton(
                           icon: PhosphorIcons.heart(),
                           iconSize: 16,
-                          onTap: () {},
+                          onTap: () {
+                            context.push('/login');
+                          },
                         ),
                       ),
                       const SizedBox(width: 22),
