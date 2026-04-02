@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/features/favorites/presentation/page/favorites_page.dart';
 import 'package:nook/features/home_page/presentation/pages/home_page.dart';
 import 'package:nook/features/map/presentation/pages/map_page.dart';
 import 'package:nook/features/profile/presentation/pages/profile_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
@@ -29,6 +31,15 @@ class MainScreen extends StatelessWidget {
             bottomNavigationBar: BottomNav(
               currentIndex: state.tabIndex,
               onTap: (index) {
+                final isProtectedTab = index == 2 || index == 3;
+                final isAuthenticated =
+                    Supabase.instance.client.auth.currentSession != null;
+
+                if (isProtectedTab && !isAuthenticated) {
+                  context.push('/login');
+                  return;
+                }
+
                 context.read<NavigationBloc>().add(TabChange(tabIndex: index));
               },
             ),

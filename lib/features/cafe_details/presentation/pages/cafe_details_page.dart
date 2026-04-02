@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
+import 'package:nook/features/favorites/bloc/favorites_events.dart';
+import 'package:nook/features/favorites/bloc/favorites_state.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
@@ -154,11 +159,55 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                       ),
                       const SizedBox(width: 12),
                       Center(
-                        child: _AppBarIconButton(
-                          icon: PhosphorIcons.heart(),
-                          iconSize: 16,
-                          onTap: () {
-                            context.push('/login');
+                        child: BlocBuilder<FavoritesBloc, FavoritesState>(
+                          builder: (context, favoritesState) {
+                            final isFavorite =
+                                favoritesState is FavoritesLoaded &&
+                                favoritesState.favorites.any(
+                                  (cafe) => cafe.id == widget.cafeId,
+                                );
+
+                            final currentSummary = state is CafeDetailsLoaded
+                                ? CafeSummary(
+                                    id: widget.cafeId,
+                                    name: state.data.cafeDetails.name,
+                                    address: state.data.cafeDetails.address,
+                                    coverImage:
+                                        state.data.cafeDetails.featuredImageUrl,
+                                    rating: state.data.cafeDetails.rating,
+                                    tags: state.data.cafeDetails.tags
+                                        .map((tag) => tag.name)
+                                        .toList(),
+                                    isFeatured: false,
+                                  )
+                                : CafeSummary(
+                                    id: widget.cafeId,
+                                    name: '',
+                                    rating: 0,
+                                  );
+
+                            return _AppBarIconButton(
+                              icon: isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              iconSize: 16,
+                              onTap: () {
+                                final session =
+                                    Supabase.instance.client.auth.currentSession;
+                                if (session == null) {
+                                  context.push('/login');
+                                  return;
+                                }
+
+                                context.read<FavoritesBloc>().add(
+                                  ToggleFavoriteEvent(
+                                    widget.cafeId,
+                                    currentSummary,
+                                    userId: session.user.id,
+                                  ),
+                                );
+                              },
+                            );
                           },
                         ),
                       ),

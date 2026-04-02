@@ -236,6 +236,102 @@ class CafeRemoteDataSource {
       );
     }
   }
+
+  Future<List<CafeSummaryModel>> fetchFavorites({String? userId}) async {
+    try {
+      final resolvedUserId = _resolveUserId(userId);
+
+      final response = await supabase
+          .from('user_favorites')
+          .select('''
+          created_at,
+          cafe:cafes!user_favorites_cafe_id_fkey (
+            id,
+            name,
+            address,
+            rating,
+            featured_image_url,
+            system_badge,
+            cafe_tags ( is_featured, tags ( name ) )
+          )
+        ''')
+          .eq('user_id', resolvedUserId)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .map((row) => Map<String, dynamic>.from(row))
+          .map((row) => row['cafe'])
+          .whereType<Map>()
+          .map((cafe) => Map<String, dynamic>.from(cafe))
+          .map(CafeSummaryModel.fromJson)
+          .toList();
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch favorite cafes.',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch favorite cafes.',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<void> addFavorite(String cafeId, {String? userId}) async {
+    try {
+      final resolvedUserId = _resolveUserId(userId);
+      await supabase.from('user_favorites').upsert({
+        'user_id': resolvedUserId,
+        'cafe_id': cafeId,
+      });
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to add favorite cafe for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      throw CafeFetchException(
+        'Failed to add favorite cafe for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<void> removeFavorite(String cafeId, {String? userId}) async {
+    try {
+      final resolvedUserId = _resolveUserId(userId);
+      await supabase
+          .from('user_favorites')
+          .delete()
+          .eq('user_id', resolvedUserId)
+          .eq('cafe_id', cafeId);
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to remove favorite cafe for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      throw CafeFetchException(
+        'Failed to remove favorite cafe for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  String _resolveUserId(String? userId) {
+    final resolved = userId ?? supabase.auth.currentUser?.id;
+    if (resolved == null || resolved.isEmpty) {
+      throw const CafeFetchException('No authenticated user for favorites.');
+    }
+    return resolved;
+  }
 }
 
 class CafeBundleModel {

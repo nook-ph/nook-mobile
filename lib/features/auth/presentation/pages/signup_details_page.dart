@@ -69,8 +69,12 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
         final canSubmit = name.isNotEmpty && password.isNotEmpty && !isLoading;
 
         return Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
             elevation: 0,
+            scrolledUnderElevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.black),
               onPressed: () => context.go('/login', extra: email),
