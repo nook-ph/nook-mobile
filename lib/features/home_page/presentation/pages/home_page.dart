@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/injection_container.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
-import 'package:nook/features/home_page/data/datasources/home_remote_data_source.dart';
-import 'package:nook/features/home_page/data/repositories/home_repository_impl.dart';
-import 'package:nook/features/home_page/domain/use_cases/get_home_cafes_usecase.dart';
 import 'package:nook/features/home_page/presentation/widgets/featured_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
 import 'package:nook/features/home_page/presentation/widgets/recommended_card.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -19,14 +16,8 @@ class HomePage extends StatelessWidget {
     final double screenWidth = MediaQuery.of(context).size.width;
     final double cardWidth = screenWidth - 44;
 
-    final supabase = Supabase.instance.client;
-    final dataSource = HomeRemoteDataSource(supabase);
-    final repository = HomeRepositoryImpl(dataSource);
-    final useCase = GetHomeCafesUseCase(repository);
-
     return BlocProvider(
-      create: (context) =>
-          HomeBloc(getHomeCafesUseCase: useCase)..add(LoadHomeDataEvent()),
+      create: (_) => sl<HomeBloc>()..add(LoadHomeDataEvent()),
 
       child: Scaffold(
         backgroundColor: Colors.white,

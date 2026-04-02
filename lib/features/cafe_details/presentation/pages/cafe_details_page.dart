@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -8,18 +9,12 @@ import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:nook/features/cafe_details/data/datasources/cafe_details_remote_data_source.dart';
-import 'package:nook/features/cafe_details/data/repository/cafe_details_repository_impl.dart';
-import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
-
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_hours_title.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_tags_list.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/hero_image_slider.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
-
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({super.key, required this.cafeId});
@@ -61,14 +56,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final menuCardWidth = ((screenWidth - 44) / 2) - 6;
 
-    final supabase = Supabase.instance.client;
-    final dataSource = CafeDetailsRemoteDataSource(supabase);
-    final repository = CafeDetailsRepositoryImpl(dataSource);
-    final useCase = GetCafeDetailsUseCase(repository);
-
     return BlocProvider(
-      create: (context) =>
-          CafeDetailsBloc(getCafeDetailsUseCase: useCase)
+      create: (_) =>
+          sl<CafeDetailsBloc>()
             ..add(LoadCafeDetailsRequested(cafeId: widget.cafeId)),
       child: Scaffold(
         backgroundColor: Colors.white,
