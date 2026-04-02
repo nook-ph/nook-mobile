@@ -19,5 +19,11 @@ abstract class ICafeRepository {
     bool includeReviews = true,
   });
 
+  Future<List<CafeSummary>> getFavoriteCafes({String? userId});
+
+  Future<void> addFavoriteCafe(String cafeId, {String? userId});
+
+  Future<void> removeFavoriteCafe(String cafeId, {String? userId});
+
   Future<void> warmCache(List<CafeSummary> summaries);
 }

@@ -108,6 +108,35 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
+  Future<List<CafeSummary>> getFavoriteCafes({String? userId}) async {
+    final favorites = await remoteDataSource.fetchFavorites(userId: userId);
+
+    return favorites
+        .map(
+          (item) => CafeSummary(
+            id: item.id,
+            name: item.name,
+            address: item.address,
+            coverImage: item.featuredImageUrl,
+            rating: item.rating,
+            tags: item.tags,
+            isFeatured: item.systemBadge != null,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<void> addFavoriteCafe(String cafeId, {String? userId}) {
+    return remoteDataSource.addFavorite(cafeId, userId: userId);
+  }
+
+  @override
+  Future<void> removeFavoriteCafe(String cafeId, {String? userId}) {
+    return remoteDataSource.removeFavorite(cafeId, userId: userId);
+  }
+
+  @override
   Future<void> warmCache(List<CafeSummary> summaries) async {
     for (final summary in summaries) {
       final existing = store.get(summary.id);

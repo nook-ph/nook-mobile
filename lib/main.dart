@@ -7,6 +7,8 @@ import 'package:nook/core/app_event.dart';
 import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
+import 'package:nook/features/favorites/bloc/favorites_events.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -40,6 +42,9 @@ class MyApp extends StatelessWidget {
           create: (context) =>
               AuthInjection.createAuthBloc()
                 ..add(const AuthSessionCheckEvent()),
+        ),
+        BlocProvider<FavoritesBloc>(
+          create: (_) => sl<FavoritesBloc>()..add(LoadFavoritesEvent()),
         ),
       ],
       child: MaterialApp.router(

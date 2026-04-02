@@ -10,15 +10,12 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
+    final isAuthenticated = user != null;
     final name = (user?.userMetadata?['full_name'] as String?) ?? 'No name';
     final email = user?.email ?? user?.userMetadata?['email'] ?? 'No email';
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthUnauthenticated) {
-          context.go('/login');
-        }
-
         if (state is AuthError) {
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
@@ -38,12 +35,18 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text('Email: $email', style: const TextStyle(fontSize: 16)),
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<AuthBloc>().add(const AuthSignOutEvent());
-                    },
-                    child: const Text('Logout'),
-                  ),
+                  if (isAuthenticated)
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<AuthBloc>().add(const AuthSignOutEvent());
+                      },
+                      child: const Text('Logout'),
+                    )
+                  else
+                    ElevatedButton(
+                      onPressed: () => context.push('/login'),
+                      child: const Text('Login'),
+                    ),
                 ],
               ),
             ),
