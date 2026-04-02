@@ -21,13 +21,23 @@ class CafeSummaryModel extends CafeSummaryEntity {
       }
     }
 
+    final rawSystemBadge = json['system_badge'];
+    final String? parsedSystemBadge;
+    if (rawSystemBadge is bool) {
+      parsedSystemBadge = rawSystemBadge ? 'featured' : null;
+    } else if (rawSystemBadge is String) {
+      parsedSystemBadge = rawSystemBadge.trim().isEmpty ? null : rawSystemBadge;
+    } else {
+      parsedSystemBadge = null;
+    }
+
     return CafeSummaryModel(
       id: json['id'],
       name: json['name'],
       address: json['address'],
       rating: (json['rating'] as num).toDouble(),
       featuredImageUrl: json['featured_image_url'],
-      systemBadge: json['system_badge'],
+      systemBadge: parsedSystemBadge,
       tags: parsedTags,
     );
   }
