@@ -77,7 +77,12 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
         final canSubmit = email.isNotEmpty && !isLoading;
 
         return Scaffold(
+          backgroundColor: Colors.white,
           appBar: AppBar(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            elevation: 0,
+            scrolledUnderElevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
