@@ -4,6 +4,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CafeRepositoryImpl implements ICafeRepository {
   final CafeRemoteDataSource remoteDataSource;
@@ -109,6 +110,10 @@ class CafeRepositoryImpl implements ICafeRepository {
 
   @override
   Future<List<CafeSummary>> getFavoriteCafes({String? userId}) async {
+    if (Supabase.instance.client.auth.currentUser == null) {
+      return [];
+    }
+
     final favorites = await remoteDataSource.fetchFavorites(userId: userId);
 
     return favorites

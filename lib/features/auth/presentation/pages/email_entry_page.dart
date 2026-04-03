@@ -94,7 +94,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
               },
             ),
           ),
-          body: SingleChildScrollView( // Added to prevent overflow with the new buttons
+          body: SingleChildScrollView(
+            // Added to prevent overflow with the new buttons
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
@@ -127,7 +128,9 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE0E0E0),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -141,7 +144,10 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           _emailError!,
-                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -158,7 +164,9 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                             0xFF344E41,
                           ).withOpacity(0.5),
                           foregroundColor: Colors.white,
-                          disabledForegroundColor: Colors.white.withOpacity(0.8),
+                          disabledForegroundColor: Colors.white.withOpacity(
+                            0.8,
+                          ),
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(vertical: 18),
                           shape: RoundedRectangleBorder(
@@ -189,7 +197,10 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                     Row(
                       children: [
                         const Expanded(
-                          child: Divider(color: Color(0xFFE0E0E0), thickness: 1),
+                          child: Divider(
+                            color: Color(0xFFE0E0E0),
+                            thickness: 1,
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -202,7 +213,10 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                           ),
                         ),
                         const Expanded(
-                          child: Divider(color: Color(0xFFE0E0E0), thickness: 1),
+                          child: Divider(
+                            color: Color(0xFFE0E0E0),
+                            thickness: 1,
+                          ),
                         ),
                       ],
                     ),
@@ -239,10 +253,11 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         size: 28,
                       ),
                       onPressed: () {
-                        // TODO: Implement Facebook Sign-In (using the Supabase flow configured earlier)
+                        context.read<AuthBloc>().add(
+                          const AuthSignInWithFacebookEvent(),
+                        );
                       },
                     ),
-
                   ],
                 ),
               ),

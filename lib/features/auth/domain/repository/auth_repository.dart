@@ -1,4 +1,11 @@
+import 'package:dartz/dartz.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+class Failure {
+  final String message;
+
+  const Failure(this.message);
+}
 
 abstract class AuthRepository {
   Future<bool> emailExists(String email);
@@ -15,6 +22,8 @@ abstract class AuthRepository {
   });
 
   Future<void> signOut();
+
+  Future<Either<Failure, void>> signInWithFacebook();
 
   Session? getCurrentSession();
 }
