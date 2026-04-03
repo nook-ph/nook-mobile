@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:like_button/like_button.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_events.dart';
@@ -186,27 +187,51 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                     rating: 0,
                                   );
 
-                            return _AppBarIconButton(
-                              icon: isFavorite
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              iconSize: 16,
-                              onTap: () {
-                                final session =
-                                    Supabase.instance.client.auth.currentSession;
-                                if (session == null) {
-                                  context.push('/login');
-                                  return;
-                                }
+                            return Container(
+                              width: 40,
+                              height: 40,
+                              alignment: Alignment.center,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                              ),
+                              child: LikeButton(
+                                size:
+                                    40, // Matches container size to ensure exact centering
+                                padding: EdgeInsets.zero,
+                                isLiked: isFavorite,
+                                onTap: (isLiked) async {
+                                  final session = Supabase
+                                      .instance
+                                      .client
+                                      .auth
+                                      .currentSession;
+                                  if (session == null) {
+                                    context.push('/login');
+                                    return false;
+                                  }
 
-                                context.read<FavoritesBloc>().add(
-                                  ToggleFavoriteEvent(
-                                    widget.cafeId,
-                                    currentSummary,
-                                    userId: session.user.id,
+                                  context.read<FavoritesBloc>().add(
+                                    ToggleFavoriteEvent(
+                                      widget.cafeId,
+                                      currentSummary,
+                                      userId: session.user.id,
+                                    ),
+                                  );
+                                  return !isLiked;
+                                },
+                                likeBuilder: (isLiked) => Center(
+                                  child: Icon(
+                                    isLiked
+                                        ? PhosphorIcons.heart(
+                                            PhosphorIconsStyle.fill,
+                                          )
+                                        : PhosphorIcons.heart(),
+                                    color: isLiked ? Colors.red : Colors.black,
+                                    size: 16,
                                   ),
-                                );
-                              },
+                                ),
+                              ),
                             );
                           },
                         ),
@@ -344,13 +369,16 @@ class _AppBarIconButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
         ),
-        child: Icon(icon, color: Colors.black, size: iconSize),
+        child: Center(
+          child: Icon(icon, color: Colors.black, size: iconSize),
+        ),
       ),
     );
   }
