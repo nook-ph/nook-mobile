@@ -21,6 +21,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_tags_list.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/hero_image_slider.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/reviews_section.dart';
 
 class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({super.key, required this.cafeId});
@@ -340,6 +341,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                         ),
 
                         const SizedBox(height: 40),
+
+                        ReviewsSection(onSeeMoreTap: () {}),
                       ],
                     ),
                   ),
