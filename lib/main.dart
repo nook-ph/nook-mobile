@@ -4,13 +4,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
+import 'package:nook/core/app_state.dart';
 import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_events.dart';
 import 'package:nook/injection_container.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +52,30 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Nook',
         routerConfig: appRouter,
+        builder: (context, child) {
+          return BlocListener<AuthBloc, AuthState>(
+            listenWhen: (previous, current) {
+              return current is AuthAuthenticated || current is AuthLoggedOut;
+            },
+            listener: (context, state) {
+              final appState = context.read<AppBloc>().state;
+              if (appState is! ShowHome) {
+                return;
+              }
+
+              if (state is AuthAuthenticated) {
+                appRouter.go('/');
+                context.read<FavoritesBloc>().add(
+                  LoadFavoritesEvent(userId: state.user.id),
+                );
+              } else if (state is AuthLoggedOut) {
+                appRouter.go('/login');
+                context.read<FavoritesBloc>().add(LoadFavoritesEvent());
+              }
+            },
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
       ),
     );
   }

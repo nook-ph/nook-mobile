@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nook</string>
+    <string name="facebook_app_id">1994507491273239</string>
+    <string name="facebook_client_token">36ebf6eadad49db033a1fed1e93e54ff</string>
+    <string name="fb_login_protocol_scheme">fb1994507491273239</string>
+</resources>

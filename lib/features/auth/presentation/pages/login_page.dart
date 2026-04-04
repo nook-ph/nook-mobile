@@ -38,10 +38,6 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
 
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthAuthenticated) {
-          context.go('/');
-        }
-
         if (state is AuthError) {
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()

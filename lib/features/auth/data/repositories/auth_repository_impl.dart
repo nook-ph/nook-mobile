@@ -1,3 +1,4 @@
+import 'package:dartz/dartz.dart';
 import 'package:nook/features/auth/data/datasources/supabase_auth_remote_data_source.dart';
 import 'package:nook/features/auth/domain/repository/auth_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -39,6 +40,26 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> signOut() async {
     await _remoteDataSource.signOut();
+  }
+
+  @override
+  Future<Either<Failure, void>> signInWithFacebook() async {
+    try {
+      await _remoteDataSource.signInWithFacebook();
+      return const Right<Failure, void>(null);
+    } catch (e) {
+      return Left(Failure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> signInWithGoogle(String webClientId) async {
+    try {
+      await _remoteDataSource.signInWithGoogle(webClientId);
+      return const Right<Failure, void>(null);
+    } catch (e) {
+      return Left(Failure(e.toString()));
+    }
   }
 
   @override
