@@ -229,7 +229,9 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         width: 20,
                       ),
                       onPressed: () {
-                        // TODO: Implement Google Sign-In
+                        context.read<AuthBloc>().add(
+                          const AuthSignInWithGoogleEvent(),
+                        );
                       },
                     ),
                     const SizedBox(height: 12),

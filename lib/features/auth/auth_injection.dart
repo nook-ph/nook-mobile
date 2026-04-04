@@ -4,6 +4,7 @@ import 'package:nook/features/auth/domain/repository/auth_repository.dart';
 import 'package:nook/features/auth/domain/use_cases/check_email_exists_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/get_current_session_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_facebook.dart';
+import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_email_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_out_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_up_with_email_usecase.dart';
@@ -31,6 +32,9 @@ class AuthInjection {
   static final SignInWithFacebook _signInWithFacebookUseCase =
       SignInWithFacebook(_authRepository);
 
+  static final SignInWithGoogleUseCase _signInWithGoogleUseCase =
+      SignInWithGoogleUseCase(_authRepository);
+
   static final SignOutUseCase _signOutUseCase = SignOutUseCase(_authRepository);
 
   static final GetCurrentSessionUseCase _getCurrentSessionUseCase =
@@ -44,6 +48,7 @@ class AuthInjection {
       signUpWithEmailUseCase: _signUpWithEmailUseCase,
       signInWithEmailUseCase: _signInWithEmailUseCase,
       signInWithFacebookUseCase: _signInWithFacebookUseCase,
+      signInWithGoogleUseCase: _signInWithGoogleUseCase,
       signOutUseCase: _signOutUseCase,
       getCurrentSessionUseCase: _getCurrentSessionUseCase,
     );

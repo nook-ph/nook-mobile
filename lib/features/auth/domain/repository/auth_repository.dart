@@ -25,5 +25,7 @@ abstract class AuthRepository {
 
   Future<Either<Failure, void>> signInWithFacebook();
 
+  Future<Either<Failure, void>> signInWithGoogle(String webClientId);
+
   Session? getCurrentSession();
 }

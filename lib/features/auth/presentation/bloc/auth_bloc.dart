@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/features/auth/domain/use_cases/check_email_exists_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/get_current_session_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_facebook.dart';
+import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_email_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_out_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_up_with_email_usecase.dart';
@@ -15,21 +16,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignUpWithEmailUseCase _signUpWithEmailUseCase;
   final SignInWithEmailUseCase _signInWithEmailUseCase;
   final SignInWithFacebook _signInWithFacebookUseCase;
+  final SignInWithGoogleUseCase _signInWithGoogleUseCase;
   final SignOutUseCase _signOutUseCase;
   final GetCurrentSessionUseCase _getCurrentSessionUseCase;
   StreamSubscription? _facebookAuthStateSubscription;
+  static const String _googleWebClientId =
+      '190651012817-4l9qejfb0uhpr6jstk1hl2b6ish2gjfo.apps.googleusercontent.com';
 
   AuthBloc({
     required CheckEmailExistsUseCase checkEmailExistsUseCase,
     required SignUpWithEmailUseCase signUpWithEmailUseCase,
     required SignInWithEmailUseCase signInWithEmailUseCase,
     required SignInWithFacebook signInWithFacebookUseCase,
+    required SignInWithGoogleUseCase signInWithGoogleUseCase,
     required SignOutUseCase signOutUseCase,
     required GetCurrentSessionUseCase getCurrentSessionUseCase,
   }) : _checkEmailExistsUseCase = checkEmailExistsUseCase,
        _signUpWithEmailUseCase = signUpWithEmailUseCase,
        _signInWithEmailUseCase = signInWithEmailUseCase,
        _signInWithFacebookUseCase = signInWithFacebookUseCase,
+       _signInWithGoogleUseCase = signInWithGoogleUseCase,
        _signOutUseCase = signOutUseCase,
        _getCurrentSessionUseCase = getCurrentSessionUseCase,
        super(AuthInitial()) {
@@ -37,6 +43,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignUpEvent>(_onSignUp);
     on<AuthSignInEvent>(_onSignIn);
     on<AuthSignInWithFacebookEvent>(_onSignInWithFacebook);
+    on<AuthSignInWithGoogleEvent>(_onSignInWithGoogle);
     on<AuthFacebookSessionSettledEvent>(_onFacebookSessionSettled);
     on<AuthSignOutEvent>(_onSignOut);
     on<AuthSessionCheckEvent>(_onSessionCheck);
@@ -155,6 +162,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await _facebookAuthStateSubscription?.cancel();
     _facebookAuthStateSubscription = null;
     emit(AuthAuthenticated(event.user));
+  }
+
+  Future<void> _onSignInWithGoogle(
+    AuthSignInWithGoogleEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+
+    final result = await _signInWithGoogleUseCase(_googleWebClientId);
+    await result.fold((failure) async => emit(AuthError(failure.message)), (
+      _,
+    ) async {
+      final session = _getCurrentSessionUseCase();
+      final user = session?.user;
+      if (user != null) {
+        emit(AuthAuthenticated(user));
+        return;
+      }
+
+      emit(const AuthUnauthenticated());
+    });
   }
 
   Future<void> _onSignOut(
@@ -298,6 +326,10 @@ class AuthSignInEvent extends AuthEvent {
 
 class AuthSignInWithFacebookEvent extends AuthEvent {
   const AuthSignInWithFacebookEvent();
+}
+
+class AuthSignInWithGoogleEvent extends AuthEvent {
+  const AuthSignInWithGoogleEvent();
 }
 
 class AuthFacebookSessionSettledEvent extends AuthEvent {

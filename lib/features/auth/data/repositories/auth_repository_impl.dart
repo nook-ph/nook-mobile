@@ -53,6 +53,16 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> signInWithGoogle(String webClientId) async {
+    try {
+      await _remoteDataSource.signInWithGoogle(webClientId);
+      return const Right<Failure, void>(null);
+    } catch (e) {
+      return Left(Failure(e.toString()));
+    }
+  }
+
+  @override
   Session? getCurrentSession() {
     return Supabase.instance.client.auth.currentSession;
   }
