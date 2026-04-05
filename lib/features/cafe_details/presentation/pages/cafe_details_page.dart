@@ -391,6 +391,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   builder: (_) => MultiBlocProvider(
                                     providers: [
                                       BlocProvider.value(
+                                        value: context.read<CafeDetailsBloc>(),
+                                      ),
+                                      BlocProvider.value(
                                         value: context.read<ReviewsBloc>(),
                                       ),
                                       BlocProvider.value(

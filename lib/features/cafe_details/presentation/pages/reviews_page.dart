@@ -33,11 +33,6 @@ class _ReviewsPageState extends State<ReviewsPage> {
   void initState() {
     super.initState();
 
-    final reviewsState = context.read<ReviewsBloc>().state;
-    if (reviewsState is ReviewsLoaded && reviewsState.cafeId == widget.cafeId) {
-      return;
-    }
-
     context.read<ReviewsBloc>().add(
       LoadReviewsRequested(cafeId: widget.cafeId),
     );
@@ -93,8 +88,15 @@ class _ReviewsPageState extends State<ReviewsPage> {
             }
 
             final reviews = state.reviews;
-            final resolvedReviewCount = widget.reviewCount ?? reviews.length;
-            final resolvedRating = widget.cafeRating ?? _averageRating(reviews);
+            final computedReviewCount = reviews.length;
+            final computedRating = _averageRating(reviews);
+
+            final resolvedReviewCount = computedReviewCount > 0
+                ? computedReviewCount
+                : (widget.reviewCount ?? 0);
+            final resolvedRating = computedReviewCount > 0
+                ? computedRating
+                : (widget.cafeRating ?? 0);
             final distribution = _buildDistribution(reviews);
 
             return ListView(

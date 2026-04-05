@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
-import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
@@ -18,8 +16,6 @@ class ReviewsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cafeState = context.select((CafeDetailsBloc bloc) => bloc.state);
-
     return BlocBuilder<ReviewsBloc, ReviewsState>(
       builder: (context, state) {
         if (state is ReviewsError) {
@@ -36,15 +32,8 @@ class ReviewsSection extends StatelessWidget {
         }
 
         final displayedReviews = reviews.take(3).toList();
-        final cafeRating = cafeState is CafeDetailsLoaded
-            ? cafeState.data.cafeDetails.rating
-            : null;
-        final reviewCount = cafeState is CafeDetailsLoaded
-            ? cafeState.data.cafeDetails.reviewCount
-            : null;
-
-        final resolvedReviewCount = reviewCount ?? reviews.length;
-        final resolvedRating = cafeRating ?? _averageRating(reviews);
+        final resolvedReviewCount = reviews.length;
+        final resolvedRating = _averageRating(reviews);
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22),
