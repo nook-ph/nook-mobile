@@ -1,4 +1,5 @@
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CafeDetailsModel extends CafeDetailsEntity {
   CafeDetailsModel({
@@ -229,10 +230,44 @@ class ReviewModel extends ReviewEntity {
   });
 
   factory ReviewModel.fromJson(Map<String, dynamic> json) {
+    final profile = _extractRelationObject(json['profile']);
+    final profiles = _extractRelationObject(json['profiles']);
+    final users = _extractRelationObject(json['users']);
+    final user = _extractRelationObject(json['user']);
+    final parsedUserId = CafeDetailsModel._asString(
+      json['user_id'] ?? json['userId'],
+    );
+    final currentUser = Supabase.instance.client.auth.currentUser;
+    final currentUserDisplayName =
+        currentUser != null && currentUser.id == parsedUserId
+        ? CafeDetailsModel._asNullableString(
+            currentUser.userMetadata?['full_name'] ??
+                currentUser.userMetadata?['name'] ??
+                currentUser.userMetadata?['user_name'] ??
+                currentUser.email,
+          )
+        : null;
+    final resolvedName = CafeDetailsModel._asNullableString(
+      profile?['full_name'] ??
+          profiles?['full_name'] ??
+          users?['full_name'] ??
+          user?['full_name'] ??
+          profile?['username'] ??
+          profiles?['username'] ??
+          users?['username'] ??
+          user?['username'] ??
+          profile?['name'] ??
+          profiles?['name'] ??
+          users?['name'] ??
+          user?['name'] ??
+          currentUserDisplayName ??
+          json['name'],
+    );
+
     return ReviewModel(
       id: CafeDetailsModel._asString(json['id']),
       cafeId: CafeDetailsModel._asString(json['cafe_id'] ?? json['cafeId']),
-      userId: CafeDetailsModel._asString(json['user_id'] ?? json['userId']),
+      userId: parsedUserId,
       rating: CafeDetailsModel._asInt(json['rating']),
       content: CafeDetailsModel._asString(json['content']),
       createdAt: CafeDetailsModel._asDateTime(
@@ -241,15 +276,23 @@ class ReviewModel extends ReviewEntity {
       updatedAt: CafeDetailsModel._asDateTime(
         json['updated_at'] ?? json['updatedAt'],
       ),
-      name: CafeDetailsModel._asNullableString(
-        json['name'] ??
-            json['profiles']?['name'] ??
-            json['users']?['name'] ??
-            json['user']?['name'] ??
-            json['profiles']?['full_name'] ??
-            json['users']?['full_name'] ??
-            json['user']?['full_name'],
-      ),
+      name: resolvedName,
     );
+  }
+
+  static Map<String, dynamic>? _extractRelationObject(dynamic relation) {
+    if (relation is Map) {
+      return Map<String, dynamic>.from(relation);
+    }
+
+    if (relation is List) {
+      for (final item in relation) {
+        if (item is Map) {
+          return Map<String, dynamic>.from(item);
+        }
+      }
+    }
+
+    return null;
   }
 }

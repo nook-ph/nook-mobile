@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 
 class RatingReviewSummary extends StatelessWidget {
-  const RatingReviewSummary({super.key});
+  const RatingReviewSummary({
+    super.key,
+    this.rating = 0,
+    this.reviewCount = 0,
+    this.onWriteReviewTap,
+    this.distribution,
+  });
+
+  final double rating;
+  final int reviewCount;
+  final VoidCallback? onWriteReviewTap;
+  final List<RatingDistributionData>? distribution;
 
   void _showFilterBottomSheet(BuildContext context) {
     showModalBottomSheet<void>(
@@ -70,13 +80,15 @@ class RatingReviewSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const distribution = <_RatingRowData>[
-      _RatingRowData(star: 5, fill: 0.60),
-      _RatingRowData(star: 4, fill: 0.22),
-      _RatingRowData(star: 3, fill: 0.10),
-      _RatingRowData(star: 2, fill: 0.05),
-      _RatingRowData(star: 1, fill: 0.08),
+    const defaultDistribution = <RatingDistributionData>[
+      RatingDistributionData(star: 5, fill: 0),
+      RatingDistributionData(star: 4, fill: 0),
+      RatingDistributionData(star: 3, fill: 0),
+      RatingDistributionData(star: 2, fill: 0),
+      RatingDistributionData(star: 1, fill: 0),
     ];
+
+    final resolvedDistribution = distribution ?? defaultDistribution;
 
     return ColoredBox(
       color: Colors.white,
@@ -85,14 +97,14 @@ class RatingReviewSummary extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.star_rounded, color: Colors.black, size: 32),
-                SizedBox(width: 8),
+                const Icon(Icons.star_rounded, color: Colors.black, size: 32),
+                const SizedBox(width: 8),
                 Text(
-                  '4.2',
-                  style: TextStyle(
+                  rating.toStringAsFixed(1),
+                  style: const TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.w700,
                     color: Colors.black,
@@ -102,21 +114,21 @@ class RatingReviewSummary extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            const Text(
-              '643 Reviews',
-              style: TextStyle(
+            Text(
+              '$reviewCount Reviews',
+              style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
                 color: Color(0xFF616161),
               ),
             ),
             const SizedBox(height: 20),
-            _RatingDistributionList(rows: distribution),
+            _RatingDistributionList(rows: resolvedDistribution),
             const SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => WriteReviewSheet.show(context),
+                onPressed: onWriteReviewTap,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF344E41),
                   foregroundColor: Colors.white,
@@ -169,7 +181,7 @@ class RatingReviewSummary extends StatelessWidget {
 class _RatingDistributionList extends StatelessWidget {
   const _RatingDistributionList({required this.rows});
 
-  final List<_RatingRowData> rows;
+  final List<RatingDistributionData> rows;
 
   @override
   Widget build(BuildContext context) {
@@ -232,8 +244,8 @@ class _RatingDistributionRow extends StatelessWidget {
   }
 }
 
-class _RatingRowData {
-  const _RatingRowData({required this.star, required this.fill});
+class RatingDistributionData {
+  const RatingDistributionData({required this.star, required this.fill});
 
   final int star;
   final double fill;

@@ -1,12 +1,26 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/review_submit_event.dart';
+import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
+import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
+import 'package:nook/injection_container.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WriteReviewSheet extends StatefulWidget {
-  const WriteReviewSheet({super.key});
+  const WriteReviewSheet({super.key, required this.cafeId});
 
-  static Future<void> show(BuildContext context) {
+  final String cafeId;
+
+  static Future<void> show(BuildContext context, {required String cafeId}) {
+    final submitBloc =
+        context.read<ReviewSubmitBloc?>() ?? sl<ReviewSubmitBloc>();
+
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -15,7 +29,10 @@ class WriteReviewSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => const WriteReviewSheet(),
+      builder: (_) => BlocProvider.value(
+        value: submitBloc,
+        child: WriteReviewSheet(cafeId: cafeId),
+      ),
     );
   }
 
@@ -76,199 +93,289 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     }
   }
 
+  Future<void> _submitReview(BuildContext context) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    if (_selectedRating == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a rating before submitting.'),
+        ),
+      );
+      return;
+    }
+
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (context.mounted) {
+        Navigator.of(context).pop();
+        context.push('/login');
+      }
+      return;
+    }
+
+    final reviewsBloc = context.read<ReviewsBloc?>();
+    if (reviewsBloc != null) {
+      final reviewsState = reviewsBloc.state;
+      if (reviewsState is ReviewsLoaded) {
+        final hasAlreadyReviewed = reviewsState.reviews.any(
+          (review) => review.userId == user.id,
+        );
+
+        if (hasAlreadyReviewed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You already submitted a review for this cafe.'),
+            ),
+          );
+          return;
+        }
+      }
+    }
+
+    context.read<ReviewSubmitBloc>().add(
+      SubmitReviewRequested(
+        cafeId: widget.cafeId,
+        userId: user.id,
+        rating: _selectedRating,
+        content: _reviewController.text,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: IconButton(
-              onPressed: () => Navigator.of(context).maybePop(),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: const Icon(Icons.close, color: Colors.black, size: 24),
-            ),
+    return BlocConsumer<ReviewSubmitBloc, ReviewSubmitState>(
+      listener: (context, state) {
+        if (state is ReviewSubmitSuccess) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Review submitted successfully.')),
+          );
+        }
+
+        if (state is ReviewSubmitError) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.message)));
+        }
+      },
+      builder: (context, state) {
+        final isSubmitting = state is ReviewSubmitting;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          const SizedBox(height: 28),
-          const Text(
-            'How was your visit?',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(5, (index) {
-              final bool isFilled = index < _selectedRating;
-              return IconButton(
-                onPressed: () {
-                  setState(() {
-                    _selectedRating = index + 1;
-                  });
-                },
-                iconSize: 48,
-                splashRadius: 28,
-                icon: Icon(
-                  Icons.star_rounded,
-                  color: isFilled
-                      ? const Color(0xFF344E41)
-                      : const Color(0xFFCCCCCC),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 22,
-            child: Center(
-              child: _selectedRating == 0
-                  ? const SizedBox.shrink()
-                  : Text(
-                      _ratingLabel(_selectedRating),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.black,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            'Share your experience...',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: _reviewController,
-            maxLines: 6,
-            minLines: 6,
-            decoration: InputDecoration(
-              hintText:
-                  'Tell us about the atmosphere, the coffee, and the service...',
-              hintStyle: const TextStyle(
-                color: Color(0xFFBDBDBD),
-                fontSize: 14,
-              ),
-              filled: true,
-              fillColor: const Color(0xFFF2F2F2),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Text(
-                  'Add photos (Max 3)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.close, color: Colors.black, size: 24),
                 ),
               ),
-              Text(
-                'Optional',
+              const SizedBox(height: 28),
+              const Text(
+                'How was your visit?',
+                textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF9E9E9E),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: _pickPhoto,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFBDBDBD)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  final bool isFilled = index < _selectedRating;
+                  return IconButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () {
+                            setState(() {
+                              _selectedRating = index + 1;
+                            });
+                          },
+                    iconSize: 48,
+                    splashRadius: 28,
+                    icon: Icon(
+                      Icons.star_rounded,
+                      color: isFilled
+                          ? const Color(0xFF344E41)
+                          : const Color(0xFFCCCCCC),
                     ),
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_a_photo, size: 24, color: Colors.black),
-                        SizedBox(height: 6),
-                        Text(
-                          'UPLOAD',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                  );
+                }),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 22,
+                child: Center(
+                  child: _selectedRating == 0
+                      ? const SizedBox.shrink()
+                      : Text(
+                          _ratingLabel(_selectedRating),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
                             color: Colors.black,
                           ),
                         ),
-                      ],
-                    ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Share your experience...',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _reviewController,
+                maxLines: 6,
+                minLines: 6,
+                enabled: !isSubmitting,
+                decoration: InputDecoration(
+                  hintText:
+                      'Tell us about the atmosphere, the coffee, and the service...',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFFBDBDBD),
+                    fontSize: 14,
                   ),
+                  filled: true,
+                  fillColor: const Color(0xFFF2F2F2),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.all(16),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(child: _PhotoSlot(file: _photos[1])),
-              const SizedBox(width: 10),
-              Expanded(child: _PhotoSlot(file: _photos[2])),
-            ],
-          ),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF344E41),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 18),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
+              const SizedBox(height: 24),
+              const Row(
                 children: [
-                  Text(
-                    'Submit Review',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                  Expanded(
+                    child: Text(
+                      'Add photos (Max 3)',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+                  Text(
+                    'Optional',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF9E9E9E),
+                    ),
+                  ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      onTap: isSubmitting ? null : _pickPhoto,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFBDBDBD)),
+                        ),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_a_photo,
+                              size: 24,
+                              color: Colors.black,
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'UPLOAD',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: _PhotoSlot(file: _photos[1])),
+                  const SizedBox(width: 10),
+                  Expanded(child: _PhotoSlot(file: _photos[2])),
+                ],
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isSubmitting ? null : () => _submitReview(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF344E41),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Submit Review',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
-          const SizedBox(height: 32),
-        ],
-      ),
+        );
+      },
     );
   }
 }

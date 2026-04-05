@@ -202,7 +202,7 @@ class CafeRemoteDataSource {
           content,
           created_at,
           updated_at,
-          profiles (
+          profile:profiles!reviews_user_id_fkey (
             username,
             full_name
           )
@@ -231,6 +231,92 @@ class CafeRemoteDataSource {
     } catch (e, st) {
       throw CafeFetchException(
         'Failed to fetch cafe bundle for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<List<ReviewModel>> fetchReviewsByCafeId(String cafeId) async {
+    try {
+      final response = await supabase
+          .from('reviews')
+          .select('''
+            id,
+            cafe_id,
+            user_id,
+            rating,
+            content,
+            created_at,
+            updated_at,
+            profile:profiles!reviews_user_id_fkey (
+              username,
+              full_name
+            )
+          ''')
+          .eq('cafe_id', cafeId)
+          .order('created_at', ascending: false);
+
+      return (response as List)
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .map(ReviewModel.fromJson)
+          .toList();
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch cafe reviews for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch cafe reviews for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<ReviewModel> insertReview({
+    required String cafeId,
+    required String userId,
+    required int rating,
+    required String content,
+  }) async {
+    try {
+      final response = await supabase
+          .from('reviews')
+          .insert({
+            'cafe_id': cafeId,
+            'user_id': userId,
+            'rating': rating,
+            'content': content,
+          })
+          .select('''
+            id,
+            cafe_id,
+            user_id,
+            rating,
+            content,
+            created_at,
+            updated_at,
+            profile:profiles!reviews_user_id_fkey (
+              username,
+              full_name
+            )
+          ''')
+          .single();
+
+      return ReviewModel.fromJson(Map<String, dynamic>.from(response));
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to insert review for cafe id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      throw CafeFetchException(
+        'Failed to insert review for cafe id "$cafeId".',
         cause: e,
         stackTrace: st,
       );
