@@ -23,6 +23,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/hero_image_slide
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
 import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_section.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 
 class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({super.key, required this.cafeId});
@@ -350,6 +351,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                 builder: (_) => const ReviewsPage(),
                               ),
                             );
+                          },
+                          onWriteReviewTap: () {
+                            WriteReviewSheet.show(context);
                           },
                         ),
                       ],

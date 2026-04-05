@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 
 class RatingReviewSummary extends StatelessWidget {
   const RatingReviewSummary({super.key});
@@ -114,23 +115,20 @@ class RatingReviewSummary extends StatelessWidget {
             const SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  side: const BorderSide(color: Color(0xFFE0E0E0), width: 1.2),
+              child: ElevatedButton(
+                onPressed: () => WriteReviewSheet.show(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF344E41),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: const Text(
-                  'Write a review',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
+                  'Write a Review',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                 ),
               ),
             ),
@@ -152,7 +150,11 @@ class RatingReviewSummary extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Icon(Icons.tune_rounded, size: 20, color: Color(0xFF616161)),
+                    Icon(
+                      Icons.tune_rounded,
+                      size: 20,
+                      color: Color(0xFF616161),
+                    ),
                   ],
                 ),
               ),
