@@ -109,6 +109,52 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
+  Future<List<Review>> getCafeReviewsById(String cafeId) async {
+    final reviews = await remoteDataSource.fetchReviewsByCafeId(cafeId);
+
+    return reviews
+        .map(
+          (item) => Review(
+            id: item.id,
+            cafeId: item.cafeId,
+            userId: item.userId,
+            rating: item.rating,
+            content: item.content,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            name: item.name,
+          ),
+        )
+        .toList();
+  }
+
+  @override
+  Future<Review> addCafeReview({
+    required String cafeId,
+    required String userId,
+    required int rating,
+    required String content,
+  }) async {
+    final inserted = await remoteDataSource.insertReview(
+      cafeId: cafeId,
+      userId: userId,
+      rating: rating,
+      content: content,
+    );
+
+    return Review(
+      id: inserted.id,
+      cafeId: inserted.cafeId,
+      userId: inserted.userId,
+      rating: inserted.rating,
+      content: inserted.content,
+      createdAt: inserted.createdAt,
+      updatedAt: inserted.updatedAt,
+      name: inserted.name,
+    );
+  }
+
+  @override
   Future<List<CafeSummary>> getFavoriteCafes({String? userId}) async {
     if (Supabase.instance.client.auth.currentUser == null) {
       return [];

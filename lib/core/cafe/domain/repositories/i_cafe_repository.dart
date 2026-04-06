@@ -19,6 +19,15 @@ abstract class ICafeRepository {
     bool includeReviews = true,
   });
 
+  Future<List<Review>> getCafeReviewsById(String cafeId);
+
+  Future<Review> addCafeReview({
+    required String cafeId,
+    required String userId,
+    required int rating,
+    required String content,
+  });
+
   Future<List<CafeSummary>> getFavoriteCafes({String? userId});
 
   Future<void> addFavoriteCafe(String cafeId, {String? userId});

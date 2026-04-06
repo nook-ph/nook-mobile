@@ -3,12 +3,16 @@ import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/data/cafe_repository_impl.dart';
 import 'package:nook/core/cafe/data/cafe_store.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/cafe/domain/usecases/add_review_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/add_favorite_cafe_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/get_cafe_details_usecase.dart';
+import 'package:nook/core/cafe/domain/usecases/get_cafe_reviews_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/get_favorite_cafes_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/get_cafe_summaries_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/remove_favorite_cafe_usecase.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -37,6 +41,12 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<GetCafeDetailsUseCase>(
     () => GetCafeDetailsUseCase(sl<ICafeRepository>()),
   );
+  sl.registerLazySingleton<GetCafeReviewsUseCase>(
+    () => GetCafeReviewsUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<AddReviewUseCase>(
+    () => AddReviewUseCase(sl<ICafeRepository>()),
+  );
   sl.registerLazySingleton<GetFavoriteCafesUseCase>(
     () => GetFavoriteCafesUseCase(sl<ICafeRepository>()),
   );
@@ -53,6 +63,12 @@ Future<void> initDependencies() async {
   );
   sl.registerFactory<CafeDetailsBloc>(
     () => CafeDetailsBloc(getCafeDetailsUseCase: sl<GetCafeDetailsUseCase>()),
+  );
+  sl.registerFactory<ReviewsBloc>(
+    () => ReviewsBloc(getCafeReviewsUseCase: sl<GetCafeReviewsUseCase>()),
+  );
+  sl.registerFactory<ReviewSubmitBloc>(
+    () => ReviewSubmitBloc(addReviewUseCase: sl<AddReviewUseCase>()),
   );
   sl.registerLazySingleton<FavoritesBloc>(
     () => FavoritesBloc(

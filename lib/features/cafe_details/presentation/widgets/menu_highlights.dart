@@ -32,7 +32,7 @@ class MenuHighlights extends StatelessWidget {
               const Text(
                 'Menu Highlights',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.w500,
                   color: Colors.black,
                 ),

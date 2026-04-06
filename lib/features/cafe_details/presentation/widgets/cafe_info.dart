@@ -160,7 +160,7 @@ class CafeInfo extends StatelessWidget {
           const Text(
             'Details',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 20,
               fontWeight: FontWeight.w500,
               color: Colors.black,
             ),
