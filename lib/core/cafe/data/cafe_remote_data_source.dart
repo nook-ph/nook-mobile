@@ -200,6 +200,7 @@ class CafeRemoteDataSource {
           user_id,
           rating,
           content,
+          image_urls,
           created_at,
           updated_at,
           profile:profiles!reviews_user_id_fkey (
@@ -247,6 +248,7 @@ class CafeRemoteDataSource {
             user_id,
             rating,
             content,
+            image_urls,
             created_at,
             updated_at,
             profile:profiles!reviews_user_id_fkey (
@@ -282,6 +284,7 @@ class CafeRemoteDataSource {
     required String userId,
     required int rating,
     required String content,
+    List<String> imageUrls = const [],
   }) async {
     try {
       final response = await supabase
@@ -291,6 +294,7 @@ class CafeRemoteDataSource {
             'user_id': userId,
             'rating': rating,
             'content': content,
+            'image_urls': imageUrls,
           })
           .select('''
             id,
@@ -298,6 +302,7 @@ class CafeRemoteDataSource {
             user_id,
             rating,
             content,
+            image_urls,
             created_at,
             updated_at,
             profile:profiles!reviews_user_id_fkey (

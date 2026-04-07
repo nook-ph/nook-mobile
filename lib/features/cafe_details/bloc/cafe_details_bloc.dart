@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart' as core;
@@ -33,7 +32,6 @@ class CafeDetailsBloc extends Bloc<CafeDetailsEvent, CafeDetailsState> {
 
       emit(CafeDetailsLoaded(result));
     } catch (e) {
-      debugPrint('[CafeDetailsBloc] Fetch Error: $e');
       emit(CafeDetailsError(e.toString()));
     }
   }
@@ -66,6 +64,7 @@ class CafeDetailsBloc extends Bloc<CafeDetailsEvent, CafeDetailsState> {
             userId: item.userId,
             rating: item.rating,
             content: item.content,
+            imageUrls: item.imageUrls,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
             name: item.name,

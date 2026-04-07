@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -135,16 +137,60 @@ class CafeDetailsModel extends CafeDetailsEntity {
     if (value is List) {
       return value
           .where((item) => item != null)
-          .map((item) => item.toString())
+          .map((item) => _normalizeStringItem(item.toString()))
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+
+    if (value is Map) {
+      return value.values
+          .where((item) => item != null)
+          .map((item) => _normalizeStringItem(item.toString()))
           .where((item) => item.isNotEmpty)
           .toList();
     }
 
     if (value is String && value.isNotEmpty) {
-      return [value];
+      final trimmed = value.trim();
+
+      if ((trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+          (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is List) {
+            return _asStringList(decoded);
+          }
+        } catch (_) {
+          // Fallback to Postgres array syntax parsing below.
+        }
+
+        if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+          final inner = trimmed.substring(1, trimmed.length - 1).trim();
+          if (inner.isEmpty) return const [];
+          return inner
+              .split(',')
+              .map(_normalizeStringItem)
+              .where((item) => item.isNotEmpty)
+              .toList();
+        }
+      }
+
+      final normalized = _normalizeStringItem(trimmed);
+      if (normalized.isNotEmpty) {
+        return [normalized];
+      }
     }
 
     return const [];
+  }
+
+  static String _normalizeStringItem(String value) {
+    var result = value.trim();
+    if ((result.startsWith('"') && result.endsWith('"')) ||
+        (result.startsWith("'") && result.endsWith("'"))) {
+      result = result.substring(1, result.length - 1).trim();
+    }
+    return result;
   }
 
   static Map<String, dynamic> _asMap(dynamic value) {
@@ -224,6 +270,7 @@ class ReviewModel extends ReviewEntity {
     required super.userId,
     required super.rating,
     required super.content,
+    super.imageUrls = const [],
     required super.createdAt,
     required super.updatedAt,
     super.name,
@@ -270,6 +317,9 @@ class ReviewModel extends ReviewEntity {
       userId: parsedUserId,
       rating: CafeDetailsModel._asInt(json['rating']),
       content: CafeDetailsModel._asString(json['content']),
+      imageUrls: CafeDetailsModel._asStringList(
+        json['image_urls'] ?? json['imageUrls'],
+      ),
       createdAt: CafeDetailsModel._asDateTime(
         json['created_at'] ?? json['createdAt'],
       ),

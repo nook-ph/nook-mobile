@@ -3,17 +3,21 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart' as core;
 import 'package:nook/core/cafe/domain/usecases/add_review_usecase.dart';
+import 'package:nook/core/upload/domain/usecases/upload_review_images_usecase.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_event.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 
 class ReviewSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState> {
-  ReviewSubmitBloc({required this.addReviewUseCase})
-    : super(const ReviewSubmitInitial()) {
+  ReviewSubmitBloc({
+    required this.addReviewUseCase,
+    required this.uploadReviewImagesUseCase,
+  }) : super(const ReviewSubmitInitial()) {
     on<SubmitReviewRequested>(_onSubmitReviewRequested);
   }
 
   final AddReviewUseCase addReviewUseCase;
+  final UploadReviewImagesUseCase uploadReviewImagesUseCase;
 
   Future<void> _onSubmitReviewRequested(
     SubmitReviewRequested event,
@@ -22,12 +26,20 @@ class ReviewSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState> {
     emit(const ReviewSubmitting());
 
     try {
+      final uploadedImages = await uploadReviewImagesUseCase.call(
+        cafeId: event.cafeId,
+        userId: event.userId,
+        images: event.photos,
+        accessToken: event.accessToken,
+      );
+
       final inserted = await addReviewUseCase
           .call(
             cafeId: event.cafeId,
             userId: event.userId,
             rating: event.rating,
             content: event.content,
+            imageUrls: uploadedImages.map((item) => item.publicUrl).toList(),
           )
           .timeout(
             const Duration(seconds: 15),
@@ -48,6 +60,7 @@ class ReviewSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState> {
       userId: review.userId,
       rating: review.rating,
       content: review.content,
+      imageUrls: review.imageUrls,
       createdAt: review.createdAt,
       updatedAt: review.updatedAt,
       name: review.name,
@@ -71,6 +84,12 @@ class ReviewSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState> {
         message.contains('unique') ||
         message.contains('already submitted')) {
       return 'You already submitted a review for this cafe.';
+    }
+
+    if (message.contains('upload') ||
+        message.contains('presign') ||
+        message.contains('s3')) {
+      return 'Image upload failed. Please try again.';
     }
 
     if (error is TimeoutException || message.contains('timed out')) {

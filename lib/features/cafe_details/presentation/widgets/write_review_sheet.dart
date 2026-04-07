@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -58,12 +59,25 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     super.dispose();
   }
 
-  Future<void> _pickPhoto() async {
-    final int targetIndex = _photos.indexWhere((photo) => photo == null, 1);
-    if (targetIndex == -1) {
-      return;
-    }
+  Future<File> _compressImage(File file) async {
+    final filePath = file.path;
+    final ext = filePath.split('.').last.toLowerCase();
+    final targetPath = filePath.replaceAll('.$ext', '_compressed.$ext');
 
+    final result = await FlutterImageCompress.compressAndGetFile(
+      filePath,
+      targetPath,
+      quality: 75,
+      minWidth: 1280,
+      minHeight: 1280,
+      format: ext == 'png' ? CompressFormat.png : CompressFormat.jpeg,
+    );
+
+    if (result == null) return file;
+    return File(result.path);
+  }
+
+  Future<void> _pickPhoto(int targetIndex) async {
     final XFile? picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
     );
@@ -71,8 +85,10 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       return;
     }
 
+    final file = await _compressImage(File(picked.path));
+
     setState(() {
-      _photos[targetIndex] = File(picked.path);
+      _photos[targetIndex] = file;
     });
   }
 
@@ -133,12 +149,26 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       }
     }
 
+    final selectedPhotos = _photos.whereType<File>().toList(growable: false);
+
+    String? accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
+    if (accessToken == null || accessToken.isEmpty) {
+      try {
+        final refreshed = await Supabase.instance.client.auth.refreshSession();
+        accessToken = refreshed.session?.accessToken;
+      } catch (_) {
+        // Continue; submit will handle unauthenticated state gracefully.
+      }
+    }
+
     context.read<ReviewSubmitBloc>().add(
       SubmitReviewRequested(
         cafeId: widget.cafeId,
         userId: user.id,
         rating: _selectedRating,
         content: _reviewController.text,
+        photos: selectedPhotos,
+        accessToken: accessToken,
       ),
     );
   }
@@ -290,42 +320,25 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: InkWell(
-                      onTap: isSubmitting ? null : _pickPhoto,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFBDBDBD)),
-                        ),
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.add_a_photo,
-                              size: 24,
-                              color: Colors.black,
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'UPLOAD',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    child: _PhotoSlot(
+                      file: _photos[0],
+                      onTap: isSubmitting ? null : () => _pickPhoto(0),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  Expanded(child: _PhotoSlot(file: _photos[1])),
+                  Expanded(
+                    child: _PhotoSlot(
+                      file: _photos[1],
+                      onTap: isSubmitting ? null : () => _pickPhoto(1),
+                    ),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: _PhotoSlot(file: _photos[2])),
+                  Expanded(
+                    child: _PhotoSlot(
+                      file: _photos[2],
+                      onTap: isSubmitting ? null : () => _pickPhoto(2),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 32),
@@ -381,30 +394,43 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
 }
 
 class _PhotoSlot extends StatelessWidget {
-  const _PhotoSlot({required this.file});
+  const _PhotoSlot({required this.file, this.onTap});
 
   final File? file;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    if (file != null) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          height: 100,
-          child: Image.file(file!, fit: BoxFit.cover),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          color: file == null ? const Color(0xFFEEEEEE) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFBDBDBD)),
         ),
-      );
-    }
-
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEEEEE),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Center(
-        child: Icon(Icons.image_outlined, size: 28, color: Color(0xFFBDBDBD)),
+        child: file != null
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(11),
+                child: Image.file(file!, fit: BoxFit.cover),
+              )
+            : const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_a_photo, size: 24, color: Colors.black),
+                  SizedBox(height: 6),
+                  Text(
+                    'UPLOAD',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }

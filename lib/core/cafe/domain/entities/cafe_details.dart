@@ -82,6 +82,7 @@ class Review {
   final String userId;
   final int rating;
   final String content;
+  final List<String> imageUrls;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? name;
@@ -92,6 +93,7 @@ class Review {
     required this.userId,
     required this.rating,
     required this.content,
+    this.imageUrls = const [],
     required this.createdAt,
     required this.updatedAt,
     this.name,

@@ -26,6 +26,7 @@ abstract class ICafeRepository {
     required String userId,
     required int rating,
     required String content,
+    List<String> imageUrls = const [],
   });
 
   Future<List<CafeSummary>> getFavoriteCafes({String? userId});

@@ -298,6 +298,10 @@ class _ReviewCardState extends State<ReviewCard> {
     final reviewPreview = hasOverflow
         ? '${reviewContent.substring(0, _collapsedCharLimit).trimRight()}...'
         : reviewContent;
+    final resolvedImageUrls = widget.review.imageUrls
+      .map(_resolveImageUrl)
+      .where((url) => url.isNotEmpty)
+      .toList(growable: false);
 
     return Container(
       width: double.infinity,
@@ -361,11 +365,13 @@ class _ReviewCardState extends State<ReviewCard> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
+              const SizedBox(width: 8),
+              Flexible(
+                fit: FlexFit.loose,
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: List.generate(5, (index) {
                       final isFilled = index < widget.review.rating;
                       return Icon(
@@ -375,7 +381,7 @@ class _ReviewCardState extends State<ReviewCard> {
                       );
                     }),
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -390,6 +396,10 @@ class _ReviewCardState extends State<ReviewCard> {
               color: Color(0xFF848685),
             ),
           ),
+          if (resolvedImageUrls.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _buildImageStrip(resolvedImageUrls),
+          ],
           if (hasOverflow) ...[
             const SizedBox(height: 8),
             GestureDetector(
@@ -421,10 +431,134 @@ class _ReviewCardState extends State<ReviewCard> {
     return name.trim()[0].toUpperCase();
   }
 
+  Widget _buildImageStrip(List<String> imageUrls) {
+    final visibleUrls = imageUrls.take(3).toList(growable: false);
+    final count = visibleUrls.length;
+    final height = _imageHeightForCount(count);
+
+    if (count == 1) {
+      return _buildImageTile(url: visibleUrls.first, height: height);
+    }
+
+    return SizedBox(
+      height: height,
+      child: Row(
+        children: [
+          for (int i = 0; i < visibleUrls.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(
+              child: _buildImageTile(url: visibleUrls[i], height: height),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageTile({required String url, required double height}) {
+    return SizedBox(
+      height: height,
+      width: double.infinity,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.network(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) {
+            return Container(
+              color: const Color(0xFFF0F0F0),
+              child: const Icon(
+                Icons.broken_image_outlined,
+                color: Color(0xFFBDBDBD),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  double _imageHeightForCount(int count) {
+    if (count <= 1) return 156;
+    if (count == 2) return 122;
+    return 94;
+  }
+
   String _formatDate(DateTime date) {
     final mm = date.month.toString().padLeft(2, '0');
     final dd = date.day.toString().padLeft(2, '0');
     final yy = (date.year % 100).toString().padLeft(2, '0');
     return '$mm/$dd/$yy';
+  }
+
+  String _resolveImageUrl(String raw) {
+    var candidate = raw.trim();
+    if (candidate.isEmpty) return '';
+
+    if ((candidate.startsWith('"') && candidate.endsWith('"')) ||
+        (candidate.startsWith("'") && candidate.endsWith("'"))) {
+      candidate = candidate.substring(1, candidate.length - 1).trim();
+    }
+
+    if (candidate.startsWith('//')) {
+      candidate = 'https:$candidate';
+    }
+
+    // Repair malformed values like "https://https://host/path".
+    while (true) {
+      final lowered = candidate.toLowerCase();
+      if (lowered.startsWith('https://https://')) {
+        candidate = 'https://${candidate.substring('https://https://'.length)}';
+        continue;
+      }
+      if (lowered.startsWith('http://http://')) {
+        candidate = 'http://${candidate.substring('http://http://'.length)}';
+        continue;
+      }
+      if (lowered.startsWith('http://https://')) {
+        candidate = 'https://${candidate.substring('http://https://'.length)}';
+        continue;
+      }
+      if (lowered.startsWith('https://http://')) {
+        candidate = 'https://${candidate.substring('https://http://'.length)}';
+        continue;
+      }
+      break;
+    }
+
+    Uri? parsed;
+    try {
+      parsed = Uri.parse(candidate);
+    } catch (_) {
+      return '';
+    }
+
+    if ((parsed.host == 'https' || parsed.host == 'http') &&
+        parsed.path.startsWith('//')) {
+      candidate = 'https:${parsed.path}';
+      try {
+        parsed = Uri.parse(candidate);
+      } catch (_) {
+        return '';
+      }
+    }
+
+    if (!parsed.hasScheme) {
+      candidate = 'https://$candidate';
+      try {
+        parsed = Uri.parse(candidate);
+      } catch (_) {
+        return '';
+      }
+    }
+
+    if (parsed.scheme == 'http' &&
+        parsed.host.isNotEmpty &&
+        parsed.host != 'localhost' &&
+        parsed.host != '127.0.0.1') {
+      parsed = parsed.replace(scheme: 'https');
+    }
+
+    return parsed.toString();
   }
 }

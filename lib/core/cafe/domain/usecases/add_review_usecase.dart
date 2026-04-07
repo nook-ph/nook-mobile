@@ -11,6 +11,7 @@ class AddReviewUseCase {
     required String userId,
     required int rating,
     required String content,
+    List<String> imageUrls = const [],
   }) {
     if (cafeId.trim().isEmpty) {
       throw ArgumentError('Cafe id is required.');
@@ -29,6 +30,7 @@ class AddReviewUseCase {
       userId: userId,
       rating: rating,
       content: content.trim(),
+      imageUrls: imageUrls,
     );
   }
 }
