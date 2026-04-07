@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart' as core;
 import 'package:nook/core/cafe/domain/usecases/add_review_usecase.dart';
@@ -27,21 +26,11 @@ class ReviewSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState> {
     emit(const ReviewSubmitting());
 
     try {
-      debugPrint(
-        '[ReviewSubmit] start cafeId=${event.cafeId} userId=${event.userId} '
-        'rating=${event.rating} photos=${event.photos.length} '
-        'hasAccessToken=${event.accessToken != null && event.accessToken!.isNotEmpty}',
-      );
-
       final uploadedImages = await uploadReviewImagesUseCase.call(
         cafeId: event.cafeId,
         userId: event.userId,
         images: event.photos,
         accessToken: event.accessToken,
-      );
-
-      debugPrint(
-        '[ReviewSubmit] upload done uploaded=${uploadedImages.length}',
       );
 
       final inserted = await addReviewUseCase
@@ -58,12 +47,8 @@ class ReviewSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState> {
                 throw TimeoutException('Review submission timed out.'),
           );
 
-      debugPrint('[ReviewSubmit] review insert success id=${inserted.id}');
-
       emit(ReviewSubmitSuccess(review: _toFeatureReview(inserted)));
-    } catch (e, st) {
-      debugPrint('[ReviewSubmit] failed error=$e');
-      debugPrintStack(stackTrace: st);
+    } catch (e) {
       emit(ReviewSubmitError(_mapErrorMessage(e)));
     }
   }

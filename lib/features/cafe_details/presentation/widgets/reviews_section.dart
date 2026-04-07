@@ -464,8 +464,7 @@ class _ReviewCardState extends State<ReviewCard> {
         child: Image.network(
           url,
           fit: BoxFit.cover,
-          errorBuilder: (_, error, ___) {
-            debugPrint('[ReviewCard] image load failed url=$url error=$error');
+          errorBuilder: (_, __, ___) {
             return Container(
               color: const Color(0xFFF0F0F0),
               child: const Icon(

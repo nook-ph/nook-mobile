@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:nook/core/upload/data/review_image_upload_exception.dart';
 import 'package:nook/core/upload/domain/entities/uploaded_review_image.dart';
@@ -30,14 +29,8 @@ class ReviewImageUploadRemoteDataSource {
     String? accessToken,
   }) async {
     if (images.isEmpty) {
-      debugPrint('[ReviewUpload] skipped, no images selected.');
       return const [];
     }
-
-    debugPrint(
-      '[ReviewUpload] start cafeId=$cafeId userId=$userId images=${images.length} '
-      'apiBaseUrl=$apiBaseUrl presignPath=$presignPath',
-    );
 
     final uploaded = <UploadedReviewImage>[];
 
@@ -45,10 +38,6 @@ class ReviewImageUploadRemoteDataSource {
       final file = images[index];
       final fileName = file.path.split(Platform.pathSeparator).last;
       final fileExt = fileName.contains('.') ? fileName.split('.').last : 'jpg';
-      final fileSize = await file.length();
-      debugPrint(
-        '[ReviewUpload] file[$index] name=$fileName ext=$fileExt bytes=$fileSize',
-      );
 
       final presign = await _requestPresignedUpload(
         cafeId: cafeId,
@@ -58,13 +47,7 @@ class ReviewImageUploadRemoteDataSource {
         accessToken: accessToken,
       );
 
-      debugPrint(
-        '[ReviewUpload] file[$index] presign success key=${presign.objectKey}',
-      );
-
       await _uploadToS3(file: file, uploadUrl: presign.uploadUrl);
-
-      debugPrint('[ReviewUpload] file[$index] s3 PUT success.');
 
       uploaded.add(
         UploadedReviewImage(
@@ -73,8 +56,6 @@ class ReviewImageUploadRemoteDataSource {
         ),
       );
     }
-
-    debugPrint('[ReviewUpload] completed uploaded=${uploaded.length}');
 
     return uploaded;
   }
@@ -108,13 +89,6 @@ class ReviewImageUploadRemoteDataSource {
 
     try {
       final headers = await _buildJsonHeaders(accessTokenOverride: accessToken);
-      debugPrint('[ReviewUpload] presign POST endpoint=$endpoint');
-      debugPrint(
-        '[ReviewUpload] presign authHeaderPresent=${headers.containsKey('Authorization')}',
-      );
-      debugPrint(
-        '[ReviewUpload] presign usingOverrideToken=${accessToken != null && accessToken.isNotEmpty}',
-      );
 
       final response = await httpClient
           .post(
@@ -123,13 +97,6 @@ class ReviewImageUploadRemoteDataSource {
             body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 15));
-
-      final bodyPreview = response.body.length > 500
-          ? '${response.body.substring(0, 500)}...'
-          : response.body;
-      debugPrint(
-        '[ReviewUpload] presign status=${response.statusCode} body=$bodyPreview',
-      );
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ReviewImageUploadException(
@@ -160,15 +127,8 @@ class ReviewImageUploadRemoteDataSource {
         publicUrl: publicUrl,
       );
     } on ReviewImageUploadException {
-      debugPrint(
-        '[ReviewUpload] presign failed for file=$fileName index=$index.',
-      );
       rethrow;
     } catch (e, st) {
-      debugPrint(
-        '[ReviewUpload] presign exception file=$fileName index=$index error=$e',
-      );
-      debugPrintStack(stackTrace: st);
       throw ReviewImageUploadException(
         'Unable to prepare image upload.',
         cause: e,
@@ -187,11 +147,6 @@ class ReviewImageUploadRemoteDataSource {
     final fileExt = fileName.contains('.') ? fileName.split('.').last : 'jpg';
 
     try {
-      debugPrint(
-        '[ReviewUpload] PUT host=${uri.host} path=${uri.path} '
-        'contentType=${_contentTypeFor(fileExt)} bytes=${bytes.length}',
-      );
-
       final response = await httpClient
           .put(
             uri,
@@ -203,22 +158,14 @@ class ReviewImageUploadRemoteDataSource {
           )
           .timeout(const Duration(seconds: 30));
 
-      final etag = response.headers['etag'];
-      debugPrint(
-        '[ReviewUpload] PUT status=${response.statusCode} etag=${etag ?? 'none'}',
-      );
-
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ReviewImageUploadException(
           'Image upload failed. HTTP ${response.statusCode}.',
         );
       }
     } on ReviewImageUploadException {
-      debugPrint('[ReviewUpload] PUT failed for file=$fileName.');
       rethrow;
     } catch (e, st) {
-      debugPrint('[ReviewUpload] PUT exception file=$fileName error=$e');
-      debugPrintStack(stackTrace: st);
       throw ReviewImageUploadException(
         'Image upload failed.',
         cause: e,
@@ -237,19 +184,13 @@ class ReviewImageUploadRemoteDataSource {
     if (authToken == null || authToken.isEmpty) {
       try {
         authToken = await authTokenRefresher?.call();
-      } catch (e) {
-        debugPrint('[ReviewUpload] token refresh failed: $e');
+      } catch (_) {
+        // Ignore token refresh errors and proceed with available credentials.
       }
     }
 
     if (authToken != null && authToken.isNotEmpty) {
-      final tokenParts = authToken.split('.');
-      debugPrint(
-        '[ReviewUpload] token debug length=${authToken.length} parts=${tokenParts.length}',
-      );
       headers['Authorization'] = 'Bearer $authToken';
-    } else {
-      debugPrint('[ReviewUpload] token debug missing access token.');
     }
 
     return headers;

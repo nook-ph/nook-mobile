@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -64,15 +63,10 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       source: ImageSource.gallery,
     );
     if (picked == null) {
-      debugPrint('[WriteReviewSheet] pick cancelled slot=$targetIndex');
       return;
     }
 
     final file = File(picked.path);
-    final fileSize = await file.length();
-    debugPrint(
-      '[WriteReviewSheet] picked slot=$targetIndex path=${picked.path} bytes=$fileSize',
-    );
 
     setState(() {
       _photos[targetIndex] = file;
@@ -143,15 +137,10 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       try {
         final refreshed = await Supabase.instance.client.auth.refreshSession();
         accessToken = refreshed.session?.accessToken;
-      } catch (e) {
-        debugPrint('[WriteReviewSheet] token refresh failed: $e');
+      } catch (_) {
+        // Continue; submit will handle unauthenticated state gracefully.
       }
     }
-
-    debugPrint(
-      '[WriteReviewSheet] submit cafeId=${widget.cafeId} rating=$_selectedRating '
-      'photos=${selectedPhotos.length} hasAccessToken=${accessToken != null && accessToken.isNotEmpty}',
-    );
 
     context.read<ReviewSubmitBloc>().add(
       SubmitReviewRequested(

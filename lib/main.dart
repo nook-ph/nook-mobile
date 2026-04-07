@@ -26,10 +26,6 @@ void main() async {
 
   await initDependencies();
 
-  debugPrint('ENV CHECK apiBaseUrl=${dotenv.env['UPLOAD_API_BASE_URL']}');
-debugPrint('ENV CHECK presignPath=${dotenv.env['UPLOAD_REVIEW_IMAGES_PRESIGN_PATH']}');
-debugPrint('ENV CHECK supabaseKey=${dotenv.env['SUPABASE_KEY']?.substring(0, 15)}...');
-
   runApp(const MyApp());
 }
 
