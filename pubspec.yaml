@@ -55,6 +55,8 @@ dependencies:
   dartz: ^0.10.1
   like_button: ^2.1.0
   image_picker: ^1.1.2
+  http: ^1.2.2
+  flutter_image_compress: ^2.4.0
 
 dev_dependencies:
   flutter_test:

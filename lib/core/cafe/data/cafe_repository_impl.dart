@@ -96,6 +96,7 @@ class CafeRepositoryImpl implements ICafeRepository {
               userId: item.userId,
               rating: item.rating,
               content: item.content,
+              imageUrls: item.imageUrls,
               createdAt: item.createdAt,
               updatedAt: item.updatedAt,
               name: item.name,
@@ -120,6 +121,7 @@ class CafeRepositoryImpl implements ICafeRepository {
             userId: item.userId,
             rating: item.rating,
             content: item.content,
+            imageUrls: item.imageUrls,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
             name: item.name,
@@ -134,12 +136,14 @@ class CafeRepositoryImpl implements ICafeRepository {
     required String userId,
     required int rating,
     required String content,
+    List<String> imageUrls = const [],
   }) async {
     final inserted = await remoteDataSource.insertReview(
       cafeId: cafeId,
       userId: userId,
       rating: rating,
       content: content,
+      imageUrls: imageUrls,
     );
 
     return Review(
@@ -148,6 +152,7 @@ class CafeRepositoryImpl implements ICafeRepository {
       userId: inserted.userId,
       rating: inserted.rating,
       content: inserted.content,
+      imageUrls: inserted.imageUrls,
       createdAt: inserted.createdAt,
       updatedAt: inserted.updatedAt,
       name: inserted.name,

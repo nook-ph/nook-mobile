@@ -39,6 +39,7 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
       userId: review.userId,
       rating: review.rating,
       content: review.content,
+      imageUrls: review.imageUrls,
       createdAt: review.createdAt,
       updatedAt: review.updatedAt,
       name: review.name,

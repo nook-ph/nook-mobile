@@ -66,6 +66,7 @@ class CafeDetailsBloc extends Bloc<CafeDetailsEvent, CafeDetailsState> {
             userId: item.userId,
             rating: item.rating,
             content: item.content,
+            imageUrls: item.imageUrls,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
             name: item.name,
