@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -58,6 +59,24 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     super.dispose();
   }
 
+  Future<File> _compressImage(File file) async {
+    final filePath = file.path;
+    final ext = filePath.split('.').last.toLowerCase();
+    final targetPath = filePath.replaceAll('.$ext', '_compressed.$ext');
+
+    final result = await FlutterImageCompress.compressAndGetFile(
+      filePath,
+      targetPath,
+      quality: 75,
+      minWidth: 1280,
+      minHeight: 1280,
+      format: ext == 'png' ? CompressFormat.png : CompressFormat.jpeg,
+    );
+
+    if (result == null) return file;
+    return File(result.path);
+  }
+
   Future<void> _pickPhoto(int targetIndex) async {
     final XFile? picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
@@ -66,7 +85,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       return;
     }
 
-    final file = File(picked.path);
+    final file = await _compressImage(File(picked.path));
 
     setState(() {
       _photos[targetIndex] = file;
