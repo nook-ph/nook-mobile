@@ -1,25 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 
 class FavoriteCard extends StatelessWidget {
-  const FavoriteCard({super.key, required this.cafeId});
+  const FavoriteCard({super.key, required this.cafe});
 
-  final String cafeId;
+  final CafeSummary cafe;
 
   @override
   Widget build(BuildContext context) {
+    final cardWidth = MediaQuery.of(context).size.width - 44;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CafeDetailsPage(cafeId: cafeId),
+            builder: (context) => CafeDetailsPage(cafeId: cafe.id),
           ),
         );
       },
       child: Container(
-        width: 344,
+        width: cardWidth,
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
@@ -31,7 +34,8 @@ class FavoriteCard extends StatelessWidget {
             Expanded(
               flex: 4,
               child: Image.network(
-                'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
+                cafe.coverImage ??
+                    'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
                 width: double.infinity,
                 height: double.infinity,
                 fit: BoxFit.cover,
@@ -49,25 +53,30 @@ class FavoriteCard extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              'Coffee Madness',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
+                            Expanded(
+                              child: Text(
+                                cafe.name,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const Row(
+                            const SizedBox(width: 8),
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  '5.0',
-                                  style: TextStyle(
+                                  cafe.rating.toStringAsFixed(1),
+                                  style: const TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                SizedBox(width: 6),
-                                Icon(
+                                const SizedBox(width: 6),
+                                const Icon(
                                   Icons.star,
                                   color: Color(0xFF588157),
                                   size: 16,
@@ -76,20 +85,26 @@ class FavoriteCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const Row(
+                        Row(
                           children: [
-                            Icon(
+                            const Icon(
                               LucideIcons.mapPin500,
                               size: 12,
                               color: Color(0xFF848586),
                             ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Tayud, Liloan',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF848586),
-                                fontWeight: FontWeight.w500,
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                cafe.address.isEmpty
+                                    ? 'Address unavailable'
+                                    : cafe.address,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF848586),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
@@ -112,9 +127,11 @@ class FavoriteCard extends StatelessWidget {
                                   color: const Color(0xFFE0E0E0),
                                 ),
                               ),
-                              child: const Text(
-                                'Student Friendly',
-                                style: TextStyle(
+                              child: Text(
+                                cafe.tags.isNotEmpty
+                                    ? cafe.tags.first
+                                    : 'Student Friendly',
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.black54,
                                 ),

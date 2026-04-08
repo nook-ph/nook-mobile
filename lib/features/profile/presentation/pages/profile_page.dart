@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
+import 'package:nook/features/favorites/bloc/favorites_events.dart';
+import 'package:nook/features/favorites/bloc/favorites_state.dart';
 import 'package:nook/features/profile/presentation/widgets/favorite_card.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
 import 'package:nook/features/favorites/presentation/page/favorites_page.dart';
@@ -61,9 +64,13 @@ class ProfilePage extends StatelessWidget {
         listener: (context, state) {
           if (state is AuthAuthenticated) {
             context.read<ProfileCubit>().loadProfile();
+            context.read<FavoritesBloc>().add(
+              LoadFavoritesEvent(userId: state.user.id),
+            );
           }
           if (state is AuthUnauthenticated) {
             context.read<ProfileCubit>().clear();
+            context.read<FavoritesBloc>().add(LoadFavoritesEvent());
             context.go('/login');
           }
           if (state is AuthError) {
@@ -134,18 +141,7 @@ class ProfilePage extends StatelessWidget {
 
                   const SizedBox(height: 12),
 
-                  SizedBox(
-                    height: 106,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      itemCount: 4,
-                      separatorBuilder: (_, __) => const SizedBox(width: 14),
-                      itemBuilder: (context, index) {
-                        return FavoriteCard(cafeId: 'favorite_$index');
-                      },
-                    ),
-                  ),
+                  const _ProfileFavoritesSection(),
 
                   const SizedBox(height: 32),
 
@@ -240,6 +236,72 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ProfileFavoritesSection extends StatefulWidget {
+  const _ProfileFavoritesSection();
+
+  @override
+  State<_ProfileFavoritesSection> createState() =>
+      _ProfileFavoritesSectionState();
+}
+
+class _ProfileFavoritesSectionState extends State<_ProfileFavoritesSection> {
+  @override
+  void initState() {
+    super.initState();
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    context.read<FavoritesBloc>().add(LoadFavoritesEvent(userId: userId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 106,
+      child: BlocBuilder<FavoritesBloc, FavoritesState>(
+        builder: (context, state) {
+          if (state is FavoritesLoading || state is FavoritesInitial) {
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.grey),
+            );
+          }
+
+          if (state is FavoritesError) {
+            return Center(
+              child: Text(
+                state.message,
+                style: const TextStyle(color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+
+          final favorites = state is FavoritesLoaded
+              ? state.favorites.take(4).toList()
+              : const [];
+
+          if (favorites.isEmpty) {
+            return const Center(
+              child: Text(
+                'No favorites yet',
+                style: TextStyle(color: Colors.black54),
+              ),
+            );
+          }
+
+          return ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            itemCount: favorites.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, index) {
+              return FavoriteCard(cafe: favorites[index]);
+            },
+          );
+        },
       ),
     );
   }
