@@ -3,9 +3,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 
 class FavoriteCard extends StatelessWidget {
-  const FavoriteCard({super.key, required this.heroTag});
+  const FavoriteCard({super.key, required this.cafeId});
 
-  final String heroTag;
+  final String cafeId;
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +14,7 @@ class FavoriteCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CafeDetailsPage(heroTag: heroTag),
+            builder: (context) => CafeDetailsPage(cafeId: cafeId),
           ),
         );
       },
@@ -30,14 +30,11 @@ class FavoriteCard extends StatelessWidget {
           children: [
             Expanded(
               flex: 4,
-              child: Hero(
-                tag: heroTag,
-                child: Image.network(
-                  'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
-                  width: double.infinity,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+              child: Image.network(
+                'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
               ),
             ),
             Expanded(

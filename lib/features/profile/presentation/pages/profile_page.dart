@@ -66,7 +66,7 @@ class ProfilePage extends StatelessWidget {
                 itemCount: 4,
                 separatorBuilder: (_, __) => const SizedBox(width: 14),
                 itemBuilder: (context, index) {
-                  return FavoriteCard(heroTag: 'favorite_$index');
+                  return FavoriteCard(cafeId: 'favorite_$index');
                 },
               ),
             ),
