@@ -1,6 +1,7 @@
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 import 'package:nook/features/home_page/data/models/cafe_summary_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class CafeRemoteDataSource {
   final SupabaseClient supabase;
@@ -17,14 +18,26 @@ class CafeRemoteDataSource {
       final start = page * limit;
       final end = start + limit - 1;
 
-      const selectClause = '''
+      final LocationSettings locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 100,
+      );
+
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
+      );
+
+      final selectClause = '''
       id,
       name,
       address,
       rating,
       featured_image_url,
       system_badge,
-      cafe_tags ( is_featured, tags ( name ) )
+      cafe_tags ( is_featured, tags ( name ) ),
+      lat,
+      lng,
+      distance_from_user ( ${position.longitude}, ${position.latitude} )
     ''';
 
       late final List response;
@@ -48,7 +61,7 @@ class CafeRemoteDataSource {
           response = await supabase
               .from('cafes')
               .select(selectClause)
-              .order('created_at', ascending: false)
+              .order('distance_from_user', ascending: true)
               .range(start, end);
           break;
         default:
