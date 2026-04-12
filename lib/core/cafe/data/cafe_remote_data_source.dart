@@ -12,6 +12,7 @@ class CafeRemoteDataSource {
     required String type,
     int page = 0,
     int limit = 20,
+    List<String>? tags,
   }) async {
     try {
       final normalizedType = type.trim().toLowerCase();
@@ -57,15 +58,16 @@ class CafeRemoteDataSource {
               .range(start, end);
           break;
         case 'nearby':
-          final rpcResponse = await supabase.rpc(
-            'get_cafes_with_distance',
-            params: {
-              'user_lat': position.latitude,
-              'user_lon': position.longitude,
-            },
-          );
-          response = rpcResponse as List;
-          break;
+          response =
+              await supabase.rpc(
+                    'get_cafes_with_distance',
+                    params: {
+                      'user_lat': position.latitude,
+                      'user_lon': position.longitude,
+                      if (tags != null && tags.isNotEmpty) 'filter_tags': tags,
+                    },
+                  )
+                  as List;
         default:
           throw CafeFetchException(
             'Unsupported summary type: $type. Expected featured, recommended, or nearby.',
