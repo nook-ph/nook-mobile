@@ -104,6 +104,7 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
       handle: const SlidingPanelHandle(),
       builder: (context, handle) {
         return SlidingPanelBody(
+          shadowColor: Colors.transparent,
           child: Column(
             children: [
               if (handle != null) handle,
