@@ -37,7 +37,6 @@ class CafeRemoteDataSource {
       cafe_tags ( is_featured, tags ( name ) ),
       lat,
       lng,
-      distance_from_user ( ${position.longitude}, ${position.latitude} )
     ''';
 
       late final List response;
@@ -58,11 +57,14 @@ class CafeRemoteDataSource {
               .range(start, end);
           break;
         case 'nearby':
-          response = await supabase
-              .from('cafes')
-              .select(selectClause)
-              .order('distance_from_user', ascending: true)
-              .range(start, end);
+          final rpcResponse = await supabase.rpc(
+            'get_cafes_with_distance',
+            params: {
+              'user_lat': position.latitude,
+              'user_lon': position.longitude,
+            },
+          );
+          response = rpcResponse as List;
           break;
         default:
           throw CafeFetchException(
