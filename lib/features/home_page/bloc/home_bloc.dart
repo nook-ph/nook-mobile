@@ -5,11 +5,10 @@ import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
 import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 
-class  HomeBloc extends Bloc<HomeEvent, HomeState> {
+class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetHomeFeedUseCase getHomeFeedUseCase;
 
-  HomeBloc({required this.getHomeFeedUseCase})
-    : super(HomeInitialState()) {
+  HomeBloc({required this.getHomeFeedUseCase}) : super(HomeInitialState()) {
     on<LoadHomeDataEvent>(_onLoadHomeData);
   }
 

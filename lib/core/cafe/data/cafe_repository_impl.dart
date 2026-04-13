@@ -42,11 +42,7 @@ class CafeRepositoryImpl implements ICafeRepository {
     int limit = 20,
   }) async {
     return getCafes(
-      CafeQuery(
-        sort: _queryTypeToSort(type),
-        page: page,
-        limit: limit,
-      ),
+      CafeQuery(sort: _queryTypeToSort(type), page: page, limit: limit),
     );
   }
 
