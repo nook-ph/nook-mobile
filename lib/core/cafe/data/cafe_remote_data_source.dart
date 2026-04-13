@@ -1,37 +1,7 @@
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/features/home_page/data/models/cafe_summary_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-class CafeRemoteQuery {
-  final String? sort;
-  final List<String> tagNames;
-  final double? lat;
-  final double? lng;
-  final int page;
-  final int limit;
-
-  const CafeRemoteQuery({
-    this.sort,
-    this.tagNames = const [],
-    this.lat,
-    this.lng,
-    this.page = 0,
-    this.limit = 20,
-  });
-
-  int get offset => page * limit;
-
-  Map<String, dynamic> toRpcParams() {
-    return {
-      'p_sort': sort,
-      'p_tag_names': tagNames.isEmpty ? null : tagNames,
-      'p_lat': lat,
-      'p_lng': lng,
-      'p_limit': limit,
-      'p_offset': offset,
-    };
-  }
-}
 
 class CafeRemoteDataSource {
   final SupabaseClient supabase;
@@ -39,7 +9,7 @@ class CafeRemoteDataSource {
   CafeRemoteDataSource(this.supabase);
 
   Future<List<CafeSummaryModel>> fetchCafes({
-    required CafeRemoteQuery query,
+    required CafeQuery query,
   }) async {
     try {
       final rpcResponse = await supabase.rpc(

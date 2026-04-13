@@ -6,9 +6,9 @@ import 'package:nook/features/home_page/bloc/home_states.dart';
 import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 
 class  HomeBloc extends Bloc<HomeEvent, HomeState> {
-  final GetCafeSummariesUseCase getCafeSummariesUseCase;
+  final GetHomeFeedUseCase getHomeFeedUseCase;
 
-  HomeBloc({required this.getCafeSummariesUseCase})
+  HomeBloc({required this.getHomeFeedUseCase})
     : super(HomeInitialState()) {
     on<LoadHomeDataEvent>(_onLoadHomeData);
   }
@@ -20,10 +20,10 @@ class  HomeBloc extends Bloc<HomeEvent, HomeState> {
     emit(HomeLoadingState());
 
     try {
-      final result = await getCafeSummariesUseCase.call();
+      final result = await getHomeFeedUseCase.call();
 
-      final featured = result.featured.map(_toFeatureSummary).toList();
-      final recommended = result.recommended.map(_toFeatureSummary).toList();
+      final featured = result.trending.map(_toFeatureSummary).toList();
+      final recommended = result.topRated.map(_toFeatureSummary).toList();
 
       emit(
         HomeLoadedState(featuredCafes: featured, recommendedCafes: recommended),
