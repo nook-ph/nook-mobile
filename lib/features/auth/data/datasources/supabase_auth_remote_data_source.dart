@@ -44,6 +44,13 @@ class SupabaseAuthRemoteDataSource {
     );
   }
 
+  Future<void> signInWithApple() async {
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.apple,
+      redirectTo: 'nookapp://login-callback',
+    );
+  }
+
   Future<AuthResponse> signInWithGoogle(String webClientId) async {
     if (webClientId.isEmpty || webClientId.contains('YOUR_WEB_CLIENT_ID')) {
       throw const AuthException(
