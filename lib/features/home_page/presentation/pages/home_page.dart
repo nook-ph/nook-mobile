@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
+import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 import 'package:nook/features/home_page/presentation/widgets/featured_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_section.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
 import 'package:nook/injection_container.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -75,6 +77,70 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  List<Widget> _buildLoadingSkeletonChildren(double cardWidth, double textScale) {
+    final List<CafeSummaryEntity> cafes = List.generate(
+      4,
+      (index) => CafeSummaryEntity(
+        id: 'skeleton_$index',
+        name: 'Cafe Placeholder Name',
+        address: 'Street Address Placeholder',
+        rating: 4.9,
+        featuredImageUrl: null,
+        tags: const ['Specialty'],
+      ),
+    );
+
+    return [
+      const SizedBox(height: 24),
+      Skeletonizer(
+        enabled: true,
+        effect: const PulseEffect(),
+        child: IgnorePointer(
+          ignoring: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle('Featured'),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 312 * textScale,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  itemCount: 2,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    return FeaturedCard(
+                      width: cardWidth,
+                      cafe: cafes[index],
+                      isSkeleton: true,
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+              HomeCafeSection(title: 'New', cafes: cafes, isSkeleton: true),
+              const SizedBox(height: 24),
+              HomeCafeSection(
+                title: 'Trending',
+                cafes: cafes,
+                isSkeleton: true,
+              ),
+              const SizedBox(height: 24),
+              HomeCafeSection(
+                title: 'Top Rated',
+                cafes: cafes,
+                isSkeleton: true,
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -86,18 +152,13 @@ class HomePage extends StatelessWidget {
             builder: (context, state) {
               final double screenWidth = MediaQuery.of(context).size.width;
               final double cardWidth = screenWidth - 44;
+              final double textScale =
+                  MediaQuery.textScalerOf(context).scale(1.0);
 
               if (state is HomeLoadingState) {
                 return _buildScrollableLayout(
                   context: context,
-                  children: const [
-                    SizedBox(height: 24),
-                    SizedBox(
-                      height: 320,
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                    SizedBox(height: 16),
-                  ],
+                  children: _buildLoadingSkeletonChildren(cardWidth, textScale),
                 );
               }
 
@@ -152,7 +213,7 @@ class HomePage extends StatelessWidget {
                       _buildSectionTitle('Featured'),
                       const SizedBox(height: 12),
                       SizedBox(
-                        height: 312,
+                        height: 312 * textScale,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 22),

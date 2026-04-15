@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class HomeCafeCard extends StatelessWidget {
   final CafeSummaryEntity cafe;
-  const HomeCafeCard({super.key, required this.cafe});
+  final bool isSkeleton;
+
+  const HomeCafeCard({
+    super.key,
+    required this.cafe,
+    this.isSkeleton = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +32,6 @@ class HomeCafeCard extends StatelessWidget {
           ),
         );
       },
-      // 1. ADDED ALIGN HERE to prevent parent widgets from stretching the card vertically
       child: Align(
         alignment: Alignment.topCenter,
         child: Container(
@@ -32,7 +39,9 @@ class HomeCafeCard extends StatelessWidget {
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
+            border: isSkeleton
+                ? null
+                : Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -40,10 +49,18 @@ class HomeCafeCard extends StatelessWidget {
             children: [
               Stack(
                 children: [
-                  SizedBox(
-                    height: 120,
-                    width: double.infinity,
-                    child: Image.network(imageUrl, fit: BoxFit.cover),
+                  Skeleton.replace(
+                    replace: isSkeleton,
+                    replacement: Container(
+                      height: 120,
+                      width: double.infinity,
+                      color: Colors.black,
+                    ),
+                    child: SizedBox(
+                      height: 120,
+                      width: double.infinity,
+                      child: Image.network(imageUrl, fit: BoxFit.cover),
+                    ),
                   ),
                   Positioned(
                     top: 8,
@@ -80,7 +97,6 @@ class HomeCafeCard extends StatelessWidget {
                 ],
               ),
               Padding(
-                // 2. Put your padding back to perfectly even on all sides
                 padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,35 +138,55 @@ class HomeCafeCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         if (primaryTag != null && primaryTag.trim().isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFFE0E0E0),
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 2,
                               ),
-                            ),
-                            child: Text(
-                              primaryTag,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.black54,
-                                height: 1.1, // 3. Tightened line height
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: isSkeleton
+                                    ? null
+                                    : Border.all(color: const Color(0xFFE0E0E0)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (resolveTagIcon(primaryTag) != null) ...[
+                                    Icon(
+                                      resolveTagIcon(primaryTag),
+                                      size: 11,
+                                      color: Colors.black54,
+                                    ),
+                                    const SizedBox(width: 3),
+                                  ],
+                                  Flexible(
+                                    child: Text(
+                                      primaryTag,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.black54,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           )
                         else
                           const SizedBox.shrink(),
+                        const SizedBox(width: 6),
                         const Text(
                           '5.0 km',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                             color: Color(0xFF848685),
-                            height: 1.1, // 3. Tightened line height
+                            height: 1.1,
                           ),
                         ),
                       ],
@@ -165,3 +201,4 @@ class HomeCafeCard extends StatelessWidget {
     );
   }
 }
+
