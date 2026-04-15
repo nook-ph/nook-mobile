@@ -3,9 +3,9 @@ class CafeSummaryEntity {
   final String name;
   final String address;
   final double rating;
-  final String? featuredImageUrl; 
-  final String? systemBadge;      
-  final List<String> tags;        
+  final String? featuredImageUrl;
+  final bool isFeatured;
+  final List<String> tags;
 
   CafeSummaryEntity({
     required this.id,
@@ -13,7 +13,7 @@ class CafeSummaryEntity {
     required this.address,
     required this.rating,
     this.featuredImageUrl,
-    this.systemBadge,
+    this.isFeatured = false,
     this.tags = const [],
   });
 }
