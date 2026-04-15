@@ -16,6 +16,7 @@ class HomeCafeSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double scale = MediaQuery.textScalerOf(context).scale(1.0);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -28,7 +29,7 @@ class HomeCafeSection extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 204,
+          height: 215 * scale,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 22),

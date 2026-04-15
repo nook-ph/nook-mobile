@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -22,7 +23,6 @@ class FeaturedCard extends StatelessWidget {
     final String imageUrl = cafe.featuredImageUrl?.trim().isNotEmpty == true
         ? cafe.featuredImageUrl!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-    final List<String> visibleTags = cafe.tags.take(3).toList();
 
     return GestureDetector(
       onTap: () {
@@ -34,7 +34,6 @@ class FeaturedCard extends StatelessWidget {
         );
       },
       child: Container(
-        height: 312,
         width: width,
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
@@ -111,14 +110,9 @@ class FeaturedCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    Row(
-                      children: [
-                        for (int i = 0; i < visibleTags.length; i++) ...[
-                          _TagChip(label: visibleTags[i], isSkeleton: isSkeleton),
-                          if (i != visibleTags.length - 1)
-                            const SizedBox(width: 6),
-                        ],
-                      ],
+                    _OverflowTagsRow(
+                      tags: cafe.tags,
+                      isSkeleton: isSkeleton,
                     ),
                   ],
                 ),
@@ -131,6 +125,102 @@ class FeaturedCard extends StatelessWidget {
   }
 }
 
+class _OverflowTagsRow extends StatelessWidget {
+  const _OverflowTagsRow({required this.tags, this.isSkeleton = false});
+
+  final List<String> tags;
+  final bool isSkeleton;
+
+  static const double _fontSize = 12;
+  static const double _hPadding = 24; // 12 * 2
+  static const double _spacing = 6;
+  static const double _borderWidth = 2; // 1px each side
+  static const double _iconSize = 16;
+  static const double _iconGap = 4;
+
+  double _chipWidth(
+    String label,
+    TextScaler textScaler,
+    String? fontFamily,
+  ) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(fontSize: _fontSize, fontFamily: fontFamily),
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: textScaler,
+    )..layout();
+    final hasIcon = resolveTagIcon(label) != null;
+    final iconExtra = hasIcon ? _iconSize + _iconGap : 0.0;
+    // +2 for subpixel rounding safety
+    return tp.width + _hPadding + _borderWidth + iconExtra + 2;
+  }
+
+  List<String> _computeVisibleLabels(
+    double availableWidth,
+    TextScaler textScaler,
+    String? fontFamily,
+  ) {
+    if (tags.isEmpty) return [];
+
+    final dotWidth = _chipWidth('...', textScaler, fontFamily);
+    final List<String> result = [];
+    double used = 0;
+
+    for (int i = 0; i < tags.length; i++) {
+      final w = _chipWidth(tags[i], textScaler, fontFamily);
+      final isLast = i == tags.length - 1;
+
+      if (isLast) {
+        if (used + w <= availableWidth) {
+          result.add(tags[i]);
+        } else if (used + dotWidth <= availableWidth) {
+          result.add('...');
+        }
+      } else {
+        if (used + w + _spacing + dotWidth <= availableWidth) {
+          // Tag fits with room left for '...' after remaining tags
+          result.add(tags[i]);
+          used += w + _spacing;
+        } else if (used + dotWidth <= availableWidth) {
+          // Tag doesn't fit while keeping '...' reserved — show '...' and stop
+          result.add('...');
+          return result;
+        } else {
+          // Even '...' doesn't fit — stop without adding anything more
+          return result;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textScaler = MediaQuery.textScalerOf(context);
+    final fontFamily = DefaultTextStyle.of(context).style.fontFamily;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final labels = _computeVisibleLabels(
+          constraints.maxWidth,
+          textScaler,
+          fontFamily,
+        );
+        return Row(
+          children: [
+            for (int i = 0; i < labels.length; i++) ...[
+              _TagChip(label: labels[i], isSkeleton: isSkeleton),
+              if (i != labels.length - 1) const SizedBox(width: _spacing),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
 class _TagChip extends StatelessWidget {
   const _TagChip({required this.label, this.isSkeleton = false});
 
@@ -139,15 +229,25 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icon = resolveTagIcon(label);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: isSkeleton ? null : Border.all(color: const Color(0xFF588157)),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF588157)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: const Color(0xFF588157)),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF588157)),
+          ),
+        ],
       ),
     );
   }

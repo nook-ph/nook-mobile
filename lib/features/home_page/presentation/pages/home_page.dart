@@ -77,7 +77,7 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildLoadingSkeletonChildren(double cardWidth) {
+  List<Widget> _buildLoadingSkeletonChildren(double cardWidth, double textScale) {
     final List<CafeSummaryEntity> cafes = List.generate(
       4,
       (index) => CafeSummaryEntity(
@@ -103,7 +103,7 @@ class HomePage extends StatelessWidget {
               _buildSectionTitle('Featured'),
               const SizedBox(height: 12),
               SizedBox(
-                height: 312,
+                height: 312 * textScale,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -152,11 +152,13 @@ class HomePage extends StatelessWidget {
             builder: (context, state) {
               final double screenWidth = MediaQuery.of(context).size.width;
               final double cardWidth = screenWidth - 44;
+              final double textScale =
+                  MediaQuery.textScalerOf(context).scale(1.0);
 
               if (state is HomeLoadingState) {
                 return _buildScrollableLayout(
                   context: context,
-                  children: _buildLoadingSkeletonChildren(cardWidth),
+                  children: _buildLoadingSkeletonChildren(cardWidth, textScale),
                 );
               }
 
@@ -211,7 +213,7 @@ class HomePage extends StatelessWidget {
                       _buildSectionTitle('Featured'),
                       const SizedBox(height: 12),
                       SizedBox(
-                        height: 312,
+                        height: 312 * textScale,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 22),

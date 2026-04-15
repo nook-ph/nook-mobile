@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -137,35 +138,55 @@ class HomeCafeCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         if (primaryTag != null && primaryTag.trim().isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: isSkeleton
-                                  ? null
-                                  : Border.all(color: const Color(0xFFE0E0E0)),
-                            ),
-                            child: Text(
-                              primaryTag,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.black54,
-                                height: 1.1, // 3. Tightened line height
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border: isSkeleton
+                                    ? null
+                                    : Border.all(color: const Color(0xFFE0E0E0)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (resolveTagIcon(primaryTag) != null) ...[
+                                    Icon(
+                                      resolveTagIcon(primaryTag),
+                                      size: 11,
+                                      color: Colors.black54,
+                                    ),
+                                    const SizedBox(width: 3),
+                                  ],
+                                  Flexible(
+                                    child: Text(
+                                      primaryTag,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.black54,
+                                        height: 1.1,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           )
                         else
                           const SizedBox.shrink(),
+                        const SizedBox(width: 6),
                         const Text(
                           '5.0 km',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                             color: Color(0xFF848685),
-                            height: 1.1, 
+                            height: 1.1,
                           ),
                         ),
                       ],
@@ -180,3 +201,4 @@ class HomeCafeCard extends StatelessWidget {
     );
   }
 }
+
