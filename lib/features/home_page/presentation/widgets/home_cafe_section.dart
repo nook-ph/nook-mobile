@@ -1,0 +1,46 @@
+import 'package:flutter/material.dart';
+import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
+
+class HomeCafeSection extends StatelessWidget {
+  final String title;
+  final List<CafeSummaryEntity> cafes;
+
+  const HomeCafeSection({
+    super.key,
+    required this.title,
+    required this.cafes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 226,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            itemCount: cafes.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              return HomeCafeCard(cafe: cafes[index]);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}

@@ -8,9 +8,7 @@ class CafeRemoteDataSource {
 
   CafeRemoteDataSource(this.supabase);
 
-  Future<List<CafeSummaryModel>> fetchCafes({
-    required CafeQuery query,
-  }) async {
+  Future<List<CafeSummaryModel>> fetchCafes({required CafeQuery query}) async {
     try {
       final rpcResponse = await supabase.rpc(
         'get_cafes',
