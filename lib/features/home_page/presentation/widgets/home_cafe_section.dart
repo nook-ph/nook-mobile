@@ -6,11 +6,7 @@ class HomeCafeSection extends StatelessWidget {
   final String title;
   final List<CafeSummaryEntity> cafes;
 
-  const HomeCafeSection({
-    super.key,
-    required this.title,
-    required this.cafes,
-  });
+  const HomeCafeSection({super.key, required this.title, required this.cafes});
 
   @override
   Widget build(BuildContext context) {
@@ -21,15 +17,12 @@ class HomeCafeSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Text(
             title,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         SizedBox(
-          height: 226,
+          height: 204,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 22),

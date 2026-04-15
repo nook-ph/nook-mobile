@@ -1,7 +1,6 @@
 import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 
 class CafeSummaryModel extends CafeSummaryEntity {
-  final bool isFeatured;
   final bool isNew;
   final double? distanceMeters;
 
@@ -11,9 +10,8 @@ class CafeSummaryModel extends CafeSummaryEntity {
     required super.address,
     required super.rating,
     super.featuredImageUrl,
-    super.systemBadge,
+    super.isFeatured = false,
     super.tags = const [],
-    this.isFeatured = false,
     this.isNew = false,
     this.distanceMeters,
   });
@@ -27,7 +25,6 @@ class CafeSummaryModel extends CafeSummaryEntity {
       address: '${json['address'] ?? ''}',
       rating: _asDouble(json['rating']) ?? 0,
       featuredImageUrl: _asNullableString(json['featured_image_url']),
-      systemBadge: null,
       tags: parsedTags,
       isFeatured: _asBool(json['is_featured']) ?? false,
       isNew: _asBool(json['is_new']) ?? false,

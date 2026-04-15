@@ -3,19 +3,17 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 
-class FeaturedCard extends StatelessWidget {
+class RecommendedCard extends StatelessWidget {
   final CafeSummaryEntity cafe;
-
-  const FeaturedCard({super.key, required this.width, required this.cafe});
-
-  final double width;
+  const RecommendedCard({super.key, required this.cafe});
 
   @override
   Widget build(BuildContext context) {
     final String imageUrl = cafe.featuredImageUrl?.trim().isNotEmpty == true
         ? cafe.featuredImageUrl!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-    final List<String> visibleTags = cafe.tags.take(3).toList();
+    final String ratingText = cafe.rating.toStringAsFixed(1);
+    final String? primaryTag = cafe.tags.isNotEmpty ? cafe.tags.first : null;
 
     return GestureDetector(
       onTap: () {
@@ -27,25 +25,26 @@ class FeaturedCard extends StatelessWidget {
         );
       },
       child: Container(
-        height: 312,
-        width: width,
+        width: double.infinity,
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
         ),
-        child: Column(
+        height: 112,
+        child: Row(
           children: [
             Expanded(
-              flex: 19,
+              flex: 4,
               child: Image.network(
                 imageUrl,
                 width: double.infinity,
+                height: double.infinity,
                 fit: BoxFit.cover,
               ),
             ),
             Expanded(
-              flex: 11,
+              flex: 8,
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Column(
@@ -61,13 +60,30 @@ class FeaturedCard extends StatelessWidget {
                                 cafe.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
-                            
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  ratingText,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.star,
+                                  color: Color(0xFF588157),
+                                  size: 16,
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                         Row(
@@ -83,7 +99,7 @@ class FeaturedCard extends StatelessWidget {
                                 cafe.address,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 12,
                                   color: Color(0xFF848586),
                                   fontWeight: FontWeight.w500,
@@ -95,12 +111,44 @@ class FeaturedCard extends StatelessWidget {
                       ],
                     ),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        for (int i = 0; i < visibleTags.length; i++) ...[
-                          _TagChip(label: visibleTags[i]),
-                          if (i != visibleTags.length - 1)
-                            const SizedBox(width: 6),
-                        ],
+                        Row(
+                          children: [
+                            if (primaryTag != null &&
+                                primaryTag.trim().isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFFE0E0E0),
+                                  ),
+                                ),
+                                child: Text(
+                                  primaryTag,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            if (primaryTag != null &&
+                                primaryTag.trim().isNotEmpty)
+                              const SizedBox(width: 6),
+                          ],
+                        ),
+                        const Text(
+                          '5.0 km',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF848685),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -109,27 +157,6 @@ class FeaturedCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _TagChip extends StatelessWidget {
-  const _TagChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF588157)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 12, color: Color(0xFF588157)),
       ),
     );
   }
