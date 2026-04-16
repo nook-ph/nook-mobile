@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart' as core;
-import 'package:nook/core/cafe/domain/usecases/get_cafe_details_usecase.dart'
+import 'package:nook/core/cafe/domain/use_cases/get_cafe_details_usecase.dart'
     as core_usecase;
 import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';

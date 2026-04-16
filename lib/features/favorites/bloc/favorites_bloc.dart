@@ -1,8 +1,8 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
-import 'package:nook/core/cafe/domain/usecases/add_favorite_cafe_usecase.dart';
-import 'package:nook/core/cafe/domain/usecases/get_favorite_cafes_usecase.dart';
-import 'package:nook/core/cafe/domain/usecases/remove_favorite_cafe_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/add_favorite_cafe_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_favorite_cafes_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/remove_favorite_cafe_usecase.dart';
 import 'package:nook/features/favorites/bloc/favorites_events.dart';
 import 'package:nook/features/favorites/bloc/favorites_state.dart';
 

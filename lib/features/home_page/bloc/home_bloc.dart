@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
-import 'package:nook/core/cafe/domain/usecases/get_cafe_summaries_usecase.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
 import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
