@@ -76,12 +76,13 @@ class GetHomeFeedUseCase {
         return null;
       }
 
-      return Geolocator.getCurrentPosition(
+      final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
           distanceFilter: 100,
         ),
       );
+      return position;
     } catch (_) {
       return null;
     }

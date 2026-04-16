@@ -53,6 +53,16 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> signInWithApple() async {
+    try {
+      await _remoteDataSource.signInWithApple();
+      return const Right<Failure, void>(null);
+    } catch (e) {
+      return Left(Failure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, void>> signInWithGoogle(String webClientId) async {
     try {
       await _remoteDataSource.signInWithGoogle(webClientId);

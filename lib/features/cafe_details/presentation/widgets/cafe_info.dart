@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -40,78 +41,6 @@ class CafeInfo extends StatelessWidget {
         text.contains('wallet') ||
         text.contains('gcash') ||
         text.contains('maya');
-  }
-
-  IconData? _iconFromTagName(String? tagName) {
-    if (tagName == null || tagName.trim().isEmpty) {
-      return null;
-    }
-
-    final normalized = tagName.trim().toLowerCase();
-
-    switch (normalized) {
-      case 'date spot':
-        return PhosphorIcons.heart();
-      case 'solo work / study':
-        return PhosphorIcons.laptop();
-      case 'group hangout':
-        return PhosphorIcons.users();
-      case 'book cafe':
-        return PhosphorIcons.bookOpen();
-      case 'late night':
-        return PhosphorIcons.moon();
-      case 'quick coffee':
-        return PhosphorIcons.coffee();
-      case 'family friendly':
-        return PhosphorIcons.users();
-      case 'nature cafe':
-        return PhosphorIcons.leaf();
-      case 'special occasion':
-        return PhosphorIcons.sparkle();
-      case 'specialty coffee':
-        return PhosphorIcons.coffee();
-      case 'student friendly':
-        return PhosphorIcons.graduationCap();
-      case 'aesthetic / ig-worthy':
-        return PhosphorIcons.instagramLogo();
-      case 'pet friendly':
-        return PhosphorIcons.dog();
-      case 'free wifi':
-        return PhosphorIcons.wifiHigh();
-      case 'power outlets':
-        return PhosphorIcons.plug();
-      case 'air conditioned':
-        return PhosphorIcons.snowflake();
-      case 'outdoor seating':
-        return PhosphorIcons.chair();
-      case 'parking available':
-        return PhosphorIcons.park();
-      case 'reservations accepted':
-        return PhosphorIcons.calendarCheck();
-      case 'private rooms':
-        return PhosphorIcons.doorOpen();
-      case 'wheelchair accessible':
-        return PhosphorIcons.wheelchair();
-      case 'takeaway available':
-        return PhosphorIcons.shoppingBag();
-      case 'smoking area':
-        return PhosphorIcons.cigarette();
-      case 'open 24 hours':
-        return PhosphorIcons.clock();
-      default:
-        if (normalized.contains('cash')) return PhosphorIcons.money();
-        if (normalized.contains('card') ||
-            normalized.contains('credit') ||
-            normalized.contains('debit')) {
-          return PhosphorIcons.creditCard();
-        }
-        if (normalized.contains('wallet') ||
-            normalized.contains('gcash') ||
-            normalized.contains('maya')) {
-          return PhosphorIcons.wallet();
-        }
-        return null;
-    }
   }
 
   @override
@@ -193,7 +122,7 @@ class CafeInfo extends StatelessWidget {
                       child: Row(
                         children: [
                           Icon(
-                            _iconFromTagName(tag.name) ?? Icons.circle_outlined,
+                            resolveTagIcon(tag.name) ?? Icons.circle_outlined,
                           ),
                           const Gap(18),
                           Expanded(
@@ -236,7 +165,7 @@ class CafeInfo extends StatelessWidget {
                           .map(
                             (tag) => _BestForTag(
                               label: tag.name,
-                              icon: _iconFromTagName(tag.name),
+                              icon: resolveTagIcon(tag.name),
                             ),
                           )
                           .toList(),
@@ -271,7 +200,7 @@ class CafeInfo extends StatelessWidget {
                       .map(
                         (payment) => _PaymentType(
                           icon:
-                              _iconFromTagName(payment.name) ??
+                              resolveTagIcon(payment.name) ??
                               Icons.circle_outlined,
                           label: payment.name,
                         ),
