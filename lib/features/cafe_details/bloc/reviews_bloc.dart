@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart' as core;
-import 'package:nook/core/cafe/domain/usecases/get_cafe_reviews_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_cafe_reviews_usecase.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
