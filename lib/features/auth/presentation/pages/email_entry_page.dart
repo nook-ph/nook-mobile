@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -235,17 +236,23 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                       },
                     ),
                     const SizedBox(height: 12),
-                    _buildSocialButton(
-                      text: 'Continue with Apple',
-                      icon: const Icon(
-                        Icons.apple,
-                        color: Colors.black,
-                        size: 28,
+                    
+                    if (Platform.isIOS)         
+                      _buildSocialButton(
+                        text: 'Continue with Apple',
+                        icon: const Icon(
+                          Icons.apple,
+                          color: Colors.black,
+                          size: 28,
+                        ),
+                        onPressed: () {
+                          // TODO: Implement Apple Sign-In
+                          context.read<AuthBloc>().add(
+                            const AuthSignInWithAppleEvent(),
+                          );
+                        },
                       ),
-                      onPressed: () {
-                        // TODO: Implement Apple Sign-In
-                      },
-                    ),
+                      
                     const SizedBox(height: 12),
                     _buildSocialButton(
                       text: 'Continue with Facebook',

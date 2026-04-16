@@ -7,8 +7,9 @@ class CafeSummary {
   final List<String> tags;
   final double? lat;
   final double? lng;
-  final double? distance;
+  final double? distanceMeters;
   final bool isFeatured;
+  final bool isNew;
 
   const CafeSummary({
     required this.id,
@@ -19,7 +20,8 @@ class CafeSummary {
     this.tags = const [],
     this.lat,
     this.lng,
-    this.distance,
+    this.distanceMeters,
     this.isFeatured = false,
+    this.isNew = false,
   });
 }

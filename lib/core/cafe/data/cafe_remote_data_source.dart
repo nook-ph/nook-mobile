@@ -1,95 +1,36 @@
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/features/home_page/data/models/cafe_summary_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:geolocator/geolocator.dart';
 
 class CafeRemoteDataSource {
   final SupabaseClient supabase;
 
   CafeRemoteDataSource(this.supabase);
 
-  Future<List<CafeSummaryModel>> fetchSummaries({
-    required String type,
-    int page = 0,
-    int limit = 20,
-    List<String>? tags,
-  }) async {
+  Future<List<CafeSummaryModel>> fetchCafes({required CafeQuery query}) async {
     try {
-      final normalizedType = type.trim().toLowerCase();
-      final start = page * limit;
-      final end = start + limit - 1;
-
-      final LocationSettings locationSettings = LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 100,
+      final rpcResponse = await supabase.rpc(
+        'get_cafes',
+        params: query.toRpcParams(),
       );
 
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: locationSettings,
-      );
-
-      final selectClause = '''
-      id,
-      name,
-      address,
-      rating,
-      featured_image_url,
-      system_badge,
-      cafe_tags ( is_featured, tags ( name ) ),
-      lat,
-      lng,
-    ''';
-
-      late final List response;
-
-      switch (normalizedType) {
-        case 'featured':
-          response = await supabase
-              .from('cafes')
-              .select(selectClause)
-              .not('system_badge', 'is', null)
-              .range(start, end);
-          break;
-        case 'recommended':
-          response = await supabase
-              .from('cafes')
-              .select(selectClause)
-              .order('rating', ascending: false)
-              .range(start, end);
-          break;
-        case 'nearby':
-          response =
-              await supabase.rpc(
-                    'get_cafes_with_distance',
-                    params: {
-                      'user_lat': position.latitude,
-                      'user_lon': position.longitude,
-                      if (tags != null && tags.isNotEmpty) 'filter_tags': tags,
-                    },
-                  )
-                  as List;
-        default:
-          throw CafeFetchException(
-            'Unsupported summary type: $type. Expected featured, recommended, or nearby.',
-          );
-      }
-
-      return response
-          .map(
-            (json) =>
-                CafeSummaryModel.fromJson(Map<String, dynamic>.from(json)),
-          )
+      final response = (rpcResponse as List)
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
           .toList();
+
+      return response.map((json) => CafeSummaryModel.fromJson(json)).toList();
     } on PostgrestException catch (e, st) {
       throw CafeFetchException(
-        'Failed to fetch cafe summaries for type "$type".',
+        'Failed to fetch cafe summaries for sort "${query.sort}".',
         cause: e,
         stackTrace: st,
       );
     } catch (e, st) {
       if (e is CafeFetchException) rethrow;
       throw CafeFetchException(
-        'Failed to fetch cafe summaries for type "$type".',
+        'Failed to fetch cafe summaries for sort "${query.sort}".',
         cause: e,
         stackTrace: st,
       );

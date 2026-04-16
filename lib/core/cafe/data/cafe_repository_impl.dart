@@ -2,6 +2,7 @@ import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/data/cafe_store.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,16 +14,8 @@ class CafeRepositoryImpl implements ICafeRepository {
   CafeRepositoryImpl(this.remoteDataSource, this.store);
 
   @override
-  Future<List<CafeSummary>> getCafeSummaries(
-    CafeQueryType type, {
-    int page = 0,
-    int limit = 20,
-  }) async {
-    final summaries = await remoteDataSource.fetchSummaries(
-      type: _queryTypeToRemoteType(type),
-      page: page,
-      limit: limit,
-    );
+  Future<List<CafeSummary>> getCafes(CafeQuery query) async {
+    final summaries = await remoteDataSource.fetchCafes(query: query);
 
     return summaries
         .map(
@@ -33,10 +26,24 @@ class CafeRepositoryImpl implements ICafeRepository {
             coverImage: item.featuredImageUrl,
             rating: item.rating,
             tags: item.tags,
-            isFeatured: item.systemBadge != null,
+            isFeatured: item.isFeatured,
+            isNew: item.isNew,
+            distanceMeters: item.distanceMeters,
           ),
         )
         .toList();
+  }
+
+  @override
+  @Deprecated('Use getCafes(CafeQuery) for home/feed flows.')
+  Future<List<CafeSummary>> getCafeSummaries(
+    CafeQueryType type, {
+    int page = 0,
+    int limit = 20,
+  }) async {
+    return getCafes(
+      CafeQuery(sort: _queryTypeToSort(type), page: page, limit: limit),
+    );
   }
 
   @override
@@ -176,7 +183,9 @@ class CafeRepositoryImpl implements ICafeRepository {
             coverImage: item.featuredImageUrl,
             rating: item.rating,
             tags: item.tags,
-            isFeatured: item.systemBadge != null,
+            isFeatured: item.isFeatured,
+            isNew: item.isNew,
+            distanceMeters: item.distanceMeters,
           ),
         )
         .toList();
@@ -230,12 +239,12 @@ class CafeRepositoryImpl implements ICafeRepository {
     }
   }
 
-  String _queryTypeToRemoteType(CafeQueryType type) {
+  String _queryTypeToSort(CafeQueryType type) {
     switch (type) {
       case CafeQueryType.featured:
-        return 'featured';
+        return 'trending';
       case CafeQueryType.recommended:
-        return 'recommended';
+        return 'top_rated';
       case CafeQueryType.nearby:
         return 'nearby';
     }

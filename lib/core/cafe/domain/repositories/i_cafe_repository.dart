@@ -1,15 +1,20 @@
 import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 
+@Deprecated('Use CafeQuery with getCafes for home/feed flows.')
 enum CafeQueryType { featured, recommended, nearby }
 
 abstract class ICafeRepository {
-  Future<List<CafeSummary>> getCafeSummaries(
-    CafeQueryType type, {
-    int page = 0,
-    int limit = 20,
-  });
+  Future<List<CafeSummary>> getCafes(CafeQuery query);
+
+  // @Deprecated('Use getCafes(CafeQuery) for home/feed flows.')
+  // Future<List<CafeSummary>> getCafeSummaries(
+  //   CafeQueryType type, {
+  //   int page = 0,
+  //   int limit = 20,
+  // });
 
   Future<CafeDetails> getCafeDetailsById(String cafeId);
 

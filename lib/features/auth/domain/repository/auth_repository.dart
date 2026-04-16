@@ -27,5 +27,7 @@ abstract class AuthRepository {
 
   Future<Either<Failure, void>> signInWithGoogle(String webClientId);
 
+  Future<Either<Failure, void>> signInWithApple();
+
   Session? getCurrentSession();
 }

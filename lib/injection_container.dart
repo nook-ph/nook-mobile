@@ -9,6 +9,7 @@ import 'package:nook/core/cafe/domain/usecases/add_favorite_cafe_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/get_cafe_details_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/get_cafe_reviews_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/get_favorite_cafes_usecase.dart';
+import 'package:nook/core/cafe/domain/usecases/get_cafes_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/get_cafe_summaries_usecase.dart';
 import 'package:nook/core/cafe/domain/usecases/remove_favorite_cafe_usecase.dart';
 import 'package:nook/core/upload/data/review_image_upload_remote_data_source.dart';
@@ -62,8 +63,11 @@ Future<void> initDependencies() async {
   );
 
   // 4) Use cases
-  sl.registerLazySingleton<GetCafeSummariesUseCase>(
-    () => GetCafeSummariesUseCase(sl<ICafeRepository>()),
+  sl.registerLazySingleton<GetHomeFeedUseCase>(
+    () => GetHomeFeedUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<GetCafesUseCase>(
+    () => GetCafesUseCase(sl<ICafeRepository>()),
   );
   sl.registerLazySingleton<GetCafeDetailsUseCase>(
     () => GetCafeDetailsUseCase(sl<ICafeRepository>()),
@@ -89,7 +93,7 @@ Future<void> initDependencies() async {
 
   // 5) Blocs
   sl.registerFactory<HomeBloc>(
-    () => HomeBloc(getCafeSummariesUseCase: sl<GetCafeSummariesUseCase>()),
+    () => HomeBloc(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
   );
   sl.registerFactory<CafeDetailsBloc>(
     () => CafeDetailsBloc(getCafeDetailsUseCase: sl<GetCafeDetailsUseCase>()),
