@@ -21,6 +21,8 @@ import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
+import 'package:nook/features/map/bloc/map_bloc.dart';
+import 'package:nook/features/map/domain/use_cases/get_cafe_cards_usecase.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -63,6 +65,9 @@ Future<void> initDependencies() async {
   );
 
   // 4) Use cases
+  sl.registerLazySingleton<GetCafeCardUseCase>(
+    () => GetCafeCardUseCase(sl<ICafeRepository>()),
+  );
   sl.registerLazySingleton<GetHomeFeedUseCase>(
     () => GetHomeFeedUseCase(sl<ICafeRepository>()),
   );
@@ -92,6 +97,9 @@ Future<void> initDependencies() async {
   );
 
   // 5) Blocs
+  sl.registerFactory<MapBloc>(
+    () => MapBloc(getCafeCardUseCase: sl<GetCafeCardUseCase>()),
+  );
   sl.registerFactory<HomeBloc>(
     () => HomeBloc(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
   );

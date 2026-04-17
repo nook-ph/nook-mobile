@@ -3,27 +3,17 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 
-class CafeCard extends StatelessWidget {
-  final String imageUrl;
-  final String name;
-  final String address;
-  final double rating;
-  final String tag;
-  final String distance;
-  final String cafeId;
+class CafeCard extends StatefulWidget {
+  final CafeSummary cafe;
+  const CafeCard({super.key, required this.cafe});
 
-  const CafeCard({
-    super.key,
-    this.imageUrl = 'https://picsum.photos/200/300?grayscale',
-    this.name = 'Name',
-    this.address = '123 Street, City',
-    this.rating = 5,
-    this.tag = 'Tag',
-    this.distance = '5.0 km',
-    this.cafeId = 'cafe-101',
-  });
+  @override
+  State<CafeCard> createState() => _CafeCardState();
+}
 
+class _CafeCardState extends State<CafeCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -31,7 +21,8 @@ class CafeCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CafeDetailsPage(cafeId: cafeId), // change
+            builder: (context) =>
+                CafeDetailsPage(cafeId: widget.cafe.id), // change
           ),
         );
       },
@@ -42,7 +33,7 @@ class CafeCard extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: Image.network(
-                imageUrl,
+                widget.cafe.coverImage ?? '',
                 height: 240,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -59,7 +50,7 @@ class CafeCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          name,
+                          widget.cafe.name,
                           style: Theme.of(context).textTheme.titleLargeEmp,
                         ),
                         Icon(PhosphorIconsBold.heart, size: 24),
@@ -70,18 +61,18 @@ class CafeCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        rating.toString(),
+                        widget.cafe.rating.toString(),
                         style: Theme.of(context).textTheme.bodyLargeEmp,
                       ),
                       SizedBox(width: 6),
-                      StarRating(rating: rating),
+                      StarRating(rating: widget.cafe.rating),
                       SizedBox(width: 4),
                       Text(
                         '(32)',
                         style: Theme.of(context).textTheme.bodyMediumEmp,
                       ),
                       Text(
-                        ' • $address',
+                        ' • address', // change with ${widget.cafe.address} later
                         style: Theme.of(context).textTheme.bodyMediumEmp
                             .copyWith(
                               color: Theme.of(context).colorScheme.textgray,
@@ -93,75 +84,37 @@ class CafeCard extends StatelessWidget {
                   Row(
                     spacing: 8,
                     children: [
-                      Chip(
-                        backgroundColor: Colors.white,
-                        visualDensity: VisualDensity(
-                          // removes vertical padding (flutter chips r weird)
-                          horizontal: 0.0,
-                          vertical: -4,
-                        ),
-                        labelPadding: EdgeInsets.symmetric(horizontal: 6),
-                        label: Text(
-                          'Student Friendly',
-                          style: Theme.of(context).textTheme.bodySmallEmp
-                              .copyWith(
-                                color: Theme.of(context).colorScheme.black,
+                      ...widget.cafe.tags
+                          .take(3)
+                          .map(
+                            (tag) => Chip(
+                              backgroundColor: Colors.white,
+                              visualDensity: VisualDensity(
+                                horizontal: 0.0,
+                                vertical: -4,
                               ),
-                        ),
-                        shape: StadiumBorder(
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.border,
-                          ),
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      Chip(
-                        backgroundColor: Colors.white,
-                        visualDensity: VisualDensity(
-                          // removes vertical padding (flutter chips r weird)
-                          horizontal: 0.0,
-                          vertical: -4,
-                        ),
-                        labelPadding: EdgeInsets.symmetric(horizontal: 6),
-                        label: Text(
-                          'wassuh',
-                          style: Theme.of(context).textTheme.bodySmallEmp
-                              .copyWith(
-                                color: Theme.of(context).colorScheme.black,
+                              labelPadding: EdgeInsets.symmetric(horizontal: 6),
+                              label: Text(
+                                tag,
+                                style: Theme.of(context).textTheme.bodySmallEmp
+                                    .copyWith(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.black,
+                                    ),
                               ),
-                        ),
-                        shape: StadiumBorder(
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.border,
-                          ),
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      Chip(
-                        backgroundColor: Colors.white,
-                        visualDensity: VisualDensity(
-                          // removes vertical padding (flutter chips r weird)
-                          horizontal: 0.0,
-                          vertical: -4,
-                        ),
-                        labelPadding: EdgeInsets.symmetric(horizontal: 6),
-                        label: Text(
-                          '...',
-                          style: Theme.of(context).textTheme.bodySmallEmp
-                              .copyWith(
-                                color: Theme.of(context).colorScheme.black,
+                              shape: StadiumBorder(
+                                side: BorderSide(
+                                  color: Theme.of(context).colorScheme.border,
+                                ),
                               ),
-                        ),
-                        shape: StadiumBorder(
-                          side: BorderSide(
-                            color: Theme.of(context).colorScheme.border,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
                           ),
-                        ),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
                       Spacer(),
                       Text(
-                        distance,
+                        widget.cafe.distanceMeters.toString(),
                         style: Theme.of(context).textTheme.bodySmallEmp
                             .copyWith(
                               color: Theme.of(context).colorScheme.textgray,
