@@ -315,79 +315,59 @@ class _ReviewCardState extends State<ReviewCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Text(
+                widget.review.name ?? 'Anonymous',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              ),
+              RichText(
+                text: TextSpan(
                   children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: const Color(0xFFE0E0E0),
-                          child: Text(
-                            _avatarInitial(widget.review.name),
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.review.name ?? 'Anonymous',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                ),
-                              ),
-                              Text(
-                                _formatDate(widget.review.createdAt),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                  color: Color(0xFF848685),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                    TextSpan(
+                      text: '${widget.review.rating}',
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const TextSpan(
+                      text: '/5',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.black54,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              Flexible(
-                fit: FlexFit.loose,
-                child: Align(
-                  alignment: Alignment.topRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: List.generate(5, (index) {
-                      final isFilled = index < widget.review.rating;
-                      return Icon(
-                        isFilled ? Icons.star : Icons.star_border,
-                        size: 16,
-                        color: const Color(0xFFFFB800),
-                      );
-                    }),
-                  ),
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDate(widget.review.createdAt),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF588157),
+                ),
+              ),
+              _StarRow(rating: widget.review.rating),
+            ],
+          ),
+          const SizedBox(height: 12),
           const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Text(
             _isExpanded ? reviewContent : reviewPreview,
             style: const TextStyle(
@@ -421,14 +401,6 @@ class _ReviewCardState extends State<ReviewCard> {
         ],
       ),
     );
-  }
-
-  String _avatarInitial(String? name) {
-    if (name == null || name.trim().isEmpty) {
-      return 'A';
-    }
-
-    return name.trim()[0].toUpperCase();
   }
 
   Widget _buildImageStrip(List<String> imageUrls) {
@@ -560,5 +532,28 @@ class _ReviewCardState extends State<ReviewCard> {
     }
 
     return parsed.toString();
+  }
+}
+
+class _StarRow extends StatelessWidget {
+  const _StarRow({required this.rating});
+
+  final int rating;
+
+  @override
+  Widget build(BuildContext context) {
+    const Color starColor = Color(0xFF588157);
+    const double starSize = 16;
+
+    return Row(
+      children: List.generate(5, (index) {
+        final isFilled = index < rating;
+        return Icon(
+          isFilled ? Icons.star : Icons.star_border,
+          color: starColor,
+          size: starSize,
+        );
+      }),
+    );
   }
 }
