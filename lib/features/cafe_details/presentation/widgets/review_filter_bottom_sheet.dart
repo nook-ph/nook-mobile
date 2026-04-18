@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
 
-class ReviewFilterBottomSheet extends StatefulWidget {
-  const ReviewFilterBottomSheet({super.key});
+typedef ReviewFilterResult = ({String sort, int? ratingFilter});
 
-  static Future<void> show(BuildContext context) {
-    return showModalBottomSheet<void>(
+class ReviewFilterBottomSheet extends StatefulWidget {
+  const ReviewFilterBottomSheet({
+    super.key,
+    required this.ratingCounts,
+    required this.initialSort,
+    this.initialRatingFilter,
+  });
+
+  final Map<int, int> ratingCounts;
+  final String initialSort;
+  final int? initialRatingFilter;
+
+  static Future<ReviewFilterResult?> show(
+    BuildContext context, {
+    required Map<int, int> ratingCounts,
+    String initialSort = 'recommended',
+    int? initialRatingFilter,
+  }) {
+    return showModalBottomSheet<ReviewFilterResult>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -12,7 +28,11 @@ class ReviewFilterBottomSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => const ReviewFilterBottomSheet(),
+      builder: (_) => ReviewFilterBottomSheet(
+        ratingCounts: ratingCounts,
+        initialSort: initialSort,
+        initialRatingFilter: initialRatingFilter,
+      ),
     );
   }
 
@@ -22,8 +42,8 @@ class ReviewFilterBottomSheet extends StatefulWidget {
 }
 
 class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
-  String _selectedSort = 'recommended';
-  int? _selectedRatingFilter;
+  late String _selectedSort;
+  late int? _selectedRatingFilter;
 
   static const List<({String value, String label})> _sortOptions = [
     (value: 'recommended', label: 'Recommended'),
@@ -32,13 +52,14 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
     (value: 'most_helpful', label: 'Most Helpful'),
   ];
 
-  static const List<({int star, int count})> _ratingRows = [
-    (star: 5, count: 511),
-    (star: 4, count: 70),
-    (star: 3, count: 21),
-    (star: 2, count: 9),
-    (star: 1, count: 22),
-  ];
+  static const List<int> _ratingStars = [5, 4, 3, 2, 1];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSort = widget.initialSort;
+    _selectedRatingFilter = widget.initialRatingFilter;
+  }
 
   void _clearFilter() {
     setState(() {
@@ -71,12 +92,12 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
           ),
           const SizedBox(height: 20),
           _SectionLabel(text: 'Filter by rating'),
-          ..._ratingRows.map(
-            (row) => _RatingFilterRow(
-              star: row.star,
-              count: row.count,
-              isSelected: _selectedRatingFilter == row.star,
-              onTap: () => setState(() => _selectedRatingFilter = row.star),
+          ..._ratingStars.map(
+            (star) => _RatingFilterRow(
+              star: star,
+              count: widget.ratingCounts[star] ?? 0,
+              isSelected: _selectedRatingFilter == star,
+              onTap: () => setState(() => _selectedRatingFilter = star),
             ),
           ),
           const SizedBox(height: 4),
@@ -99,7 +120,9 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () => Navigator.of(context).pop<ReviewFilterResult>(
+                  (sort: _selectedSort, ratingFilter: _selectedRatingFilter),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF344E41),
                   foregroundColor: Colors.white,

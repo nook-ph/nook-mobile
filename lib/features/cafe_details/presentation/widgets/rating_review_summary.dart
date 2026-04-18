@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/review_filter_bottom_sheet.dart';
 
 class RatingReviewSummary extends StatelessWidget {
   const RatingReviewSummary({
@@ -7,17 +6,15 @@ class RatingReviewSummary extends StatelessWidget {
     this.rating = 0,
     this.reviewCount = 0,
     this.onWriteReviewTap,
+    this.onFilterTap,
     this.distribution,
   });
 
   final double rating;
   final int reviewCount;
   final VoidCallback? onWriteReviewTap;
+  final VoidCallback? onFilterTap;
   final List<RatingDistributionData>? distribution;
-
-  void _showFilterBottomSheet(BuildContext context) {
-    ReviewFilterBottomSheet.show(context);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +85,7 @@ class RatingReviewSummary extends StatelessWidget {
             const SizedBox(height: 18),
             const Divider(height: 1, thickness: 1, color: Color(0xFFE7E7E7)),
             InkWell(
-              onTap: () => _showFilterBottomSheet(context),
+              onTap: onFilterTap,
               child: const Padding(
                 padding: EdgeInsets.symmetric(vertical: 14),
                 child: Row(

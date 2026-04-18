@@ -196,7 +196,11 @@ class CafeRemoteDataSource {
     }
   }
 
-  Future<List<ReviewModel>> fetchReviewsByCafeId(String cafeId) async {
+  Future<List<ReviewModel>> fetchReviewsByCafeId(
+    String cafeId, {
+    String sort = 'recommended',
+    int? ratingFilter,
+  }) async {
     try {
       final userId = supabase.auth.currentUser?.id ?? '';
       final rpcResponse = await supabase.rpc(
@@ -204,8 +208,8 @@ class CafeRemoteDataSource {
         params: {
           'p_cafe_id': cafeId,
           'p_user_id': userId,
-          'p_sort': 'recommended',
-          'p_rating_filter': null,
+          'p_sort': sort,
+          'p_rating_filter': ratingFilter,
         },
       );
 

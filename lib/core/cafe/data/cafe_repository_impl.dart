@@ -101,8 +101,16 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
-  Future<List<Review>> getCafeReviewsById(String cafeId) async {
-    final reviews = await remoteDataSource.fetchReviewsByCafeId(cafeId);
+  Future<List<Review>> getCafeReviewsById(
+    String cafeId, {
+    String sort = 'recommended',
+    int? ratingFilter,
+  }) async {
+    final reviews = await remoteDataSource.fetchReviewsByCafeId(
+      cafeId,
+      sort: sort,
+      ratingFilter: ratingFilter,
+    );
 
     return reviews
         .map(

@@ -8,6 +8,7 @@ import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/rating_review_summary.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/review_filter_bottom_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,6 +30,9 @@ class ReviewsPage extends StatefulWidget {
 }
 
 class _ReviewsPageState extends State<ReviewsPage> {
+  String _currentSort = 'recommended';
+  int? _currentRatingFilter;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +40,45 @@ class _ReviewsPageState extends State<ReviewsPage> {
     context.read<ReviewsBloc>().add(
       LoadReviewsRequested(cafeId: widget.cafeId),
     );
+  }
+
+  Future<void> _openFilter() async {
+    final state = context.read<ReviewsBloc>().state;
+    final ratingCounts = state is ReviewsLoaded
+        ? _buildRatingCounts(state.reviews)
+        : <int, int>{};
+
+    if (!mounted) return;
+
+    final result = await ReviewFilterBottomSheet.show(
+      context,
+      ratingCounts: ratingCounts,
+      initialSort: _currentSort,
+      initialRatingFilter: _currentRatingFilter,
+    );
+
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _currentSort = result.sort;
+      _currentRatingFilter = result.ratingFilter;
+    });
+
+    context.read<ReviewsBloc>().add(
+      LoadReviewsRequested(
+        cafeId: widget.cafeId,
+        sort: _currentSort,
+        ratingFilter: _currentRatingFilter,
+      ),
+    );
+  }
+
+  Map<int, int> _buildRatingCounts(List<ReviewEntity> reviews) {
+    final counts = <int, int>{};
+    for (final review in reviews) {
+      counts[review.rating] = (counts[review.rating] ?? 0) + 1;
+    }
+    return counts;
   }
 
   @override
@@ -53,12 +96,22 @@ class _ReviewsPageState extends State<ReviewsPage> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            onPressed: _openFilter,
+          ),
+        ],
       ),
       body: BlocListener<ReviewSubmitBloc, ReviewSubmitState>(
         listener: (context, state) {
           if (state is ReviewSubmitSuccess) {
             context.read<ReviewsBloc>().add(
-              LoadReviewsRequested(cafeId: widget.cafeId),
+              LoadReviewsRequested(
+                cafeId: widget.cafeId,
+                sort: _currentSort,
+                ratingFilter: _currentRatingFilter,
+              ),
             );
           }
         },
@@ -105,6 +158,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   rating: resolvedRating,
                   reviewCount: resolvedReviewCount,
                   distribution: distribution,
+                  onFilterTap: _openFilter,
                   onWriteReviewTap: () {
                     final session =
                         Supabase.instance.client.auth.currentSession;
