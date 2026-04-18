@@ -3,7 +3,6 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
-import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
 
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetHomeFeedUseCase getHomeFeedUseCase;
@@ -21,17 +20,12 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     try {
       final result = await getHomeFeedUseCase.call();
 
-      final newest = result.newest.map(_toFeatureSummary).toList();
-      final trending = result.trending.map(_toFeatureSummary).toList();
-      final topRated = result.topRated.map(_toFeatureSummary).toList();
-      final featured = _buildFeatured(result);
-
       emit(
         HomeLoadedState(
-          featuredCafes: featured,
-          newestCafes: newest,
-          trendingCafes: trending,
-          topRatedCafes: topRated,
+          featuredCafes: _buildFeatured(result),
+          newestCafes: result.newest,
+          trendingCafes: result.trending,
+          topRatedCafes: result.topRated,
         ),
       );
     } catch (e) {
@@ -39,31 +33,16 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     }
   }
 
-  List<CafeSummaryEntity> _buildFeatured(HomeFeedResult result) {
+  List<CafeSummary> _buildFeatured(HomeFeedResult result) {
     final seenIds = <String>{};
-    final all = [
+    return [
       ...result.newest,
       ...result.trending,
       ...result.topRated,
       ...result.nearby,
-    ];
-
-    return all
+    ]
         .where((summary) => summary.isFeatured)
         .where((summary) => seenIds.add(summary.id))
-        .map(_toFeatureSummary)
         .toList();
-  }
-
-  CafeSummaryEntity _toFeatureSummary(CafeSummary summary) {
-    return CafeSummaryEntity(
-      id: summary.id,
-      name: summary.name,
-      address: summary.address,
-      rating: summary.rating,
-      featuredImageUrl: summary.coverImage,
-      isFeatured: summary.isFeatured,
-      tags: summary.tags,
-    );
   }
 }

@@ -15,23 +15,7 @@ class CafeRepositoryImpl implements ICafeRepository {
 
   @override
   Future<List<CafeSummary>> getCafes(CafeQuery query) async {
-    final summaries = await remoteDataSource.fetchCafes(query: query);
-
-    return summaries
-        .map(
-          (item) => CafeSummary(
-            id: item.id,
-            name: item.name,
-            address: item.address,
-            coverImage: item.featuredImageUrl,
-            rating: item.rating,
-            tags: item.tags,
-            isFeatured: item.isFeatured,
-            isNew: item.isNew,
-            distanceMeters: item.distanceMeters,
-          ),
-        )
-        .toList();
+    return remoteDataSource.fetchCafes(query: query);
   }
 
   @override
@@ -174,21 +158,7 @@ class CafeRepositoryImpl implements ICafeRepository {
 
     final favorites = await remoteDataSource.fetchFavorites(userId: userId);
 
-    return favorites
-        .map(
-          (item) => CafeSummary(
-            id: item.id,
-            name: item.name,
-            address: item.address,
-            coverImage: item.featuredImageUrl,
-            rating: item.rating,
-            tags: item.tags,
-            isFeatured: item.isFeatured,
-            isNew: item.isNew,
-            distanceMeters: item.distanceMeters,
-          ),
-        )
-        .toList();
+    return favorites;
   }
 
   @override

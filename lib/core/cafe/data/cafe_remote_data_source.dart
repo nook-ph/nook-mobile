@@ -1,6 +1,6 @@
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
+import 'package:nook/core/cafe/data/cafe_summary_model.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
-import 'package:nook/features/home_page/data/models/cafe_summary_model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CafeRemoteDataSource {

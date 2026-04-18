@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
 
 class HomeCafeSection extends StatelessWidget {
   final String title;
-  final List<CafeSummaryEntity> cafes;
+  final List<CafeSummary> cafes;
   final bool isSkeleton;
 
   const HomeCafeSection({
