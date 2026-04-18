@@ -101,8 +101,16 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
-  Future<List<Review>> getCafeReviewsById(String cafeId) async {
-    final reviews = await remoteDataSource.fetchReviewsByCafeId(cafeId);
+  Future<List<Review>> getCafeReviewsById(
+    String cafeId, {
+    String sort = 'recommended',
+    int? ratingFilter,
+  }) async {
+    final reviews = await remoteDataSource.fetchReviewsByCafeId(
+      cafeId,
+      sort: sort,
+      ratingFilter: ratingFilter,
+    );
 
     return reviews
         .map(
@@ -116,9 +124,24 @@ class CafeRepositoryImpl implements ICafeRepository {
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
             name: item.name,
+            helpfulCount: item.helpfulCount,
+            hasVoted: item.hasVoted,
           ),
         )
         .toList();
+  }
+
+  @override
+  Future<void> toggleHelpfulVote(
+    String reviewId,
+    String userId,
+    bool currentlyVoted,
+  ) {
+    return remoteDataSource.toggleHelpfulVote(
+      reviewId: reviewId,
+      userId: userId,
+      currentlyVoted: currentlyVoted,
+    );
   }
 
   @override

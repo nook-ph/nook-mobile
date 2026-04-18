@@ -196,28 +196,24 @@ class CafeRemoteDataSource {
     }
   }
 
-  Future<List<ReviewModel>> fetchReviewsByCafeId(String cafeId) async {
+  Future<List<ReviewModel>> fetchReviewsByCafeId(
+    String cafeId, {
+    String sort = 'recommended',
+    int? ratingFilter,
+  }) async {
     try {
-      final response = await supabase
-          .from('reviews')
-          .select('''
-            id,
-            cafe_id,
-            user_id,
-            rating,
-            content,
-            image_urls,
-            created_at,
-            updated_at,
-            profile:profiles!reviews_user_id_fkey (
-              username,
-              full_name
-            )
-          ''')
-          .eq('cafe_id', cafeId)
-          .order('created_at', ascending: false);
+      final userId = supabase.auth.currentUser?.id ?? '';
+      final rpcResponse = await supabase.rpc(
+        'get_reviews_with_vote_status',
+        params: {
+          'p_cafe_id': cafeId,
+          'p_user_id': userId,
+          'p_sort': sort,
+          'p_rating_filter': ratingFilter,
+        },
+      );
 
-      return (response as List)
+      return (rpcResponse as List)
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
           .map(ReviewModel.fromJson)
@@ -229,8 +225,43 @@ class CafeRemoteDataSource {
         stackTrace: st,
       );
     } catch (e, st) {
+      if (e is CafeFetchException) rethrow;
       throw CafeFetchException(
         'Failed to fetch cafe reviews for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<void> toggleHelpfulVote({
+    required String reviewId,
+    required String userId,
+    required bool currentlyVoted,
+  }) async {
+    try {
+      if (currentlyVoted) {
+        await supabase
+            .from('review_helpful_votes')
+            .delete()
+            .eq('review_id', reviewId)
+            .eq('user_id', userId);
+      } else {
+        await supabase.from('review_helpful_votes').insert({
+          'review_id': reviewId,
+          'user_id': userId,
+        });
+      }
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to toggle helpful vote for review "$reviewId".',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      if (e is CafeFetchException) rethrow;
+      throw CafeFetchException(
+        'Failed to toggle helpful vote for review "$reviewId".',
         cause: e,
         stackTrace: st,
       );

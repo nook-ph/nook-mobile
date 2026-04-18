@@ -6,7 +6,15 @@ class GetCafeReviewsUseCase {
 
   GetCafeReviewsUseCase(this.repository);
 
-  Future<List<Review>> call(String cafeId) {
-    return repository.getCafeReviewsById(cafeId);
+  Future<List<Review>> call(
+    String cafeId, {
+    String sort = 'recommended',
+    int? ratingFilter,
+  }) {
+    return repository.getCafeReviewsById(
+      cafeId,
+      sort: sort,
+      ratingFilter: ratingFilter,
+    );
   }
 }

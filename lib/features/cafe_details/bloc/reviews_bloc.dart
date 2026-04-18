@@ -20,7 +20,11 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
     emit(const ReviewsLoading());
 
     try {
-      final reviews = await getCafeReviewsUseCase.call(event.cafeId);
+      final reviews = await getCafeReviewsUseCase.call(
+        event.cafeId,
+        sort: event.sort,
+        ratingFilter: event.ratingFilter,
+      );
       emit(
         ReviewsLoaded(
           cafeId: event.cafeId,
@@ -43,6 +47,8 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
       createdAt: review.createdAt,
       updatedAt: review.updatedAt,
       name: review.name,
+      helpfulCount: review.helpfulCount,
+      hasVoted: review.hasVoted,
     );
   }
 }

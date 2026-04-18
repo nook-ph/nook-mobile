@@ -274,6 +274,8 @@ class ReviewModel extends ReviewEntity {
     required super.createdAt,
     required super.updatedAt,
     super.name,
+    super.helpfulCount = 0,
+    super.hasVoted = false,
   });
 
   factory ReviewModel.fromJson(Map<String, dynamic> json) {
@@ -299,10 +301,14 @@ class ReviewModel extends ReviewEntity {
           profiles?['full_name'] ??
           users?['full_name'] ??
           user?['full_name'] ??
+          // Flat columns returned by the RPC
+          json['full_name'] ??
           profile?['username'] ??
           profiles?['username'] ??
           users?['username'] ??
           user?['username'] ??
+          // Flat username column from the RPC
+          json['username'] ??
           profile?['name'] ??
           profiles?['name'] ??
           users?['name'] ??
@@ -327,6 +333,12 @@ class ReviewModel extends ReviewEntity {
         json['updated_at'] ?? json['updatedAt'],
       ),
       name: resolvedName,
+      helpfulCount: CafeDetailsModel._asInt(
+        json['helpful_count'] ?? json['helpfulCount'],
+      ),
+      hasVoted: CafeDetailsModel._asBool(
+        json['has_voted'] ?? json['hasVoted'],
+      ),
     );
   }
 

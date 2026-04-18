@@ -8,10 +8,16 @@ abstract class ReviewsEvent extends Equatable {
 }
 
 class LoadReviewsRequested extends ReviewsEvent {
-  const LoadReviewsRequested({required this.cafeId});
+  const LoadReviewsRequested({
+    required this.cafeId,
+    this.sort = 'recommended',
+    this.ratingFilter,
+  });
 
   final String cafeId;
+  final String sort;
+  final int? ratingFilter;
 
   @override
-  List<Object?> get props => [cafeId];
+  List<Object?> get props => [cafeId, sort, ratingFilter];
 }

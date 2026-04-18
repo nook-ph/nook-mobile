@@ -77,19 +77,46 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     return File(result.path);
   }
 
-  Future<void> _pickPhoto(int targetIndex) async {
+  Future<void> _pickPhoto() async {
+    final nextIndex = _photos.indexWhere((f) => f == null);
+    if (nextIndex == -1) return;
+
     final XFile? picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
     );
-    if (picked == null) {
-      return;
-    }
+    if (picked == null) return;
 
     final file = await _compressImage(File(picked.path));
 
     setState(() {
-      _photos[targetIndex] = file;
+      _photos[nextIndex] = file;
     });
+  }
+
+  Widget _buildPhotosRow(bool isSubmitting) {
+    final filled = _photos.whereType<File>().toList();
+    final showAddButton = filled.length < 3;
+
+    final items = <Widget>[
+      for (int i = 0; i < filled.length; i++) ...[
+        if (i > 0) const SizedBox(width: 10),
+        Expanded(child: _PhotoThumbnail(file: filled[i])),
+      ],
+      if (showAddButton) ...[
+        if (filled.isNotEmpty) const SizedBox(width: 10),
+        Expanded(
+          child: _AddPhotoButton(onTap: isSubmitting ? null : _pickPhoto),
+        ),
+      ],
+      // Fill remaining space with invisible expanded slots so items always
+      // take equal widths regardless of how many are shown.
+      for (int i = filled.length + (showAddButton ? 1 : 0); i < 3; i++) ...[
+        const SizedBox(width: 10),
+        const Expanded(child: SizedBox.shrink()),
+      ],
+    ];
+
+    return Row(children: items);
   }
 
   String _ratingLabel(int rating) {
@@ -317,30 +344,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                 ],
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _PhotoSlot(
-                      file: _photos[0],
-                      onTap: isSubmitting ? null : () => _pickPhoto(0),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _PhotoSlot(
-                      file: _photos[1],
-                      onTap: isSubmitting ? null : () => _pickPhoto(1),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _PhotoSlot(
-                      file: _photos[2],
-                      onTap: isSubmitting ? null : () => _pickPhoto(2),
-                    ),
-                  ),
-                ],
-              ),
+              _buildPhotosRow(isSubmitting),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
@@ -393,45 +397,98 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
   }
 }
 
-class _PhotoSlot extends StatelessWidget {
-  const _PhotoSlot({required this.file, this.onTap});
+class _PhotoThumbnail extends StatelessWidget {
+  const _PhotoThumbnail({required this.file});
 
-  final File? file;
+  final File file;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 100,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Image.file(file, fit: BoxFit.cover),
+      ),
+    );
+  }
+}
+
+class _AddPhotoButton extends StatelessWidget {
+  const _AddPhotoButton({this.onTap});
+
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
+      child: SizedBox(
         height: 100,
-        decoration: BoxDecoration(
-          color: file == null ? const Color(0xFFEEEEEE) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFBDBDBD)),
-        ),
-        child: file != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(11),
-                child: Image.file(file!, fit: BoxFit.cover),
-              )
-            : const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add_a_photo, size: 24, color: Colors.black),
-                  SizedBox(height: 6),
-                  Text(
-                    'UPLOAD',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                ],
+        child: CustomPaint(
+          painter: const _DashedBorderPainter(),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: 22, color: Color(0xFF9E9E9E)),
+              SizedBox(height: 6),
+              Text(
+                'Add photo',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF9E9E9E),
+                ),
               ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const color = Color(0xFFBDBDBD);
+    const strokeWidth = 1.5;
+    const dashWidth = 6.0;
+    const dashSpace = 4.0;
+    const radius = 12.0;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(
+            strokeWidth / 2,
+            strokeWidth / 2,
+            size.width - strokeWidth,
+            size.height - strokeWidth,
+          ),
+          const Radius.circular(radius),
+        ),
+      );
+
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        canvas.drawPath(
+          metric.extractPath(distance, distance + dashWidth),
+          paint,
+        );
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
