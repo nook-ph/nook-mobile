@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
-import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/home_page/presentation/widgets/featured_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_section.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
@@ -78,15 +78,15 @@ class HomePage extends StatelessWidget {
   }
 
   List<Widget> _buildLoadingSkeletonChildren(double cardWidth, double textScale) {
-    final List<CafeSummaryEntity> cafes = List.generate(
+    final List<CafeSummary> cafes = List.generate(
       4,
-      (index) => CafeSummaryEntity(
-        id: 'skeleton_$index',
+      (index) => const CafeSummary(
+        id: 'skeleton',
         name: 'Cafe Placeholder Name',
         address: 'Street Address Placeholder',
         rating: 4.9,
-        featuredImageUrl: null,
-        tags: const ['Specialty'],
+        coverImage: null,
+        tags: ['Specialty'],
       ),
     );
 

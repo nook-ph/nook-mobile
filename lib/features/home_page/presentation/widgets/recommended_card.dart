@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
-import 'package:nook/features/home_page/domain/entities/cafe_summary_entity.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 
 class RecommendedCard extends StatelessWidget {
-  final CafeSummaryEntity cafe;
+  final CafeSummary cafe;
   const RecommendedCard({super.key, required this.cafe});
 
   @override
   Widget build(BuildContext context) {
-    final String imageUrl = cafe.featuredImageUrl?.trim().isNotEmpty == true
-        ? cafe.featuredImageUrl!.trim()
+    final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
+        ? cafe.coverImage!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
     final String ratingText = cafe.rating.toStringAsFixed(1);
     final String? primaryTag = cafe.tags.isNotEmpty ? cafe.tags.first : null;
