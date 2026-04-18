@@ -116,9 +116,24 @@ class CafeRepositoryImpl implements ICafeRepository {
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
             name: item.name,
+            helpfulCount: item.helpfulCount,
+            hasVoted: item.hasVoted,
           ),
         )
         .toList();
+  }
+
+  @override
+  Future<void> toggleHelpfulVote(
+    String reviewId,
+    String userId,
+    bool currentlyVoted,
+  ) {
+    return remoteDataSource.toggleHelpfulVote(
+      reviewId: reviewId,
+      userId: userId,
+      currentlyVoted: currentlyVoted,
+    );
   }
 
   @override

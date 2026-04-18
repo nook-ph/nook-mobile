@@ -43,6 +43,8 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
       createdAt: review.createdAt,
       updatedAt: review.updatedAt,
       name: review.name,
+      helpfulCount: review.helpfulCount,
+      hasVoted: review.hasVoted,
     );
   }
 }

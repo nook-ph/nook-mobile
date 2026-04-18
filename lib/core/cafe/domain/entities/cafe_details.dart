@@ -86,6 +86,8 @@ class Review {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? name;
+  final int helpfulCount;
+  final bool hasVoted;
 
   const Review({
     required this.id,
@@ -97,5 +99,7 @@ class Review {
     required this.createdAt,
     required this.updatedAt,
     this.name,
+    this.helpfulCount = 0,
+    this.hasVoted = false,
   });
 }

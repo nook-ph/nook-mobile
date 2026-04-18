@@ -26,6 +26,12 @@ abstract class ICafeRepository {
 
   Future<List<Review>> getCafeReviewsById(String cafeId);
 
+  Future<void> toggleHelpfulVote(
+    String reviewId,
+    String userId,
+    bool currentlyVoted,
+  );
+
   Future<Review> addCafeReview({
     required String cafeId,
     required String userId,

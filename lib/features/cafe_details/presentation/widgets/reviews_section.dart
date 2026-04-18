@@ -4,6 +4,7 @@ import 'package:like_button/like_button.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReviewsSection extends StatelessWidget {
   const ReviewsSection({
@@ -290,8 +291,16 @@ class ReviewCard extends StatefulWidget {
 
 class _ReviewCardState extends State<ReviewCard> {
   bool _isExpanded = false;
-  bool _isHelpful = false;
+  late bool _isHelpful;
+  late int _helpfulCount;
   static const int _collapsedCharLimit = 90;
+
+  @override
+  void initState() {
+    super.initState();
+    _isHelpful = widget.review.hasVoted;
+    _helpfulCount = widget.review.helpfulCount;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -406,7 +415,7 @@ class _ReviewCardState extends State<ReviewCard> {
             children: [
               LikeButton(
                 isLiked: _isHelpful,
-                likeCount: 12,
+                likeCount: _helpfulCount,
                 size: 16,
                 animationDuration: const Duration(milliseconds: 200),
                 likeCountAnimationType: LikeCountAnimationType.none,
@@ -433,8 +442,39 @@ class _ReviewCardState extends State<ReviewCard> {
                   ),
                 ),
                 onTap: (isLiked) async {
-                  setState(() => _isHelpful = !isLiked);
-                  return !isLiked;
+                  final newVoted = !isLiked;
+                  setState(() {
+                    _isHelpful = newVoted;
+                    _helpfulCount += newVoted ? 1 : -1;
+                  });
+
+                  final userId =
+                      Supabase.instance.client.auth.currentUser?.id ?? '';
+                  try {
+                    if (newVoted) {
+                      await Supabase.instance.client
+                          .from('review_helpful_votes')
+                          .insert({
+                            'review_id': widget.review.id,
+                            'user_id': userId,
+                          });
+                    } else {
+                      await Supabase.instance.client
+                          .from('review_helpful_votes')
+                          .delete()
+                          .eq('review_id', widget.review.id)
+                          .eq('user_id', userId);
+                    }
+                  } catch (_) {
+                    if (mounted) {
+                      setState(() {
+                        _isHelpful = isLiked;
+                        _helpfulCount += isLiked ? 1 : -1;
+                      });
+                    }
+                  }
+
+                  return newVoted;
                 },
               ),
             ],
