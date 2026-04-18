@@ -1,0 +1,317 @@
+import 'package:flutter/material.dart';
+
+class ReviewFilterBottomSheet extends StatefulWidget {
+  const ReviewFilterBottomSheet({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const ReviewFilterBottomSheet(),
+    );
+  }
+
+  @override
+  State<ReviewFilterBottomSheet> createState() =>
+      _ReviewFilterBottomSheetState();
+}
+
+class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
+  String _selectedSort = 'recommended';
+  int? _selectedRatingFilter;
+
+  static const List<({String value, String label})> _sortOptions = [
+    (value: 'recommended', label: 'Recommended'),
+    (value: 'recently_added', label: 'Recently Added'),
+    (value: 'highest_rated', label: 'Highest Rated'),
+    (value: 'most_helpful', label: 'Most Helpful'),
+  ];
+
+  static const List<({int star, int count})> _ratingRows = [
+    (star: 5, count: 511),
+    (star: 4, count: 70),
+    (star: 3, count: 21),
+    (star: 2, count: 9),
+    (star: 1, count: 22),
+  ];
+
+  void _clearFilter() {
+    setState(() {
+      _selectedSort = 'recommended';
+      _selectedRatingFilter = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _DragHandle(),
+          const SizedBox(height: 16),
+          _SheetHeader(onClose: () => Navigator.of(context).maybePop()),
+          const SizedBox(height: 20),
+          _SectionLabel(text: 'Sort by'),
+          ..._sortOptions.map(
+            (option) => _RadioRow(
+              label: option.label,
+              isSelected: _selectedSort == option.value,
+              onTap: () => setState(() => _selectedSort = option.value),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _SectionLabel(text: 'Filter by rating'),
+          ..._ratingRows.map(
+            (row) => _RatingFilterRow(
+              star: row.star,
+              count: row.count,
+              isSelected: _selectedRatingFilter == row.star,
+              onTap: () => setState(() => _selectedRatingFilter = row.star),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton(
+              onPressed: _clearFilter,
+              child: const Text(
+                'Clear filter',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF344E41),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                ),
+                child: const Text(
+                  'Apply',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+class _DragHandle extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.only(top: 12),
+        width: 36,
+        height: 4,
+        decoration: BoxDecoration(
+          color: const Color(0xFFD4D4D4),
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Sort & Filter',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
+            ),
+          ),
+          GestureDetector(
+            onTap: onClose,
+            child: const Icon(Icons.close, color: Colors.black, size: 24),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
+        ),
+      ),
+    );
+  }
+}
+
+class _RadioRow extends StatelessWidget {
+  const _RadioRow({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black,
+                    ),
+                  ),
+                ),
+                _RadioIndicator(isSelected: isSelected),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
+      ],
+    );
+  }
+}
+
+class _RatingFilterRow extends StatelessWidget {
+  const _RatingFilterRow({
+    required this.star,
+    required this.count,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final int star;
+  final int count;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            child: Row(
+              children: [
+                ...List.generate(5, (index) {
+                  final isFilled = index < star;
+                  return Icon(
+                    isFilled ? Icons.star_rounded : Icons.star_outline_rounded,
+                    size: 20,
+                    color: const Color(0xFF588157),
+                  );
+                }),
+                const SizedBox(width: 8),
+                Text(
+                  '($count)',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black,
+                  ),
+                ),
+                const Spacer(),
+                _RadioIndicator(isSelected: isSelected),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
+      ],
+    );
+  }
+}
+
+class _RadioIndicator extends StatelessWidget {
+  const _RadioIndicator({required this.isSelected});
+
+  final bool isSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: const Color(0xFF588157),
+          width: isSelected ? 6 : 1.5,
+        ),
+        color: Colors.white,
+      ),
+      child: isSelected
+          ? const Center(
+              child: Icon(Icons.circle, color: Colors.white, size: 6),
+            )
+          : null,
+    );
+  }
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/review_filter_bottom_sheet.dart';
 
 class RatingReviewSummary extends StatelessWidget {
   const RatingReviewSummary({
@@ -15,67 +16,7 @@ class RatingReviewSummary extends StatelessWidget {
   final List<RatingDistributionData>? distribution;
 
   void _showFilterBottomSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.55,
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD0D0D0),
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {},
-                child: const Text(
-                  'Clear filter',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF8EB8FF),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9E9E9E),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Apply',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    ReviewFilterBottomSheet.show(context);
   }
 
   @override
