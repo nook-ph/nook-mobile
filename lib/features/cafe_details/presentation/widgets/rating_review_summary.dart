@@ -173,7 +173,7 @@ class _RatingDistributionRow extends StatelessWidget {
                   FractionallySizedBox(
                     widthFactor: fill,
                     alignment: Alignment.centerLeft,
-                    child: Container(color: Colors.black),
+                    child: Container(color: const Color(0xFF588157)),
                   ),
                 ],
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:like_button/like_button.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
@@ -289,6 +290,7 @@ class ReviewCard extends StatefulWidget {
 
 class _ReviewCardState extends State<ReviewCard> {
   bool _isExpanded = false;
+  bool _isHelpful = false;
   static const int _collapsedCharLimit = 90;
 
   @override
@@ -398,6 +400,45 @@ class _ReviewCardState extends State<ReviewCard> {
               ),
             ),
           ],
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              LikeButton(
+                isLiked: _isHelpful,
+                likeCount: 12,
+                size: 16,
+                animationDuration: const Duration(milliseconds: 200),
+                likeCountAnimationType: LikeCountAnimationType.none,
+                bubblesSize: 40,
+                bubblesColor: const BubblesColor(
+                  dotPrimaryColor: Color(0xFF588157),
+                  dotSecondaryColor: Color(0xFF588157),
+                ),
+                circleColor: const CircleColor(
+                  start: Color(0xFF588157),
+                  end: Color(0xFF588157),
+                ),
+                likeBuilder: (isLiked) => Icon(
+                  isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                  size: 16,
+                  color: isLiked ? const Color(0xFF588157) : Colors.black,
+                ),
+                countBuilder: (count, isLiked, text) => Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: isLiked ? const Color(0xFF588157) : Colors.black,
+                  ),
+                ),
+                onTap: (isLiked) async {
+                  setState(() => _isHelpful = !isLiked);
+                  return !isLiked;
+                },
+              ),
+            ],
+          ),
         ],
       ),
     );
