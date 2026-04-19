@@ -148,6 +148,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                         id: widget.cafeId,
                         name: state.data.cafeDetails.name,
                         address: state.data.cafeDetails.address,
+                        neighborhood: state.data.cafeDetails.neighborhood,
+                        city: state.data.cafeDetails.city,
                         coverImage: state.data.cafeDetails.featuredImageUrl,
                         rating: state.data.cafeDetails.rating,
                         tags: state.data.cafeDetails.tags
@@ -155,11 +157,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             .toList(),
                         isFeatured: false,
                       )
-                    : CafeSummary(
-                        id: widget.cafeId,
-                        name: '',
-                        rating: 0,
-                      );
+                    : CafeSummary(id: widget.cafeId, name: '', rating: 0);
 
                 return CustomScrollView(
                   controller: _scrollController,
@@ -173,12 +171,13 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                         ),
                       ),
                       builder: (context, offset, heroSlider) {
-                        final collapseProgress =
-                            (offset / _fadeRange).clamp(0.0, 1.0);
+                        final collapseProgress = (offset / _fadeRange).clamp(
+                          0.0,
+                          1.0,
+                        );
                         final titleOpacity = collapseProgress < 0.6
                             ? 0.0
-                            : ((collapseProgress - 0.6) / 0.4)
-                                .clamp(0.0, 1.0);
+                            : ((collapseProgress - 0.6) / 0.4).clamp(0.0, 1.0);
 
                         return SliverAppBar(
                           expandedHeight: _expandedHeight,
@@ -285,8 +284,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             const SizedBox(height: 24),
 
                             Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 22),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                              ),
                               child: Text(
                                 state is CafeDetailsLoaded
                                     ? state.data.cafeDetails.description
@@ -341,15 +341,15 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                     builder: (_) => MultiBlocProvider(
                                       providers: [
                                         BlocProvider.value(
-                                          value:
-                                              context.read<CafeDetailsBloc>(),
+                                          value: context
+                                              .read<CafeDetailsBloc>(),
                                         ),
                                         BlocProvider.value(
                                           value: context.read<ReviewsBloc>(),
                                         ),
                                         BlocProvider.value(
-                                          value:
-                                              context.read<ReviewSubmitBloc>(),
+                                          value: context
+                                              .read<ReviewSubmitBloc>(),
                                         ),
                                       ],
                                       child: ReviewsPage(
@@ -357,13 +357,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                         cafeRating: state is CafeDetailsLoaded
                                             ? state.data.cafeDetails.rating
                                             : null,
-                                        reviewCount:
-                                            state is CafeDetailsLoaded
-                                                ? state
-                                                    .data
-                                                    .cafeDetails
-                                                    .reviewCount
-                                                : null,
+                                        reviewCount: state is CafeDetailsLoaded
+                                            ? state.data.cafeDetails.reviewCount
+                                            : null,
                                       ),
                                     ),
                                   ),
@@ -428,19 +424,14 @@ class _FavoriteButton extends StatelessWidget {
             padding: EdgeInsets.zero,
             isLiked: isFavorite,
             onTap: (isLiked) async {
-              final session =
-                  Supabase.instance.client.auth.currentSession;
+              final session = Supabase.instance.client.auth.currentSession;
               if (session == null) {
                 context.push('/login');
                 return false;
               }
 
               context.read<FavoritesBloc>().add(
-                ToggleFavoriteEvent(
-                  cafeId,
-                  summary,
-                  userId: session.user.id,
-                ),
+                ToggleFavoriteEvent(cafeId, summary, userId: session.user.id),
               );
               return !isLiked;
             },

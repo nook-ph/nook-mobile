@@ -45,6 +45,18 @@ class CafeInfoHeader extends StatelessWidget {
 
   int _toMinutes(TimeOfDay time) => (time.hour * 60) + time.minute;
 
+  String _locationText(CafeDetailsResult? cafe) {
+    final details = cafe?.cafeDetails;
+    if (details == null) return '';
+
+    final parts = [details.neighborhood, details.city]
+        .where((value) => value.trim().isNotEmpty)
+        .map((value) => value.trim())
+        .toList();
+
+    return parts.join(', ');
+  }
+
   ({bool isOpen, TimeOfDay? closeTime, TimeOfDay? openTime}) _buildStatus(
     Map<String, dynamic> operatingHours,
   ) {
@@ -80,6 +92,7 @@ class CafeInfoHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final operatingHours = cafe?.cafeDetails.operatingHours ?? {};
+    final locationText = _locationText(cafe);
     final status = _buildStatus(operatingHours);
     final dotColor = status.isOpen
         ? const Color(0xFF0F893E)
@@ -169,7 +182,7 @@ class CafeInfoHeader extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    cafe?.cafeDetails.locationLabel ?? '',
+                    locationText,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w400,

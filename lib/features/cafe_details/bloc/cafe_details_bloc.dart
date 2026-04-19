@@ -79,6 +79,7 @@ class CafeDetailsBloc extends Bloc<CafeDetailsEvent, CafeDetailsState> {
       description: bundle.details.description,
       address: bundle.details.address,
       neighborhood: bundle.details.neighborhood,
+      city: bundle.details.city,
       lat: bundle.details.lat,
       lng: bundle.details.lng,
       featuredImageUrl: bundle.details.coverImage,

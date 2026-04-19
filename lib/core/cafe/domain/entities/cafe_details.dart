@@ -5,6 +5,7 @@ class CafeDetails {
   final String description;
   final String address;
   final String neighborhood;
+  final String city;
   final double lat;
   final double lng;
   final String? coverImage;
@@ -23,6 +24,7 @@ class CafeDetails {
     required this.description,
     required this.address,
     required this.neighborhood,
+    this.city = '',
     required this.lat,
     required this.lng,
     this.coverImage,
