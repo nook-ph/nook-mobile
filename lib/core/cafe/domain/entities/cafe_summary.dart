@@ -2,6 +2,8 @@ class CafeSummary {
   final String id;
   final String name;
   final String address;
+  final String? neighborhood;
+  final String? city;
   final String? coverImage;
   final double rating;
   final List<String> tags;
@@ -15,6 +17,8 @@ class CafeSummary {
     required this.id,
     required this.name,
     this.address = '',
+    this.neighborhood,
+    this.city,
     this.coverImage,
     required this.rating,
     this.tags = const [],
@@ -24,4 +28,12 @@ class CafeSummary {
     this.isFeatured = false,
     this.isNew = false,
   });
+
+  String get locationLabel {
+    final parts = [neighborhood, city]
+        .where((s) => s != null && s.trim().isNotEmpty)
+        .map((s) => s!.trim())
+        .toList();
+    return parts.isNotEmpty ? parts.join(', ') : address;
+  }
 }

@@ -36,11 +36,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   List<CafeSummary> _buildFeatured(HomeFeedResult result) {
     final seenIds = <String>{};
     return [
-      ...result.newest,
-      ...result.trending,
-      ...result.topRated,
-      ...result.nearby,
-    ]
+          ...result.newest,
+          ...result.trending,
+          ...result.topRated,
+          ...result.nearby,
+        ]
         .where((summary) => summary.isFeatured)
         .where((summary) => seenIds.add(summary.id))
         .toList();

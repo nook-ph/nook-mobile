@@ -11,6 +11,7 @@ class CafeDetailsModel extends CafeDetailsEntity {
     required super.description,
     required super.address,
     required super.neighborhood,
+    super.city = '',
     required super.lat,
     required super.lng,
     super.featuredImageUrl,
@@ -43,6 +44,7 @@ class CafeDetailsModel extends CafeDetailsEntity {
       description: _asString(json['description']),
       address: _asString(json['address']),
       neighborhood: _asString(json['neighborhood']),
+      city: _asString(json['city']),
       lat: _asDouble(json['lat']),
       lng: _asDouble(json['lng']),
       featuredImageUrl: _asNullableString(

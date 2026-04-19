@@ -169,7 +169,7 @@ class CafeInfoHeader extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    cafe?.cafeDetails.address ?? '',
+                    cafe?.cafeDetails.locationLabel ?? '',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w400,
