@@ -13,6 +13,8 @@ IconData? resolveTagIcon(String? tagName) {
       return PhosphorIcons.heart();
     case 'solo work / study':
       return PhosphorIcons.laptop();
+    case 'community space':
+      return PhosphorIcons.usersThree();
     case 'group hangout':
     case 'family friendly':
       return PhosphorIcons.users();

@@ -9,11 +9,10 @@ class CafeRemoteDataSource {
   CafeRemoteDataSource(this.supabase);
 
   Future<List<CafeSummaryModel>> fetchCafes({required CafeQuery query}) async {
+    final params = query.toRpcParams();
+
     try {
-      final rpcResponse = await supabase.rpc(
-        'get_cafes',
-        params: query.toRpcParams(),
-      );
+      final rpcResponse = await supabase.rpc('get_cafes', params: params);
 
       final response = (rpcResponse as List)
           .whereType<Map>()
@@ -48,6 +47,7 @@ class CafeRemoteDataSource {
         description,
         address,
         neighborhood,
+        city,
         lat,
         lng,
         featured_image_url,
@@ -111,6 +111,7 @@ class CafeRemoteDataSource {
         'description',
         'address',
         'neighborhood',
+        'city',
         'lat',
         'lng',
         'featured_image_url',
@@ -329,6 +330,8 @@ class CafeRemoteDataSource {
             id,
             name,
             address,
+            neighborhood,
+            city,
             rating,
             featured_image_url,
             system_badge,

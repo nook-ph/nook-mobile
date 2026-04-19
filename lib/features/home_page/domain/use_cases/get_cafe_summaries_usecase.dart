@@ -18,10 +18,11 @@ class GetHomeFeedUseCase {
   Future<HomeFeedResult> call({int page = 0, int limit = 20}) async {
     final location = await _resolveLocation();
 
-    final nearbyFuture = location == null
-        ? Future.value(<CafeSummary>[])
-        : repository.getCafes(
-            CafeQuery(
+    final nearby = location == null
+        ? <CafeSummary>[]
+        : await _safeFetch(
+            label: 'nearby',
+            query: CafeQuery(
               sort: 'nearby',
               lat: location.latitude,
               lng: location.longitude,
@@ -30,21 +31,20 @@ class GetHomeFeedUseCase {
             ),
           );
 
-    final results = await Future.wait([
-      nearbyFuture,
-      repository.getCafes(
-        CafeQuery(sort: 'top_rated', page: page, limit: limit),
-      ),
-      repository.getCafes(
-        CafeQuery(sort: 'trending', page: page, limit: limit),
-      ),
-      repository.getCafes(CafeQuery(sort: 'newest', page: page, limit: limit)),
-    ]);
+    final topRated = await _safeFetch(
+      label: 'top_rated',
+      query: CafeQuery(sort: 'top_rated', page: page, limit: limit),
+    );
 
-    final nearby = results[0];
-    final topRated = results[1];
-    final trending = results[2];
-    final newest = results[3];
+    final trending = await _safeFetch(
+      label: 'trending',
+      query: CafeQuery(sort: 'trending', page: page, limit: limit),
+    );
+
+    final newest = await _safeFetch(
+      label: 'newest',
+      query: CafeQuery(sort: 'newest', page: page, limit: limit),
+    );
 
     await repository.warmCache([
       ...nearby,
@@ -61,10 +61,24 @@ class GetHomeFeedUseCase {
     );
   }
 
+  Future<List<CafeSummary>> _safeFetch({
+    required String label,
+    required CafeQuery query,
+  }) async {
+    try {
+      final cafes = await repository.getCafes(query);
+      return cafes;
+    } catch (_) {
+      return <CafeSummary>[];
+    }
+  }
+
   Future<Position?> _resolveLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return null;
+      if (!serviceEnabled) {
+        return null;
+      }
 
       var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {

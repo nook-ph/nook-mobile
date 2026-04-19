@@ -96,12 +96,6 @@ class _ReviewsPageState extends State<ReviewsPage> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.tune_rounded),
-            onPressed: _openFilter,
-          ),
-        ],
       ),
       body: BlocListener<ReviewSubmitBloc, ReviewSubmitState>(
         listener: (context, state) {

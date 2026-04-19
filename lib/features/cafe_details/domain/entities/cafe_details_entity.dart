@@ -5,6 +5,7 @@ class CafeDetailsEntity {
   final String description;
   final String address;
   final String neighborhood;
+  final String city;
   final double lat;
   final double lng;
   final String? featuredImageUrl;
@@ -25,6 +26,7 @@ class CafeDetailsEntity {
     required this.description,
     required this.address,
     required this.neighborhood,
+    this.city = '',
     required this.lat,
     required this.lng,
     this.featuredImageUrl,
@@ -38,6 +40,14 @@ class CafeDetailsEntity {
     this.tags = const [],
     this.reviews = const [],
   });
+
+  String get locationLabel {
+    final parts = [neighborhood, city]
+        .where((s) => s.trim().isNotEmpty)
+        .map((s) => s.trim())
+        .toList();
+    return parts.isNotEmpty ? parts.join(', ') : address;
+  }
 }
 
 class MenuItemEntity {
