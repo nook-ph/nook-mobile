@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 
 class RecommendedCard extends StatelessWidget {
   final CafeSummary cafe;

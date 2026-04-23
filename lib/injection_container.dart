@@ -1,5 +1,6 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
+import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/data/cafe_repository_impl.dart';
 import 'package:nook/core/cafe/data/cafe_store.dart';
@@ -31,6 +32,9 @@ final sl = GetIt.instance;
 Future<void> initDependencies() async {
   // 1) External dependencies
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
+  sl.registerLazySingleton<AnalyticsService>(
+    () => AnalyticsService(sl<SupabaseClient>()),
+  );
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
   // 2) Data sources
@@ -120,6 +124,7 @@ Future<void> initDependencies() async {
       getFavoriteCafesUseCase: sl<GetFavoriteCafesUseCase>(),
       addFavoriteCafeUseCase: sl<AddFavoriteCafeUseCase>(),
       removeFavoriteCafeUseCase: sl<RemoveFavoriteCafeUseCase>(),
+      analytics: sl<AnalyticsService>(),
     ),
   );
 

@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
+import 'package:nook/injection_container.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
@@ -44,14 +48,24 @@ class CafeInfo extends StatelessWidget {
         text.contains('maya');
   }
 
+  String _mapAppMetadata(MapsAppChoice? preferredApp, TargetPlatform platform) {
+    if (platform == TargetPlatform.iOS) {
+      if (preferredApp == MapsAppChoice.googleMaps) return 'google_maps';
+      return 'apple_maps';
+    }
+    return 'google_maps_fallback_chain';
+  }
+
   Future<void> _onGetDirectionsTap(BuildContext context) async {
     final details = cafe?.cafeDetails;
     final platform = Theme.of(context).platform;
+    final analytics = sl<AnalyticsService>();
+    final cafeId = details?.id;
     debugPrint(
       '[Directions] Tap detected | platform=$platform | '
       'hasDetails=${details != null}',
     );
-    if (details == null) {
+    if (details == null || cafeId == null || cafeId.isEmpty) {
       debugPrint('[Directions] Aborted: cafe details are null');
       _showDirectionsError(context, 'Cafe details are not available yet.');
       return;
@@ -83,6 +97,20 @@ class CafeInfo extends StatelessWidget {
       }
     }
 
+    final mapAppMeta = _mapAppMetadata(preferredApp, platform);
+    unawaited(
+      analytics.track(
+        cafeId,
+        AnalyticsService.getDirections,
+        metadata: {
+          AnalyticsMetadataKeys.latitude: lat,
+          AnalyticsMetadataKeys.longitude: lng,
+          AnalyticsMetadataKeys.mapApp: mapAppMeta,
+          AnalyticsMetadataKeys.screen: 'cafe_details',
+        },
+      ),
+    );
+
     final label = details.name.isNotEmpty ? details.name : details.locationLabel;
     debugPrint(
       '[Directions] Launch request | lat=$lat lng=$lng | '
@@ -97,10 +125,12 @@ class CafeInfo extends StatelessWidget {
     );
     debugPrint('[Directions] Launch result: launched=$launched');
 
-    if (!context.mounted || launched) {
-      if (!context.mounted) {
-        debugPrint('[Directions] Context unmounted after launch attempt');
-      }
+    if (!context.mounted) {
+      debugPrint('[Directions] Context unmounted after launch attempt');
+      return;
+    }
+
+    if (launched) {
       return;
     }
 

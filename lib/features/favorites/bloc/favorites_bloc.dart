@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_favorite_cafe_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_favorite_cafes_usecase.dart';
@@ -10,11 +13,13 @@ class FavoritesBloc extends Bloc<FavoritesEvent, FavoritesState> {
   final GetFavoriteCafesUseCase getFavoriteCafesUseCase;
   final AddFavoriteCafeUseCase addFavoriteCafeUseCase;
   final RemoveFavoriteCafeUseCase removeFavoriteCafeUseCase;
+  final AnalyticsService analytics;
 
   FavoritesBloc({
     required this.getFavoriteCafesUseCase,
     required this.addFavoriteCafeUseCase,
     required this.removeFavoriteCafeUseCase,
+    required this.analytics,
   }) : super(FavoritesInitial()) {
     on<LoadFavoritesEvent>(_onLoadFavorites);
     on<ToggleFavoriteEvent>(_onToggleFavorite);
@@ -54,6 +59,9 @@ class FavoritesBloc extends Bloc<FavoritesEvent, FavoritesState> {
       } else {
         await addFavoriteCafeUseCase.call(event.cafeId, userId: event.userId);
         currentFavorites.insert(0, event.cafe);
+        unawaited(
+          analytics.track(event.cafeId, AnalyticsService.saveToFavorites),
+        );
       }
 
       emit(FavoritesLoaded(currentFavorites));
