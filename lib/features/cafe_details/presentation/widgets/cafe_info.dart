@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
@@ -41,6 +42,118 @@ class CafeInfo extends StatelessWidget {
         text.contains('wallet') ||
         text.contains('gcash') ||
         text.contains('maya');
+  }
+
+  Future<void> _onGetDirectionsTap(BuildContext context) async {
+    final details = cafe?.cafeDetails;
+    final platform = Theme.of(context).platform;
+    debugPrint(
+      '[Directions] Tap detected | platform=$platform | '
+      'hasDetails=${details != null}',
+    );
+    if (details == null) {
+      debugPrint('[Directions] Aborted: cafe details are null');
+      _showDirectionsError(context, 'Cafe details are not available yet.');
+      return;
+    }
+
+    final lat = details.lat;
+    final lng = details.lng;
+    debugPrint(
+      '[Directions] Coordinates received | lat=$lat lng=$lng | '
+      'name="${details.name}" locationLabel="${details.locationLabel}"',
+    );
+    if (!MapsDirectionsLauncher.hasValidCoordinates(lat, lng)) {
+      debugPrint('[Directions] Aborted: invalid coordinates');
+      _showDirectionsError(
+        context,
+        'Directions are unavailable for this cafe right now.',
+      );
+      return;
+    }
+
+    MapsAppChoice? preferredApp;
+    if (platform == TargetPlatform.iOS) {
+      debugPrint('[Directions] iOS detected, showing app chooser');
+      preferredApp = await _showIosMapsChooser(context);
+      debugPrint('[Directions] iOS chooser result: $preferredApp');
+      if (preferredApp == null) {
+        debugPrint('[Directions] Aborted: user dismissed iOS app chooser');
+        return;
+      }
+    }
+
+    final label = details.name.isNotEmpty ? details.name : details.locationLabel;
+    debugPrint(
+      '[Directions] Launch request | lat=$lat lng=$lng | '
+      'label="$label" preferredApp=$preferredApp',
+    );
+    final launched = await MapsDirectionsLauncher.launchDirections(
+      lat: lat,
+      lng: lng,
+      label: label,
+      platform: platform,
+      preferredApp: preferredApp,
+    );
+    debugPrint('[Directions] Launch result: launched=$launched');
+
+    if (!context.mounted || launched) {
+      if (!context.mounted) {
+        debugPrint('[Directions] Context unmounted after launch attempt');
+      }
+      return;
+    }
+
+    debugPrint('[Directions] Launch failed, showing error snackbar');
+    _showDirectionsError(context, 'Unable to open map directions.');
+  }
+
+  Future<MapsAppChoice?> _showIosMapsChooser(BuildContext context) {
+    return showModalBottomSheet<MapsAppChoice>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 4),
+                const Text(
+                  'Open Directions With',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.map_outlined),
+                  title: const Text('Google Maps'),
+                  onTap: () => Navigator.of(sheetContext).pop(
+                    MapsAppChoice.googleMaps,
+                  ),
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.location_on_outlined),
+                  title: const Text('Apple Maps'),
+                  onTap: () => Navigator.of(
+                    sheetContext,
+                  ).pop(MapsAppChoice.appleMaps),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDirectionsError(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -243,12 +356,31 @@ class CafeInfo extends StatelessWidget {
 
               const Gap(10),
 
-              const Text(
-                'Get Directions',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF3B73E6),
-                  decoration: TextDecoration.underline,
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _onGetDirectionsTap(context),
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    side: const BorderSide(color: Color(0xFFE0E0E0), width: 1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: const Icon(
+                    Icons.location_on_outlined,
+                    color: Colors.black,
+                    size: 18,
+                  ),
+                  label: const Text(
+                    'Get Directions',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
 

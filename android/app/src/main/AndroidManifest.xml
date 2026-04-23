@@ -10,6 +10,14 @@
         <provider android:authorities="com.facebook.katana.provider.PlatformProvider" />
         <package android:name="com.facebook.katana" />
         <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="comgooglemaps" />
+        </intent>
+        <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
@@ -77,13 +85,5 @@
             android:value="@string/facebook_client_token" />
 
     </application>
-
-    <!-- Required by Flutter text processing -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT" />
-            <data android:mimeType="text/plain" />
-        </intent>
-    </queries>
 
 </manifest>
