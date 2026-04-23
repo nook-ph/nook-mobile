@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:like_button/like_button.dart';
+import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_events.dart';
@@ -41,6 +42,7 @@ class CafeDetailsPage extends StatefulWidget {
 class _CafeDetailsPageState extends State<CafeDetailsPage> {
   late final ScrollController _scrollController;
   final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
+  bool _hasTrackedViewDetails = false;
 
   static const double _expandedHeight = 320;
   static const double _collapsedHeight = kToolbarHeight;
@@ -53,6 +55,17 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       ..addListener(() {
         _scrollOffset.value = _scrollController.offset;
       });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _hasTrackedViewDetails) return;
+      _hasTrackedViewDetails = true;
+      sl<AnalyticsService>().track(
+        widget.cafeId,
+        AnalyticsService.viewDetails,
+        metadata: {
+          AnalyticsMetadataKeys.screen: 'cafe_details',
+        },
+      );
+    });
   }
 
   @override

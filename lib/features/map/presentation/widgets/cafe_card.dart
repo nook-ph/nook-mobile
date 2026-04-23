@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
-import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 
 class CafeCard extends StatefulWidget {
   final CafeSummary cafe;

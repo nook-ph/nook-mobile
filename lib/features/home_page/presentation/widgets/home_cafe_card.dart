@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
-import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class HomeCafeCard extends StatelessWidget {

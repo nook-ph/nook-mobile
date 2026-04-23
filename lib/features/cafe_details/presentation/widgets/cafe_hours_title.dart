@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/day_row.dart';
+import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class CafeHoursTile extends StatelessWidget {
@@ -68,6 +72,20 @@ class CafeHoursTile extends StatelessWidget {
           highlightColor: Colors.transparent,
         ),
         child: ExpansionTile(
+          onExpansionChanged: (expanded) {
+            if (!expanded) return;
+            final id = cafe?.cafeDetails.id;
+            if (id == null || id.isEmpty) return;
+            unawaited(
+              sl<AnalyticsService>().track(
+                id,
+                AnalyticsService.checkHours,
+                metadata: {
+                  AnalyticsMetadataKeys.screen: 'cafe_details',
+                },
+              ),
+            );
+          },
           tilePadding: EdgeInsets.zero,
           leading: Icon(PhosphorIcons.clock(), color: Colors.black, size: 20),
           title: const Text(
