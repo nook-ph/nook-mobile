@@ -96,7 +96,7 @@ class ReviewsSection extends StatelessWidget {
               const SizedBox(height: 4),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton(
+                child: OutlinedButton.icon(
                   onPressed: onSeeMoreTap,
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
@@ -106,7 +106,12 @@ class ReviewsSection extends StatelessWidget {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: const Text(
+                  icon: const Icon(
+                    Icons.rate_review_outlined,
+                    size: 18,
+                    color: Colors.black,
+                  ),
+                  label: const Text(
                     'See more',
                     style: TextStyle(
                       color: Colors.black,
