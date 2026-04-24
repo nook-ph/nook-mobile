@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -111,7 +112,9 @@ class CafeInfo extends StatelessWidget {
       ),
     );
 
-    final label = details.name.isNotEmpty ? details.name : details.locationLabel;
+    final label = details.name.isNotEmpty
+        ? details.name
+        : details.locationLabel;
     debugPrint(
       '[Directions] Launch request | lat=$lat lng=$lng | '
       'label="$label" preferredApp=$preferredApp',
@@ -141,38 +144,115 @@ class CafeInfo extends StatelessWidget {
   Future<MapsAppChoice?> _showIosMapsChooser(BuildContext context) {
     return showModalBottomSheet<MapsAppChoice>(
       context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
+        final bottomInset = MediaQuery.viewPaddingOf(sheetContext).bottom;
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          top: false,
+          bottom: false,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 4),
-                const Text(
-                  'Open Directions With',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.map_outlined),
-                  title: const Text('Google Maps'),
-                  onTap: () => Navigator.of(sheetContext).pop(
-                    MapsAppChoice.googleMaps,
+                Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF868686),
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.location_on_outlined),
-                  title: const Text('Apple Maps'),
-                  onTap: () => Navigator.of(
-                    sheetContext,
-                  ).pop(MapsAppChoice.appleMaps),
+                const SizedBox(height: 10),
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    const Center(
+                      child: Text(
+                        'Open Directions With',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minSize: 32,
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        child: const Icon(
+                          CupertinoIcons.xmark_circle_fill,
+                          color: Color(0xFFAEAEB2),
+                          size: 24,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Column(
+                  children: [
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                      ),
+                      leading: const Icon(
+                        CupertinoIcons.map,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                      title: const Text(
+                        'Google Maps',
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: Color(0xFF1C1C1E),
+                        ),
+                      ),
+                      trailing: const Icon(
+                        CupertinoIcons.chevron_right,
+                        size: 16,
+                        color: Color(0xFF8E8E93),
+                      ),
+                      onTap: () => Navigator.of(
+                        sheetContext,
+                      ).pop(MapsAppChoice.googleMaps),
+                    ),
+                    const Divider(height: 1, indent: 12),
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                      ),
+                      leading: const Icon(
+                        CupertinoIcons.location_solid,
+                        color: Color(0xFF1C1C1E),
+                      ),
+                      title: const Text(
+                        'Apple Maps',
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: Color(0xFF1C1C1E),
+                        ),
+                      ),
+                      trailing: const Icon(
+                        CupertinoIcons.chevron_right,
+                        size: 16,
+                        color: Color(0xFF8E8E93),
+                      ),
+                      onTap: () => Navigator.of(
+                        sheetContext,
+                      ).pop(MapsAppChoice.appleMaps),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -183,7 +263,9 @@ class CafeInfo extends StatelessWidget {
   }
 
   void _showDirectionsError(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
