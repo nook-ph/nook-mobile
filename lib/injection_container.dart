@@ -33,7 +33,7 @@ Future<void> initDependencies() async {
   // 1) External dependencies
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
   sl.registerLazySingleton<AnalyticsService>(
-    () => AnalyticsService(sl<SupabaseClient>()),
+    () => AnalyticsService(),
   );
   sl.registerLazySingleton<http.Client>(() => http.Client());
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -11,6 +12,7 @@ import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_events.dart';
 import 'package:nook/injection_container.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 void main() async {
@@ -23,6 +25,17 @@ void main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_KEY']!,
   );
+
+  final posthogToken = dotenv.env['POSTHOG_PROJECT_TOKEN']?.trim() ?? '';
+  if (posthogToken.isNotEmpty) {
+    final config = PostHogConfig(posthogToken)
+      ..host = dotenv.env['POSTHOG_HOST']?.trim() ?? 'https://us.i.posthog.com'
+      ..debug = kDebugMode;
+
+    await Posthog().setup(config);
+  } else {
+    debugPrint('PostHog setup skipped: missing POSTHOG_PROJECT_TOKEN in .env');
+  }
 
   await initDependencies();
 

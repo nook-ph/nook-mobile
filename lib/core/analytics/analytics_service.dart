@@ -1,25 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 
-/// Shared keys for [cafe_events.metadata] JSON.
+/// Shared analytics property keys passed via `metadata` into PostHog events.
 abstract final class AnalyticsMetadataKeys {
   static const screen = 'screen';
-  static const platform = 'platform';
   static const mapApp = 'map_app';
   static const latitude = 'latitude';
   static const longitude = 'longitude';
-}
-
-@visibleForTesting
-Map<String, dynamic> mergeAnalyticsMetadata(Map<String, dynamic>? metadata) {
-  final base = <String, dynamic>{
-    AnalyticsMetadataKeys.platform: defaultTargetPlatform.name,
-  };
-  if (metadata != null && metadata.isNotEmpty) {
-    base.addAll(metadata);
-  }
-  return base;
 }
 
 /// Minimal cafe analytics: four core funnel events for owner-facing reporting.
@@ -30,12 +17,7 @@ Map<String, dynamic> mergeAnalyticsMetadata(Map<String, dynamic>? metadata) {
 /// - Conversion: [getDirections]
 /// - Loyalty: [saveToFavorites]
 class AnalyticsService {
-  AnalyticsService(this._client);
-
-  final SupabaseClient _client;
-  final String _sessionId = const Uuid().v4();
-
-  String get sessionId => _sessionId;
+  AnalyticsService();
 
   /// `view_details` — user opened cafe details (awareness / brand interest).
   static const String viewDetails = 'view_details';
@@ -49,7 +31,20 @@ class AnalyticsService {
   /// `save_to_favorites` — user saved the cafe (loyalty).
   static const String saveToFavorites = 'save_to_favorites';
 
-  /// Persists an event. [cafeId] must be non-empty and must satisfy FK to [cafes].
+  /// Maps legacy Supabase event names to new PostHog event names.
+  String _mapEventName(String eventType) {
+    return switch (eventType) {
+      viewDetails => 'cafe_detail_viewed',
+      getDirections => 'directions_tapped',
+      saveToFavorites => 'cafe_favorited',
+      _ => eventType, // e.g. check_hours remains check_hours
+    };
+  }
+
+  /// Refactored to use PostHog capture.
+  ///
+  /// Note: User identification should be handled in Auth logic via
+  /// `Posthog().identify(userId: supabaseUserId)` when the user logs in.
   Future<void> track(
     String cafeId,
     String eventType, {
@@ -57,19 +52,23 @@ class AnalyticsService {
   }) async {
     if (cafeId.isEmpty) return;
 
-    final merged = mergeAnalyticsMetadata(metadata);
+    final eventName = _mapEventName(eventType);
+    final properties = <String, Object>{
+      'cafe_id': cafeId,
+      if (metadata != null) ...metadata,
+    };
 
     try {
-      await _client.from('cafe_events').insert({
-        'cafe_id': cafeId,
-        'event_type': eventType,
-        'user_id': _client.auth.currentUser?.id,
-        'session_id': _sessionId,
-        'metadata': merged,
-      });
+      await Posthog().capture(
+        eventName: eventName,
+        properties: properties,
+      );
+      if (kDebugMode) {
+        await Posthog().flush();
+      }
     } catch (e, st) {
       assert(() {
-        debugPrint('AnalyticsService.track failed: $e\n$st');
+        debugPrint('PostHog tracking failed: $e\n$st');
         return true;
       }());
     }

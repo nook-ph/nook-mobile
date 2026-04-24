@@ -10,6 +10,7 @@ import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_email_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_out_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_up_with_email_usecase.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
@@ -88,6 +89,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
 
+      await _identifyPosthogUser(user);
       emit(AuthAuthenticated(user));
     } on AuthException catch (e) {
       emit(AuthError(_mapAuthError(e)));
@@ -113,6 +115,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
 
+      await _identifyPosthogUser(user);
       emit(AuthAuthenticated(user));
     } on AuthException catch (e) {
       emit(AuthError(_mapAuthError(e)));
@@ -134,8 +137,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       _,
     ) async {
       final session = _getCurrentSessionUseCase();
-      if (session?.user != null) {
-        emit(AuthAuthenticated(session!.user));
+      final user = session?.user;
+      if (user != null) {
+        await _identifyPosthogUser(user);
+        emit(AuthAuthenticated(user));
         return;
       }
 
@@ -166,6 +171,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     await _facebookAuthStateSubscription?.cancel();
     _facebookAuthStateSubscription = null;
+    await _identifyPosthogUser(event.user);
     emit(AuthAuthenticated(event.user));
   }
 
@@ -184,6 +190,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = session?.user;
 
       if (user != null) {
+        await _identifyPosthogUser(user);
         emit(AuthAuthenticated(user));
         return;
       }
@@ -204,6 +211,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final session = _getCurrentSessionUseCase();
       final user = session?.user;
       if (user != null) {
+        await _identifyPosthogUser(user);
         emit(AuthAuthenticated(user));
         return;
       }
@@ -221,6 +229,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       await _facebookAuthStateSubscription?.cancel();
       _facebookAuthStateSubscription = null;
       await _signOutUseCase();
+      await _resetPosthogUser();
       emit(const AuthLoggedOut());
       emit(const AuthUnauthenticated());
     } on AuthException catch (e) {
@@ -244,12 +253,43 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     final session = _getCurrentSessionUseCase();
 
-    if (session?.user != null) {
-      emit(AuthAuthenticated(session!.user));
+    final user = session?.user;
+    if (user != null) {
+      await _identifyPosthogUser(user);
+      emit(AuthAuthenticated(user));
       return;
     }
 
     emit(AuthUnauthenticated());
+  }
+
+  Future<void> _identifyPosthogUser(User user) async {
+    try {
+      final email = user.email?.trim();
+      final metadata = user.userMetadata;
+      final rawName = metadata?['name'] ?? metadata?['full_name'];
+      final name = rawName is String ? rawName.trim() : null;
+
+      final userProperties = <String, Object>{
+        if (email != null && email.isNotEmpty) 'email': email,
+        if (name != null && name.isNotEmpty) 'name': name,
+      };
+
+      await Posthog().identify(
+        userId: user.id,
+        userProperties: userProperties.isEmpty ? null : userProperties,
+      );
+    } catch (_) {
+      // Identification is best-effort and must not block auth state updates.
+    }
+  }
+
+  Future<void> _resetPosthogUser() async {
+    try {
+      await Posthog().reset();
+    } catch (_) {
+      // Reset is best-effort and must not block auth state updates.
+    }
   }
 
   String _mapAuthError(AuthException exception) {
