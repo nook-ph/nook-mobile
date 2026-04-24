@@ -203,7 +203,7 @@ class CafeRemoteDataSource {
     int? ratingFilter,
   }) async {
     try {
-      final userId = supabase.auth.currentUser?.id ?? '';
+      final userId = supabase.auth.currentUser?.id;
       final rpcResponse = await supabase.rpc(
         'get_reviews_with_vote_status',
         params: {
