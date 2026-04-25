@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
-import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class HomeCafeCard extends StatelessWidget {
   final CafeSummary cafe;
   final bool isSkeleton;
 
-  const HomeCafeCard({
-    super.key,
-    required this.cafe,
-    this.isSkeleton = false,
-  });
+  const HomeCafeCard({super.key, required this.cafe, this.isSkeleton = false});
 
   @override
   Widget build(BuildContext context) {
@@ -23,17 +19,19 @@ class HomeCafeCard extends StatelessWidget {
     final String ratingText = cafe.rating.toStringAsFixed(1);
     final String? primaryTag = cafe.tags.isNotEmpty ? cafe.tags.first : null;
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CafeDetailsPage(cafeId: cafe.id),
-          ),
-        );
-      },
-      child: Align(
-        alignment: Alignment.topCenter,
+    return Align(
+      alignment: Alignment.topCenter,
+      child: GestureDetector(
+        // Opaque ensures the entire area of the container intercepts the tap
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          // Prevent navigation if the card is in its skeleton/loading state
+          if (isSkeleton) return;
+
+          if (cafe.id.isNotEmpty) {
+            context.push('/cafe/${cafe.id}');
+          }
+        },
         child: Container(
           width: 200,
           clipBehavior: Clip.hardEdge,
@@ -59,7 +57,16 @@ class HomeCafeCard extends StatelessWidget {
                     child: SizedBox(
                       height: 120,
                       width: double.infinity,
-                      child: Image.network(imageUrl, fit: BoxFit.cover),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        // Ensure image doesn't block hits if loading fails
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          height: 120,
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.broken_image),
+                        ),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -148,7 +155,9 @@ class HomeCafeCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                                 border: isSkeleton
                                     ? null
-                                    : Border.all(color: const Color(0xFFE0E0E0)),
+                                    : Border.all(
+                                        color: const Color(0xFFE0E0E0),
+                                      ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
@@ -201,4 +210,3 @@ class HomeCafeCard extends StatelessWidget {
     );
   }
 }
-

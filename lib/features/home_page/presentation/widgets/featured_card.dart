@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
@@ -26,12 +27,7 @@ class FeaturedCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CafeDetailsPage(cafeId: cafe.id),
-          ),
-        );
+        context.push('/cafe/${cafe.id}');
       },
       child: Container(
         width: width,

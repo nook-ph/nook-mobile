@@ -61,9 +61,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       sl<AnalyticsService>().track(
         widget.cafeId,
         AnalyticsService.viewDetails,
-        metadata: {
-          AnalyticsMetadataKeys.screen: 'cafe_details',
-        },
+        metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
       );
     });
   }
@@ -226,14 +224,6 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             ),
                           ),
                           actions: [
-                            Center(
-                              child: _AppBarIconButton(
-                                icon: PhosphorIcons.share(),
-                                iconSize: 16,
-                                onTap: () {},
-                              ),
-                            ),
-                            const SizedBox(width: 12),
                             Center(
                               child: _FavoriteButton(
                                 cafeId: widget.cafeId,
