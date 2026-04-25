@@ -10,6 +10,7 @@ import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CafeInfo extends StatelessWidget {
   const CafeInfo({super.key, required this.cafe});
@@ -268,6 +269,115 @@ class CafeInfo extends StatelessWidget {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  String? _extractHandle(String rawValue) {
+    final trimmed = rawValue.trim();
+    if (trimmed.isEmpty) return null;
+
+    var value = trimmed;
+    if (!value.contains('://') && value.startsWith('www.')) {
+      value = 'https://$value';
+    }
+
+    final parsed = Uri.tryParse(value);
+    String? handle;
+    if (parsed != null &&
+        (parsed.hasScheme || parsed.host.isNotEmpty) &&
+        parsed.pathSegments.isNotEmpty) {
+      handle = parsed.pathSegments.lastWhere(
+        (segment) => segment.trim().isNotEmpty,
+        orElse: () => '',
+      );
+      if (handle.isEmpty && parsed.queryParameters.isNotEmpty) {
+        handle = parsed.queryParameters['id'];
+      }
+    } else if (trimmed.contains('/')) {
+      handle = trimmed.split('/').last;
+    } else {
+      handle = trimmed;
+    }
+
+    final normalized = handle?.replaceFirst('@', '').trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    return normalized;
+  }
+
+  Uri? _toWebUri(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed != null && parsed.hasScheme) {
+      return parsed;
+    }
+    if (trimmed.startsWith('www.')) {
+      return Uri.tryParse('https://$trimmed');
+    }
+    if (!trimmed.contains(' ') && trimmed.contains('.')) {
+      return Uri.tryParse('https://$trimmed');
+    }
+    return null;
+  }
+
+  Future<void> _openSocialLink(
+    BuildContext context, {
+    required String platform,
+    required String? rawValue,
+  }) async {
+    final value = rawValue?.trim() ?? '';
+    if (value.isEmpty) return;
+
+    final handle = _extractHandle(value);
+    Uri? appUri;
+    Uri? webUri = _toWebUri(value);
+
+    switch (platform) {
+      case 'instagram':
+        if (handle != null) {
+          appUri = Uri.parse('instagram://user?username=$handle');
+          webUri ??= Uri.parse('https://www.instagram.com/$handle');
+        }
+        break;
+      case 'facebook':
+        final originalWebUri = _toWebUri(value);
+        if (originalWebUri != null) {
+          appUri = Uri.parse(
+            'facebook://facewebmodal/f?href=${Uri.encodeComponent(originalWebUri.toString())}',
+          );
+          webUri = originalWebUri;
+        } else if (handle != null) {
+          final webProfile = Uri.parse('https://www.facebook.com/$handle');
+          appUri = Uri.parse(
+            'facebook://facewebmodal/f?href=${Uri.encodeComponent(webProfile.toString())}',
+          );
+          webUri ??= webProfile;
+        }
+        break;
+      case 'tiktok':
+        if (handle != null) {
+          appUri = Uri.parse('tiktok://user/@$handle');
+          webUri ??= Uri.parse('https://www.tiktok.com/@$handle');
+        }
+        break;
+      default:
+        break;
+    }
+
+    var launched = false;
+    if (appUri != null && await canLaunchUrl(appUri)) {
+      launched = await launchUrl(appUri, mode: LaunchMode.externalApplication);
+    }
+
+    if (!launched && webUri != null && await canLaunchUrl(webUri)) {
+      launched = await launchUrl(webUri, mode: LaunchMode.externalApplication);
+    }
+
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to open $platform link.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final allTags = cafe?.cafeDetails.tags ?? const <TagEntity>[];
@@ -499,26 +609,55 @@ class CafeInfo extends StatelessWidget {
               const Gap(16),
 
               if (socialLinks.isNotEmpty)
-                Row(
+                Wrap(
+                  spacing: 18,
                   children: [
                     if ((socialLinks['instagram']?.toString().isNotEmpty ??
                         false))
-                      PhosphorIcon(
-                        PhosphorIcons.instagramLogo(PhosphorIconsStyle.regular),
-                        size: 28,
-                        color: Color(0xFF848685),
+                      GestureDetector(
+                        onTap: () => _openSocialLink(
+                          context,
+                          platform: 'instagram',
+                          rawValue: socialLinks['instagram']?.toString(),
+                        ),
+                        child: PhosphorIcon(
+                          PhosphorIcons.instagramLogo(
+                            PhosphorIconsStyle.regular,
+                          ),
+                          size: 32,
+                          color: const Color(0xFF848685),
+                        ),
                       ),
-                    if ((socialLinks['instagram']?.toString().isNotEmpty ??
-                            false) &&
-                        (socialLinks['facebook']?.toString().isNotEmpty ??
-                            false))
-                      const Gap(18),
                     if ((socialLinks['facebook']?.toString().isNotEmpty ??
                         false))
-                      PhosphorIcon(
-                        PhosphorIcons.facebookLogo(PhosphorIconsStyle.regular),
-                        size: 28,
-                        color: Color(0xFF848685),
+                      GestureDetector(
+                        onTap: () => _openSocialLink(
+                          context,
+                          platform: 'facebook',
+                          rawValue: socialLinks['facebook']?.toString(),
+                        ),
+                        child: PhosphorIcon(
+                          PhosphorIcons.facebookLogo(
+                            PhosphorIconsStyle.regular,
+                          ),
+                          size: 32,
+                          color: const Color(0xFF848685),
+                        ),
+                      ),
+                    if ((socialLinks['tiktok']?.toString().isNotEmpty ?? false))
+                      GestureDetector(
+                        onTap: () => _openSocialLink(
+                          context,
+                          platform: 'tiktok',
+                          rawValue: socialLinks['tiktok']?.toString(),
+                        ),
+                        child: Icon(
+                          PhosphorIcons.tiktokLogo(
+                            PhosphorIconsStyle.regular,
+                          ),
+                          size: 32.0,
+                          color: const Color(0xFF848685),
+                        ),
                       ),
                   ],
                 ),
