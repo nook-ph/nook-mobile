@@ -8,11 +8,15 @@ import 'package:nook/core/presentation/pages/main_screen.dart';
 import 'package:nook/features/auth/presentation/pages/email_entry_page.dart';
 import 'package:nook/features/auth/presentation/pages/login_page.dart';
 import 'package:nook/features/auth/presentation/pages/signup_details_page.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/',
+  // This helps you see navigation errors in the terminal
+  debugLogDiagnostics: true,
   routes: [
+    /// 1. Root Route (Auth & Onboarding Logic)
     GoRoute(
       path: '/',
       builder: (context, state) {
@@ -34,6 +38,8 @@ final GoRouter appRouter = GoRouter(
         );
       },
     ),
+
+    /// 2. Authentication Routes
     GoRoute(
       path: '/login',
       builder: (context, state) => const EmailEntryScreen(),
@@ -52,6 +58,16 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final email = state.extra as String? ?? '';
         return SignupDetailsScreen(email: email);
+      },
+    ),
+
+    /// 3. Cafe Details (Deep Link Target)
+
+    GoRoute(
+      path: '/cafe/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id'] ?? '';
+        return CafeDetailsPage(cafeId: id);
       },
     ),
   ],

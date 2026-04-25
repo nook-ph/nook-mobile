@@ -11,6 +11,7 @@ import 'package:nook/core/cafe/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_reviews_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_favorite_cafes_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafes_usecase.dart';
+import 'package:nook/core/services/share_service.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/remove_favorite_cafe_usecase.dart';
 import 'package:nook/core/upload/data/review_image_upload_remote_data_source.dart';
@@ -35,7 +36,13 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<AnalyticsService>(
     () => AnalyticsService(),
   );
-  sl.registerLazySingleton<http.Client>(() => http.Client());
+  
+  sl.registerLazySingleton<http.Client>(() => http.Client());                           
+
+
+  sl.registerLazySingleton<ShareService>(
+    () => ShareService(httpClient: sl<http.Client>()),
+  );
 
   // 2) Data sources
   sl.registerLazySingleton<CafeStore>(() => CafeStore());
