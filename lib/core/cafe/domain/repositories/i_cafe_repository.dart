@@ -2,6 +2,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/features/lists/domain/entities/cafe_list.dart';
 
 @Deprecated('Use CafeQuery with getCafes for home/feed flows.')
 enum CafeQueryType { featured, recommended, nearby }
@@ -44,11 +45,22 @@ abstract class ICafeRepository {
     List<String> imageUrls = const [],
   });
 
+  @Deprecated('Use fetchListCafes with the default list id.')
   Future<List<CafeSummary>> getFavoriteCafes({String? userId});
-
+  @Deprecated('Use addCafeToList with the default list id.')
   Future<void> addFavoriteCafe(String cafeId, {String? userId});
-
+  @Deprecated('Use removeCafeFromList with the default list id.')
   Future<void> removeFavoriteCafe(String cafeId, {String? userId});
+
+  // lists
+
+  Future<String> getDefaultListId();
+  Future<List<CafeList>> getUserLists();
+  Future<List<CafeSummary>> getListCafes(String listId);
+  Future<void> addCafeToList(String listId, String cafeId);
+  Future<void> removeCafeFromList(String listId, String cafeId);
+  Future<String> createList({required String name, String? description});
+  Future<void> deleteList(String listId);
 
   Future<void> warmCache(List<CafeSummary> summaries);
 }
