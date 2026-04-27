@@ -33,12 +33,9 @@ final sl = GetIt.instance;
 Future<void> initDependencies() async {
   // 1) External dependencies
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
-  sl.registerLazySingleton<AnalyticsService>(
-    () => AnalyticsService(),
-  );
-  
-  sl.registerLazySingleton<http.Client>(() => http.Client());                           
+  sl.registerLazySingleton<AnalyticsService>(() => AnalyticsService());
 
+  sl.registerLazySingleton<http.Client>(() => http.Client());
 
   sl.registerLazySingleton<ShareService>(
     () => ShareService(httpClient: sl<http.Client>()),
@@ -105,6 +102,21 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<UploadReviewImagesUseCase>(
     () => UploadReviewImagesUseCase(sl<IReviewImageUploadRepository>()),
+  );
+
+  //list usecases
+
+  sl.registerLazySingleton<GetUserListsUseCase>(
+    () => GetUserListsUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<AddCafeToListUseCase>(
+    () => AddCafeToListUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<RemoveCafeFromListUseCase>(
+    () => RemoveCafeFromListUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<CreateListUseCase>(
+    () => CreateListUseCase(sl<ICafeRepository>()),
   );
 
   // 5) Blocs
