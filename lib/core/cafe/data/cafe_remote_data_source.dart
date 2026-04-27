@@ -318,6 +318,92 @@ class CafeRemoteDataSource {
     }
   }
 
+  //lists
+
+  Future<String> fetchDefaultListId() async {
+    final userId = _resolveUserId(null);
+    final response = await supabase
+        .from('list_members')
+        .select('list_id')
+        .eq('user_id', userId)
+        .eq('is_default', true)
+        .single();
+    return response['list_id'] as String;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUserLists() async {
+    final userId = _resolveUserId(null);
+    final response = await supabase
+        .from('list_members')
+        .select('''
+          list_id,
+          role,
+          is_default,
+          lists (
+            id,
+            name,
+            description,
+            cover_image_url,
+            is_public,
+            cafe_count,
+            created_at,
+            updated_at
+          )
+        ''')
+        .eq('user_id', userId)
+        .eq('role', 'owner')
+        .order('is_default', ascending: false);
+    return (response as List).map((r) => Map<String, dynamic>.from(r)).toList();
+  }
+
+  // Fetch cafes in a specific list
+  Future<List<CafeSummaryModel>> fetchListCafes(String listId) async {
+    final response = await supabase
+        .from('list_cafes')
+        .select('''
+          added_at,
+          cafe:cafes!list_cafes_cafe_id_fkey (
+            id,
+            name,
+            address,
+            neighborhood,
+            city,
+            rating,
+            featured_image_url,
+            cafe_tags ( is_featured, tags ( name ) )
+          )
+        ''')
+        .eq('list_id', listId)
+        .order('added_at', ascending: false);
+
+    return (response as List)
+        .map((row) => Map<String, dynamic>.from(row))
+        .map((row) => row['cafe'])
+        .whereType<Map>()
+        .map((cafe) => Map<String, dynamic>.from(cafe))
+        .map(CafeSummaryModel.fromJson)
+        .toList();
+  }
+
+  // Save cafe to a specific list
+  Future<void> addCafeToList(String listId, String cafeId) async {
+    final userId = _resolveUserId(null);
+    await supabase.from('list_cafes').upsert({
+      'list_id': listId,
+      'cafe_id': cafeId,
+      'added_by': userId,
+    });
+  }
+
+  // Remove cafe from a specific list
+  Future<void> removeCafeFromList(String listId, String cafeId) async {
+    await supabase
+        .from('list_cafes')
+        .delete()
+        .eq('list_id', listId)
+        .eq('cafe_id', cafeId);
+  }
+
   Future<List<CafeSummaryModel>> fetchFavorites({String? userId}) async {
     try {
       final resolvedUserId = _resolveUserId(userId);
@@ -446,6 +532,7 @@ class CafeBundleModel {
     return CafeBundleModel(details: details, menu: menu, reviews: reviews);
   }
 
+  //lists stuff
   static List<Map<String, dynamic>> _asList(dynamic value) {
     if (value is! List) return const [];
     return value
@@ -465,3 +552,5 @@ class CafeFetchException implements Exception {
   @override
   String toString() => 'CafeFetchException(message: $message, cause: $cause)';
 }
+
+//lists stuff
