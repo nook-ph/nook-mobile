@@ -24,7 +24,11 @@ import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
+import 'package:nook/features/map/data/datasources/cafe_tags_remote_data_source.dart';
+import 'package:nook/features/map/data/repositories/cafe_tags_repository_impl.dart';
 import 'package:nook/features/map/domain/use_cases/get_cafe_cards_usecase.dart';
+import 'package:nook/features/map/domain/use_cases/get_filter_tags_usecase.dart';
+import 'package:nook/features/map/domain/repositories/i_cafe_tags_repository.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,12 +37,9 @@ final sl = GetIt.instance;
 Future<void> initDependencies() async {
   // 1) External dependencies
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
-  sl.registerLazySingleton<AnalyticsService>(
-    () => AnalyticsService(),
-  );
-  
-  sl.registerLazySingleton<http.Client>(() => http.Client());                           
+  sl.registerLazySingleton<AnalyticsService>(() => AnalyticsService());
 
+  sl.registerLazySingleton<http.Client>(() => http.Client());
 
   sl.registerLazySingleton<ShareService>(
     () => ShareService(httpClient: sl<http.Client>()),
@@ -64,6 +65,9 @@ Future<void> initDependencies() async {
       },
     ),
   );
+  sl.registerLazySingleton<CafeTagsRemoteDataSource>(
+    () => CafeTagsRemoteDataSourceImpl(sl<SupabaseClient>()),
+  );
 
   // 3) Repositories
   sl.registerLazySingleton<ICafeRepository>(
@@ -73,6 +77,9 @@ Future<void> initDependencies() async {
     () => ReviewImageUploadRepositoryImpl(
       sl<ReviewImageUploadRemoteDataSource>(),
     ),
+  );
+  sl.registerLazySingleton<ICafeTagsRepository>(
+    () => CafeTagsRepositoryImpl(sl<CafeTagsRemoteDataSource>()),
   );
 
   // 4) Use cases
@@ -109,7 +116,10 @@ Future<void> initDependencies() async {
 
   // 5) Blocs
   sl.registerFactory<MapBloc>(
-    () => MapBloc(getCafeCardUseCase: sl<GetCafeCardUseCase>()),
+    () => MapBloc(
+      getCafeCardUseCase: sl<GetCafeCardUseCase>(), 
+      getFilterTagsUseCase: sl<GetFilterTagsUseCase>(),
+    )
   );
   sl.registerFactory<HomeBloc>(
     () => HomeBloc(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
@@ -133,6 +143,9 @@ Future<void> initDependencies() async {
       removeFavoriteCafeUseCase: sl<RemoveFavoriteCafeUseCase>(),
       analytics: sl<AnalyticsService>(),
     ),
+  );
+  sl.registerLazySingleton<GetFilterTagsUseCase>(
+    () => GetFilterTagsUseCase(sl<ICafeTagsRepository>()),
   );
 
   // Future features registration area:

@@ -28,7 +28,7 @@ class _MapPageState extends State<MapPage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<MapBloc>()..add(LoadMapDataEvent()),
+      create: (_) => sl<MapBloc>()..add(LoadMapDataEvent())..add(LoadFilterTagsEvent()),
       child: Scaffold(
         body: BlocBuilder<MapBloc, MapState>(
           builder: (context, state) {
@@ -63,7 +63,10 @@ class _MapPageState extends State<MapPage> {
                   if (state is MapLoadingState)
                     const Center(child: CircularProgressIndicator())
                   else if (state is MapLoadedState)
-                    BottomModalSheet(cafes: state.cafes)
+                    BottomModalSheet(
+                        cafes: state.cafes,
+                        tags: state.tags,
+                    )
                   else if (state is MapError)
                     Center(child: Text(state.message)),
               ],
