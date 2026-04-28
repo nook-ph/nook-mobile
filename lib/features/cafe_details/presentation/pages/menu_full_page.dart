@@ -36,25 +36,34 @@ class MenuFullPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(cafeName != null ? '$cafeName Menu' : 'Menu'),
+        // Removed title from here
         backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: ListView(
         children: [
-          if (highlights.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 22),
-              child: Text(
-                'Highlights',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 22.0,
+              vertical: 12.0,
+            ),
+            child: Text(
+              cafeName != null ? '$cafeName Menu' : 'Menu',
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 28,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 16),
+          ),
+
+          // ------------------------------
+          if (highlights.isNotEmpty) ...[
+            const SizedBox(height: 12),
             SizedBox(
               height: 178,
               child: ListView.separated(

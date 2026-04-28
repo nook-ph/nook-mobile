@@ -1,5 +1,6 @@
+import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
-import 'package:nook/features/lists/domain/entities/cafe_list.dart';
+
 
 abstract class ListsState {}
 

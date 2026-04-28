@@ -2,7 +2,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
-import 'package:nook/features/lists/domain/entities/cafe_list.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 
 @Deprecated('Use CafeQuery with getCafes for home/feed flows.')
 enum CafeQueryType { featured, recommended, nearby }
@@ -53,7 +53,6 @@ abstract class ICafeRepository {
   Future<void> removeFavoriteCafe(String cafeId, {String? userId});
 
   // lists
-
   Future<String> getDefaultListId();
   Future<List<CafeList>> getUserLists();
   Future<List<CafeSummary>> getListCafes(String listId);

@@ -5,6 +5,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CafeRepositoryImpl implements ICafeRepository {
