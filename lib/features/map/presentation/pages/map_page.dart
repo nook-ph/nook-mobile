@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -9,6 +11,7 @@ import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -59,7 +62,8 @@ class _MapPageState extends State<MapPage> {
                     _controllerCompleter.complete(c);
                     c.onSymbolTapped.add(_onSymbolTapped);
                   },
-                  onStyleLoadedCallback: () {
+                  onStyleLoadedCallback: () async {
+                    await _addCustomIcon();
                     setState(() => _styleLoaded = true);
                   },
                 ),
@@ -99,29 +103,27 @@ class _MapPageState extends State<MapPage> {
 
     await controller.clearSymbols();
 
-    debugPrint('>>> plotting ${cafes.length} cafes');
     for (final cafe in cafes) {
-      debugPrint('>>> ${cafe.name}: lat=${cafe.lat}, lng=${cafe.lng}');
       await controller.addSymbol(
         SymbolOptions(
           geometry: LatLng(cafe.lat!, cafe.lng!),
-          iconImage:
-              'marker-15', // built-in MapLibre icon; swap with your asset name
-          iconSize: 32,
-          // textField: cafe.name, // remove if you don't want labels
-          // textOffset: const Offset(0, 1.5),
-          // textSize: 11,
+          iconImage: 'map_pin',
+          iconSize: 1.5,
         ),
-        {'id': cafe.id}, // arbitrary data attached to the symbol
       );
     }
   }
 
   void _onSymbolTapped(Symbol symbol) {
-    // symbol.data holds the map you passed as the second arg above
     final cafeId = symbol.data?['id'];
     debugPrint('Tapped cafe id: $cafeId');
-    // e.g. context.read<MapBloc>().add(SelectCafeEvent(cafeId));
+    // do something 
+  }
+
+  Future<void> _addCustomIcon() async {
+    final ByteData bytes = await rootBundle.load('assets/images/MapPin.png');
+    final Uint8List imageData = bytes.buffer.asUint8List();
+    await _mapController!.addImage('map_pin', imageData);
   }
 
   Future<void> _defaultView() async {

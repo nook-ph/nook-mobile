@@ -173,6 +173,7 @@ Future<void> initDependencies() async {
       repository: sl<ICafeRepository>(),
       analytics: sl<AnalyticsService>(),
     ),
+  );
   sl.registerLazySingleton<GetFilterTagsUseCase>(
     () => GetFilterTagsUseCase(sl<ICafeTagsRepository>()),
   );
