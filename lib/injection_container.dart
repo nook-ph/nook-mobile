@@ -5,12 +5,16 @@ import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/data/cafe_repository_impl.dart';
 import 'package:nook/core/cafe/data/cafe_store.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/cafe/domain/use_cases/add_cafe_to_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_review_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_favorite_cafe_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/create_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_reviews_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_favorite_cafes_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafes_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_user_lists_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/remove_cafe_from_list_usecase.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/remove_favorite_cafe_usecase.dart';
@@ -23,6 +27,7 @@ import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
+import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/domain/use_cases/get_cafe_cards_usecase.dart';
 import 'package:http/http.dart' as http;
@@ -33,12 +38,9 @@ final sl = GetIt.instance;
 Future<void> initDependencies() async {
   // 1) External dependencies
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
-  sl.registerLazySingleton<AnalyticsService>(
-    () => AnalyticsService(),
-  );
-  
-  sl.registerLazySingleton<http.Client>(() => http.Client());                           
+  sl.registerLazySingleton<AnalyticsService>(() => AnalyticsService());
 
+  sl.registerLazySingleton<http.Client>(() => http.Client());
 
   sl.registerLazySingleton<ShareService>(
     () => ShareService(httpClient: sl<http.Client>()),
@@ -107,6 +109,21 @@ Future<void> initDependencies() async {
     () => UploadReviewImagesUseCase(sl<IReviewImageUploadRepository>()),
   );
 
+  //list usecases
+
+  sl.registerLazySingleton<GetUserListsUseCase>(
+    () => GetUserListsUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<AddCafeToListUseCase>(
+    () => AddCafeToListUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<RemoveCafeFromListUseCase>(
+    () => RemoveCafeFromListUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<CreateListUseCase>(
+    () => CreateListUseCase(sl<ICafeRepository>()),
+  );
+
   // 5) Blocs
   sl.registerFactory<MapBloc>(
     () => MapBloc(getCafeCardUseCase: sl<GetCafeCardUseCase>()),
@@ -131,6 +148,16 @@ Future<void> initDependencies() async {
       getFavoriteCafesUseCase: sl<GetFavoriteCafesUseCase>(),
       addFavoriteCafeUseCase: sl<AddFavoriteCafeUseCase>(),
       removeFavoriteCafeUseCase: sl<RemoveFavoriteCafeUseCase>(),
+      analytics: sl<AnalyticsService>(),
+    ),
+  );
+  sl.registerLazySingleton<ListsBloc>(
+    () => ListsBloc(
+      getUserListsUseCase: sl<GetUserListsUseCase>(),
+      addCafeToListUseCase: sl<AddCafeToListUseCase>(),
+      removeCafeFromListUseCase: sl<RemoveCafeFromListUseCase>(),
+      createListUseCase: sl<CreateListUseCase>(),
+      repository: sl<ICafeRepository>(),
       analytics: sl<AnalyticsService>(),
     ),
   );

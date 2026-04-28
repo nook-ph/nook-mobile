@@ -10,6 +10,7 @@ import 'package:nook/features/auth/domain/use_cases/sign_in_with_email_usecase.d
 import 'package:nook/features/auth/domain/use_cases/sign_out_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_up_with_email_usecase.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/lists/bloc/lists_bloc.dart';
 
 class AuthInjection {
   AuthInjection._();
@@ -46,7 +47,7 @@ class AuthInjection {
 
   static AuthRepository get authRepository => _authRepository;
 
-  static AuthBloc createAuthBloc() {
+  static AuthBloc createAuthBloc({required ListsBloc listsBloc}) {
     return AuthBloc(
       checkEmailExistsUseCase: _checkEmailExistsUseCase,
       signUpWithEmailUseCase: _signUpWithEmailUseCase,
@@ -56,6 +57,7 @@ class AuthInjection {
       signInWithGoogleUseCase: _signInWithGoogleUseCase,
       signOutUseCase: _signOutUseCase,
       getCurrentSessionUseCase: _getCurrentSessionUseCase,
+      listsBloc: listsBloc,
     );
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/presentation/widgets/list_card.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_state.dart';
-import 'package:nook/features/favorites/presentation/widgets/favorite_card.dart';
 
 class FavoritesPage extends StatelessWidget {
   const FavoritesPage({super.key});
@@ -57,7 +57,7 @@ class FavoritesPage extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 24.0),
               itemCount: favorites.length,
               itemBuilder: (context, index) {
-                return FavoriteCard(cafe: favorites[index]);
+                return ListCard(cafe: favorites[index]);
               },
             );
           },

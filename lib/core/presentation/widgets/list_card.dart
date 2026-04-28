@@ -3,8 +3,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 
-class FavoriteCard extends StatelessWidget {
-  const FavoriteCard({super.key, required this.cafe});
+class ListCard extends StatelessWidget {
+  const ListCard({super.key, required this.cafe});
 
   final CafeSummary cafe;
 

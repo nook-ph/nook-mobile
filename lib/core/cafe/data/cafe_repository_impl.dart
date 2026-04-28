@@ -5,6 +5,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CafeRepositoryImpl implements ICafeRepository {
@@ -18,7 +19,6 @@ class CafeRepositoryImpl implements ICafeRepository {
     return remoteDataSource.fetchCafes(query: query);
   }
 
-  @override
   @Deprecated('Use getCafes(CafeQuery) for home/feed flows.')
   Future<List<CafeSummary>> getCafeSummaries(
     CafeQueryType type, {
@@ -179,19 +179,82 @@ class CafeRepositoryImpl implements ICafeRepository {
       return [];
     }
 
-    final favorites = await remoteDataSource.fetchFavorites(userId: userId);
+    final defaultListId = await remoteDataSource.fetchDefaultListId(
+      userId: userId,
+    );
+    final favorites = await remoteDataSource.fetchListCafes(defaultListId);
 
     return favorites;
   }
 
   @override
-  Future<void> addFavoriteCafe(String cafeId, {String? userId}) {
-    return remoteDataSource.addFavorite(cafeId, userId: userId);
+  Future<void> addFavoriteCafe(String cafeId, {String? userId}) async {
+    final defaultListId = await remoteDataSource.fetchDefaultListId(
+      userId: userId,
+    );
+    return remoteDataSource.addCafeToList(defaultListId, cafeId);
   }
 
   @override
-  Future<void> removeFavoriteCafe(String cafeId, {String? userId}) {
-    return remoteDataSource.removeFavorite(cafeId, userId: userId);
+  Future<void> removeFavoriteCafe(String cafeId, {String? userId}) async {
+    final defaultListId = await remoteDataSource.fetchDefaultListId(
+      userId: userId,
+    );
+    return remoteDataSource.removeCafeFromList(defaultListId, cafeId);
+  }
+
+  @override
+  Future<String> getDefaultListId() {
+    return remoteDataSource.fetchDefaultListId();
+  }
+
+  @override
+  Future<List<CafeList>> getUserLists() async {
+    final rows = await remoteDataSource.fetchUserLists();
+    return rows.map((row) {
+      final list = Map<String, dynamic>.from(row['lists'] as Map);
+      return CafeList(
+        id: list['id'] as String,
+        name: list['name'] as String,
+        description: list['description'] as String?,
+        coverImageUrl: list['cover_image_url'] as String?,
+        isDefault: row['is_default'] as bool,
+        isPublic: list['is_public'] as bool,
+        cafeCount: list['cafe_count'] as int,
+        createdAt: DateTime.parse(list['created_at'] as String),
+        updatedAt: DateTime.parse(list['updated_at'] as String),
+      );
+    }).toList();
+  }
+
+  @override
+  Future<List<CafeSummary>> getListCafes(String listId) {
+    return remoteDataSource.fetchListCafes(listId);
+  }
+
+  @override
+  Future<void> addCafeToList(String listId, String cafeId) {
+    return remoteDataSource.addCafeToList(listId, cafeId);
+  }
+
+  @override
+  Future<void> removeCafeFromList(String listId, String cafeId) {
+    return remoteDataSource.removeCafeFromList(listId, cafeId);
+  }
+
+  @override
+  Future<String> createList({required String name, String? description}) {
+    return remoteDataSource.createList(name: name, description: description);
+  }
+
+  @override
+  Future<void> deleteList(String listId) {
+    return remoteDataSource.deleteList(listId);
+  }
+
+  @override
+  Future<void> renameList(String listId, String name) {
+    return remoteDataSource.renameList(listId, name);
   }
 
   @override

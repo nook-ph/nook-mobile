@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 import 'package:nook/core/cafe/data/cafe_summary_model.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
@@ -318,6 +319,189 @@ class CafeRemoteDataSource {
     }
   }
 
+  //lists
+
+  Future<String> fetchDefaultListId({String? userId}) async {
+    try {
+      final resolvedUserId = _resolveUserId(userId);
+      final response = await supabase
+          .from('list_members')
+          .select('list_id')
+          .eq('user_id', resolvedUserId)
+          .eq('is_default', true)
+          .single();
+      return response['list_id'] as String;
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch default list id.',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUserLists() async {
+    try {
+      final userId = _resolveUserId(null);
+      final response = await supabase
+          .from('list_members')
+          .select('''
+              list_id,
+              role,
+              is_default,
+              lists (
+                id,
+                name,
+                description,
+                cover_image_url,
+                is_public,
+                cafe_count,
+                created_at,
+                updated_at
+              )
+            ''')
+          .eq('user_id', userId)
+          .eq('role', 'owner')
+          .order('is_default', ascending: false);
+      return (response as List)
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList();
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch user lists.',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<List<CafeSummaryModel>> fetchListCafes(String listId) async {
+    try {
+      final response = await supabase
+          .from('list_cafes')
+          .select('''
+              added_at,
+              cafe:cafes!list_cafes_cafe_id_fkey (
+                id,
+                name,
+                address,
+                neighborhood,
+                city,
+                rating,
+                featured_image_url,
+                cafe_tags ( is_featured, tags ( name ) )
+              )
+            ''')
+          .eq('list_id', listId)
+          .order('added_at', ascending: false);
+      return (response as List)
+          .map((row) => Map<String, dynamic>.from(row))
+          .map((row) => row['cafe'])
+          .whereType<Map>()
+          .map((cafe) => Map<String, dynamic>.from(cafe))
+          .map(CafeSummaryModel.fromJson)
+          .toList();
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch cafes for list "$listId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<void> addCafeToList(String listId, String cafeId) async {
+    try {
+      final userId = _resolveUserId(null);
+      await supabase.from('list_cafes').upsert({
+        'list_id': listId,
+        'cafe_id': cafeId,
+        'added_by': userId,
+      });
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to add cafe "$cafeId" to list "$listId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<void> removeCafeFromList(String listId, String cafeId) async {
+    try {
+      await supabase
+          .from('list_cafes')
+          .delete()
+          .eq('list_id', listId)
+          .eq('cafe_id', cafeId);
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to remove cafe "$cafeId" from list "$listId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<String> createList({required String name, String? description}) async {
+    try {
+      debugPrint(
+        '[Lists] RPC create_new_list start '
+        'nameLength=${name.trim().length} '
+        'hasDescription=${description?.trim().isNotEmpty == true}',
+      );
+      final response = await supabase.rpc(
+        'create_new_list',
+        params: {'list_name': name, 'list_description': description},
+      );
+      debugPrint('[Lists] RPC create_new_list success response=$response');
+      return response as String;
+    } on PostgrestException catch (e, st) {
+      debugPrint(
+        '[Lists] RPC create_new_list PostgrestException '
+        'code=${e.code} message=${e.message} details=${e.details} hint=${e.hint}',
+      );
+      debugPrint('[Lists] RPC create_new_list stackTrace=$st');
+      throw CafeFetchException(
+        'Failed to create list "$name".',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      debugPrint('[Lists] RPC create_new_list unexpected error=$e');
+      debugPrint('[Lists] RPC create_new_list stackTrace=$st');
+      throw CafeFetchException(
+        'Failed to create list "$name".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<void> deleteList(String listId) async {
+    try {
+      await supabase.from('lists').delete().eq('id', listId);
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to delete list "$listId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<void> renameList(String listId, String name) async {
+    try {
+      await supabase.from('lists').update({'name': name}).eq('id', listId);
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to rename list "$listId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   Future<List<CafeSummaryModel>> fetchFavorites({String? userId}) async {
     try {
       final resolvedUserId = _resolveUserId(userId);
@@ -446,6 +630,7 @@ class CafeBundleModel {
     return CafeBundleModel(details: details, menu: menu, reviews: reviews);
   }
 
+  //lists stuff
   static List<Map<String, dynamic>> _asList(dynamic value) {
     if (value is! List) return const [];
     return value
@@ -465,3 +650,5 @@ class CafeFetchException implements Exception {
   @override
   String toString() => 'CafeFetchException(message: $message, cause: $cause)';
 }
+
+//lists stuff

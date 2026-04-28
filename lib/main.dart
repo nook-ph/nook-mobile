@@ -11,6 +11,7 @@ import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_events.dart';
+import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -52,9 +53,10 @@ class MyApp extends StatelessWidget {
         BlocProvider<AppBloc>(
           create: (context) => AppBloc()..add(AppStarted()),
         ),
+        BlocProvider<ListsBloc>(create: (_) => sl<ListsBloc>()),
         BlocProvider<AuthBloc>(
           create: (context) =>
-              AuthInjection.createAuthBloc()
+              AuthInjection.createAuthBloc(listsBloc: context.read<ListsBloc>())
                 ..add(const AuthSessionCheckEvent()),
         ),
         BlocProvider<FavoritesBloc>(
