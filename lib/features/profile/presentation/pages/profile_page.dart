@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:nook/core/presentation/widgets/list_card.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_events.dart';
 import 'package:nook/features/favorites/bloc/favorites_state.dart';
-import 'package:nook/features/profile/presentation/widgets/favorite_card.dart';
+import 'package:nook/features/lists/presentation/pages/list_page.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
 import 'package:nook/features/favorites/presentation/page/favorites_page.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
@@ -205,9 +207,22 @@ class ProfilePage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 12),
+
+                        _SettingsTile(
+                          label: 'My Lists',
+                          iconData: PhosphorIcons.bookmarkSimple(),
+                          iconColor: const Color(0xFF344E41),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => ListsPage()),
+                            );
+                          },
+                        ),
+                        const Divider(height: 1, color: Color(0xFFE0E0E0)),
                         _SettingsTile(
                           label: 'Edit Profile',
-                          icon: Icons.chevron_right,
+                          iconData: PhosphorIcons.caretRight(),
                           iconColor: const Color(0xFF344E41),
                           onTap: () {
                             Navigator.push(
@@ -221,7 +236,7 @@ class ProfilePage extends StatelessWidget {
                         const Divider(height: 1, color: Color(0xFFE0E0E0)),
                         _SettingsTile(
                           label: 'Logout',
-                          icon: Icons.logout,
+                          iconData: PhosphorIcons.signOut(),
                           iconColor: Colors.red,
                           labelColor: Colors.black,
                           onTap: () => _showLogoutDialog(context),
@@ -298,7 +313,7 @@ class _ProfileFavoritesSectionState extends State<_ProfileFavoritesSection> {
             itemCount: favorites.length,
             separatorBuilder: (_, __) => const SizedBox(width: 14),
             itemBuilder: (context, index) {
-              return FavoriteCard(cafe: favorites[index]);
+              return ListCard(cafe: favorites[index]);
             },
           );
         },
@@ -341,10 +356,10 @@ class ProfileHeroSection extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: const Color(0xFFE8E8E8),
                 ),
-                child: const Icon(
-                  Icons.person_rounded,
+                child: Icon(
+                  PhosphorIcons.user(),
                   size: 40,
-                  color: Color(0xFFBDBDBD),
+                  color: const Color(0xFFBDBDBD),
                 ),
               ),
             ),
@@ -401,7 +416,7 @@ class _SeeMoreLinkState extends State<_SeeMoreLink> {
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: widget.onTap, // ← uses the passed-in callback
+        onTap: widget.onTap,
         child: Text(
           'see more >',
           style: TextStyle(
@@ -422,14 +437,14 @@ class _SeeMoreLinkState extends State<_SeeMoreLink> {
 // --- Settings Tile ---
 class _SettingsTile extends StatelessWidget {
   final String label;
-  final IconData icon;
+  final PhosphorIconData iconData;
   final Color iconColor;
   final Color labelColor;
   final VoidCallback onTap;
 
   const _SettingsTile({
     required this.label,
-    required this.icon,
+    required this.iconData,
     required this.iconColor,
     required this.onTap,
     this.labelColor = Colors.black,
@@ -445,7 +460,7 @@ class _SettingsTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: TextStyle(fontSize: 15, color: labelColor)),
-            Icon(icon, color: iconColor, size: 20),
+            Icon(iconData, color: iconColor, size: 20),
           ],
         ),
       ),
