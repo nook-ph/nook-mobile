@@ -60,6 +60,7 @@ abstract class ICafeRepository {
   Future<void> removeCafeFromList(String listId, String cafeId);
   Future<String> createList({required String name, String? description});
   Future<void> deleteList(String listId);
+  Future<void> renameList(String listId, String name);
 
   Future<void> warmCache(List<CafeSummary> summaries);
 }

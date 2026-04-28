@@ -10,6 +10,8 @@ import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_email_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_out_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_up_with_email_usecase.dart';
+import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -22,6 +24,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignInWithGoogleUseCase _signInWithGoogleUseCase;
   final SignOutUseCase _signOutUseCase;
   final GetCurrentSessionUseCase _getCurrentSessionUseCase;
+  final ListsBloc listsBloc;
   StreamSubscription? _facebookAuthStateSubscription;
   static const String _googleWebClientId =
       '190651012817-4l9qejfb0uhpr6jstk1hl2b6ish2gjfo.apps.googleusercontent.com';
@@ -35,6 +38,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required SignInWithGoogleUseCase signInWithGoogleUseCase,
     required SignOutUseCase signOutUseCase,
     required GetCurrentSessionUseCase getCurrentSessionUseCase,
+    required this.listsBloc,
   }) : _checkEmailExistsUseCase = checkEmailExistsUseCase,
        _signUpWithEmailUseCase = signUpWithEmailUseCase,
        _signInWithEmailUseCase = signInWithEmailUseCase,
@@ -90,6 +94,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       await _identifyPosthogUser(user);
+      _initListsSession();
       emit(AuthAuthenticated(user));
     } on AuthException catch (e) {
       emit(AuthError(_mapAuthError(e)));
@@ -116,6 +121,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
 
       await _identifyPosthogUser(user);
+      _initListsSession();
       emit(AuthAuthenticated(user));
     } on AuthException catch (e) {
       emit(AuthError(_mapAuthError(e)));
@@ -140,6 +146,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = session?.user;
       if (user != null) {
         await _identifyPosthogUser(user);
+        _initListsSession();
         emit(AuthAuthenticated(user));
         return;
       }
@@ -172,6 +179,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await _facebookAuthStateSubscription?.cancel();
     _facebookAuthStateSubscription = null;
     await _identifyPosthogUser(event.user);
+    _initListsSession();
     emit(AuthAuthenticated(event.user));
   }
 
@@ -191,6 +199,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         await _identifyPosthogUser(user);
+        _initListsSession();
         emit(AuthAuthenticated(user));
         return;
       }
@@ -212,6 +221,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = session?.user;
       if (user != null) {
         await _identifyPosthogUser(user);
+        _initListsSession();
         emit(AuthAuthenticated(user));
         return;
       }
@@ -230,6 +240,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       _facebookAuthStateSubscription = null;
       await _signOutUseCase();
       await _resetPosthogUser();
+      _clearListsSession();
       emit(const AuthLoggedOut());
       emit(const AuthUnauthenticated());
     } on AuthException catch (e) {
@@ -256,11 +267,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final user = session?.user;
     if (user != null) {
       await _identifyPosthogUser(user);
+      _initListsSession();
       emit(AuthAuthenticated(user));
       return;
     }
 
     emit(AuthUnauthenticated());
+  }
+
+  void _initListsSession() {
+    listsBloc.add(LoadUserLists());
+  }
+
+  void _clearListsSession() {
+    listsBloc.defaultListId = null;
+    listsBloc.userLists = const [];
   }
 
   Future<void> _identifyPosthogUser(User user) async {

@@ -27,6 +27,7 @@ import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
+import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/domain/use_cases/get_cafe_cards_usecase.dart';
 import 'package:http/http.dart' as http;
@@ -147,6 +148,16 @@ Future<void> initDependencies() async {
       getFavoriteCafesUseCase: sl<GetFavoriteCafesUseCase>(),
       addFavoriteCafeUseCase: sl<AddFavoriteCafeUseCase>(),
       removeFavoriteCafeUseCase: sl<RemoveFavoriteCafeUseCase>(),
+      analytics: sl<AnalyticsService>(),
+    ),
+  );
+  sl.registerLazySingleton<ListsBloc>(
+    () => ListsBloc(
+      getUserListsUseCase: sl<GetUserListsUseCase>(),
+      addCafeToListUseCase: sl<AddCafeToListUseCase>(),
+      removeCafeFromListUseCase: sl<RemoveCafeFromListUseCase>(),
+      createListUseCase: sl<CreateListUseCase>(),
+      repository: sl<ICafeRepository>(),
       analytics: sl<AnalyticsService>(),
     ),
   );

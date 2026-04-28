@@ -59,16 +59,32 @@ class AnalyticsService {
     };
 
     try {
-      await Posthog().capture(
-        eventName: eventName,
-        properties: properties,
-      );
+      await Posthog().capture(eventName: eventName, properties: properties);
       if (kDebugMode) {
         await Posthog().flush();
       }
     } catch (e, st) {
       assert(() {
         debugPrint('PostHog tracking failed: $e\n$st');
+        return true;
+      }());
+    }
+  }
+
+  Future<void> logEvent(
+    String eventName, {
+    Map<String, Object>? properties,
+  }) async {
+    if (eventName.isEmpty) return;
+
+    try {
+      await Posthog().capture(eventName: eventName, properties: properties);
+      if (kDebugMode) {
+        await Posthog().flush();
+      }
+    } catch (e, st) {
+      assert(() {
+        debugPrint('PostHog event logging failed: $e\n$st');
         return true;
       }());
     }

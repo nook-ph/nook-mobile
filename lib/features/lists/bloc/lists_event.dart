@@ -9,6 +9,13 @@ class CreateList extends ListsEvent {
   CreateList({required this.name, this.description});
 }
 
+class RenameList extends ListsEvent {
+  final String listId;
+  final String name;
+
+  RenameList({required this.listId, required this.name});
+}
+
 class DeleteList extends ListsEvent {
   final String listId;
 

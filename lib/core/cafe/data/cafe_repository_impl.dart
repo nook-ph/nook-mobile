@@ -19,7 +19,6 @@ class CafeRepositoryImpl implements ICafeRepository {
     return remoteDataSource.fetchCafes(query: query);
   }
 
-  @override
   @Deprecated('Use getCafes(CafeQuery) for home/feed flows.')
   Future<List<CafeSummary>> getCafeSummaries(
     CafeQueryType type, {
@@ -180,19 +179,28 @@ class CafeRepositoryImpl implements ICafeRepository {
       return [];
     }
 
-    final favorites = await remoteDataSource.fetchFavorites(userId: userId);
+    final defaultListId = await remoteDataSource.fetchDefaultListId(
+      userId: userId,
+    );
+    final favorites = await remoteDataSource.fetchListCafes(defaultListId);
 
     return favorites;
   }
 
   @override
-  Future<void> addFavoriteCafe(String cafeId, {String? userId}) {
-    return remoteDataSource.addFavorite(cafeId, userId: userId);
+  Future<void> addFavoriteCafe(String cafeId, {String? userId}) async {
+    final defaultListId = await remoteDataSource.fetchDefaultListId(
+      userId: userId,
+    );
+    return remoteDataSource.addCafeToList(defaultListId, cafeId);
   }
 
   @override
-  Future<void> removeFavoriteCafe(String cafeId, {String? userId}) {
-    return remoteDataSource.removeFavorite(cafeId, userId: userId);
+  Future<void> removeFavoriteCafe(String cafeId, {String? userId}) async {
+    final defaultListId = await remoteDataSource.fetchDefaultListId(
+      userId: userId,
+    );
+    return remoteDataSource.removeCafeFromList(defaultListId, cafeId);
   }
 
   @override
@@ -242,6 +250,11 @@ class CafeRepositoryImpl implements ICafeRepository {
   @override
   Future<void> deleteList(String listId) {
     return remoteDataSource.deleteList(listId);
+  }
+
+  @override
+  Future<void> renameList(String listId, String name) {
+    return remoteDataSource.renameList(listId, name);
   }
 
   @override

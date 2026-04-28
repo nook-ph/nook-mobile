@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 import 'package:nook/core/cafe/data/cafe_summary_model.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
@@ -320,13 +321,13 @@ class CafeRemoteDataSource {
 
   //lists
 
-  Future<String> fetchDefaultListId() async {
+  Future<String> fetchDefaultListId({String? userId}) async {
     try {
-      final userId = _resolveUserId(null);
+      final resolvedUserId = _resolveUserId(userId);
       final response = await supabase
           .from('list_members')
           .select('list_id')
-          .eq('user_id', userId)
+          .eq('user_id', resolvedUserId)
           .eq('is_default', true)
           .single();
       return response['list_id'] as String;
@@ -444,12 +445,31 @@ class CafeRemoteDataSource {
 
   Future<String> createList({required String name, String? description}) async {
     try {
+      debugPrint(
+        '[Lists] RPC create_new_list start '
+        'nameLength=${name.trim().length} '
+        'hasDescription=${description?.trim().isNotEmpty == true}',
+      );
       final response = await supabase.rpc(
         'create_new_list',
         params: {'list_name': name, 'list_description': description},
       );
+      debugPrint('[Lists] RPC create_new_list success response=$response');
       return response as String;
     } on PostgrestException catch (e, st) {
+      debugPrint(
+        '[Lists] RPC create_new_list PostgrestException '
+        'code=${e.code} message=${e.message} details=${e.details} hint=${e.hint}',
+      );
+      debugPrint('[Lists] RPC create_new_list stackTrace=$st');
+      throw CafeFetchException(
+        'Failed to create list "$name".',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      debugPrint('[Lists] RPC create_new_list unexpected error=$e');
+      debugPrint('[Lists] RPC create_new_list stackTrace=$st');
       throw CafeFetchException(
         'Failed to create list "$name".',
         cause: e,
@@ -464,6 +484,18 @@ class CafeRemoteDataSource {
     } on PostgrestException catch (e, st) {
       throw CafeFetchException(
         'Failed to delete list "$listId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<void> renameList(String listId, String name) async {
+    try {
+      await supabase.from('lists').update({'name': name}).eq('id', listId);
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to rename list "$listId".',
         cause: e,
         stackTrace: st,
       );
