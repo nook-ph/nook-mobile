@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:nook/utils/theme/theme.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/app_state.dart';
@@ -66,6 +67,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
         title: 'Nook',
+        theme: TAppTheme.lightTheme,
         routerConfig: appRouter,
         builder: (context, child) {
           return BlocListener<AuthBloc, AuthState>(

@@ -4,7 +4,7 @@ class TColorScheme {
   TColorScheme._();
 
   static ColorScheme lightColorScheme = ColorScheme.light(
-    surface: const Color(0xFFFEFEFE),
+    surface: const Color(0x00000000),
     error: const Color(0xFFD11A17),
   );
 }
