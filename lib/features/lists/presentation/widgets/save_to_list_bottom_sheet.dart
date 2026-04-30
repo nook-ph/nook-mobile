@@ -1,0 +1,538 @@
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/cafe/domain/cafe_list_display_title.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
+import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/lists/bloc/lists_event.dart';
+import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+
+class SaveToListBottomSheet extends StatefulWidget {
+  const SaveToListBottomSheet({
+    super.key,
+    required this.cafeId,
+    required this.scaffoldMessenger,
+  });
+
+  final String cafeId;
+  final ScaffoldMessengerState scaffoldMessenger;
+
+  @override
+  State<SaveToListBottomSheet> createState() => _SaveToListBottomSheetState();
+}
+
+class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
+  int _lastRefreshNonce = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<SaveToListCubit>().load(widget.cafeId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<SaveToListCubit, SaveToListState>(
+      listenWhen: (previous, current) {
+        if (previous is SaveToListLoaded && current is SaveToListLoaded) {
+          return previous.errorMessage != current.errorMessage ||
+              previous.refreshNonce != current.refreshNonce;
+        }
+        return current is SaveToListError;
+      },
+      listener: (context, state) {
+        if (state is SaveToListLoaded) {
+          if (state.refreshNonce != _lastRefreshNonce) {
+            _lastRefreshNonce = state.refreshNonce;
+            context.read<ListsBloc>().add(LoadUserLists());
+          }
+
+          final errorMessage = state.errorMessage;
+          if (errorMessage != null) {
+            widget.scaffoldMessenger
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(content: Text(errorMessage)));
+          }
+        } else if (state is SaveToListError) {
+          widget.scaffoldMessenger
+            ..hideCurrentSnackBar()
+            ..showSnackBar(SnackBar(content: Text(state.message)));
+        }
+      },
+      builder: (context, state) {
+        final initialSize = _initialChildSize(context, state);
+
+        return DraggableScrollableSheet(
+          key: ValueKey(_sheetSizeKey(state)),
+          expand: false,
+          snap: true,
+          minChildSize: 0.28,
+          initialChildSize: initialSize,
+          maxChildSize: 0.75,
+          builder: (context, scrollController) {
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD9D9D9),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Save to...',
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: _SaveToListContent(
+                        state: state,
+                        scrollController: scrollController,
+                        cafeId: widget.cafeId,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _NewListButton(
+                      isEnabled: state is SaveToListLoaded && !state.isCreating,
+                      isLoading: state is SaveToListLoaded && state.isCreating,
+                      onPressed: _showCreateListDialog,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  double _initialChildSize(BuildContext context, SaveToListState state) {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    final rowCount = state is SaveToListLoaded ? state.lists.length : 4;
+    final contentHeight = 192 + (rowCount * 80) + 96;
+    final targetSize = contentHeight / screenHeight;
+    return targetSize.clamp(0.32, 0.75).toDouble();
+  }
+
+  int _sheetSizeKey(SaveToListState state) {
+    return state is SaveToListLoaded ? state.lists.length : -1;
+  }
+
+  Future<void> _showCreateListDialog() async {
+    final input = await showDialog<_CreateListInput>(
+      context: context,
+      builder: (_) => const _CreateListDialog(),
+    );
+
+    if (!mounted || input == null) return;
+    await context.read<SaveToListCubit>().createListAndSave(
+      cafeId: widget.cafeId,
+      name: input.name,
+      description: input.description,
+    );
+  }
+}
+
+class _SaveToListContent extends StatelessWidget {
+  const _SaveToListContent({
+    required this.state,
+    required this.scrollController,
+    required this.cafeId,
+  });
+
+  final SaveToListState state;
+  final ScrollController scrollController;
+  final String cafeId;
+
+  @override
+  Widget build(BuildContext context) {
+    if (state is SaveToListInitial || state is SaveToListLoading) {
+      return Skeletonizer(
+        enabled: true,
+        effect: const PulseEffect(),
+        child: ListView.separated(
+          controller: scrollController,
+          itemCount: 4,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (_, _) => const _SaveToListSkeletonRow(),
+        ),
+      );
+    }
+
+    if (state is SaveToListError) {
+      return ListView(
+        controller: scrollController,
+        children: const [
+          Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Unable to load your lists. Please try again.',
+              style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final loaded = state as SaveToListLoaded;
+    if (loaded.lists.isEmpty) {
+      return ListView(
+        controller: scrollController,
+        children: const [
+          Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Create a list to choose where this cafe should be saved.',
+              style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView.separated(
+      controller: scrollController,
+      itemCount: loaded.lists.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final list = loaded.lists[index];
+        final isPending = loaded.pendingListIds.contains(list.id);
+        final isSaved = loaded.savedListIds.contains(list.id);
+
+        return _SaveToListRow(
+          list: list,
+          isSaved: isSaved,
+          isEnabled: !loaded.isCreating && !isPending,
+          onToggle: () => context.read<SaveToListCubit>().toggleList(
+            cafeId: cafeId,
+            listId: list.id,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _SaveToListRow extends StatelessWidget {
+  const _SaveToListRow({
+    required this.list,
+    required this.isSaved,
+    required this.isEnabled,
+    required this.onToggle,
+  });
+
+  final CafeList list;
+  final bool isSaved;
+  final bool isEnabled;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: isEnabled ? onToggle : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                clipBehavior: Clip.hardEdge,
+                decoration:
+                    BoxDecoration(borderRadius: BorderRadius.circular(12)),
+                child: _ListCoverThumbnail(imageUrl: list.coverImageUrl),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      cafeListDisplayTitle(list),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      list.isPublic ? 'Public' : 'Private',
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 4),
+              IgnorePointer(
+                child: BookmarkIconButton(
+                  isSaved: isSaved,
+                  isEnabled: true,
+                  onTap: null,
+                  showCircleBackground: false,
+                  iconSize: 28,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ListCoverThumbnail extends StatelessWidget {
+  const _ListCoverThumbnail({required this.imageUrl});
+
+  final String? imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = imageUrl?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return const _ListCoverPlaceholder();
+    }
+
+    return CachedNetworkImage(
+      imageUrl: trimmed,
+      fit: BoxFit.cover,
+      placeholder: (_, _) => const _ListCoverPlaceholder(),
+      errorWidget: (_, _, _) => const _ListCoverPlaceholder(),
+    );
+  }
+}
+
+class _ListCoverPlaceholder extends StatelessWidget {
+  const _ListCoverPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFE5E7EB),
+      child: const Icon(Icons.image_outlined, color: Color(0xFF6B7280)),
+    );
+  }
+}
+
+class _SaveToListSkeletonRow extends StatelessWidget {
+  const _SaveToListSkeletonRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Bone.square(
+            size: 64,
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Bone.text(fontSize: 18, words: 2),
+                SizedBox(height: 8),
+                Bone.text(fontSize: 15, width: 88),
+              ],
+            ),
+          ),
+          SizedBox(width: 4),
+          Bone.iconButton(size: 32),
+        ],
+      ),
+    );
+  }
+}
+
+class _NewListButton extends StatelessWidget {
+  const _NewListButton({
+    required this.isEnabled,
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final bool isEnabled;
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: FilledButton.icon(
+        onPressed: isEnabled ? onPressed : null,
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFFF2F2F2),
+          foregroundColor: Colors.black,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+        ),
+        icon: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.add, size: 28),
+        label: const Text(
+          'New list',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+}
+
+class _CreateListDialog extends StatefulWidget {
+  const _CreateListDialog();
+
+  @override
+  State<_CreateListDialog> createState() => _CreateListDialogState();
+}
+
+class _CreateListDialogState extends State<_CreateListDialog> {
+  static const _green = Color(0xFF33523F);
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descController = TextEditingController();
+
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      title: const Text(
+        'Create New List',
+        style: TextStyle(fontWeight: FontWeight.w700),
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _nameController,
+            autofocus: true,
+            enabled: !_isLoading,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(
+              labelText: 'List Name',
+              hintText: 'e.g., Cebu Specialty Spots',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _green, width: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _descController,
+            enabled: !_isLoading,
+            maxLines: 2,
+            decoration: InputDecoration(
+              labelText: 'Description (Optional)',
+              hintText: 'What is this list for?',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _green, width: 2),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        FilledButton(
+          onPressed: _isLoading ? null : _submit,
+          style: FilledButton.styleFrom(
+            backgroundColor: _green,
+            foregroundColor: Colors.white,
+          ),
+          child: _isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text('Create'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _submit() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('List name is required.')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final description = _descController.text.trim();
+
+    Navigator.pop(
+      context,
+      _CreateListInput(
+        name: name,
+        description: description.isEmpty ? null : description,
+      ),
+    );
+  }
+}
+
+class _CreateListInput {
+  const _CreateListInput({required this.name, this.description});
+
+  final String name;
+  final String? description;
+}

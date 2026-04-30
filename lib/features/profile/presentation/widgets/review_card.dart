@@ -51,8 +51,8 @@ class ReviewCard extends StatelessWidget {
                 Text(
                   name,
                   style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
                     color: Colors.black,
                   ),
                 ),
@@ -66,7 +66,7 @@ class ReviewCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
                         ),
-                      ),
+                    ),
                       const TextSpan(
                         text: '/5',
                         style: TextStyle(

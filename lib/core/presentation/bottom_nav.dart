@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class BottomNav extends StatelessWidget {
   final int currentIndex;
@@ -39,21 +39,21 @@ class BottomNav extends StatelessWidget {
           unselectedItemColor: Colors.grey,
           showSelectedLabels: false,
           showUnselectedLabels: false,
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(LucideIcons.house),
+              icon: Icon(PhosphorIcons.house()),
               label: "Home",
             ),
             BottomNavigationBarItem(
-              icon: Icon(LucideIcons.search),
+              icon: Icon(PhosphorIcons.magnifyingGlass()),
               label: "Search",
             ),
             BottomNavigationBarItem(
-              icon: Icon(LucideIcons.heart),
-              label: "Favorites",
+              icon: Icon(PhosphorIcons.bookmarkSimple()),
+              label: "Saved",
             ),
             BottomNavigationBarItem(
-              icon: Icon(LucideIcons.user),
+              icon: Icon(PhosphorIcons.user()),
               label: "Profile",
             ),
           ],

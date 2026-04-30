@@ -10,6 +10,11 @@ class CafeList {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// When the user last added a café to this list (from API when present).
+  /// For ordering in Save to…, [sortListsForSaveSheet] falls back to [updatedAt]
+  /// when this is null (e.g. before `lists.last_saved_at` exists in the database).
+  final DateTime? lastSavedAt;
+
   const CafeList({
     required this.id,
     required this.name,
@@ -20,5 +25,6 @@ class CafeList {
     required this.cafeCount,
     required this.createdAt,
     required this.updatedAt,
+    this.lastSavedAt,
   });
 }
