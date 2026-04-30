@@ -10,8 +10,6 @@ import 'package:nook/core/app_state.dart';
 import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
-import 'package:nook/features/favorites/bloc/favorites_events.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
@@ -60,9 +58,6 @@ class MyApp extends StatelessWidget {
               AuthInjection.createAuthBloc(listsBloc: context.read<ListsBloc>())
                 ..add(const AuthSessionCheckEvent()),
         ),
-        BlocProvider<FavoritesBloc>(
-          create: (_) => sl<FavoritesBloc>()..add(LoadFavoritesEvent()),
-        ),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
@@ -82,12 +77,8 @@ class MyApp extends StatelessWidget {
 
               if (state is AuthAuthenticated) {
                 appRouter.go('/');
-                context.read<FavoritesBloc>().add(
-                  LoadFavoritesEvent(userId: state.user.id),
-                );
               } else if (state is AuthLoggedOut) {
                 appRouter.go('/login');
-                context.read<FavoritesBloc>().add(LoadFavoritesEvent());
               }
             },
             child: child ?? const SizedBox.shrink(),

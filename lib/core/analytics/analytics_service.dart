@@ -15,7 +15,6 @@ abstract final class AnalyticsMetadataKeys {
 /// - Awareness: [viewDetails]
 /// - Intent: [checkHours]
 /// - Conversion: [getDirections]
-/// - Loyalty: [saveToFavorites]
 class AnalyticsService {
   AnalyticsService();
 
@@ -28,15 +27,11 @@ class AnalyticsService {
   /// `get_directions` — user requested directions (lead / conversion).
   static const String getDirections = 'get_directions';
 
-  /// `save_to_favorites` — user saved the cafe (loyalty).
-  static const String saveToFavorites = 'save_to_favorites';
-
   /// Maps legacy Supabase event names to new PostHog event names.
   String _mapEventName(String eventType) {
     return switch (eventType) {
       viewDetails => 'cafe_detail_viewed',
       getDirections => 'directions_tapped',
-      saveToFavorites => 'cafe_favorited',
       _ => eventType, // e.g. check_hours remains check_hours
     };
   }

@@ -410,19 +410,141 @@ class CafeRemoteDataSource {
     }
   }
 
+  Future<Set<String>> fetchCafeListMemberships(
+    String cafeId,
+    List<String> listIds,
+  ) async {
+    if (listIds.isEmpty) return const {};
+
+    try {
+      final response = await supabase
+          .from('list_cafes')
+          .select('list_id')
+          .eq('cafe_id', cafeId)
+          .inFilter('list_id', listIds);
+
+      return (response as List)
+          .whereType<Map>()
+          .map((row) => row['list_id']?.toString())
+          .whereType<String>()
+          .toSet();
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch list memberships for cafe "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<bool> isCafeInList(String listId, String cafeId) async {
+    try {
+      final response = await supabase
+          .from('list_cafes')
+          .select('cafe_id')
+          .eq('list_id', listId)
+          .eq('cafe_id', cafeId)
+          .limit(1);
+
+      return (response as List).isNotEmpty;
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to check cafe "$cafeId" in list "$listId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   Future<void> addCafeToList(String listId, String cafeId) async {
     try {
       final userId = _resolveUserId(null);
+      final shouldUseCafeAsCover = await _isListEmpty(listId);
+
       await supabase.from('list_cafes').upsert({
         'list_id': listId,
         'cafe_id': cafeId,
         'added_by': userId,
       });
+
+      if (shouldUseCafeAsCover) {
+        final coverImageUrl = await _fetchCafeHeroImageUrl(cafeId);
+        if (coverImageUrl != null) {
+          await supabase
+              .from('lists')
+              .update({'cover_image_url': coverImageUrl})
+              .eq('id', listId);
+        }
+      }
     } on PostgrestException catch (e, st) {
       throw CafeFetchException(
         'Failed to add cafe "$cafeId" to list "$listId".',
         cause: e,
         stackTrace: st,
+      );
+    }
+  }
+
+  Future<bool> _isListEmpty(String listId) async {
+    final response = await supabase
+        .from('list_cafes')
+        .select('cafe_id')
+        .eq('list_id', listId)
+        .limit(1);
+
+    return (response as List).isEmpty;
+  }
+
+  Future<String?> _fetchCafeHeroImageUrl(String cafeId) async {
+    final response = await supabase
+        .from('cafes')
+        .select('featured_image_url')
+        .eq('id', cafeId)
+        .single();
+    final coverImageUrl = response['featured_image_url']?.toString().trim();
+
+    return coverImageUrl == null || coverImageUrl.isEmpty
+        ? null
+        : coverImageUrl;
+  }
+
+  /// Recomputes `lists.cover_image_url` after membership changes so the cover stays in sync:
+  /// uses the **newest remaining** café (`added_at` desc) whose `featured_image_url` is set;
+  /// clears the URL when the list is empty or no remaining café has a hero image.
+  Future<void> _refreshListCoverAfterMembershipChange(String listId) async {
+    try {
+      final response = await supabase
+          .from('list_cafes')
+          .select('''
+              added_at,
+              cafe:cafes!list_cafes_cafe_id_fkey ( featured_image_url )
+            ''')
+          .eq('list_id', listId)
+          .order('added_at', ascending: false)
+          .limit(50);
+
+      final rows = (response as List)
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+
+      String? coverUrl;
+      for (final row in rows) {
+        final cafe = row['cafe'];
+        if (cafe is! Map) continue;
+        final raw = cafe['featured_image_url']?.toString().trim();
+        if (raw != null && raw.isNotEmpty) {
+          coverUrl = raw;
+          break;
+        }
+      }
+
+      await supabase
+          .from('lists')
+          .update({'cover_image_url': coverUrl})
+          .eq('id', listId);
+    } catch (e, st) {
+      debugPrint(
+        '[Lists] cover_image_url refresh failed for list="$listId": $e\n$st',
       );
     }
   }
@@ -434,9 +556,58 @@ class CafeRemoteDataSource {
           .delete()
           .eq('list_id', listId)
           .eq('cafe_id', cafeId);
+      await _refreshListCoverAfterMembershipChange(listId);
     } on PostgrestException catch (e, st) {
       throw CafeFetchException(
         'Failed to remove cafe "$cafeId" from list "$listId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Deletes [cafeId] from all lists owned by the current user (same scope as [fetchUserLists]).
+  Future<void> removeCafeFromAllUserLists(String cafeId) async {
+    try {
+      final userId = _resolveUserId(null);
+      final memberRows = await supabase
+          .from('list_members')
+          .select('list_id')
+          .eq('user_id', userId)
+          .eq('role', 'owner');
+
+      final listIds = (memberRows as List)
+          .whereType<Map>()
+          .map((row) => row['list_id']?.toString())
+          .whereType<String>()
+          .toList(growable: false);
+
+      if (listIds.isEmpty) return;
+
+      final affectedResponse = await supabase
+          .from('list_cafes')
+          .select('list_id')
+          .eq('cafe_id', cafeId)
+          .inFilter('list_id', listIds);
+
+      final affectedListIds = (affectedResponse as List)
+          .whereType<Map>()
+          .map((row) => row['list_id']?.toString())
+          .whereType<String>()
+          .toSet();
+
+      await supabase
+          .from('list_cafes')
+          .delete()
+          .eq('cafe_id', cafeId)
+          .inFilter('list_id', listIds);
+
+      for (final listId in affectedListIds) {
+        await _refreshListCoverAfterMembershipChange(listId);
+      }
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to remove cafe "$cafeId" from all user lists.',
         cause: e,
         stackTrace: st,
       );
@@ -502,100 +673,10 @@ class CafeRemoteDataSource {
     }
   }
 
-  Future<List<CafeSummaryModel>> fetchFavorites({String? userId}) async {
-    try {
-      final resolvedUserId = _resolveUserId(userId);
-
-      final response = await supabase
-          .from('user_favorites')
-          .select('''
-          created_at,
-          cafe:cafes!user_favorites_cafe_id_fkey (
-            id,
-            name,
-            address,
-            neighborhood,
-            city,
-            rating,
-            featured_image_url,
-            system_badge,
-            cafe_tags ( is_featured, tags ( name ) )
-          )
-        ''')
-          .eq('user_id', resolvedUserId)
-          .order('created_at', ascending: false);
-
-      return (response as List)
-          .map((row) => Map<String, dynamic>.from(row))
-          .map((row) => row['cafe'])
-          .whereType<Map>()
-          .map((cafe) => Map<String, dynamic>.from(cafe))
-          .map(CafeSummaryModel.fromJson)
-          .toList();
-    } on PostgrestException catch (e, st) {
-      throw CafeFetchException(
-        'Failed to fetch favorite cafes.',
-        cause: e,
-        stackTrace: st,
-      );
-    } catch (e, st) {
-      throw CafeFetchException(
-        'Failed to fetch favorite cafes.',
-        cause: e,
-        stackTrace: st,
-      );
-    }
-  }
-
-  Future<void> addFavorite(String cafeId, {String? userId}) async {
-    try {
-      final resolvedUserId = _resolveUserId(userId);
-      await supabase.from('user_favorites').upsert({
-        'user_id': resolvedUserId,
-        'cafe_id': cafeId,
-      });
-    } on PostgrestException catch (e, st) {
-      throw CafeFetchException(
-        'Failed to add favorite cafe for id "$cafeId".',
-        cause: e,
-        stackTrace: st,
-      );
-    } catch (e, st) {
-      throw CafeFetchException(
-        'Failed to add favorite cafe for id "$cafeId".',
-        cause: e,
-        stackTrace: st,
-      );
-    }
-  }
-
-  Future<void> removeFavorite(String cafeId, {String? userId}) async {
-    try {
-      final resolvedUserId = _resolveUserId(userId);
-      await supabase
-          .from('user_favorites')
-          .delete()
-          .eq('user_id', resolvedUserId)
-          .eq('cafe_id', cafeId);
-    } on PostgrestException catch (e, st) {
-      throw CafeFetchException(
-        'Failed to remove favorite cafe for id "$cafeId".',
-        cause: e,
-        stackTrace: st,
-      );
-    } catch (e, st) {
-      throw CafeFetchException(
-        'Failed to remove favorite cafe for id "$cafeId".',
-        cause: e,
-        stackTrace: st,
-      );
-    }
-  }
-
   String _resolveUserId(String? userId) {
     final resolved = userId ?? supabase.auth.currentUser?.id;
     if (resolved == null || resolved.isEmpty) {
-      throw const CafeFetchException('No authenticated user for favorites.');
+      throw const CafeFetchException('No authenticated user for lists.');
     }
     return resolved;
   }

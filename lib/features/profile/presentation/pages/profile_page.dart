@@ -2,14 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:nook/core/presentation/widgets/list_card.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
-import 'package:nook/features/favorites/bloc/favorites_events.dart';
-import 'package:nook/features/favorites/bloc/favorites_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_page.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
-import 'package:nook/features/favorites/presentation/page/favorites_page.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
@@ -66,13 +61,9 @@ class ProfilePage extends StatelessWidget {
         listener: (context, state) {
           if (state is AuthAuthenticated) {
             context.read<ProfileCubit>().loadProfile();
-            context.read<FavoritesBloc>().add(
-              LoadFavoritesEvent(userId: state.user.id),
-            );
           }
           if (state is AuthUnauthenticated) {
             context.read<ProfileCubit>().clear();
-            context.read<FavoritesBloc>().add(LoadFavoritesEvent());
             context.go('/login');
           }
           if (state is AuthError) {
@@ -114,39 +105,6 @@ class ProfilePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
 
-                  // Favorites row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 22),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "Favorites",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        _SeeMoreLink(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const FavoritesPage(),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  const _ProfileFavoritesSection(),
-
-                  const SizedBox(height: 32),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 22),
                     child: Row(
@@ -179,7 +137,7 @@ class ProfilePage extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 22),
                     itemCount: visibleReviews
                         .length, // replace with your actual review list length
-                    separatorBuilder: (_, __) => const SizedBox(height: 14),
+                    separatorBuilder: (_, _) => const SizedBox(height: 14),
                     itemBuilder: (context, index) {
                       final review = visibleReviews[index];
                       return ReviewCard(
@@ -251,72 +209,6 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ProfileFavoritesSection extends StatefulWidget {
-  const _ProfileFavoritesSection();
-
-  @override
-  State<_ProfileFavoritesSection> createState() =>
-      _ProfileFavoritesSectionState();
-}
-
-class _ProfileFavoritesSectionState extends State<_ProfileFavoritesSection> {
-  @override
-  void initState() {
-    super.initState();
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    context.read<FavoritesBloc>().add(LoadFavoritesEvent(userId: userId));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 106,
-      child: BlocBuilder<FavoritesBloc, FavoritesState>(
-        builder: (context, state) {
-          if (state is FavoritesLoading || state is FavoritesInitial) {
-            return const Center(
-              child: CircularProgressIndicator(color: Colors.grey),
-            );
-          }
-
-          if (state is FavoritesError) {
-            return Center(
-              child: Text(
-                state.message,
-                style: const TextStyle(color: Colors.red),
-                textAlign: TextAlign.center,
-              ),
-            );
-          }
-
-          final favorites = state is FavoritesLoaded
-              ? state.favorites.take(4).toList()
-              : const [];
-
-          if (favorites.isEmpty) {
-            return const Center(
-              child: Text(
-                'No favorites yet',
-                style: TextStyle(color: Colors.black54),
-              ),
-            );
-          }
-
-          return ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 22),
-            itemCount: favorites.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 14),
-            itemBuilder: (context, index) {
-              return ListCard(cafe: favorites[index]);
-            },
-          );
-        },
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
+import 'package:nook/core/preferences/last_saved_list_store.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/data/cafe_repository_impl.dart';
@@ -7,17 +8,16 @@ import 'package:nook/core/cafe/data/cafe_store.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_cafe_to_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_review_usecase.dart';
-import 'package:nook/core/cafe/domain/use_cases/add_favorite_cafe_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/create_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_cafe_list_memberships_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_reviews_usecase.dart';
-import 'package:nook/core/cafe/domain/use_cases/get_favorite_cafes_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafes_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_user_lists_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/remove_cafe_from_list_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
-import 'package:nook/core/cafe/domain/use_cases/remove_favorite_cafe_usecase.dart';
 import 'package:nook/core/upload/data/review_image_upload_remote_data_source.dart';
 import 'package:nook/core/upload/data/review_image_upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/repositories/i_review_image_upload_repository.dart';
@@ -25,9 +25,9 @@ import 'package:nook/core/upload/domain/use_cases/upload_review_images_usecase.d
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
-import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/data/datasources/cafe_tags_remote_data_source.dart';
 import 'package:nook/features/map/data/repositories/cafe_tags_repository_impl.dart';
@@ -43,6 +43,8 @@ Future<void> initDependencies() async {
   // 1) External dependencies
   sl.registerLazySingleton<SupabaseClient>(() => Supabase.instance.client);
   sl.registerLazySingleton<AnalyticsService>(() => AnalyticsService());
+
+  sl.registerLazySingleton<LastSavedListStore>(() => LastSavedListStore());
 
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
@@ -106,15 +108,6 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<AddReviewUseCase>(
     () => AddReviewUseCase(sl<ICafeRepository>()),
   );
-  sl.registerLazySingleton<GetFavoriteCafesUseCase>(
-    () => GetFavoriteCafesUseCase(sl<ICafeRepository>()),
-  );
-  sl.registerLazySingleton<AddFavoriteCafeUseCase>(
-    () => AddFavoriteCafeUseCase(sl<ICafeRepository>()),
-  );
-  sl.registerLazySingleton<RemoveFavoriteCafeUseCase>(
-    () => RemoveFavoriteCafeUseCase(sl<ICafeRepository>()),
-  );
   sl.registerLazySingleton<UploadReviewImagesUseCase>(
     () => UploadReviewImagesUseCase(sl<IReviewImageUploadRepository>()),
   );
@@ -133,13 +126,23 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<CreateListUseCase>(
     () => CreateListUseCase(sl<ICafeRepository>()),
   );
+  sl.registerLazySingleton<GetCafeListMembershipsUseCase>(
+    () => GetCafeListMembershipsUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<ResolveQuickSaveListUseCase>(
+    () => ResolveQuickSaveListUseCase(
+      repository: sl<ICafeRepository>(),
+      lastSavedListStore: sl<LastSavedListStore>(),
+      createListUseCase: sl<CreateListUseCase>(),
+    ),
+  );
 
   // 5) Blocs
   sl.registerFactory<MapBloc>(
     () => MapBloc(
-      getCafeCardUseCase: sl<GetCafeCardUseCase>(), 
+      getCafeCardUseCase: sl<GetCafeCardUseCase>(),
       getFilterTagsUseCase: sl<GetFilterTagsUseCase>(),
-    )
+    ),
   );
   sl.registerFactory<HomeBloc>(
     () => HomeBloc(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
@@ -156,14 +159,6 @@ Future<void> initDependencies() async {
       uploadReviewImagesUseCase: sl<UploadReviewImagesUseCase>(),
     ),
   );
-  sl.registerLazySingleton<FavoritesBloc>(
-    () => FavoritesBloc(
-      getFavoriteCafesUseCase: sl<GetFavoriteCafesUseCase>(),
-      addFavoriteCafeUseCase: sl<AddFavoriteCafeUseCase>(),
-      removeFavoriteCafeUseCase: sl<RemoveFavoriteCafeUseCase>(),
-      analytics: sl<AnalyticsService>(),
-    ),
-  );
   sl.registerLazySingleton<ListsBloc>(
     () => ListsBloc(
       getUserListsUseCase: sl<GetUserListsUseCase>(),
@@ -173,12 +168,24 @@ Future<void> initDependencies() async {
       repository: sl<ICafeRepository>(),
       analytics: sl<AnalyticsService>(),
     ),
+  );
+  sl.registerFactory<SaveToListCubit>(
+    () => SaveToListCubit(
+      getUserListsUseCase: sl<GetUserListsUseCase>(),
+      getCafeListMembershipsUseCase: sl<GetCafeListMembershipsUseCase>(),
+      addCafeToListUseCase: sl<AddCafeToListUseCase>(),
+      removeCafeFromListUseCase: sl<RemoveCafeFromListUseCase>(),
+      createListUseCase: sl<CreateListUseCase>(),
+      lastSavedListStore: sl<LastSavedListStore>(),
+      currentUserId: () => sl<SupabaseClient>().auth.currentUser?.id,
+    ),
+  );
+
   sl.registerLazySingleton<GetFilterTagsUseCase>(
     () => GetFilterTagsUseCase(sl<ICafeTagsRepository>()),
   );
 
   // Future features registration area:
-  // favorites
   // map
   // profile
   // search

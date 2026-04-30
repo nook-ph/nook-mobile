@@ -8,7 +8,9 @@ import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
 import 'package:nook/features/lists/presentation/widgets/list_options_bottom_sheet.dart';
 
 class ListsPage extends StatefulWidget {
-  const ListsPage({super.key});
+  const ListsPage({super.key, this.showBackButton = true});
+
+  final bool showBackButton;
 
   @override
   State<ListsPage> createState() => _ListsPageState();
@@ -33,10 +35,13 @@ class _ListsPageState extends State<ListsPage> {
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        automaticallyImplyLeading: widget.showBackButton,
+        leading: widget.showBackButton
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
       ),
       body: BlocBuilder<ListsBloc, ListsState>(
         builder: (context, state) {
@@ -67,8 +72,8 @@ class _ListsPageState extends State<ListsPage> {
                 'Your Lists',
                 style: TextStyle(
                   color: Colors.black,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 20),
@@ -82,8 +87,8 @@ class _ListsPageState extends State<ListsPage> {
                     'All Lists',
                     style: TextStyle(
                       color: Color(0xFF1E3A2B),
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   GestureDetector(
@@ -92,7 +97,7 @@ class _ListsPageState extends State<ListsPage> {
                       'Sort by: Recent',
                       style: TextStyle(
                         color: Color(0xFF33523F),
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -208,13 +213,13 @@ class _ListsPageState extends State<ListsPage> {
         child: Row(
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 48,
+              height: 48,
               decoration: const BoxDecoration(
                 color: Color(0xFF33523F),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.favorite, color: Colors.white, size: 28),
+              child: const Icon(Icons.favorite, color: Colors.white, size: 22),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -224,16 +229,16 @@ class _ListsPageState extends State<ListsPage> {
                   const Text(
                     'Favorites',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
                       color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 4),
+
                   Text(
                     _placeCountText(favoritesList?.cafeCount ?? 0),
                     style: const TextStyle(
-                      fontSize: 15,
+                      fontSize: 14,
                       color: Color(0xFF848586),
                     ),
                   ),
@@ -415,8 +420,8 @@ class _CreateListSheetState extends State<_CreateListSheet> {
             const Text(
               'Create New List',
               style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
                 color: Colors.black,
               ),
             ),
@@ -487,7 +492,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
                         'Create List',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
                       ),

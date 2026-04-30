@@ -45,19 +45,24 @@ abstract class ICafeRepository {
     List<String> imageUrls = const [],
   });
 
-  @Deprecated('Use fetchListCafes with the default list id.')
-  Future<List<CafeSummary>> getFavoriteCafes({String? userId});
-  @Deprecated('Use addCafeToList with the default list id.')
-  Future<void> addFavoriteCafe(String cafeId, {String? userId});
-  @Deprecated('Use removeCafeFromList with the default list id.')
-  Future<void> removeFavoriteCafe(String cafeId, {String? userId});
-
   // lists
   Future<String> getDefaultListId();
   Future<List<CafeList>> getUserLists();
   Future<List<CafeSummary>> getListCafes(String listId);
+  Future<Set<String>> getCafeListMemberships(
+    String cafeId,
+    List<String> listIds,
+  );
+  Future<bool> isCafeInList(String listId, String cafeId);
+
+  /// True if [cafeId] appears in any list the user owns (see [getUserLists]).
+  Future<bool> isCafeSavedToAnyUserList(String cafeId);
+
   Future<void> addCafeToList(String listId, String cafeId);
   Future<void> removeCafeFromList(String listId, String cafeId);
+
+  /// Removes [cafeId] from every list the user owns (same membership scope as [getUserLists]).
+  Future<void> removeCafeFromAllUserLists(String cafeId);
   Future<String> createList({required String name, String? description});
   Future<void> deleteList(String listId);
   Future<void> renameList(String listId, String name);

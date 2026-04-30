@@ -13,7 +13,6 @@ void main() {
       expect(AnalyticsService.viewDetails, 'view_details');
       expect(AnalyticsService.checkHours, 'check_hours');
       expect(AnalyticsService.getDirections, 'get_directions');
-      expect(AnalyticsService.saveToFavorites, 'save_to_favorites');
     });
   });
 

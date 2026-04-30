@@ -65,8 +65,8 @@ class _ListDetailPageState extends State<ListDetailPage> {
           widget.title,
           style: const TextStyle(
             color: Colors.black,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
+            fontSize: 24,
+            fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 20),
