@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,7 +10,6 @@ import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -22,8 +20,17 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final _controllerCompleter = Completer<MapLibreMapController>();
+  String? _styleJson;
   MapLibreMapController? _mapController;
   bool _styleLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    rootBundle.loadString('assets/mapstyle.json').then((s) {
+      setState(() => _styleJson = s);
+    });
+  }
 
   static const _initial = CameraPosition(
     target: LatLng(10.3167, 123.8907),
@@ -56,7 +63,8 @@ class _MapPageState extends State<MapPage> {
                 MapLibreMap(
                   initialCameraPosition: _initial,
                   styleString:
-                      'https://tiles.openfreemap.org/styles/bright', // TODO change with custom maputnik map
+                      _styleJson ??
+                      'https://tiles.openfreemap.org/styles/bright',
                   onMapCreated: (c) {
                     _mapController = c;
                     _controllerCompleter.complete(c);
@@ -117,7 +125,7 @@ class _MapPageState extends State<MapPage> {
   void _onSymbolTapped(Symbol symbol) {
     final cafeId = symbol.data?['id'];
     debugPrint('Tapped cafe id: $cafeId');
-    // do something 
+    // do something
   }
 
   Future<void> _addCustomIcon() async {

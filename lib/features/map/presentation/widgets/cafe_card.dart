@@ -72,7 +72,7 @@ class _CafeCardState extends State<CafeCard> {
                         style: Theme.of(context).textTheme.bodyMediumEmp,
                       ),
                       Text(
-                        ' • address', // change with ${widget.cafe.address} later
+                        ' • ${widget.cafe.neighborhood}, ${widget.cafe.city}',
                         style: Theme.of(context).textTheme.bodyMediumEmp
                             .copyWith(
                               color: Theme.of(context).colorScheme.textgray,
