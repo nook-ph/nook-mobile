@@ -25,3 +25,20 @@ extension CustomColor on ColorScheme {
   Color get primary40 => const Color(0xFFA3B18A);
   Color get primary20 => const Color(0xFFDAD7CD);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

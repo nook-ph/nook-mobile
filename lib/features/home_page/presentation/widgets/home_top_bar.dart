@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:nook/features/search/presentation/pages/search_page.dart';
+import 'package:nook/features/search/presentation/pages/search_results_page.dart';
+import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
 class HomeTopBar extends StatelessWidget {
   const HomeTopBar({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final borderColor = Theme.of(context).colorScheme.border;
+
     return Padding(
       padding: const EdgeInsets.only(top: 46, left: 22, right: 22),
       child: Row(
@@ -23,40 +26,26 @@ class HomeTopBar extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) =>
-                        const SearchPage(),
-                    transitionsBuilder:
-                        (context, animation, secondaryAnimation, child) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          );
-                        },
+                  MaterialPageRoute(
+                    builder: (context) => const SearchResultsPage(query: ''),
                   ),
                 );
               },
-              child: Hero(
-                tag: 'search_bar_hero',
-                child: Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    alignment: Alignment.centerLeft,
-                    child: const Row(
-                      children: [
-                        Icon(LucideIcons.search, color: Colors.grey),
-                        SizedBox(width: 8),
-                        Text("Search...", style: TextStyle(color: Colors.grey)),
-                      ],
-                    ),
-                  ),
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(100),
+                  border: Border.all(color: borderColor),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  children: const [
+                    Icon(LucideIcons.search, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Text("Search...", style: TextStyle(color: Colors.grey)),
+                  ],
                 ),
               ),
             ),
