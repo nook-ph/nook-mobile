@@ -17,6 +17,7 @@ import 'package:nook/core/cafe/domain/use_cases/get_user_lists_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/remove_cafe_from_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
 import 'package:nook/core/services/share_service.dart';
+import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/search/bloc/search_bloc.dart';
 import 'package:nook/features/search/domain/use_cases/search_cafes_usecase.dart';
@@ -191,6 +192,9 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<SearchCafesUseCase>(
     () => SearchCafesUseCase(sl<ICafeRepository>()),
   );
+
+  sl.registerLazySingleton<FilterCubit>(() => FilterCubit());
+
   sl.registerFactory<SearchBloc>(
     () => SearchBloc(
       searchCafesUseCase: sl<SearchCafesUseCase>(),

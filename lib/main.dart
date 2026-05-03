@@ -7,6 +7,7 @@ import 'package:nook/utils/theme/theme.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/app_state.dart';
+import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -53,6 +54,7 @@ class MyApp extends StatelessWidget {
           create: (context) => AppBloc()..add(AppStarted()),
         ),
         BlocProvider<ListsBloc>(create: (_) => sl<ListsBloc>()),
+        BlocProvider<FilterCubit>(create: (_) => sl<FilterCubit>()),
         BlocProvider<AuthBloc>(
           create: (context) =>
               AuthInjection.createAuthBloc(listsBloc: context.read<ListsBloc>())

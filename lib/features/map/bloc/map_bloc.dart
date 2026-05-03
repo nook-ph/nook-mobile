@@ -24,7 +24,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   ) async {
     emit(MapLoadingState());
     try {
-      final result = await getCafeCardUseCase.call(tags: event.tags);
+      final result = await getCafeCardUseCase.call(filter: event.filter);
       final currentTags = state is MapLoadedState
           ? (state as MapLoadedState).tags
           : <CafeTagsEntity>[];

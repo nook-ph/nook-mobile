@@ -4,20 +4,35 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 class CafeCard extends StatefulWidget {
   final CafeSummary cafe;
-  const CafeCard({super.key, required this.cafe});
+  final bool isSkeleton;
+
+  const CafeCard({
+    super.key,
+    required this.cafe,
+    this.isSkeleton = false,
+  });
 
   @override
   State<CafeCard> createState() => _CafeCardState();
 }
 
 class _CafeCardState extends State<CafeCard> {
+  static const String _fallbackImageUrl =
+      'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+
   @override
   Widget build(BuildContext context) {
+    final String imageUrl = widget.cafe.coverImage?.trim().isNotEmpty == true
+        ? widget.cafe.coverImage!.trim()
+        : _fallbackImageUrl;
+
     return GestureDetector(
       onTap: () {
+        if (widget.isSkeleton) return;
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -32,11 +47,19 @@ class _CafeCardState extends State<CafeCard> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                widget.cafe.coverImage ?? '',
-                height: 240,
-                width: double.infinity,
-                fit: BoxFit.cover,
+              child: Skeleton.replace(
+                replace: widget.isSkeleton,
+                replacement: Container(
+                  height: 240,
+                  width: double.infinity,
+                  color: Colors.black,
+                ),
+                child: Image.network(
+                  imageUrl,
+                  height: 240,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
             SizedBox(height: 16),
