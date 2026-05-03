@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:like_button/like_button.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
-import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
-import 'package:nook/features/favorites/bloc/favorites_bloc.dart';
-import 'package:nook/features/favorites/bloc/favorites_events.dart';
-import 'package:nook/features/favorites/bloc/favorites_state.dart';
+import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
+import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
+import 'package:nook/core/preferences/last_saved_list_store.dart';
+import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/lists/bloc/lists_event.dart';
+import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/injection_container.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -29,6 +30,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.
 import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
+import 'package:nook/features/lists/presentation/widgets/save_to_list_bottom_sheet.dart';
 
 class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({super.key, required this.cafeId});
@@ -154,22 +156,6 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                     ? state.data.cafeDetails.name
                     : '';
 
-                final currentSummary = state is CafeDetailsLoaded
-                    ? CafeSummary(
-                        id: widget.cafeId,
-                        name: state.data.cafeDetails.name,
-                        address: state.data.cafeDetails.address,
-                        neighborhood: state.data.cafeDetails.neighborhood,
-                        city: state.data.cafeDetails.city,
-                        coverImage: state.data.cafeDetails.featuredImageUrl,
-                        rating: state.data.cafeDetails.rating,
-                        tags: state.data.cafeDetails.tags
-                            .map((tag) => tag.name)
-                            .toList(),
-                        isFeatured: false,
-                      )
-                    : CafeSummary(id: widget.cafeId, name: '', rating: 0);
-
                 return CustomScrollView(
                   controller: _scrollController,
                   slivers: [
@@ -225,9 +211,14 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                           ),
                           actions: [
                             Center(
-                              child: _FavoriteButton(
+                              child: _SavedButton(
                                 cafeId: widget.cafeId,
-                                summary: currentSummary,
+                                cafeName: state is CafeDetailsLoaded
+                                    ? state.data.cafeDetails.name
+                                    : '',
+                                thumbnailUrl: state is CafeDetailsLoaded
+                                    ? state.data.cafeDetails.featuredImageUrl
+                                    : null,
                               ),
                             ),
                             const SizedBox(width: 22),
@@ -400,57 +391,187 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   }
 }
 
-class _FavoriteButton extends StatelessWidget {
-  const _FavoriteButton({required this.cafeId, required this.summary});
+class _SavedButton extends StatefulWidget {
+  const _SavedButton({
+    required this.cafeId,
+    required this.cafeName,
+    required this.thumbnailUrl,
+  });
 
   final String cafeId;
-  final CafeSummary summary;
+  final String cafeName;
+  final String? thumbnailUrl;
+
+  @override
+  State<_SavedButton> createState() => _SavedButtonState();
+}
+
+class _SavedButtonState extends State<_SavedButton> {
+  bool _isSaving = false;
+  bool _isSaved = false;
+  int _savedStateRequest = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedState();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SavedButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cafeId != widget.cafeId) {
+      _isSaved = false;
+      _loadSavedState();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<FavoritesBloc, FavoritesState>(
-      builder: (context, favoritesState) {
-        final isFavorite =
-            favoritesState is FavoritesLoaded &&
-            favoritesState.favorites.any((cafe) => cafe.id == cafeId);
+    return BookmarkIconButton(
+      isSaved: _isSaved,
+      isEnabled: !_isSaving,
+      onTap: _toggleSaved,
+    );
+  }
 
-        return Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
-          decoration: const BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white,
-          ),
-          child: LikeButton(
-            size: 40,
-            padding: EdgeInsets.zero,
-            isLiked: isFavorite,
-            onTap: (isLiked) async {
-              final session = Supabase.instance.client.auth.currentSession;
-              if (session == null) {
-                context.push('/login');
-                return false;
-              }
+  Future<void> _loadSavedState() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) return;
 
-              context.read<FavoritesBloc>().add(
-                ToggleFavoriteEvent(cafeId, summary, userId: session.user.id),
-              );
-              return !isLiked;
-            },
-            likeBuilder: (isLiked) => Center(
-              child: Icon(
-                isLiked
-                    ? PhosphorIcons.heart(PhosphorIconsStyle.fill)
-                    : PhosphorIcons.heart(),
-                color: isLiked ? Colors.red : Colors.black,
-                size: 16,
-              ),
-            ),
+    final requestId = ++_savedStateRequest;
+    final listsBloc = context.read<ListsBloc>();
+    final cafeId = widget.cafeId;
+
+    try {
+      final isSaved = await listsBloc.repository.isCafeSavedToAnyUserList(
+        cafeId,
+      );
+      if (!mounted ||
+          widget.cafeId != cafeId ||
+          requestId != _savedStateRequest) {
+        return;
+      }
+
+      setState(() => _isSaved = isSaved);
+    } catch (e, st) {
+      debugPrint('[CafeDetailsSave] _loadSavedState failed cafeId=$cafeId error=$e');
+      debugPrint('$st');
+      // Leave the button interactive if the initial saved-state lookup fails.
+    }
+  }
+
+  Future<void> _toggleSaved() async {
+    debugPrint(
+      '[CafeDetailsSave] tap cafeId=${widget.cafeId} '
+      '_isSaved=$_isSaved _isSaving=$_isSaving',
+    );
+
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      debugPrint('[CafeDetailsSave] no session → login');
+      context.push('/login');
+      return;
+    }
+
+    _savedStateRequest++;
+    final wasSaved = _isSaved;
+    setState(() => _isSaving = true);
+
+    try {
+      final listsBloc = context.read<ListsBloc>();
+      final userId = session.user.id;
+      debugPrint('[CafeDetailsSave] userId=$userId wasSaved=$wasSaved');
+
+      ResolvedQuickSaveList? quickSave;
+      if (wasSaved) {
+        debugPrint('[CafeDetailsSave] removing from all user lists…');
+        await listsBloc.repository.removeCafeFromAllUserLists(widget.cafeId);
+        debugPrint('[CafeDetailsSave] remove OK');
+      } else {
+        debugPrint('[CafeDetailsSave] resolving quick-save target…');
+        quickSave = await sl<ResolveQuickSaveListUseCase>()(userId);
+        debugPrint(
+          '[CafeDetailsSave] resolved listId=${quickSave.listId} '
+          'displayTitle=${quickSave.displayTitle}',
+        );
+        debugPrint('[CafeDetailsSave] addCafeToList…');
+        await listsBloc.addCafeToListUseCase(
+          quickSave.listId,
+          widget.cafeId,
+        );
+        debugPrint('[CafeDetailsSave] addCafeToList OK');
+        await sl<LastSavedListStore>().setLastSavedListId(
+          userId,
+          quickSave.listId,
+        );
+        debugPrint('[CafeDetailsSave] last-saved preference updated');
+      }
+
+      listsBloc.add(LoadUserLists());
+
+      if (!mounted) {
+        debugPrint('[CafeDetailsSave] unmounted after success, skip UI update');
+        return;
+      }
+      setState(() => _isSaved = !wasSaved);
+      if (!wasSaved && quickSave != null) {
+        debugPrint('[CafeDetailsSave] showing toast');
+        showSavedToListToast(
+          context,
+          widget.cafeName,
+          widget.thumbnailUrl,
+          listDisplayName: quickSave.displayTitle,
+          onChange: () => _showSaveToListSheet(),
+        );
+      }
+      debugPrint('[CafeDetailsSave] done _isSaved=$_isSaved');
+    } catch (e, st) {
+      debugPrint('[CafeDetailsSave] FAILED error=$e');
+      debugPrint('$st');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Unable to update saved cafe. Please try again.'),
           ),
         );
-      },
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _showSaveToListSheet() async {
+    if (!mounted) return;
+
+    final listsBloc = context.read<ListsBloc>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: listsBloc),
+          BlocProvider(create: (_) => sl<SaveToListCubit>()),
+        ],
+        child: SaveToListBottomSheet(
+          cafeId: widget.cafeId,
+          scaffoldMessenger: scaffoldMessenger,
+        ),
+      ),
     );
+
+    if (mounted) {
+      _loadSavedState();
+    }
   }
 }
 
