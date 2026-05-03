@@ -12,6 +12,7 @@ class CafeSummary {
   final double? distanceMeters;
   final bool isFeatured;
   final bool isNew;
+  final bool isFavorited;
 
   const CafeSummary({
     required this.id,
@@ -27,6 +28,7 @@ class CafeSummary {
     this.distanceMeters,
     this.isFeatured = false,
     this.isNew = false,
+    this.isFavorited = false,
   });
 
   String get locationLabel {

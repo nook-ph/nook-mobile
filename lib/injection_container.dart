@@ -18,6 +18,8 @@ import 'package:nook/core/cafe/domain/use_cases/remove_cafe_from_list_usecase.da
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
+import 'package:nook/features/search/bloc/search_bloc.dart';
+import 'package:nook/features/search/domain/use_cases/search_cafes_usecase.dart';
 import 'package:nook/core/upload/data/review_image_upload_remote_data_source.dart';
 import 'package:nook/core/upload/data/review_image_upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/repositories/i_review_image_upload_repository.dart';
@@ -183,6 +185,17 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<GetFilterTagsUseCase>(
     () => GetFilterTagsUseCase(sl<ICafeTagsRepository>()),
+  );
+
+  // Search
+  sl.registerLazySingleton<SearchCafesUseCase>(
+    () => SearchCafesUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerFactory<SearchBloc>(
+    () => SearchBloc(
+      searchCafesUseCase: sl<SearchCafesUseCase>(),
+      supabase: sl<SupabaseClient>(),
+    ),
   );
 
   // Future features registration area:

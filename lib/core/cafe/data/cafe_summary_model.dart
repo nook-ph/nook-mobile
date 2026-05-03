@@ -15,6 +15,7 @@ class CafeSummaryModel extends CafeSummary {
     super.distanceMeters,
     super.isFeatured = false,
     super.isNew = false,
+    super.isFavorited = false,
   });
 
   factory CafeSummaryModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +30,7 @@ class CafeSummaryModel extends CafeSummary {
       tags: _parseTags(json),
       isFeatured: _asBool(json['is_featured']),
       isNew: _asBool(json['is_new']),
+      isFavorited: _asBool(json['is_favorited']),
       distanceMeters: _asNullableDouble(json['distance_meters']),
       lat: _asNullableDouble(json['lat']),
       lng: _asNullableDouble(json['lng']),
