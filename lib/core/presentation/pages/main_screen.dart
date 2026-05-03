@@ -12,22 +12,22 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class MainScreen extends StatelessWidget {
   const MainScreen({super.key});
 
-  final List<Widget> _pages = const [
-    HomePage(),
-    MapPage(),
-    ListsPage(showBackButton: false),
-    ProfilePage(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => NavigationBloc(),
       child: BlocBuilder<NavigationBloc, NavigationState>(
         builder: (context, state) {
+          final pages = [
+            const HomePage(),
+            MapPage(key: ValueKey('map_tab_${state.tabIndex == 1}')),
+            const ListsPage(showBackButton: false),
+            const ProfilePage(),
+          ];
+
           return Scaffold(
             backgroundColor: Colors.white,
-            body: IndexedStack(index: state.tabIndex, children: _pages),
+            body: IndexedStack(index: state.tabIndex, children: pages),
             bottomNavigationBar: BottomNav(
               currentIndex: state.tabIndex,
               onTap: (index) {

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/features/search/bloc/search_bloc.dart';
-import 'package:nook/features/search/presentation/widgets/best_for_tag_list.dart';
-import 'package:nook/features/search/presentation/widgets/amenities_tag_list.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
@@ -96,27 +94,25 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
         body: SafeArea(
           child: BlocBuilder<SearchBloc, SearchState>(
             builder: (context, state) {
-                final isLoading =
+              final isLoading =
                   state.status == SearchStatus.loading && state.cafes.isEmpty;
               final hasError =
                   state.status == SearchStatus.failure && state.cafes.isEmpty;
               final isEmpty =
                   state.status == SearchStatus.success && state.cafes.isEmpty;
-                final showBestFor = BestForTagList.hasMatches(state.query);
-                final showAmenities = AmenitiesTagList.hasMatches(state.query);
 
               final results = isLoading
                   ? _placeholderResults
                   : state.cafes
-                      .map(
-                        (cafe) => {
-                          'name': cafe.name,
-                          'location': cafe.locationLabel,
-                          'distance': _formatDistance(cafe.distanceMeters),
-                          'image': cafe.coverImage,
-                        },
-                      )
-                      .toList();
+                        .map(
+                          (cafe) => {
+                            'name': cafe.name,
+                            'location': cafe.locationLabel,
+                            'distance': _formatDistance(cafe.distanceMeters),
+                            'image': cafe.coverImage,
+                          },
+                        )
+                        .toList();
 
               return SingleChildScrollView(
                 controller: _scrollController,
@@ -148,19 +144,12 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                               vertical: 14,
                             ),
                           ),
-                          style:
-                              textTheme.bodyLarge?.copyWith(color: Colors.black),
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: Colors.black,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
-                      if (showBestFor) ...[
-                        BestForTagList(filterQuery: state.query),
-                        const SizedBox(height: 20),
-                      ],
-                      if (showAmenities) ...[
-                        AmenitiesTagList(filterQuery: state.query),
-                        const SizedBox(height: 20),
-                      ],
                       Text(
                         'Cafes',
                         style: textTheme.titleMedium?.copyWith(
@@ -203,20 +192,26 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                                 final item = results[index];
 
                                 return Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
                                     children: [
                                       Container(
                                         width: 48,
                                         height: 48,
                                         decoration: BoxDecoration(
                                           color: Colors.grey.shade300,
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                           image: item['image'] != null
                                               ? DecorationImage(
-                                                  image: NetworkImage(item['image']!),
+                                                  image: NetworkImage(
+                                                    item['image']!,
+                                                  ),
                                                   fit: BoxFit.cover,
                                                 )
                                               : null,
@@ -238,9 +233,10 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                                             const SizedBox(height: 2),
                                             Text(
                                               item['location'] ?? '',
-                                              style: textTheme.bodySmall?.copyWith(
-                                                color: Colors.grey.shade500,
-                                              ),
+                                              style: textTheme.bodySmall
+                                                  ?.copyWith(
+                                                    color: Colors.grey.shade500,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -279,11 +275,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     return '${distanceMeters.round()} m';
   }
 
-  Widget _buildHighlightedText(
-    TextTheme textTheme,
-    String text,
-    String query,
-  ) {
+  Widget _buildHighlightedText(TextTheme textTheme, String text, String query) {
     final trimmed = query.trim();
     final baseStyle = textTheme.bodyLarge?.copyWith(
       fontWeight: FontWeight.w500,
@@ -313,7 +305,9 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
         break;
       }
       if (index > start) {
-        spans.add(TextSpan(text: text.substring(start, index), style: baseStyle));
+        spans.add(
+          TextSpan(text: text.substring(start, index), style: baseStyle),
+        );
       }
       spans.add(
         TextSpan(
@@ -331,4 +325,3 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     );
   }
 }
-

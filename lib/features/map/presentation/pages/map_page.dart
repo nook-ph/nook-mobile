@@ -10,6 +10,9 @@ import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/filters/cubit/filter_cubit.dart';
+import 'package:nook/core/filters/models/cafe_filter.dart';
+import 'package:nook/features/search/presentation/widgets/search_entry_button.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -23,12 +26,14 @@ class _MapPageState extends State<MapPage> {
   String? _styleJson;
   MapLibreMapController? _mapController;
   bool _styleLoaded = false;
+  late final CafeFilter _initialFilter;
 
   @override
   void initState() {
     super.initState();
+    _initialFilter = sl<FilterCubit>().state;
     rootBundle.loadString('assets/mapstyle.json').then((s) {
-      setState(() => _styleJson = s);
+      if (mounted) setState(() => _styleJson = s);
     });
   }
 
@@ -39,6 +44,7 @@ class _MapPageState extends State<MapPage> {
 
   @override
   void dispose() {
+    sl<FilterCubit>().reset();
     _mapController?.onSymbolTapped.remove(_onSymbolTapped);
     super.dispose();
   }
@@ -47,12 +53,11 @@ class _MapPageState extends State<MapPage> {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<MapBloc>()
-        ..add(LoadMapDataEvent())
+        ..add(LoadMapDataEvent(filter: _initialFilter))
         ..add(LoadFilterTagsEvent()),
       child: Scaffold(
         body: BlocConsumer<MapBloc, MapState>(
           listener: (context, state) {
-            // Re-plot markers whenever cafes load or update
             if (state is MapLoadedState && _styleLoaded) {
               _plotCafeMarkers(state.cafes);
             }
@@ -72,7 +77,7 @@ class _MapPageState extends State<MapPage> {
                   },
                   onStyleLoadedCallback: () async {
                     await _addCustomIcon();
-                    setState(() => _styleLoaded = true);
+                    if (mounted) setState(() => _styleLoaded = true);
                   },
                 ),
                 if (_styleLoaded)
@@ -85,19 +90,38 @@ class _MapPageState extends State<MapPage> {
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: Colors.white, width: 1.5),
+                        side: const BorderSide(color: Colors.white, width: 1.5),
                       ),
                       onPressed: _defaultView,
                       child: const Icon(Icons.my_location),
                     ),
                   ),
                 if (_styleLoaded)
-                  if (state is MapLoadingState)
-                    const Center(child: CircularProgressIndicator())
-                  else if (state is MapLoadedState)
-                    BottomModalSheet(cafes: state.cafes, tags: state.tags)
-                  else if (state is MapError)
-                    Center(child: Text(state.message)),
+                  Positioned(
+                    top: SearchEntryButton.mapBottomSheetTop(context),
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: state is MapLoadingState
+                        ? const BottomModalSheet(cafes: [], tags: [])
+                        : state is MapLoadedState
+                        ? BottomModalSheet(cafes: state.cafes, tags: state.tags)
+                        : state is MapError
+                        ? Center(child: Text(state.message))
+                        : const SizedBox.shrink(),
+                  ),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
+                      child: const SearchEntryButton(),
+                    ),
+                  ),
+                ),
               ],
             );
           },
@@ -108,10 +132,10 @@ class _MapPageState extends State<MapPage> {
 
   Future<void> _plotCafeMarkers(List<CafeSummary> cafes) async {
     final controller = await _controllerCompleter.future;
-
     await controller.clearSymbols();
 
     for (final cafe in cafes) {
+      if (cafe.lat == null || cafe.lng == null) continue;
       await controller.addSymbol(
         SymbolOptions(
           geometry: LatLng(cafe.lat!, cafe.lng!),
@@ -125,7 +149,6 @@ class _MapPageState extends State<MapPage> {
   void _onSymbolTapped(Symbol symbol) {
     final cafeId = symbol.data?['id'];
     debugPrint('Tapped cafe id: $cafeId');
-    // do something
   }
 
   Future<void> _addCustomIcon() async {
