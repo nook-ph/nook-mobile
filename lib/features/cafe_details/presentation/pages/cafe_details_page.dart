@@ -31,6 +31,7 @@ import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart'
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/save_to_list_bottom_sheet.dart';
+import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
 
 class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({super.key, required this.cafeId});
@@ -189,7 +190,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                           leading: Padding(
                             padding: const EdgeInsets.only(left: 22.0),
                             child: Center(
-                              child: _AppBarIconButton(
+                              child: AppBarCircleIconButton(
                                 icon: Icons.arrow_back,
                                 iconSize: 18,
                                 onTap: () => Navigator.pop(context),
@@ -572,36 +573,5 @@ class _SavedButtonState extends State<_SavedButton> {
     if (mounted) {
       _loadSavedState();
     }
-  }
-}
-
-class _AppBarIconButton extends StatelessWidget {
-  const _AppBarIconButton({
-    required this.icon,
-    required this.iconSize,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final double iconSize;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-        ),
-        child: Center(
-          child: Icon(icon, color: Colors.black, size: iconSize),
-        ),
-      ),
-    );
   }
 }

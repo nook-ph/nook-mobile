@@ -5,7 +5,9 @@ class CafeSummary {
   final String? neighborhood;
   final String? city;
   final String? coverImage;
+  final List<String> photoUrls;
   final double rating;
+  final int reviewCount;
   final List<String> tags;
   final double? lat;
   final double? lng;
@@ -21,7 +23,9 @@ class CafeSummary {
     this.neighborhood,
     this.city,
     this.coverImage,
+    this.photoUrls = const [],
     required this.rating,
+    this.reviewCount = 0,
     this.tags = const [],
     this.lat,
     this.lng,

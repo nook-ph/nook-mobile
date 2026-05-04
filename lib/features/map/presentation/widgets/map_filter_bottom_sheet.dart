@@ -17,6 +17,7 @@ class MapFilterBottomSheet extends StatefulWidget {
   /// Matches [CafeInfo] section headers.
   static const TextStyle sectionTitleStyle = TextStyle(
     fontSize: 15,
+    fontWeight: FontWeight.w500,
     color: Color(0xFF848685),
   );
 
@@ -106,7 +107,7 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
                   'Filters',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: Colors.black,
                   ),
                 ),

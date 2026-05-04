@@ -4,7 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:sliding_panel_kit/sliding_panel_kit.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
-import 'package:nook/features/map/presentation/widgets/cafe_card.dart';
+import 'package:nook/features/map/presentation/widgets/map_sheet_cafe_card.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_bottom_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_content.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_sub_sheet.dart';
@@ -35,6 +35,7 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
   final _tagsRowKey = GlobalKey();
 
   static const double _maxExtent = 0.80;
+
   /// Conservative floor before tags are laid out (fraction of content below handle).
   static const double _fallbackMinExtent = 0.10;
   static const double _tagsBottomGap = 12.0;
@@ -252,36 +253,57 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
                   const SizedBox(height: _tagsBottomGap),
 
                   Flexible(
-                    child: Skeletonizer(
-                      enabled: widget.cafes.isEmpty,
-                      effect: const PulseEffect(),
-                      child: ListView.separated(
-                        padding: const EdgeInsets.only(
-                          left: 16,
-                          right: 16,
-                          top: 12, // just enough breathing room
-                          bottom: 24,
-                        ),
-                        itemCount: widget.cafes.isEmpty
-                            ? 3
-                            : widget.cafes.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 24),
-                        itemBuilder: (BuildContext context, int index) {
-                          if (widget.cafes.isEmpty) {
-                            return const CafeCard(
-                              isSkeleton: true,
-                              cafe: CafeSummary(
-                                id: 'temp',
-                                name: 'Loading cafe...',
-                                address: 'Location...',
-                                rating: 0,
-                                tags: [],
-                              ),
-                            );
-                          }
-                          return CafeCard(cafe: widget.cafes[index]);
-                        },
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final textScale =
+                            MediaQuery.textScalerOf(context).scale(1.0);
+                        final cardWidth =
+                            (constraints.maxWidth - 32).clamp(0.0, double.infinity);
+                        final cardHeight = 312 * textScale;
+
+                        return Skeletonizer(
+                          enabled: widget.cafes.isEmpty,
+                          effect: const PulseEffect(),
+                          child: ListView.separated(
+                            padding: const EdgeInsets.only(
+                              left: 16,
+                              right: 16,
+                              top: 12,
+                              bottom: 24,
+                            ),
+                            itemCount: widget.cafes.isEmpty
+                                ? 3
+                                : widget.cafes.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 18),
+                            itemBuilder: (BuildContext context, int index) {
+                              if (widget.cafes.isEmpty) {
+                                return SizedBox(
+                                  height: cardHeight,
+                                  child: MapSheetCafeCard(
+                                    width: cardWidth,
+                                    cafe: const CafeSummary(
+                                      id: 'temp',
+                                      name: 'Loading cafe...',
+                                      address: 'Location...',
+                                      rating: 0,
+                                      tags: [],
+                                    ),
+                                    isSkeleton: true,
+                                  ),
+                                );
+                              }
+                              return SizedBox(
+                                height: cardHeight,
+                                child: MapSheetCafeCard(
+                                  width: cardWidth,
+                                  cafe: widget.cafes[index],
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],
