@@ -8,7 +8,9 @@ class CafeSummaryModel extends CafeSummary {
     super.neighborhood,
     super.city,
     super.coverImage,
+    super.photoUrls = const [],
     required super.rating,
+    super.reviewCount = 0,
     super.tags = const [],
     super.lat,
     super.lng,
@@ -26,7 +28,9 @@ class CafeSummaryModel extends CafeSummary {
       neighborhood: _asNullableString(json['neighborhood']),
       city: _asNullableString(json['city']),
       coverImage: _asNullableString(json['featured_image_url']),
+      photoUrls: _parseStringList(json['photo_urls'] ?? json['photoUrls']),
       rating: _asDouble(json['rating']),
+      reviewCount: _asInt(json['review_count'] ?? json['reviewCount']),
       tags: _parseTags(json),
       isFeatured: _asBool(json['is_featured']),
       isNew: _asBool(json['is_new']),
@@ -73,6 +77,16 @@ class CafeSummaryModel extends CafeSummary {
     return const [];
   }
 
+  static List<String> _parseStringList(dynamic value) {
+    if (value is List) {
+      return value
+          .map((e) => e?.toString().trim() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
+
   static String _asString(dynamic value) => value?.toString() ?? '';
 
   static String? _asNullableString(dynamic value) {
@@ -84,6 +98,13 @@ class CafeSummaryModel extends CafeSummary {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
+  }
+
+  static int _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
   }
 
   static double? _asNullableDouble(dynamic value) {
