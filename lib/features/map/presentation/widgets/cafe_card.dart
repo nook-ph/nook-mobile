@@ -105,37 +105,46 @@ class _CafeCardState extends State<CafeCard> {
                   ),
                   SizedBox(height: 6),
                   Row(
-                    spacing: 8,
                     children: [
-                      ...widget.cafe.tags
-                          .take(3)
-                          .map(
-                            (tag) => Chip(
-                              backgroundColor: Colors.white,
-                              visualDensity: VisualDensity(
-                                horizontal: 0.0,
-                                vertical: -4,
-                              ),
-                              labelPadding: EdgeInsets.symmetric(horizontal: 6),
-                              label: Text(
-                                tag,
-                                style: Theme.of(context).textTheme.bodySmallEmp
-                                    .copyWith(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.black,
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: widget.cafe.tags
+                              .take(3)
+                              .map(
+                                (tag) => Chip(
+                                  backgroundColor: Colors.white,
+                                  visualDensity: VisualDensity(
+                                    horizontal: 0.0,
+                                    vertical: -4,
+                                  ),
+                                  labelPadding:
+                                      EdgeInsets.symmetric(horizontal: 6),
+                                  label: Text(
+                                    tag,
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmallEmp.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.black,
+                                        ),
+                                  ),
+                                  shape: StadiumBorder(
+                                    side: BorderSide(
+                                      color:
+                                          Theme.of(context).colorScheme.border,
                                     ),
-                              ),
-                              shape: StadiumBorder(
-                                side: BorderSide(
-                                  color: Theme.of(context).colorScheme.border,
+                                  ),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
-                              ),
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                      Spacer(),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(
                         widget.cafe.distanceMeters.toString(),
                         style: Theme.of(context).textTheme.bodySmallEmp

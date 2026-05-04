@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
+import 'package:nook/features/map/presentation/widgets/cafe_overlay_card.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
@@ -27,6 +28,17 @@ class _MapPageState extends State<MapPage> {
   MapLibreMapController? _mapController;
   bool _styleLoaded = false;
   late final CafeFilter _initialFilter;
+  Symbol? _selectedSymbol;
+  CafeSummary? _selectedCafe;
+  bool _overlayDismissed = false;
+  bool _suppressOverlayAnimation = false;
+  bool _animateOverlayDismiss = false;
+  double _sheetTopFromBottom = 0.0;
+  double _sheetExtent = 0.0;
+  double _sheetMinExtent = 0.0;
+  List<CafeSummary> _cafes = const [];
+
+  static const double _overlaySpacing = 16.0;
 
   @override
   void initState() {
@@ -59,10 +71,25 @@ class _MapPageState extends State<MapPage> {
         body: BlocConsumer<MapBloc, MapState>(
           listener: (context, state) {
             if (state is MapLoadedState && _styleLoaded) {
+              _cafes = state.cafes;
               _plotCafeMarkers(state.cafes);
+            } else if (state is MapLoadedState) {
+              _cafes = state.cafes;
             }
           },
           builder: (context, state) {
+            if (_suppressOverlayAnimation && _shouldShowOverlay) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                setState(() => _suppressOverlayAnimation = false);
+              });
+            }
+
+            final animateOverlayIn =
+                _shouldShowOverlay && !_suppressOverlayAnimation;
+            final animateOverlayOut = _animateOverlayDismiss;
+            final animateOverlay = animateOverlayIn || animateOverlayOut;
+
             return Stack(
               children: [
                 MapLibreMap(
@@ -83,7 +110,7 @@ class _MapPageState extends State<MapPage> {
                 if (_styleLoaded)
                   Positioned(
                     right: 16,
-                    bottom: 72,
+                    bottom: 90,
                     child: FloatingActionButton(
                       backgroundColor: Colors.white,
                       foregroundColor: Theme.of(context).colorScheme.primary100,
@@ -96,6 +123,46 @@ class _MapPageState extends State<MapPage> {
                       child: const Icon(Icons.my_location),
                     ),
                   ),
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: _sheetTopFromBottom + _overlaySpacing,
+                  child: AnimatedSwitcher(
+                    duration: animateOverlay
+                        ? const Duration(milliseconds: 260)
+                        : Duration.zero,
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      if (!animateOverlay) return child;
+                      final isExiting =
+                          animation.status == AnimationStatus.reverse;
+                      final offsetAnimation = isExiting
+                          ? Tween<Offset>(
+                              begin: Offset.zero,
+                              end: const Offset(0, 1.1),
+                            ).animate(ReverseAnimation(animation))
+                          : Tween<Offset>(
+                              begin: const Offset(0, 1.1),
+                              end: Offset.zero,
+                            ).animate(animation);
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _shouldShowOverlay
+                        ? CafeOverlayCard(
+                            key: ValueKey(_selectedCafe!.id),
+                            cafe: _selectedCafe!,
+                            onClose: _dismissOverlay,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
                 if (_styleLoaded)
                   Positioned(
                     top: SearchEntryButton.mapBottomSheetTop(context),
@@ -103,9 +170,17 @@ class _MapPageState extends State<MapPage> {
                     right: 0,
                     bottom: 0,
                     child: state is MapLoadingState
-                        ? const BottomModalSheet(cafes: [], tags: [])
+                        ? BottomModalSheet(
+                            cafes: const [],
+                            tags: const [],
+                            onMetricsChanged: _onSheetMetricsChanged,
+                          )
                         : state is MapLoadedState
-                        ? BottomModalSheet(cafes: state.cafes, tags: state.tags)
+                        ? BottomModalSheet(
+                            cafes: state.cafes,
+                            tags: state.tags,
+                            onMetricsChanged: _onSheetMetricsChanged,
+                          )
                         : state is MapError
                         ? Center(child: Text(state.message))
                         : const SizedBox.shrink(),
@@ -133,6 +208,13 @@ class _MapPageState extends State<MapPage> {
   Future<void> _plotCafeMarkers(List<CafeSummary> cafes) async {
     final controller = await _controllerCompleter.future;
     await controller.clearSymbols();
+    _selectedSymbol = null;
+    if (mounted) {
+      setState(() {
+        _selectedCafe = null;
+        _overlayDismissed = false;
+      });
+    }
 
     for (final cafe in cafes) {
       if (cafe.lat == null || cafe.lng == null) continue;
@@ -140,15 +222,90 @@ class _MapPageState extends State<MapPage> {
         SymbolOptions(
           geometry: LatLng(cafe.lat!, cafe.lng!),
           iconImage: 'map_pin',
-          iconSize: 1.5,
+          iconSize: 0.17,
         ),
+        {'id': cafe.id}, // positional, no label
       );
     }
   }
 
   void _onSymbolTapped(Symbol symbol) {
+    if (_selectedSymbol != null && _selectedSymbol!.id != symbol.id) {
+      _mapController?.updateSymbol(
+        _selectedSymbol!,
+        const SymbolOptions(iconSize: 0.17),
+      );
+    }
+    _mapController?.updateSymbol(symbol, const SymbolOptions(iconSize: 0.23));
+    _selectedSymbol = symbol;
     final cafeId = symbol.data?['id'];
-    debugPrint('Tapped cafe id: $cafeId');
+    if (cafeId == null) return;
+
+    CafeSummary? selectedCafe;
+    for (final cafe in _cafes) {
+      if (cafe.id == cafeId) {
+        selectedCafe = cafe;
+        break;
+      }
+    }
+
+    if (selectedCafe == null) return;
+
+    final wasVisible = _shouldShowOverlay;
+
+    setState(() {
+      _selectedCafe = selectedCafe;
+      _overlayDismissed = false;
+      _suppressOverlayAnimation = wasVisible;
+    });
+  }
+
+  void _onSheetMetricsChanged(BottomSheetMetrics metrics) {
+    final extent = metrics.extent;
+    final minExtent = metrics.minExtent;
+    final topFromBottom = metrics.topFromBottom;
+    final changed =
+        _sheetExtent != extent ||
+        _sheetMinExtent != minExtent ||
+        _sheetTopFromBottom != topFromBottom;
+
+    if (!changed) return;
+
+    setState(() {
+      _sheetExtent = extent;
+      _sheetMinExtent = minExtent;
+      _sheetTopFromBottom = topFromBottom;
+    });
+  }
+
+  bool get _isSheetExpanded => _sheetExtent > _sheetMinExtent + 0.01;
+
+  bool get _shouldShowOverlay {
+    return _selectedCafe != null &&
+        !_overlayDismissed &&
+        !_isSheetExpanded &&
+        _sheetTopFromBottom > 0;
+  }
+
+  void _dismissOverlay() {
+    if (_overlayDismissed) return;
+    if (_selectedSymbol != null) {
+      _mapController?.updateSymbol(
+        _selectedSymbol!,
+        const SymbolOptions(iconSize: 0.17),
+      );
+    }
+    setState(() {
+      _overlayDismissed = true;
+      _selectedSymbol = null;
+      _animateOverlayDismiss = true;
+    });
+    Future.delayed(const Duration(milliseconds: 260), () {
+      if (!mounted) return;
+      if (_animateOverlayDismiss) {
+        setState(() => _animateOverlayDismiss = false);
+      }
+    });
   }
 
   Future<void> _addCustomIcon() async {
