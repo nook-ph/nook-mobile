@@ -253,20 +253,6 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         },
                       ),
                       
-                    const SizedBox(height: 12),
-                    _buildSocialButton(
-                      text: 'Continue with Facebook',
-                      icon: const Icon(
-                        Icons.facebook,
-                        color: Color(0xFF1877F2),
-                        size: 28,
-                      ),
-                      onPressed: () {
-                        context.read<AuthBloc>().add(
-                          const AuthSignInWithFacebookEvent(),
-                        );
-                      },
-                    ),
                   ],
                 ),
               ),

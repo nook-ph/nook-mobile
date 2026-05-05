@@ -23,8 +23,6 @@ abstract class AuthRepository {
 
   Future<void> signOut();
 
-  Future<Either<Failure, void>> signInWithFacebook();
-
   Future<Either<Failure, void>> signInWithGoogle(String webClientId);
 
   Future<Either<Failure, void>> signInWithApple();

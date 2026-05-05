@@ -37,13 +37,6 @@ class SupabaseAuthRemoteDataSource {
     await _client.auth.signInWithPassword(email: email, password: password);
   }
 
-  Future<void> signInWithFacebook() async {
-    await _client.auth.signInWithOAuth(
-      OAuthProvider.facebook,
-      redirectTo: 'nookapp://login-callback',
-    );
-  }
-
   Future<void> signInWithApple() async {
     await _client.auth.signInWithOAuth(
       OAuthProvider.apple,

@@ -43,16 +43,6 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> signInWithFacebook() async {
-    try {
-      await _remoteDataSource.signInWithFacebook();
-      return const Right<Failure, void>(null);
-    } catch (e) {
-      return Left(Failure(e.toString()));
-    }
-  }
-
-  @override
   Future<Either<Failure, void>> signInWithApple() async {
     try {
       await _remoteDataSource.signInWithApple();
