@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 
 class LoginPasswordScreen extends StatefulWidget {
   final String? email;
@@ -39,9 +40,7 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthError) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text(state.message)));
+          showPrimaryToast(context, state.message);
         }
       },
       builder: (context, state) {

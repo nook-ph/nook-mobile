@@ -531,13 +531,10 @@ class _SavedButtonState extends State<_SavedButton> {
       debugPrint('[CafeDetailsSave] FAILED error=$e');
       debugPrint('$st');
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text('Unable to update saved cafe. Please try again.'),
-          ),
-        );
+      showPrimaryToast(
+        context,
+        'Unable to update saved cafe. Please try again.',
+      );
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
@@ -549,7 +546,6 @@ class _SavedButtonState extends State<_SavedButton> {
     if (!mounted) return;
 
     final listsBloc = context.read<ListsBloc>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     await showModalBottomSheet<void>(
       context: context,
@@ -565,7 +561,6 @@ class _SavedButtonState extends State<_SavedButton> {
         ],
         child: SaveToListBottomSheet(
           cafeId: widget.cafeId,
-          scaffoldMessenger: scaffoldMessenger,
         ),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/cafe_list_display_title.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
@@ -13,11 +14,9 @@ class SaveToListBottomSheet extends StatefulWidget {
   const SaveToListBottomSheet({
     super.key,
     required this.cafeId,
-    required this.scaffoldMessenger,
   });
 
   final String cafeId;
-  final ScaffoldMessengerState scaffoldMessenger;
 
   @override
   State<SaveToListBottomSheet> createState() => _SaveToListBottomSheetState();
@@ -25,6 +24,7 @@ class SaveToListBottomSheet extends StatefulWidget {
 
 class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
   int _lastRefreshNonce = 0;
+  bool _pendingCreateToast = false;
 
   @override
   void initState() {
@@ -49,16 +49,19 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
             context.read<ListsBloc>().add(LoadUserLists());
           }
 
+          if (_pendingCreateToast && !state.isCreating) {
+            _pendingCreateToast = false;
+            showPrimaryToast(context, 'List created.');
+          }
+
           final errorMessage = state.errorMessage;
           if (errorMessage != null) {
-            widget.scaffoldMessenger
-              ..hideCurrentSnackBar()
-              ..showSnackBar(SnackBar(content: Text(errorMessage)));
+            _pendingCreateToast = false;
+            showPrimaryToast(context, errorMessage);
           }
         } else if (state is SaveToListError) {
-          widget.scaffoldMessenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text(state.message)));
+          _pendingCreateToast = false;
+          showPrimaryToast(context, state.message);
         }
       },
       builder: (context, state) {
@@ -141,6 +144,7 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
     );
 
     if (!mounted || input == null) return;
+    _pendingCreateToast = true;
     await context.read<SaveToListCubit>().createListAndSave(
       cafeId: widget.cafeId,
       name: input.name,
@@ -511,9 +515,7 @@ class _CreateListDialogState extends State<_CreateListDialog> {
   Future<void> _submit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('List name is required.')));
+      showPrimaryToast(context, 'List name is required.');
       return;
     }
 
