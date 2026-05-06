@@ -45,6 +45,7 @@ class MenuItem {
   final double price;
   final String? imageUrl;
   final bool isHighlight;
+  final List<MenuItemVariant> variants;
   final String? categoryId;
   final String? categoryName;
 
@@ -55,8 +56,27 @@ class MenuItem {
     required this.price,
     this.imageUrl,
     required this.isHighlight,
+    this.variants = const [],
     this.categoryId,
     this.categoryName,
+  });
+}
+
+class MenuItemVariant {
+  final String id;
+  final String label;
+  final double? priceOverride;
+  final double priceModifier;
+  final bool isDefault;
+  final int sortOrder;
+
+  const MenuItemVariant({
+    required this.id,
+    required this.label,
+    this.priceOverride,
+    this.priceModifier = 0,
+    this.isDefault = false,
+    this.sortOrder = 0,
   });
 }
 

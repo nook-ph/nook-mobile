@@ -42,10 +42,10 @@ class CafeDetailsEntity {
   });
 
   String get locationLabel {
-    final parts = [neighborhood, city]
-        .where((s) => s.trim().isNotEmpty)
-        .map((s) => s.trim())
-        .toList();
+    final parts = [
+      neighborhood,
+      city,
+    ].where((s) => s.trim().isNotEmpty).map((s) => s.trim()).toList();
     return parts.isNotEmpty ? parts.join(', ') : address;
   }
 }
@@ -58,6 +58,8 @@ class MenuItemEntity {
   final String? imageUrl;
   final bool isHighlight;
 
+  final List<MenuItemVariantEntity> variants;
+
   final String? categoryId;
   final String? categoryName;
 
@@ -69,9 +71,70 @@ class MenuItemEntity {
     this.imageUrl,
     required this.isHighlight,
 
+    this.variants = const [],
+
     this.categoryId,
     this.categoryName,
   });
+
+  bool get hasVariants => variants.isNotEmpty;
+
+  double get minPrice {
+    if (!hasVariants) return price;
+    var resolvedMin = variants.first.resolvedPrice(price);
+    for (final variant in variants.skip(1)) {
+      final resolved = variant.resolvedPrice(price);
+      if (resolved < resolvedMin) {
+        resolvedMin = resolved;
+      }
+    }
+    return resolvedMin;
+  }
+
+  double get maxPrice {
+    if (!hasVariants) return price;
+    var resolvedMax = variants.first.resolvedPrice(price);
+    for (final variant in variants.skip(1)) {
+      final resolved = variant.resolvedPrice(price);
+      if (resolved > resolvedMax) {
+        resolvedMax = resolved;
+      }
+    }
+    return resolvedMax;
+  }
+
+  String get displayPrice {
+    final min = minPrice;
+    final max = maxPrice;
+    if (min == max) {
+      return min.toStringAsFixed(2);
+    }
+    return '${min.toStringAsFixed(2)}-${max.toStringAsFixed(2)}';
+  }
+}
+
+class MenuItemVariantEntity {
+  final String id;
+  final String label;
+  final double? priceOverride;
+  final double priceModifier;
+  final bool isDefault;
+  final int sortOrder;
+
+  const MenuItemVariantEntity({
+    required this.id,
+    required this.label,
+    this.priceOverride,
+    this.priceModifier = 0,
+    this.isDefault = false,
+    this.sortOrder = 0,
+  });
+
+  double resolvedPrice(double basePrice) {
+    final override = priceOverride;
+    if (override != null) return override;
+    return basePrice + priceModifier;
+  }
 }
 
 class TagEntity {

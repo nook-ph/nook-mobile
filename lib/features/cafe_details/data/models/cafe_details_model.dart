@@ -118,6 +118,14 @@ class CafeDetailsModel extends CafeDetailsEntity {
     return 0;
   }
 
+  static double? _asNullableDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
   static bool _asBool(dynamic value) {
     if (value is bool) return value;
     if (value is num) return value != 0;
@@ -213,6 +221,8 @@ class MenuItemModel extends MenuItemEntity {
     super.imageUrl,
     required super.isHighlight,
 
+    super.variants = const [],
+
     super.categoryId,
     super.categoryName,
   });
@@ -230,12 +240,50 @@ class MenuItemModel extends MenuItemEntity {
         json['is_highlight'] ?? json['isHighlight'],
       ),
 
+      variants: CafeDetailsModel._parseList(
+        json['variants'],
+      ).map((item) => MenuItemVariantModel.fromJson(item)).toList(),
+
       categoryId: CafeDetailsModel._asNullableString(
-        json['category_id'] ?? json['menu_categories']?['id'],
+        json['category_id'] ??
+            json['categoryId'] ??
+            json['menu_categories']?['id'],
       ),
 
       categoryName: CafeDetailsModel._asNullableString(
-        json['menu_categories']?['name'],
+        json['category_name'] ??
+            json['categoryName'] ??
+            json['menu_categories']?['name'],
+      ),
+    );
+  }
+}
+
+class MenuItemVariantModel extends MenuItemVariantEntity {
+  const MenuItemVariantModel({
+    required super.id,
+    required super.label,
+    super.priceOverride,
+    super.priceModifier = 0,
+    super.isDefault = false,
+    super.sortOrder = 0,
+  });
+
+  factory MenuItemVariantModel.fromJson(Map<String, dynamic> json) {
+    return MenuItemVariantModel(
+      id: CafeDetailsModel._asString(json['id']),
+      label: CafeDetailsModel._asString(json['label']),
+      priceOverride: CafeDetailsModel._asNullableDouble(
+        json['price_override'] ?? json['priceOverride'],
+      ),
+      priceModifier: CafeDetailsModel._asDouble(
+        json['price_modifier'] ?? json['priceModifier'],
+      ),
+      isDefault: CafeDetailsModel._asBool(
+        json['is_default'] ?? json['isDefault'],
+      ),
+      sortOrder: CafeDetailsModel._asInt(
+        json['sort_order'] ?? json['sortOrder'],
       ),
     );
   }
@@ -338,9 +386,7 @@ class ReviewModel extends ReviewEntity {
       helpfulCount: CafeDetailsModel._asInt(
         json['helpful_count'] ?? json['helpfulCount'],
       ),
-      hasVoted: CafeDetailsModel._asBool(
-        json['has_voted'] ?? json['hasVoted'],
-      ),
+      hasVoted: CafeDetailsModel._asBool(json['has_voted'] ?? json['hasVoted']),
     );
   }
 

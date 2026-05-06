@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_category_section.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/menu_item_variants_sheet.dart';
 
 class MenuFullPage extends StatelessWidget {
   const MenuFullPage({
@@ -22,10 +23,6 @@ class MenuFullPage extends StatelessWidget {
       map.putIfAbsent(category, () => []).add(item);
     }
     return map;
-  }
-
-  String _formatPrice(double price) {
-    return '₱${price.toStringAsFixed(2)}';
   }
 
   @override
@@ -74,7 +71,7 @@ class MenuFullPage extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final item = highlights[index];
 
-                  return Container(
+                  final card = Container(
                     width: cardWidth,
                     height: 178,
                     clipBehavior: Clip.hardEdge,
@@ -129,7 +126,7 @@ class MenuFullPage extends StatelessWidget {
                                 ),
                                 const Gap(2),
                                 Text(
-                                  _formatPrice(item.price),
+                                  '₱${item.displayPrice}',
                                   style: const TextStyle(
                                     fontSize: 15,
                                     color: Colors.black,
@@ -141,6 +138,15 @@ class MenuFullPage extends StatelessWidget {
                         ),
                       ],
                     ),
+                  );
+
+                  if (!item.hasVariants) {
+                    return card;
+                  }
+
+                  return GestureDetector(
+                    onTap: () => MenuItemVariantsSheet.show(context, item),
+                    child: card,
                   );
                 },
               ),
