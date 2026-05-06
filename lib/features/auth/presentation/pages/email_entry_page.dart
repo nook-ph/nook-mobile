@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 
 class EmailEntryScreen extends StatefulWidget {
   const EmailEntryScreen({super.key});
@@ -68,9 +69,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
         }
 
         if (state is AuthError) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text(state.message)));
+          showPrimaryToast(context, state.message);
         }
       },
       builder: (context, state) {

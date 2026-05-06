@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
@@ -19,6 +20,8 @@ class ListsPage extends StatefulWidget {
 class _ListsPageState extends State<ListsPage> {
   static const _fallbackImageUrl =
       'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+  String? _pendingRenameName;
+  String? _pendingDeleteName;
 
   @override
   void initState() {
@@ -28,123 +31,144 @@ class _ListsPageState extends State<ListsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
-      appBar: AppBar(
+    return BlocListener<ListsBloc, ListsState>(
+      listener: (context, state) {
+        if (state is ListsError) {
+          showPrimaryToast(context, state.message);
+          _pendingRenameName = null;
+          _pendingDeleteName = null;
+          return;
+        }
+
+        if (state is ListsLoaded) {
+          if (_pendingRenameName != null) {
+            showPrimaryToast(context, 'List renamed.');
+            _pendingRenameName = null;
+          }
+
+          if (_pendingDeleteName != null) {
+            showPrimaryToast(context, 'List deleted.');
+            _pendingDeleteName = null;
+          }
+        }
+      },
+      child: Scaffold(
         backgroundColor: const Color(0xFFFFFFFF),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        surfaceTintColor: Colors.white,
-        automaticallyImplyLeading: widget.showBackButton,
-        leading: widget.showBackButton
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.black),
-                onPressed: () => Navigator.of(context).pop(),
-              )
-            : null,
-      ),
-      body: BlocBuilder<ListsBloc, ListsState>(
-        builder: (context, state) {
-          final listsBloc = context.read<ListsBloc>();
-          final lists = state is ListsLoaded
-              ? state.lists
-              : listsBloc.userLists;
-          final defaultList = _defaultList(lists);
-          final regularLists = lists
-              .where((list) => !list.isDefault)
-              .toList(growable: false);
+        appBar: AppBar(
+          backgroundColor: const Color(0xFFFFFFFF),
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          surfaceTintColor: Colors.white,
+          automaticallyImplyLeading: widget.showBackButton,
+          leading: widget.showBackButton
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.black),
+                  onPressed: () => Navigator.of(context).pop(),
+                )
+              : null,
+        ),
+        body: BlocBuilder<ListsBloc, ListsState>(
+          builder: (context, state) {
+            final listsBloc = context.read<ListsBloc>();
+            final lists = state is ListsLoaded
+                ? state.lists
+                : listsBloc.userLists;
+            final defaultList = _defaultList(lists);
+            final regularLists = lists
+                .where((list) => !list.isDefault)
+                .toList(growable: false);
 
-          if (state is ListsLoading && lists.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+            if (state is ListsLoading && lists.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          if (state is ListsError && lists.isEmpty) {
-            return _buildMessage(state.message);
-          }
+            if (state is ListsError && lists.isEmpty) {
+              return _buildMessage(state.message);
+            }
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
-              vertical: 8.0,
-            ),
-            children: [
-              const Text(
-                'Your Lists',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                ),
+            return ListView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 8.0,
               ),
-              const SizedBox(height: 20),
-              _buildFavoritesCard(context, defaultList),
-              const SizedBox(height: 32),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text(
-                    'All Lists',
-                    style: TextStyle(
-                      color: Color(0xFF1E3A2B),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                    ),
+              children: [
+                const Text(
+                  'Your Lists',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
                   ),
-                  GestureDetector(
-                    onTap: () {},
-                    child: const Text(
-                      'Sort by: Recent',
+                ),
+                const SizedBox(height: 20),
+                _buildFavoritesCard(context, defaultList),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text(
+                      'All Lists',
                       style: TextStyle(
-                        color: Color(0xFF33523F),
-                        fontSize: 12,
+                        color: Color(0xFF1E3A2B),
+                        fontSize: 18,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (regularLists.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24.0),
-                  child: Text(
-                    'Create a list to start organizing your saved cafes.',
-                    style: TextStyle(fontSize: 15, color: Color(0xFF848586)),
-                  ),
-                )
-              else
-                for (final list in regularLists) ...[
-                  CollectionCard(
-                    title: list.name,
-                    subtitle:
-                        '${_placeCountText(list.cafeCount)} • ${_visibilityText(list)}',
-                    imageUrl: _imageUrl(list.coverImageUrl),
-                    onTap: () => _openList(context, list),
-                    onOptionsTap: () => _showListOptions(context, list),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              const SizedBox(height: 80),
-            ],
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showCreateListModal(context),
-        backgroundColor: const Color(0xFF33523F),
-        elevation: 4,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
+                    GestureDetector(
+                      onTap: () {},
+                      child: const Text(
+                        'Sort by: Recent',
+                        style: TextStyle(
+                          color: Color(0xFF33523F),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (regularLists.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                    child: Text(
+                      'Create a list to start organizing your saved cafes.',
+                      style: TextStyle(fontSize: 15, color: Color(0xFF848586)),
+                    ),
+                  )
+                else
+                  for (final list in regularLists) ...[
+                    CollectionCard(
+                      title: list.name,
+                      subtitle:
+                          '${_placeCountText(list.cafeCount)} • ${_visibilityText(list)}',
+                      imageUrl: _imageUrl(list.coverImageUrl),
+                      onTap: () => _openList(context, list),
+                      onOptionsTap: () => _showListOptions(context, list),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                const SizedBox(height: 80),
+              ],
+            );
+          },
         ),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () => _showCreateListModal(context),
+          backgroundColor: const Color(0xFF33523F),
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.0),
+          ),
+          child: const Icon(Icons.add, color: Colors.white, size: 28),
+        ),
       ),
     );
   }
 
   void _showCreateListModal(BuildContext context) {
     final listsBloc = context.read<ListsBloc>();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     showModalBottomSheet(
       context: context,
@@ -158,7 +182,6 @@ class _ListsPageState extends State<ListsPage> {
           value: listsBloc,
           child: _CreateListSheet(
             listsBloc: listsBloc,
-            scaffoldMessenger: scaffoldMessenger,
           ),
         );
       },
@@ -186,9 +209,7 @@ class _ListsPageState extends State<ListsPage> {
       onTap: () {
         if (listId == null || listId.isEmpty) {
           context.read<ListsBloc>().add(LoadUserLists());
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Favorites are still loading.')),
-          );
+          showPrimaryToast(context, 'Favorites are still loading.');
           return;
         }
 
@@ -287,6 +308,7 @@ class _ListsPageState extends State<ListsPage> {
       builder: (_) => _RenameListDialog(
         currentName: currentName,
         onSave: (newName) {
+          _pendingRenameName = currentName;
           bloc.add(RenameList(listId: listId, name: newName));
         },
       ),
@@ -318,6 +340,7 @@ class _ListsPageState extends State<ListsPage> {
           ),
           TextButton(
             onPressed: () {
+              _pendingDeleteName = listName;
               bloc.add(DeleteList(listId: listId));
               Navigator.pop(context);
             },
@@ -351,11 +374,9 @@ class _ListsPageState extends State<ListsPage> {
 
 class _CreateListSheet extends StatefulWidget {
   final ListsBloc listsBloc;
-  final ScaffoldMessengerState scaffoldMessenger;
 
   const _CreateListSheet({
     required this.listsBloc,
-    required this.scaffoldMessenger,
   });
 
   @override
@@ -387,9 +408,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
             'loadedLists=${state.lists.length}',
           );
           Navigator.pop(context);
-          widget.scaffoldMessenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(const SnackBar(content: Text('List created.')));
+          showPrimaryToast(context, 'List created.');
           return;
         }
 
@@ -401,9 +420,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
           if (mounted) {
             setState(() => _isLoading = false);
           }
-          widget.scaffoldMessenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text(state.message)));
+          showPrimaryToast(context, state.message);
         }
       },
       child: Padding(
@@ -508,9 +525,7 @@ class _CreateListSheetState extends State<_CreateListSheet> {
   void _submit() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      widget.scaffoldMessenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('List name is required.')));
+      showPrimaryToast(context, 'List name is required.');
       return;
     }
 

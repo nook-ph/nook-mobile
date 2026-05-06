@@ -7,6 +7,7 @@ import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -264,9 +265,7 @@ class CafeInfo extends StatelessWidget {
   }
 
   void _showDirectionsError(BuildContext context, String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    showPrimaryToast(context, message);
   }
 
   String? _extractHandle(String rawValue) {
@@ -372,9 +371,7 @@ class CafeInfo extends StatelessWidget {
     }
 
     if (!launched && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to open $platform link.')),
-      );
+      showPrimaryToast(context, 'Unable to open $platform link.');
     }
   }
 

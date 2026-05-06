@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -21,12 +22,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
 
   void _onSaveChanges() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Changes saved!'),
-        backgroundColor: Color(0xFF344E41),
-      ),
-    );
+    showPrimaryToast(context, 'Changes saved!');
   }
 
   @override

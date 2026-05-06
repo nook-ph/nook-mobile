@@ -66,6 +66,7 @@ dependencies:
   cached_network_image: ^3.4.1
   stream_transform: ^2.1.1
   rxdart: ^0.28.0
+  toastification: ^3.2.0
 
 dev_dependencies:
   flutter_test:

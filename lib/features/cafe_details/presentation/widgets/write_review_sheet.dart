@@ -11,6 +11,7 @@ import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WriteReviewSheet extends StatefulWidget {
@@ -140,10 +141,9 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     FocusManager.instance.primaryFocus?.unfocus();
 
     if (_selectedRating == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a rating before submitting.'),
-        ),
+      showPrimaryToast(
+        context,
+        'Please select a rating before submitting.',
       );
       return;
     }
@@ -166,10 +166,9 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
         );
 
         if (hasAlreadyReviewed) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You already submitted a review for this cafe.'),
-            ),
+          showPrimaryToast(
+            context,
+            'You already submitted a review for this cafe.',
           );
           return;
         }
@@ -206,15 +205,11 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       listener: (context, state) {
         if (state is ReviewSubmitSuccess) {
           Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Review submitted successfully.')),
-          );
+          showPrimaryToast(context, 'Review submitted successfully.');
         }
 
         if (state is ReviewSubmitError) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(state.message)));
+          showPrimaryToast(context, state.message);
         }
       },
       builder: (context, state) {

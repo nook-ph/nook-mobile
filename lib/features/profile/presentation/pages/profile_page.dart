@@ -8,6 +8,7 @@ import 'package:nook/features/profile/presentation/widgets/review_card.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 class ProfilePage extends StatelessWidget {
@@ -67,9 +68,7 @@ class ProfilePage extends StatelessWidget {
             context.go('/login');
           }
           if (state is AuthError) {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(SnackBar(content: Text(state.message)));
+            showPrimaryToast(context, state.message);
           }
         },
         child: Scaffold(
