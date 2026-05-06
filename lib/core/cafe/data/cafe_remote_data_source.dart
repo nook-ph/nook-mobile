@@ -66,24 +66,14 @@ class CafeRemoteDataSource {
             category,
             created_at
           )
-        ),
-        menu_items (
-          id,
-          cafe_id,
-          name,
-          price,
-          image_url,
-          is_highlight,
-          menu_categories (
-            id,
-            name
-          )
         )
       ''')
           .eq('id', cafeId)
           .single();
-
-      return CafeDetailsModel.fromJson(Map<String, dynamic>.from(response));
+      final menuItems = await _fetchMenuItemsByCafeId(cafeId);
+      final payload = Map<String, dynamic>.from(response);
+      payload['menu_items'] = menuItems;
+      return CafeDetailsModel.fromJson(payload);
     } on PostgrestException catch (e, st) {
       throw CafeFetchException(
         'Failed to fetch cafe details for id "$cafeId".',
@@ -136,20 +126,7 @@ class CafeRemoteDataSource {
       ];
 
       if (includeMenu) {
-        fields.add('''
-        menu_items (
-          id,
-          cafe_id,
-          name,
-          price,
-          image_url,
-          is_highlight,
-          menu_categories (
-            id,
-            name
-          )
-        )
-        ''');
+        // Menu items are fetched via RPC to include variants.
       }
 
       if (includeReviews) {
@@ -178,8 +155,13 @@ class CafeRemoteDataSource {
           .eq('id', cafeId)
           .single();
 
+      final payload = Map<String, dynamic>.from(response);
+      if (includeMenu) {
+        payload['menu_items'] = await _fetchMenuItemsByCafeId(cafeId);
+      }
+
       return CafeBundleModel.fromJson(
-        Map<String, dynamic>.from(response),
+        payload,
         includeMenu: includeMenu,
         includeReviews: includeReviews,
       );
@@ -679,6 +661,20 @@ class CafeRemoteDataSource {
       throw const CafeFetchException('No authenticated user for lists.');
     }
     return resolved;
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchMenuItemsByCafeId(
+    String cafeId,
+  ) async {
+    final rpcResponse = await supabase.rpc(
+      'get_menu_items',
+      params: {'p_cafe_id': cafeId},
+    );
+
+    return (rpcResponse as List)
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
   }
 }
 

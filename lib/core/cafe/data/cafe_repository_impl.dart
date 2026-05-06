@@ -73,6 +73,18 @@ class CafeRepositoryImpl implements ICafeRepository {
               price: item.price,
               imageUrl: item.imageUrl,
               isHighlight: item.isHighlight,
+              variants: item.variants
+                  .map(
+                    (variant) => MenuItemVariant(
+                      id: variant.id,
+                      label: variant.label,
+                      priceOverride: variant.priceOverride,
+                      priceModifier: variant.priceModifier,
+                      isDefault: variant.isDefault,
+                      sortOrder: variant.sortOrder,
+                    ),
+                  )
+                  .toList(),
               categoryId: item.categoryId,
               categoryName: item.categoryName,
             ),
