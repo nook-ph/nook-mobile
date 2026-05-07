@@ -27,9 +27,9 @@ class CafeDetailsLoaded extends CafeDetailsState {
 }
 
 class CafeDetailsError extends CafeDetailsState {
-  final String message;
-  const CafeDetailsError(this.message);
+  final Object error;
+  const CafeDetailsError(this.error);
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [error];
 }

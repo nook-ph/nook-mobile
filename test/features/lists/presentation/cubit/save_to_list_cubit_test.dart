@@ -67,7 +67,7 @@ void main() {
       final state = cubit.state as SaveToListLoaded;
       expect(state.savedListIds, isNot(contains('list-1')));
       expect(state.pendingListIds, isEmpty);
-      expect(state.errorMessage, 'Unable to save this cafe to the list.');
+      expect(state.listActionError, isNotNull);
     });
 
     test('persists last saved list id after successful add toggle', () async {

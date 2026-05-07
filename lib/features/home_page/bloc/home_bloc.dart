@@ -9,6 +9,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
   HomeBloc({required this.getHomeFeedUseCase}) : super(HomeInitialState()) {
     on<LoadHomeDataEvent>(_onLoadHomeData);
+    on<HomeDismissLocationBannerEvent>(_onDismissLocationBanner);
   }
 
   Future<void> _onLoadHomeData(
@@ -18,18 +19,30 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     emit(HomeLoadingState());
 
     try {
-      final result = await getHomeFeedUseCase.call();
+      final out = await getHomeFeedUseCase.call();
 
       emit(
         HomeLoadedState(
-          featuredCafes: _buildFeatured(result),
-          newestCafes: result.newest,
-          trendingCafes: result.trending,
-          topRatedCafes: result.topRated,
+          featuredCafes: _buildFeatured(out.feed),
+          newestCafes: out.feed.newest,
+          trendingCafes: out.feed.trending,
+          topRatedCafes: out.feed.topRated,
+          locationDenied: out.locationDenied,
+          locationBannerDismissed: false,
         ),
       );
     } catch (e) {
-      emit(HomeError(e.toString()));
+      emit(HomeError(e));
+    }
+  }
+
+  void _onDismissLocationBanner(
+    HomeDismissLocationBannerEvent event,
+    Emitter<HomeState> emit,
+  ) {
+    final s = state;
+    if (s is HomeLoadedState) {
+      emit(s.copyWith(locationBannerDismissed: true));
     }
   }
 

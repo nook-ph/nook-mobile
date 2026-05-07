@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/full_page_error_widget.dart';
+import 'package:nook/core/widgets/error/location_denied_banner.dart';
+import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:nook/features/search/bloc/search_bloc.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -69,6 +75,24 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     super.dispose();
   }
 
+  Future<void> _onRefresh(BuildContext context) async {
+    _searchBloc.add(const SearchRefresh());
+    await _searchBloc.stream.firstWhere(
+      (s) => s.status != SearchStatus.loading,
+    );
+    await Future<void>.delayed(Duration.zero);
+  }
+
+  void _retryOrSignIn(BuildContext context, SearchState blocState) {
+    final raw = blocState.lastError ?? Exception('Search failed');
+    final info = AppErrorCopy.fromException(raw);
+    if (info.type == ErrorType.sessionExpired) {
+      context.push('/login');
+      return;
+    }
+    _searchBloc.add(const SearchRefresh());
+  }
+
   void _onScroll() {
     if (_isBottom) {
       _searchBloc.add(const SearchLoadMore());
@@ -114,14 +138,20 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                         )
                         .toList();
 
-              return SingleChildScrollView(
-                controller: _scrollController,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
+              final showLocBanner =
+                  state.locationDenied && !state.locationBannerDismissed;
+
+              return RefreshIndicator(
+                onRefresh: () => _onRefresh(context),
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
                         decoration: BoxDecoration(
                           border: Border.all(color: borderColor, width: 1.5),
                           borderRadius: BorderRadius.circular(28),
@@ -149,6 +179,13 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                           ),
                         ),
                       ),
+                      if (showLocBanner)
+                        LocationDeniedBanner(
+                          visible: true,
+                          onDismiss: () => _searchBloc.add(
+                            const SearchDismissLocationBanner(),
+                          ),
+                        ),
                       const SizedBox(height: 20),
                       Text(
                         'Cafes',
@@ -159,23 +196,23 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                       ),
                       const SizedBox(height: 2),
                       if (hasError)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: Text(
-                            'Failed to load cafes. Pull to refresh or try again.',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: Colors.grey.shade600,
+                        SizedBox(
+                          height: 420,
+                          child: FullPageErrorWidget(
+                            error: AppErrorCopy.fromException(
+                              state.lastError ?? Exception('Search failed'),
                             ),
+                            onRetry: () => _retryOrSignIn(context, state),
                           ),
                         )
                       else if (isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: Text(
-                            'No cafes found',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: Colors.grey.shade600,
-                            ),
+                        const Padding(
+                          padding: EdgeInsets.only(top: 16),
+                          child: SectionEmptyWidget(
+                            title: 'No cafes found',
+                            subtitle:
+                                'Try another search or adjust filters.',
+                            icon: Icons.search_off_outlined,
                           ),
                         )
                       else
@@ -256,7 +293,8 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                             ),
                           ),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );

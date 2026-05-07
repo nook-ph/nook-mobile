@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/full_page_empty_widget.dart';
+import 'package:nook/core/widgets/error/full_page_error_widget.dart';
+import 'package:nook/core/widgets/error/location_denied_banner.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
@@ -19,44 +25,24 @@ class HomePage extends StatelessWidget {
     await bloc.stream.firstWhere((state) => state is! HomeLoadingState);
   }
 
+  void _retryOrSignIn(BuildContext context, VoidCallback reload) {
+    final state = context.read<HomeBloc>().state;
+    if (state is HomeError) {
+      final info = AppErrorCopy.fromException(state.error);
+      if (info.type == ErrorType.sessionExpired) {
+        context.push('/login');
+        return;
+      }
+    }
+    reload();
+  }
+
   Widget _buildSectionTitle(String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Text(
         text,
         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-      ),
-    );
-  }
-
-  Widget _buildMessageState({
-    required BuildContext context,
-    required String message,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF5E5F60),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () {
-                context.read<HomeBloc>().add(LoadHomeDataEvent());
-              },
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -163,24 +149,20 @@ class HomePage extends StatelessWidget {
               }
 
               if (state is HomeError) {
-                return _buildScrollableLayout(
-                  context: context,
-                  children: [
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      height: 320,
-                      child: _buildMessageState(
-                        context: context,
-                        message:
-                            'Unable to load cafes right now. Please try again.',
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                final info = AppErrorCopy.fromException(state.error);
+                return FullPageErrorWidget(
+                  error: info,
+                  onRetry: () => _retryOrSignIn(
+                    context,
+                    () => context.read<HomeBloc>().add(LoadHomeDataEvent()),
+                  ),
                 );
               }
 
               if (state is HomeLoadedState) {
+                final showLocBanner =
+                    state.locationDenied && !state.locationBannerDismissed;
+
                 final bool hasAnyData =
                     state.featuredCafes.isNotEmpty ||
                     state.newestCafes.isNotEmpty ||
@@ -191,13 +173,20 @@ class HomePage extends StatelessWidget {
                   return _buildScrollableLayout(
                     context: context,
                     children: [
+                      if (showLocBanner)
+                        LocationDeniedBanner(
+                          visible: true,
+                          onDismiss: () => context.read<HomeBloc>().add(
+                            HomeDismissLocationBannerEvent(),
+                          ),
+                        ),
                       const SizedBox(height: 24),
                       SizedBox(
-                        height: 320,
-                        child: _buildMessageState(
-                          context: context,
-                          message:
-                              'No cafes found yet. Pull to refresh or try again.',
+                        height: 360,
+                        child: const FullPageEmptyWidget(
+                          title: 'No cafes yet',
+                          subtitle:
+                              'Pull to refresh — new spots appear here soon.',
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -208,6 +197,13 @@ class HomePage extends StatelessWidget {
                 return _buildScrollableLayout(
                   context: context,
                   children: [
+                    if (showLocBanner)
+                      LocationDeniedBanner(
+                        visible: true,
+                        onDismiss: () => context.read<HomeBloc>().add(
+                          HomeDismissLocationBannerEvent(),
+                        ),
+                      ),
                     if (state.featuredCafes.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       _buildSectionTitle('Featured'),
@@ -231,16 +227,22 @@ class HomePage extends StatelessWidget {
                       const SizedBox(height: 24),
                     ] else
                       const SizedBox(height: 24),
-                    HomeCafeSection(title: 'New', cafes: state.newestCafes),
+                    HomeCafeSection(
+                      title: 'New',
+                      cafes: state.newestCafes,
+                      emptySubtitle: 'No new cafes yet',
+                    ),
                     const SizedBox(height: 24),
                     HomeCafeSection(
                       title: 'Trending',
                       cafes: state.trendingCafes,
+                      emptySubtitle: 'Nothing trending right now',
                     ),
                     const SizedBox(height: 24),
                     HomeCafeSection(
                       title: 'Top Rated',
                       cafes: state.topRatedCafes,
+                      emptySubtitle: 'Ratings show up soon',
                     ),
                     const SizedBox(height: 16),
                   ],

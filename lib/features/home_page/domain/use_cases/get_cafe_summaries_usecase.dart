@@ -10,22 +10,27 @@ typedef HomeFeedResult = ({
   List<CafeSummary> newest,
 });
 
+typedef HomeFeedWithLocationMeta = ({
+  HomeFeedResult feed,
+  bool locationDenied,
+});
+
 class GetHomeFeedUseCase {
   final ICafeRepository repository;
 
   GetHomeFeedUseCase(this.repository);
 
-  Future<HomeFeedResult> call({int page = 0, int limit = 20}) async {
-    final location = await _resolveLocation();
+  Future<HomeFeedWithLocationMeta> call({int page = 0, int limit = 20}) async {
+    final loc = await _resolveLocation();
 
-    final nearby = location == null
+    final nearby = loc.position == null
         ? <CafeSummary>[]
         : await _safeFetch(
             label: 'nearby',
             query: CafeQuery(
               sort: 'nearby',
-              lat: location.latitude,
-              lng: location.longitude,
+              lat: loc.position!.latitude,
+              lng: loc.position!.longitude,
               page: page,
               limit: limit,
             ),
@@ -46,6 +51,13 @@ class GetHomeFeedUseCase {
       query: CafeQuery(sort: 'newest', page: page, limit: limit),
     );
 
+    final feed = (
+      nearby: nearby,
+      topRated: topRated,
+      trending: trending,
+      newest: newest,
+    );
+
     await repository.warmCache([
       ...nearby,
       ...topRated,
@@ -53,12 +65,7 @@ class GetHomeFeedUseCase {
       ...newest,
     ]);
 
-    return (
-      nearby: nearby,
-      topRated: topRated,
-      trending: trending,
-      newest: newest,
-    );
+    return (feed: feed, locationDenied: loc.locationDenied);
   }
 
   Future<List<CafeSummary>> _safeFetch({
@@ -73,11 +80,11 @@ class GetHomeFeedUseCase {
     }
   }
 
-  Future<Position?> _resolveLocation() async {
+  Future<({Position? position, bool locationDenied})> _resolveLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        return null;
+        return (position: null, locationDenied: false);
       }
 
       var permission = await Geolocator.checkPermission();
@@ -87,7 +94,7 @@ class GetHomeFeedUseCase {
 
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        return null;
+        return (position: null, locationDenied: true);
       }
 
       final position = await Geolocator.getCurrentPosition(
@@ -96,29 +103,9 @@ class GetHomeFeedUseCase {
           distanceFilter: 100,
         ),
       );
-      return position;
+      return (position: position, locationDenied: false);
     } catch (_) {
-      return null;
+      return (position: null, locationDenied: false);
     }
   }
 }
-
-// @Deprecated('Use GetHomeFeedUseCase.')
-// typedef CafeSummariesResult = ({
-//   List<CafeSummary> featured,
-//   List<CafeSummary> recommended,
-// });
-
-// @Deprecated('Use GetHomeFeedUseCase.')
-// class GetCafeSummariesUseCase {
-//   final GetHomeFeedUseCase _homeFeedUseCase;
-
-//   GetCafeSummariesUseCase(ICafeRepository repository)
-//     : _homeFeedUseCase = GetHomeFeedUseCase(repository);
-
-//   Future<CafeSummariesResult> call({int page = 0, int limit = 20}) async {
-//     final result = await _homeFeedUseCase(page: page, limit: limit);
-
-//     return (featured: result.trending, recommended: result.topRated);
-//   }
-// }

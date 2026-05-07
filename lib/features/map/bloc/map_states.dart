@@ -10,15 +10,34 @@ class MapLoadingState extends MapState {}
 class MapLoadedState extends MapState {
   final List<CafeSummary> cafes;
   final List<CafeTagsEntity> tags;
+  final bool locationDenied;
+  final bool locationBannerDismissed;
 
   MapLoadedState({
     required this.cafes,
     required this.tags,
+    this.locationDenied = false,
+    this.locationBannerDismissed = false,
   });
+
+  MapLoadedState copyWith({
+    List<CafeSummary>? cafes,
+    List<CafeTagsEntity>? tags,
+    bool? locationDenied,
+    bool? locationBannerDismissed,
+  }) {
+    return MapLoadedState(
+      cafes: cafes ?? this.cafes,
+      tags: tags ?? this.tags,
+      locationDenied: locationDenied ?? this.locationDenied,
+      locationBannerDismissed:
+          locationBannerDismissed ?? this.locationBannerDismissed,
+    );
+  }
 }
 
 class MapError extends MapState {
-  final String message;
+  final Object error;
 
-  MapError(this.message);
+  MapError(this.error);
 }

@@ -1,9 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/cafe_list_display_title.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/section_error_widget.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
@@ -37,7 +41,7 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
     return BlocConsumer<SaveToListCubit, SaveToListState>(
       listenWhen: (previous, current) {
         if (previous is SaveToListLoaded && current is SaveToListLoaded) {
-          return previous.errorMessage != current.errorMessage ||
+          return previous.listActionError != current.listActionError ||
               previous.refreshNonce != current.refreshNonce;
         }
         return current is SaveToListError;
@@ -54,14 +58,15 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
             showPrimaryToast(context, 'List created.');
           }
 
-          final errorMessage = state.errorMessage;
-          if (errorMessage != null) {
+          final actionErr = state.listActionError;
+          if (actionErr != null) {
             _pendingCreateToast = false;
-            showPrimaryToast(context, errorMessage);
+            final info = AppErrorCopy.fromException(actionErr);
+            showPrimaryToast(context, '${info.title} · ${info.subtitle}');
+            context.read<SaveToListCubit>().acknowledgeListActionError();
           }
         } else if (state is SaveToListError) {
           _pendingCreateToast = false;
-          showPrimaryToast(context, state.message);
         }
       },
       builder: (context, state) {
@@ -180,15 +185,19 @@ class _SaveToListContent extends StatelessWidget {
     }
 
     if (state is SaveToListError) {
+      final err = state as SaveToListError;
+      final info = AppErrorCopy.fromException(err.error);
       return ListView(
         controller: scrollController,
-        children: const [
-          Padding(
-            padding: EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Unable to load your lists. Please try again.',
-              style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
-            ),
+        children: [
+          SectionErrorWidget(
+            error: info,
+            onRetry: info.type == ErrorType.sessionExpired
+                ? () {
+                    Navigator.of(context).pop();
+                    context.push('/login');
+                  }
+                : () => context.read<SaveToListCubit>().load(cafeId),
           ),
         ],
       );

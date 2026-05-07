@@ -4,7 +4,10 @@ import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:geolocator/geolocator.dart';
 
-typedef CafeCardResult = ({List<CafeSummary> cafes});
+typedef CafeCardResult = ({
+  List<CafeSummary> cafes,
+  bool locationDenied,
+});
 
 class GetCafeCardUseCase {
   final ICafeRepository repository;
@@ -17,19 +20,13 @@ class GetCafeCardUseCase {
   }) async {
     double? lat = filter.lat;
     double? lng = filter.lng;
+    var locationDenied = false;
 
     if (lat == null || lng == null) {
-      try {
-        final location = await Geolocator.getCurrentPosition(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.medium,
-          ),
-        ).timeout(const Duration(seconds: 3));
-        lat = location.latitude;
-        lng = location.longitude;
-      } catch (_) {
-        // Fallback or ignore
-      }
+      final resolved = await _resolveDeviceCoordinates();
+      lat = resolved.lat;
+      lng = resolved.lng;
+      locationDenied = resolved.locationDenied;
     }
 
     final resolvedSort =
@@ -51,6 +48,39 @@ class GetCafeCardUseCase {
 
     await repository.warmCache(cafes);
 
-    return (cafes: cafes);
+    return (cafes: cafes, locationDenied: locationDenied);
+  }
+
+  Future<({double? lat, double? lng, bool locationDenied})>
+  _resolveDeviceCoordinates() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return (lat: null, lng: null, locationDenied: false);
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return (lat: null, lng: null, locationDenied: true);
+      }
+
+      final location = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+        ),
+      ).timeout(const Duration(seconds: 3));
+      return (
+        lat: location.latitude,
+        lng: location.longitude,
+        locationDenied: false,
+      );
+    } catch (_) {
+      return (lat: null, lng: null, locationDenied: false);
+    }
   }
 }

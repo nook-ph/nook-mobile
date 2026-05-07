@@ -38,15 +38,8 @@ class ProfileCubit extends Cubit<ProfileState> {
           'No email';
 
       emit(ProfileLoaded(name: name, email: email, userId: user.id));
-    } catch (_) {
-      final name =
-          (user.userMetadata?['full_name'] as String?) ??
-          (user.userMetadata?['name'] as String?) ??
-          'No name';
-      final email =
-          user.email ?? (user.userMetadata?['email'] as String?) ?? 'No email';
-
-      emit(ProfileLoaded(name: name, email: email, userId: user.id));
+    } catch (e) {
+      emit(ProfileError(e));
     }
   }
 
@@ -83,6 +76,15 @@ class ProfileLoaded extends ProfileState {
 
   @override
   List<Object?> get props => [name, email, userId];
+}
+
+class ProfileError extends ProfileState {
+  final Object error;
+
+  const ProfileError(this.error);
+
+  @override
+  List<Object?> get props => [error];
 }
 
 class ProfileUnauthenticated extends ProfileState {

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/features/home_page/presentation/widgets/recommended_card.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
@@ -39,12 +43,22 @@ class _ListDetailPageState extends State<ListDetailPage> {
       ),
       body: BlocBuilder<ListsBloc, ListsState>(
         builder: (context, state) {
+          final listsBloc = context.read<ListsBloc>();
+
           if (state is ListsLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (state is ListsError) {
-            return _buildMessage(state.message);
+            final info = AppErrorCopy.fromException(state.error);
+            return FullPageErrorWidget(
+              error: info,
+              onRetry: info.type == ErrorType.sessionExpired
+                  ? () => context.push('/login')
+                  : () => listsBloc.add(
+                      LoadListCafes(listId: widget.listId),
+                    ),
+            );
           }
 
           if (state is ListCafesLoaded && state.list.id == widget.listId) {
@@ -85,19 +99,6 @@ class _ListDetailPageState extends State<ListDetailPage> {
           ],
         const SizedBox(height: 80),
       ],
-    );
-  }
-
-  Widget _buildMessage(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 15, color: Color(0xFF848586)),
-        ),
-      ),
     );
   }
 }

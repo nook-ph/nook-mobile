@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:sliding_panel_kit/sliding_panel_kit.dart';
+import 'package:nook/core/widgets/error/full_page_empty_widget.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/features/map/presentation/widgets/map_sheet_cafe_card.dart';
@@ -18,11 +19,15 @@ class BottomModalSheet extends StatefulWidget {
   final List<CafeTagsEntity> tags;
   final ValueChanged<BottomSheetMetrics>? onMetricsChanged;
 
+  /// True while [MapBloc] is fetching; empty [cafes] then means loading, not zero results.
+  final bool isLoadingCafes;
+
   const BottomModalSheet({
     super.key,
     required this.cafes,
     required this.tags,
     this.onMetricsChanged,
+    this.isLoadingCafes = false,
   });
 
   @override
@@ -261,8 +266,30 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
                             (constraints.maxWidth - 32).clamp(0.0, double.infinity);
                         final cardHeight = 312 * textScale;
 
+                        final showSkeleton =
+                            widget.isLoadingCafes && widget.cafes.isEmpty;
+                        final showEmpty =
+                            !widget.isLoadingCafes && widget.cafes.isEmpty;
+
+                        if (showEmpty) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 24,
+                              ),
+                              child: FullPageEmptyWidget(
+                                title: 'No cafes in this area',
+                                subtitle:
+                                    'Try zooming out or adjusting filters.',
+                                icon: Icons.map_outlined,
+                              ),
+                            ),
+                          );
+                        }
+
                         return Skeletonizer(
-                          enabled: widget.cafes.isEmpty,
+                          enabled: showSkeleton,
                           effect: const PulseEffect(),
                           child: ListView.separated(
                             padding: const EdgeInsets.only(
@@ -271,13 +298,13 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
                               top: 12,
                               bottom: 24,
                             ),
-                            itemCount: widget.cafes.isEmpty
+                            itemCount: showSkeleton
                                 ? 3
                                 : widget.cafes.length,
                             separatorBuilder: (_, _) =>
                                 const SizedBox(height: 18),
                             itemBuilder: (BuildContext context, int index) {
-                              if (widget.cafes.isEmpty) {
+                              if (showSkeleton) {
                                 return SizedBox(
                                   height: cardHeight,
                                   child: MapSheetCafeCard(

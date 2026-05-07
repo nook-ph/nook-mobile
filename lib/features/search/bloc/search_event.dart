@@ -38,3 +38,7 @@ class SearchLoadMore extends SearchEvent {
 class SearchRefresh extends SearchEvent {
   const SearchRefresh();
 }
+
+class SearchDismissLocationBanner extends SearchEvent {
+  const SearchDismissLocationBanner();
+}

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
@@ -144,11 +147,24 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                     : const <String>[];
 
                 if (state is CafeDetailsError) {
-                  return Center(
-                    child: Text(
-                      'Error loading cafes: ${state.message}',
-                      style: const TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
+                  final info = AppErrorCopy.fromException(state.error);
+                  return Scaffold(
+                    backgroundColor: Colors.white,
+                    appBar: AppBar(
+                      backgroundColor: Colors.white,
+                      elevation: 0,
+                      leading: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.black),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    body: FullPageErrorWidget(
+                      error: info,
+                      onRetry: info.type == ErrorType.sessionExpired
+                          ? () => context.push('/login')
+                          : () => context.read<CafeDetailsBloc>().add(
+                                LoadCafeDetailsRequested(cafeId: widget.cafeId),
+                              ),
                     ),
                   );
                 }
@@ -411,6 +427,17 @@ class _SavedButtonState extends State<_SavedButton> {
   bool _isSaving = false;
   bool _isSaved = false;
   int _savedStateRequest = 0;
+  bool _loadErrorToastShown = false;
+
+  void _showErrorToast(BuildContext context, Object e, {required bool goLogin}) {
+    final info = AppErrorCopy.fromException(e);
+    if (goLogin && info.type == ErrorType.sessionExpired) {
+      showPrimaryToast(context, info.title);
+      context.push('/login');
+      return;
+    }
+    showPrimaryToast(context, '${info.title} · ${info.subtitle}');
+  }
 
   @override
   void initState() {
@@ -423,6 +450,7 @@ class _SavedButtonState extends State<_SavedButton> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.cafeId != widget.cafeId) {
       _isSaved = false;
+      _loadErrorToastShown = false;
       _loadSavedState();
     }
   }
@@ -458,7 +486,9 @@ class _SavedButtonState extends State<_SavedButton> {
     } catch (e, st) {
       debugPrint('[CafeDetailsSave] _loadSavedState failed cafeId=$cafeId error=$e');
       debugPrint('$st');
-      // Leave the button interactive if the initial saved-state lookup fails.
+      if (!mounted || _loadErrorToastShown) return;
+      _loadErrorToastShown = true;
+      _showErrorToast(context, e, goLogin: true);
     }
   }
 
@@ -531,10 +561,7 @@ class _SavedButtonState extends State<_SavedButton> {
       debugPrint('[CafeDetailsSave] FAILED error=$e');
       debugPrint('$st');
       if (!mounted) return;
-      showPrimaryToast(
-        context,
-        'Unable to update saved cafe. Please try again.',
-      );
+      _showErrorToast(context, e, goLogin: true);
     } finally {
       if (mounted) {
         setState(() => _isSaving = false);
