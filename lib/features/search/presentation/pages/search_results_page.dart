@@ -24,41 +24,22 @@ class SearchResultsPage extends StatefulWidget {
 class _SearchResultsPageState extends State<SearchResultsPage> {
   late final TextEditingController _searchController;
   late final ScrollController _scrollController;
+  late final FocusNode _searchFocusNode;
   late final SearchBloc _searchBloc;
-
-  static const List<Map<String, String?>> _placeholderResults = [
-    {
-      'name': 'Cafe Name',
-      'location': 'Location, Cebu',
-      'distance': '1.2 km',
-      'image': null,
-    },
-    {
-      'name': 'Cafe Name',
-      'location': 'Location, Cebu',
-      'distance': '2.4 km',
-      'image': null,
-    },
-    {
-      'name': 'Cafe Name',
-      'location': 'Location, Cebu',
-      'distance': '0.8 km',
-      'image': null,
-    },
-    {
-      'name': 'Cafe Name',
-      'location': 'Location, Cebu',
-      'distance': '3.1 km',
-      'image': null,
-    },
-  ];
 
   @override
   void initState() {
     super.initState();
     _searchController = TextEditingController(text: widget.query);
     _scrollController = ScrollController()..addListener(_onScroll);
+    _searchFocusNode = FocusNode();
     _searchBloc = sl<SearchBloc>();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (mounted) _searchFocusNode.requestFocus();
+      });
+    });
 
     if (widget.query.isNotEmpty) {
       _searchBloc.add(SearchQueryChanged(widget.query));
@@ -70,6 +51,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _scrollController.dispose();
     _searchBloc.close();
     super.dispose();
@@ -94,9 +76,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
   }
 
   void _onScroll() {
-    if (_isBottom) {
-      _searchBloc.add(const SearchLoadMore());
-    }
+    if (_isBottom) _searchBloc.add(const SearchLoadMore());
   }
 
   bool get _isBottom {
@@ -125,18 +105,16 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
               final isEmpty =
                   state.status == SearchStatus.success && state.cafes.isEmpty;
 
-              final results = isLoading
-                  ? _placeholderResults
-                  : state.cafes
-                        .map(
-                          (cafe) => {
-                            'name': cafe.name,
-                            'location': cafe.locationLabel,
-                            'distance': _formatDistance(cafe.distanceMeters),
-                            'image': cafe.coverImage,
-                          },
-                        )
-                        .toList();
+              final results = state.cafes
+                  .map(
+                    (cafe) => {
+                      'name': cafe.name,
+                      'location': cafe.locationLabel,
+                      'distance': _formatDistance(cafe.distanceMeters),
+                      'image': cafe.coverImage,
+                    },
+                  )
+                  .toList();
 
               final showLocBanner =
                   state.locationDenied && !state.locationBannerDismissed;
@@ -151,148 +129,164 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: borderColor, width: 1.5),
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          onChanged: (value) {
-                            _searchBloc.add(SearchQueryChanged(value));
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'Search cafes...',
-                            hintStyle: const TextStyle(color: Colors.grey),
-                            prefixIcon: Icon(
-                              PhosphorIcons.magnifyingGlass(),
-                              color: Colors.grey,
+                        // ── Search bar row with back button ──
+                        Row(
+                          children: [
+                            GestureDetector(
+                              onTap: () => context.pop(),
+                              child: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.black,
+                              ),
                             ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: borderColor,
+                                    width: 1.5,
+                                  ),
+                                  borderRadius: BorderRadius.circular(28),
+                                ),
+                                child: TextField(
+                                  controller: _searchController,
+                                  focusNode: _searchFocusNode,
+                                  autofocus: true,
+                                  onChanged: (value) {
+                                    _searchBloc.add(SearchQueryChanged(value));
+                                  },
+                                  decoration: InputDecoration(
+                                    hintText: 'Search cafes...',
+                                    hintStyle: const TextStyle(
+                                      color: Colors.grey,
+                                    ),
+                                    prefixIcon: Icon(
+                                      PhosphorIcons.magnifyingGlass(),
+                                      color: Colors.grey,
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 14,
+                                    ),
+                                  ),
+                                  style: textTheme.bodyLarge?.copyWith(
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          style: textTheme.bodyLarge?.copyWith(
-                            color: Colors.black,
-                          ),
+                          ],
                         ),
-                      ),
-                      if (showLocBanner)
-                        LocationDeniedBanner(
-                          visible: true,
-                          onDismiss: () => _searchBloc.add(
-                            const SearchDismissLocationBanner(),
-                          ),
-                        ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Cafes',
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      if (hasError)
-                        SizedBox(
-                          height: 420,
-                          child: FullPageErrorWidget(
-                            error: AppErrorCopy.fromException(
-                              state.lastError ?? Exception('Search failed'),
-                            ),
-                            onRetry: () => _retryOrSignIn(context, state),
-                          ),
-                        )
-                      else if (isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 16),
-                          child: SectionEmptyWidget(
-                            title: 'No cafes found',
-                            subtitle:
-                                'Try another search or adjust filters.',
-                            icon: Icons.search_off_outlined,
-                          ),
-                        )
-                      else
-                        Skeletonizer(
-                          enabled: isLoading,
-                          effect: const PulseEffect(),
-                          child: IgnorePointer(
-                            ignoring: isLoading,
-                            child: ListView.builder(
-                              itemCount: results.length,
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemBuilder: (context, index) {
-                                final item = results[index];
 
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 48,
-                                        height: 48,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade300,
-                                          borderRadius: BorderRadius.circular(
-                                            12,
-                                          ),
-                                          image: item['image'] != null
-                                              ? DecorationImage(
-                                                  image: NetworkImage(
-                                                    item['image']!,
-                                                  ),
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : null,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            _buildHighlightedText(
-                                              textTheme,
-                                              item['name'] ?? '',
-                                              state.query,
-                                            ),
-                                            const SizedBox(height: 2),
-                                            Text(
-                                              item['location'] ?? '',
-                                              style: textTheme.bodySmall
-                                                  ?.copyWith(
-                                                    color: Colors.grey.shade500,
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        item['distance'] ?? '',
-                                        style: textTheme.bodySmall?.copyWith(
-                                          color: Colors.grey.shade500,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
+                        if (showLocBanner)
+                          LocationDeniedBanner(
+                            visible: true,
+                            onDismiss: () => _searchBloc.add(
+                              const SearchDismissLocationBanner(),
                             ),
                           ),
-                        ),
+
+                        const SizedBox(height: 20),
+
+                        if (hasError)
+                          SizedBox(
+                            height: 420,
+                            child: FullPageErrorWidget(
+                              error: AppErrorCopy.fromException(
+                                state.lastError ?? Exception('Search failed'),
+                              ),
+                              onRetry: () => _retryOrSignIn(context, state),
+                            ),
+                          )
+                        else if (isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 16),
+                            child: SectionEmptyWidget(
+                              title: 'No cafes found',
+                              subtitle: 'Try another search or adjust filters.',
+                              icon: Icons.search_off_outlined,
+                            ),
+                          )
+                        else
+                          Skeletonizer(
+                            enabled: isLoading,
+                            effect: const PulseEffect(),
+                            child: IgnorePointer(
+                              ignoring: isLoading,
+                              child: ListView.builder(
+                                itemCount: results.length,
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemBuilder: (context, index) {
+                                  final item = results[index];
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 12,
+                                    ),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          width: 48,
+                                          height: 48,
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey.shade300,
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            image: item['image'] != null
+                                                ? DecorationImage(
+                                                    image: NetworkImage(
+                                                      item['image']!,
+                                                    ),
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : null,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              _buildHighlightedText(
+                                                textTheme,
+                                                item['name'] ?? '',
+                                                state.query,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                item['location'] ?? '',
+                                                style: textTheme.bodySmall
+                                                    ?.copyWith(
+                                                      color:
+                                                          Colors.grey.shade500,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Text(
+                                          item['distance'] ?? '',
+                                          style: textTheme.bodySmall?.copyWith(
+                                            color: Colors.grey.shade500,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -324,15 +318,11 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
       backgroundColor: Colors.black12,
     );
 
-    if (trimmed.isEmpty) {
-      return Text(text, style: baseStyle);
-    }
+    if (trimmed.isEmpty) return Text(text, style: baseStyle);
 
     final lowerText = text.toLowerCase();
     final lowerQuery = trimmed.toLowerCase();
-    if (!lowerText.contains(lowerQuery)) {
-      return Text(text, style: baseStyle);
-    }
+    if (!lowerText.contains(lowerQuery)) return Text(text, style: baseStyle);
 
     final spans = <TextSpan>[];
     var start = 0;

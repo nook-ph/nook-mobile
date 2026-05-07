@@ -8,6 +8,7 @@ import 'package:nook/core/presentation/pages/main_screen.dart';
 import 'package:nook/features/auth/presentation/pages/email_entry_page.dart';
 import 'package:nook/features/auth/presentation/pages/login_page.dart';
 import 'package:nook/features/auth/presentation/pages/signup_details_page.dart';
+import 'package:nook/features/search/presentation/pages/search_results_page.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
@@ -62,12 +63,19 @@ final GoRouter appRouter = GoRouter(
     ),
 
     /// 3. Cafe Details (Deep Link Target)
-
     GoRoute(
       path: '/cafe/:id',
       builder: (context, state) {
         final id = state.pathParameters['id'] ?? '';
         return CafeDetailsPage(cafeId: id);
+      },
+    ),
+
+    GoRoute(
+      path: '/search',
+      builder: (context, state) {
+        final query = state.uri.queryParameters['q'] ?? '';
+        return const SearchResultsPage(query: '');
       },
     ),
   ],

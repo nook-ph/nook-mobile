@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/features/search/presentation/pages/search_results_page.dart';
@@ -45,17 +46,7 @@ class SearchEntryButton extends StatelessWidget {
   }
 
   void _openSearch(BuildContext context) {
-    final navBloc = _tryReadNavigationBloc(context);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) {
-          final page = const SearchResultsPage(query: '');
-          if (navBloc == null) return page;
-          return BlocProvider.value(value: navBloc, child: page);
-        },
-      ),
-    );
+    context.push('/search');
   }
 
   @override
