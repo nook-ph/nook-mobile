@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class EditProfilePage extends StatefulWidget {
@@ -85,7 +86,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ),
                     ),
                   ),
-                  GestureDetector(
+                  AdaptiveTap(
                     onTap: () {
                       // image picker churvmalu
                     },

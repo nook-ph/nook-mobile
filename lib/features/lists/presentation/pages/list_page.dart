@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
@@ -126,7 +127,7 @@ class _ListsPageState extends State<ListsPage> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    GestureDetector(
+                    AdaptiveTap(
                       onTap: () {},
                       child: const Text(
                         'Sort by: Recent',
@@ -647,7 +648,7 @@ class CollectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AdaptiveTap(
       onTap: () {
         if (isSkeleton) return;
         onTap?.call();
@@ -697,8 +698,7 @@ class CollectionCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
+                        AdaptiveTap(
                           onTap: isSkeleton ? null : onOptionsTap,
                           child: const SizedBox(
                             width: 28,

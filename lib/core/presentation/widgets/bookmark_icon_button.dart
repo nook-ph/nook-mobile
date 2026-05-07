@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class BookmarkIconButton extends StatelessWidget {
@@ -14,9 +15,6 @@ class BookmarkIconButton extends StatelessWidget {
   final bool isSaved;
   final VoidCallback? onTap;
   final bool isEnabled;
-
-  /// App bar style: white circular chip. When false, only the icon is shown
-  /// (e.g. save-to-list sheet row).
   final bool showCircleBackground;
   final double iconSize;
 
@@ -30,24 +28,27 @@ class BookmarkIconButton extends StatelessWidget {
       size: iconSize,
     );
 
+    // Handle the disabled state for the callback
+    final VoidCallback? handleTap = isEnabled ? onTap : null;
+
     if (!showCircleBackground) {
-      return GestureDetector(
-        onTap: isEnabled ? onTap : null,
-        behavior: HitTestBehavior.opaque,
+      return AdaptiveTap(
+        onTap: handleTap ?? () {},
+        borderRadius: BorderRadius.circular(8),
         child: Padding(padding: const EdgeInsets.all(8), child: icon),
       );
     }
 
-    return GestureDetector(
-      onTap: isEnabled ? onTap : null,
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-        ),
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+      ),
+      child: AdaptiveTap(
+        onTap: handleTap ?? () {},
+        borderRadius: BorderRadius.circular(20), 
         child: Center(child: icon),
       ),
     );

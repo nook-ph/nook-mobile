@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_category_section.dart';
@@ -30,6 +31,7 @@ class MenuFullPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = ((screenWidth - 44) / 2) - 6;
+    const double radius = 12.0;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -62,8 +64,7 @@ class MenuFullPage extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 22.0),
               child: SectionEmptyWidget(
                 title: 'No menu posted yet',
-                subtitle:
-                    'This cafe has not shared a menu. Check back later.',
+                subtitle: 'This cafe has not shared a menu. Check back later.',
                 icon: Icons.restaurant_menu_outlined,
               ),
             ),
@@ -80,90 +81,90 @@ class MenuFullPage extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final item = highlights[index];
 
-                    final card = Container(
+                    // Define the card content
+                    final cardContent = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child:
+                              item.imageUrl != null && item.imageUrl!.isNotEmpty
+                              ? Image.network(
+                                  item.imageUrl!,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: const Color(0xFFF5F5F5),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.image_not_supported_outlined,
+                                      color: Color(0xFFBDBDBD),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  color: const Color(0xFFF5F5F5),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.image_outlined,
+                                    color: Color(0xFFBDBDBD),
+                                  ),
+                                ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 15),
+                                ),
+                                const Gap(2),
+                                Text(
+                                  '₱${item.displayPrice}',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+
+                    return Container(
                       width: cardWidth,
                       height: 178,
-                      clipBehavior: Clip.hardEdge,
+                      clipBehavior: Clip
+                          .antiAlias, // Ensures splash/image stays in bounds
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(radius),
                         border: Border.all(
                           color: const Color(0xFFE0E0E0),
                           width: 1.0,
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child:
-                                item.imageUrl != null && item.imageUrl!.isNotEmpty
-                                ? Image.network(
-                                    item.imageUrl!,
-                                    width: double.infinity,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => Container(
-                                      color: const Color(0xFFF5F5F5),
-                                      alignment: Alignment.center,
-                                      child: const Icon(
-                                        Icons.image_not_supported_outlined,
-                                        color: Color(0xFFBDBDBD),
-                                      ),
-                                    ),
-                                  )
-                                : Container(
-                                    color: const Color(0xFFF5F5F5),
-                                    alignment: Alignment.center,
-                                    child: const Icon(
-                                      Icons.image_outlined,
-                                      color: Color(0xFFBDBDBD),
-                                    ),
-                                  ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 15),
-                                  ),
-                                  const Gap(2),
-                                  Text(
-                                    '₱${item.displayPrice}',
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: AdaptiveTap(
+                        onTap: item.hasVariants
+                            ? () => MenuItemVariantsSheet.show(context, item)
+                            : () {},
+                        borderRadius: BorderRadius.circular(radius),
+                        child: cardContent,
                       ),
-                    );
-
-                    if (!item.hasVariants) {
-                      return card;
-                    }
-
-                    return GestureDetector(
-                      onTap: () => MenuItemVariantsSheet.show(context, item),
-                      child: card,
                     );
                   },
                 ),
               ),
-
               const Gap(24),
             ],
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),
               child: Column(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 
 typedef ReviewFilterResult = ({String sort, int? ratingFilter});
 
@@ -187,7 +188,7 @@ class _SheetHeader extends StatelessWidget {
               color: Colors.black,
             ),
           ),
-          GestureDetector(
+          AdaptiveTap(
             onTap: onClose,
             child: const Icon(Icons.close, color: Colors.black, size: 24),
           ),

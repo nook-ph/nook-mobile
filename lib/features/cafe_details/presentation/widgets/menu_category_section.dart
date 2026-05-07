@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_item_variants_sheet.dart';
+// Assuming AdaptiveTap is imported from your common widgets folder
+// import 'package:nook/core/widgets/adaptive_tap.dart';
 
 class MenuCategorySection extends StatelessWidget {
   const MenuCategorySection({
@@ -26,9 +29,7 @@ class MenuCategorySection extends StatelessWidget {
             color: Colors.black,
           ),
         ),
-
         const Gap(14),
-
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -38,9 +39,7 @@ class MenuCategorySection extends StatelessWidget {
             ],
           ],
         ),
-
         const Gap(24),
-
         const Divider(color: Color(0xFFE0E0E0), thickness: 1, height: 1),
       ],
     );
@@ -54,61 +53,67 @@ class _MenuItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final row = Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    // The visual content of the row
+    final Widget rowContent = Padding(
+      // Padding gives the AdaptiveTap ripple/fade room to breathe
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black,
+                  ),
+                ),
+                // Subtitle/Description (Fixed: using a lighter color for hierarchy)
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Row(
             children: [
               Text(
-                item.name,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
-              ),
-              Text(
-                item.name,
+                '₱${item.displayPrice}',
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w400,
+                  fontWeight: FontWeight.w600,
                   color: Colors.black,
                 ),
               ),
+              if (item.hasVariants) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right, size: 16, color: Colors.black),
+              ],
             ],
           ),
-        ),
-        const SizedBox(width: 16),
-        Row(
-          children: [
-            Text(
-              '₱${item.displayPrice}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.black,
-              ),
-            ),
-            if (item.hasVariants) ...[
-              const SizedBox(width: 6),
-              const Icon(Icons.chevron_right, size: 16, color: Colors.black),
-            ],
-          ],
-        ),
-      ],
+        ],
+      ),
     );
 
     if (!item.hasVariants) {
-      return row;
+      return rowContent;
     }
 
-    return GestureDetector(
+    return AdaptiveTap(
       onTap: () => MenuItemVariantsSheet.show(context, item),
-      behavior: HitTestBehavior.opaque,
-      child: row,
+      borderRadius: BorderRadius.circular(8),
+      child: rowContent,
     );
   }
 }

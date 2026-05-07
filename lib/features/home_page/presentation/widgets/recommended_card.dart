@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 
 class RecommendedCard extends StatelessWidget {
@@ -15,7 +16,7 @@ class RecommendedCard extends StatelessWidget {
     final String ratingText = cafe.rating.toStringAsFixed(1);
     final String? primaryTag = cafe.tags.isNotEmpty ? cafe.tags.first : null;
 
-    return GestureDetector(
+    return AdaptiveTap(
       onTap: () {
         Navigator.push(
           context,

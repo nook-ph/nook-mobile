@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
@@ -30,7 +31,7 @@ class _CafeCardState extends State<CafeCard> {
         ? widget.cafe.coverImage!.trim()
         : _fallbackImageUrl;
 
-    return GestureDetector(
+    return AdaptiveTap(
       onTap: () {
         if (widget.isSkeleton) return;
         Navigator.push(

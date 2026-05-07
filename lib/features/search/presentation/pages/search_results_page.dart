@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
@@ -121,7 +122,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                         // ── Search bar row ──
                         Row(
                           children: [
-                            GestureDetector(
+                            AdaptiveTap(
                               onTap: () => context.pop(),
                               child: const Icon(
                                 Icons.arrow_back,
@@ -211,7 +212,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                                 itemBuilder: (context, index) {
                                   final cafe = state.cafes[index];
 
-                                  return GestureDetector(
+                                  return AdaptiveTap(
                                     onTap: () =>
                                         context.push('/cafe/${cafe.id}'),
                                     child: Padding(

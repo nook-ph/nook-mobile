@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 
 /// White circular control matching cafe details app bar back/save affordances.
 class AppBarCircleIconButton extends StatelessWidget {
@@ -19,16 +20,20 @@ class AppBarCircleIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: dimension,
-        height: dimension,
-        alignment: Alignment.center,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-        ),
+    // Define the radius once to keep things consistent
+    final borderRadius = BorderRadius.circular(dimension / 2);
+
+    return Container(
+      width: dimension,
+      height: dimension,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+      ),
+      // Use AdaptiveTap instead of GestureDetector for platform-aware feedback
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: borderRadius,
         child: Center(
           child: Icon(icon, color: Colors.black, size: iconSize),
         ),

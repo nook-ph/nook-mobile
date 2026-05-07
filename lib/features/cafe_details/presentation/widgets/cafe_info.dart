@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
@@ -65,24 +66,16 @@ class CafeInfo extends StatelessWidget {
     final platform = Theme.of(context).platform;
     final analytics = sl<AnalyticsService>();
     final cafeId = details?.id;
-    debugPrint(
-      '[Directions] Tap detected | platform=$platform | '
-      'hasDetails=${details != null}',
-    );
+
     if (details == null || cafeId == null || cafeId.isEmpty) {
-      debugPrint('[Directions] Aborted: cafe details are null');
       _showDirectionsError(context, 'Cafe details are not available yet.');
       return;
     }
 
     final lat = details.lat;
     final lng = details.lng;
-    debugPrint(
-      '[Directions] Coordinates received | lat=$lat lng=$lng | '
-      'name="${details.name}" locationLabel="${details.locationLabel}"',
-    );
+
     if (!MapsDirectionsLauncher.hasValidCoordinates(lat, lng)) {
-      debugPrint('[Directions] Aborted: invalid coordinates');
       _showDirectionsError(
         context,
         'Directions are unavailable for this cafe right now.',
@@ -92,13 +85,8 @@ class CafeInfo extends StatelessWidget {
 
     MapsAppChoice? preferredApp;
     if (platform == TargetPlatform.iOS) {
-      debugPrint('[Directions] iOS detected, showing app chooser');
       preferredApp = await _showIosMapsChooser(context);
-      debugPrint('[Directions] iOS chooser result: $preferredApp');
-      if (preferredApp == null) {
-        debugPrint('[Directions] Aborted: user dismissed iOS app chooser');
-        return;
-      }
+      if (preferredApp == null) return;
     }
 
     final mapAppMeta = _mapAppMetadata(preferredApp, platform);
@@ -118,10 +106,6 @@ class CafeInfo extends StatelessWidget {
     final label = details.name.isNotEmpty
         ? details.name
         : details.locationLabel;
-    debugPrint(
-      '[Directions] Launch request | lat=$lat lng=$lng | '
-      'label="$label" preferredApp=$preferredApp',
-    );
     final launched = await MapsDirectionsLauncher.launchDirections(
       lat: lat,
       lng: lng,
@@ -129,19 +113,11 @@ class CafeInfo extends StatelessWidget {
       platform: platform,
       preferredApp: preferredApp,
     );
-    debugPrint('[Directions] Launch result: launched=$launched');
 
-    if (!context.mounted) {
-      debugPrint('[Directions] Context unmounted after launch attempt');
-      return;
+    if (!context.mounted) return;
+    if (!launched) {
+      _showDirectionsError(context, 'Unable to open map directions.');
     }
-
-    if (launched) {
-      return;
-    }
-
-    debugPrint('[Directions] Launch failed, showing error snackbar');
-    _showDirectionsError(context, 'Unable to open map directions.');
   }
 
   Future<MapsAppChoice?> _showIosMapsChooser(BuildContext context) {
@@ -306,12 +282,8 @@ class CafeInfo extends StatelessWidget {
     if (trimmed.isEmpty) return null;
 
     final parsed = Uri.tryParse(trimmed);
-    if (parsed != null && parsed.hasScheme) {
-      return parsed;
-    }
-    if (trimmed.startsWith('www.')) {
-      return Uri.tryParse('https://$trimmed');
-    }
+    if (parsed != null && parsed.hasScheme) return parsed;
+    if (trimmed.startsWith('www.')) return Uri.tryParse('https://$trimmed');
     if (!trimmed.contains(' ') && trimmed.contains('.')) {
       return Uri.tryParse('https://$trimmed');
     }
@@ -358,8 +330,6 @@ class CafeInfo extends StatelessWidget {
           webUri ??= Uri.parse('https://www.tiktok.com/@$handle');
         }
         break;
-      default:
-        break;
     }
 
     var launched = false;
@@ -379,16 +349,13 @@ class CafeInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final allTags = cafe?.cafeDetails.tags ?? const <TagEntity>[];
-
     final amenities = _tagsByCategory(allTags, const ['amenities', 'amenity']);
-
     var bestFor = _tagsByCategory(allTags, const [
       'best_for',
       'best for',
       'bestfor',
       'best',
     ]);
-
     var paymentOptions = _tagsByCategory(allTags, const [
       'payment_options',
       'payment option',
@@ -427,17 +394,14 @@ class CafeInfo extends StatelessWidget {
               color: Colors.black,
             ),
           ),
-
           const Gap(16),
 
-          //amenities
+          // Amenities
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('AMENITIES', style: _sectionTitleStyle),
-
               const Gap(12),
-
               if (amenities.isEmpty)
                 const Text(
                   'No amenities listed',
@@ -474,21 +438,16 @@ class CafeInfo extends StatelessWidget {
                 ),
             ],
           ),
-
           const Gap(28),
-
           const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-
           const Gap(28),
 
-          //best for
+          // Best For
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('BEST FOR', style: _sectionTitleStyle),
-
               const Gap(12),
-
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -505,21 +464,16 @@ class CafeInfo extends StatelessWidget {
               ),
             ],
           ),
-
           const Gap(28),
-
           const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-
           const Gap(28),
 
-          //accepted payments
+          // Accepted Payments
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('ACCEPTED PAYMENTS', style: _sectionTitleStyle),
-
               const Gap(18),
-
               if (paymentOptions.isEmpty)
                 const Text(
                   'No payment options listed',
@@ -542,21 +496,16 @@ class CafeInfo extends StatelessWidget {
                 ),
             ],
           ),
-
           const Gap(28),
-
           const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-
           const Gap(28),
 
-          //location & contacts
+          // Location & Contacts
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('LOCATION & CONTACTS', style: _sectionTitleStyle),
-
               const Gap(16),
-
               Builder(
                 builder: (context) {
                   final details = cafe?.cafeDetails;
@@ -581,16 +530,12 @@ class CafeInfo extends StatelessWidget {
                   );
                 },
               ),
-
               const Gap(16),
-
               Text(
                 address,
                 style: const TextStyle(fontSize: 16, color: Colors.black),
               ),
-
               const Gap(10),
-
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -618,58 +563,69 @@ class CafeInfo extends StatelessWidget {
                   ),
                 ),
               ),
-
               const Gap(16),
 
+              // Social Links with AdaptiveTap
               if (socialLinks.isNotEmpty)
                 Wrap(
                   spacing: 18,
                   children: [
-                    if ((socialLinks['instagram']?.toString().isNotEmpty ??
-                        false))
-                      GestureDetector(
+                    if (socialLinks['instagram']?.toString().isNotEmpty ??
+                        false)
+                      AdaptiveTap(
                         onTap: () => _openSocialLink(
                           context,
                           platform: 'instagram',
                           rawValue: socialLinks['instagram']?.toString(),
                         ),
-                        child: PhosphorIcon(
-                          PhosphorIcons.instagramLogo(
-                            PhosphorIconsStyle.regular,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: PhosphorIcon(
+                            PhosphorIcons.instagramLogo(
+                              PhosphorIconsStyle.regular,
+                            ),
+                            size: 32,
+                            color: const Color(0xFF848685),
                           ),
-                          size: 32,
-                          color: const Color(0xFF848685),
                         ),
                       ),
-                    if ((socialLinks['facebook']?.toString().isNotEmpty ??
-                        false))
-                      GestureDetector(
+                    if (socialLinks['facebook']?.toString().isNotEmpty ?? false)
+                      AdaptiveTap(
                         onTap: () => _openSocialLink(
                           context,
                           platform: 'facebook',
                           rawValue: socialLinks['facebook']?.toString(),
                         ),
-                        child: PhosphorIcon(
-                          PhosphorIcons.facebookLogo(
-                            PhosphorIconsStyle.regular,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: PhosphorIcon(
+                            PhosphorIcons.facebookLogo(
+                              PhosphorIconsStyle.regular,
+                            ),
+                            size: 32,
+                            color: const Color(0xFF848685),
                           ),
-                          size: 32,
-                          color: const Color(0xFF848685),
                         ),
                       ),
-                    if ((socialLinks['tiktok']?.toString().isNotEmpty ?? false))
-                      GestureDetector(
+                    if (socialLinks['tiktok']?.toString().isNotEmpty ?? false)
+                      AdaptiveTap(
                         onTap: () => _openSocialLink(
                           context,
                           platform: 'tiktok',
                           rawValue: socialLinks['tiktok']?.toString(),
                         ),
-                        child: Icon(
-                          PhosphorIcons.tiktokLogo(
-                            PhosphorIconsStyle.regular,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Icon(
+                            PhosphorIcons.tiktokLogo(
+                              PhosphorIconsStyle.regular,
+                            ),
+                            size: 32.0,
+                            color: const Color(0xFF848685),
                           ),
-                          size: 32.0,
-                          color: const Color(0xFF848685),
                         ),
                       ),
                   ],
@@ -684,7 +640,6 @@ class CafeInfo extends StatelessWidget {
 
 class _BestForTag extends StatelessWidget {
   const _BestForTag({required this.label, this.icon});
-
   final String label;
   final IconData? icon;
 
@@ -720,7 +675,6 @@ class _BestForTag extends StatelessWidget {
 
 class _PaymentType extends StatelessWidget {
   const _PaymentType({required this.icon, required this.label});
-
   final IconData icon;
   final String label;
 
@@ -729,9 +683,12 @@ class _PaymentType extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Color(0xFF848685)),
-        Gap(4),
-        Text(label, style: TextStyle(fontSize: 15, color: Color(0xFF848685))),
+        Icon(icon, color: const Color(0xFF848685)),
+        const Gap(4),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 15, color: Color(0xFF848685)),
+        ),
       ],
     );
   }
