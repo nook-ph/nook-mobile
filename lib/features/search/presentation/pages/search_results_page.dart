@@ -105,17 +105,6 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
               final isEmpty =
                   state.status == SearchStatus.success && state.cafes.isEmpty;
 
-              final results = state.cafes
-                  .map(
-                    (cafe) => {
-                      'name': cafe.name,
-                      'location': cafe.locationLabel,
-                      'distance': _formatDistance(cafe.distanceMeters),
-                      'image': cafe.coverImage,
-                    },
-                  )
-                  .toList();
-
               final showLocBanner =
                   state.locationDenied && !state.locationBannerDismissed;
 
@@ -129,7 +118,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Search bar row with back button ──
+                        // ── Search bar row ──
                         Row(
                           children: [
                             GestureDetector(
@@ -216,71 +205,79 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                             child: IgnorePointer(
                               ignoring: isLoading,
                               child: ListView.builder(
-                                itemCount: results.length,
+                                itemCount: state.cafes.length,
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemBuilder: (context, index) {
-                                  final item = results[index];
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 12,
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          width: 48,
-                                          height: 48,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade300,
-                                            borderRadius: BorderRadius.circular(
-                                              12,
+                                  final cafe = state.cafes[index];
+
+                                  return GestureDetector(
+                                    onTap: () =>
+                                        context.push('/cafe/${cafe.id}'),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: 48,
+                                            height: 48,
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey.shade300,
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              image: cafe.coverImage != null
+                                                  ? DecorationImage(
+                                                      image: NetworkImage(
+                                                        cafe.coverImage!,
+                                                      ),
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : null,
                                             ),
-                                            image: item['image'] != null
-                                                ? DecorationImage(
-                                                    image: NetworkImage(
-                                                      item['image']!,
-                                                    ),
-                                                    fit: BoxFit.cover,
-                                                  )
-                                                : null,
                                           ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              _buildHighlightedText(
-                                                textTheme,
-                                                item['name'] ?? '',
-                                                state.query,
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                item['location'] ?? '',
-                                                style: textTheme.bodySmall
-                                                    ?.copyWith(
-                                                      color:
-                                                          Colors.grey.shade500,
-                                                    ),
-                                              ),
-                                            ],
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                _buildHighlightedText(
+                                                  textTheme,
+                                                  cafe.name,
+                                                  state.query,
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  cafe.locationLabel,
+                                                  style: textTheme.bodySmall
+                                                      ?.copyWith(
+                                                        color: Colors
+                                                            .grey
+                                                            .shade500,
+                                                      ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Text(
-                                          item['distance'] ?? '',
-                                          style: textTheme.bodySmall?.copyWith(
-                                            color: Colors.grey.shade500,
-                                            fontWeight: FontWeight.w500,
+                                          const SizedBox(width: 12),
+                                          Text(
+                                            _formatDistance(
+                                              cafe.distanceMeters,
+                                            ),
+                                            style: textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: Colors.grey.shade500,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   );
                                 },
