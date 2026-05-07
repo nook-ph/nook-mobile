@@ -10,7 +10,14 @@ class SearchState extends Equatable {
   final String sort;
   final int page;
   final bool hasReachedMax;
-  final String? errorMessage;
+
+  /// Thrown object from last failed fetch (for [AppErrorCopy]).
+  final Object? lastError;
+
+  final bool locationDenied;
+
+  /// User dismissed banner until next successful fetch.
+  final bool locationBannerDismissed;
 
   const SearchState({
     this.status = SearchStatus.initial,
@@ -20,7 +27,9 @@ class SearchState extends Equatable {
     this.sort = 'nearby',
     this.page = 0,
     this.hasReachedMax = false,
-    this.errorMessage,
+    this.lastError,
+    this.locationDenied = false,
+    this.locationBannerDismissed = false,
   });
 
   SearchState copyWith({
@@ -31,7 +40,10 @@ class SearchState extends Equatable {
     String? sort,
     int? page,
     bool? hasReachedMax,
-    String? errorMessage,
+    Object? lastError,
+    bool? locationDenied,
+    bool? locationBannerDismissed,
+    bool clearLastError = false,
   }) {
     return SearchState(
       status: status ?? this.status,
@@ -41,7 +53,10 @@ class SearchState extends Equatable {
       sort: sort ?? this.sort,
       page: page ?? this.page,
       hasReachedMax: hasReachedMax ?? this.hasReachedMax,
-      errorMessage: errorMessage ?? this.errorMessage,
+      lastError: clearLastError ? null : lastError ?? this.lastError,
+      locationDenied: locationDenied ?? this.locationDenied,
+      locationBannerDismissed:
+          locationBannerDismissed ?? this.locationBannerDismissed,
     );
   }
 
@@ -54,6 +69,8 @@ class SearchState extends Equatable {
         sort,
         page,
         hasReachedMax,
-        errorMessage,
+        lastError,
+        locationDenied,
+        locationBannerDismissed,
       ];
 }

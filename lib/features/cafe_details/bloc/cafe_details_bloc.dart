@@ -32,7 +32,7 @@ class CafeDetailsBloc extends Bloc<CafeDetailsEvent, CafeDetailsState> {
 
       emit(CafeDetailsLoaded(result));
     } catch (e) {
-      emit(CafeDetailsError(e.toString()));
+      emit(CafeDetailsError(e));
     }
   }
 

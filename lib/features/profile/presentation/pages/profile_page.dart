@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/full_page_error_widget.dart';
+import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/lists/presentation/pages/list_page.dart';
@@ -74,137 +78,174 @@ class ProfilePage extends StatelessWidget {
         child: Scaffold(
           backgroundColor: Colors.white,
           body: SafeArea(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 24),
+            child: BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, profileState) {
+                if (profileState is ProfileError) {
+                  final info = AppErrorCopy.fromException(profileState.error);
+                  return FullPageErrorWidget(
+                    error: info,
+                    onRetry: info.type == ErrorType.sessionExpired
+                        ? () => context.push('/login')
+                        : () =>
+                            context.read<ProfileCubit>().loadProfile(),
+                  );
+                }
 
-                  BlocBuilder<ProfileCubit, ProfileState>(
-                    builder: (context, state) {
-                      if (state is ProfileLoading || state is ProfileInitial) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 22),
-                          child: SizedBox(
-                            height: 80,
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                        );
-                      }
-
-                      final name = state is ProfileLoaded
-                          ? state.name
-                          : 'No name';
-                      final email = state is ProfileLoaded
-                          ? state.email
-                          : 'No email';
-
-                      return ProfileHeroSection(name: name, email: email);
-                    },
-                  ),
-                  const SizedBox(height: 32),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 22),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          "Reviews",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        _SeeMoreLink(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ReviewsPage(),
+                return SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 24),
+                      BlocBuilder<ProfileCubit, ProfileState>(
+                        builder: (context, state) {
+                          if (state is ProfileLoading ||
+                              state is ProfileInitial) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 22),
+                              child: SizedBox(
+                                height: 80,
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
                               ),
                             );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+                          }
 
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 22),
-                    itemCount: visibleReviews
-                        .length, // replace with your actual review list length
-                    separatorBuilder: (_, _) => const SizedBox(height: 14),
-                    itemBuilder: (context, index) {
-                      final review = visibleReviews[index];
-                      return ReviewCard(
-                        name: review['name'] as String,
-                        date: review['date'] as String,
-                        rating: review['rating'] as double,
-                        reviewText: review['reviewText'] as String,
-                        photos: review['photos'] as List<String>,
-                      );
-                    },
-                  ),
+                          final name = state is ProfileLoaded
+                              ? state.name
+                              : 'No name';
+                          final email = state is ProfileLoaded
+                              ? state.email
+                              : 'No email';
 
-                  const SizedBox(height: 32),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 22),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Settings",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        _SettingsTile(
-                          label: 'My Lists',
-                          iconData: PhosphorIcons.bookmarkSimple(),
-                          iconColor: const Color(0xFF344E41),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => ListsPage()),
-                            );
-                          },
-                        ),
-                        const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                        _SettingsTile(
-                          label: 'Edit Profile',
-                          iconData: PhosphorIcons.caretRight(),
-                          iconColor: const Color(0xFF344E41),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const EditProfilePage(),
+                          return ProfileHeroSection(
+                            name: name,
+                            email: email,
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 32),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Reviews',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
                               ),
+                            ),
+                            _SeeMoreLink(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const ReviewsPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (visibleReviews.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(
+                            left: 22,
+                            right: 22,
+                            top: 8,
+                          ),
+                          child: SectionEmptyWidget(
+                            title: 'No reviews yet',
+                            subtitle:
+                                'When you share reviews, they will appear here.',
+                            icon: Icons.chat_bubble_outline,
+                          ),
+                        )
+                      else
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 22),
+                          itemCount: visibleReviews.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 14),
+                          itemBuilder: (context, index) {
+                            final review = visibleReviews[index];
+                            return ReviewCard(
+                              name: review['name'] as String,
+                              date: review['date'] as String,
+                              rating: review['rating'] as double,
+                              reviewText: review['reviewText'] as String,
+                              photos: review['photos'] as List<String>,
                             );
                           },
                         ),
-                        const Divider(height: 1, color: Color(0xFFE0E0E0)),
-                        _SettingsTile(
-                          label: 'Logout',
-                          iconData: PhosphorIcons.signOut(),
-                          iconColor: Colors.red,
-                          labelColor: Colors.black,
-                          onTap: () => _showLogoutDialog(context),
+                      const SizedBox(height: 32),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 22),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Settings',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _SettingsTile(
+                              label: 'My Lists',
+                              iconData: PhosphorIcons.bookmarkSimple(),
+                              iconColor: const Color(0xFF344E41),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ListsPage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            const Divider(
+                              height: 1,
+                              color: Color(0xFFE0E0E0),
+                            ),
+                            _SettingsTile(
+                              label: 'Edit Profile',
+                              iconData: PhosphorIcons.caretRight(),
+                              iconColor: const Color(0xFF344E41),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const EditProfilePage(),
+                                  ),
+                                );
+                              },
+                            ),
+                            const Divider(
+                              height: 1,
+                              color: Color(0xFFE0E0E0),
+                            ),
+                            _SettingsTile(
+                              label: 'Logout',
+                              iconData: PhosphorIcons.signOut(),
+                              iconColor: Colors.red,
+                              labelColor: Colors.black,
+                              onTap: () => _showLogoutDialog(context),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-
-                  const SizedBox(height: 32),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ),

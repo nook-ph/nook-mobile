@@ -22,7 +22,7 @@ class ListCafesLoaded extends ListsState {
 }
 
 class ListsError extends ListsState {
-  final String message;
+  final Object error;
 
-  ListsError(this.message);
+  ListsError(this.error);
 }

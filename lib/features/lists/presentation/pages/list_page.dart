@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
@@ -34,7 +38,8 @@ class _ListsPageState extends State<ListsPage> {
     return BlocListener<ListsBloc, ListsState>(
       listener: (context, state) {
         if (state is ListsError) {
-          showPrimaryToast(context, state.message);
+          final info = AppErrorCopy.fromException(state.error);
+          showPrimaryToast(context, '${info.title} · ${info.subtitle}');
           _pendingRenameName = null;
           _pendingDeleteName = null;
           return;
@@ -83,7 +88,13 @@ class _ListsPageState extends State<ListsPage> {
             }
 
             if (state is ListsError && lists.isEmpty) {
-              return _buildMessage(state.message);
+              final info = AppErrorCopy.fromException(state.error);
+              return FullPageErrorWidget(
+                error: info,
+                onRetry: info.type == ErrorType.sessionExpired
+                    ? () => context.push('/login')
+                    : () => listsBloc.add(LoadUserLists()),
+              );
             }
 
             return ListView(
@@ -185,19 +196,6 @@ class _ListsPageState extends State<ListsPage> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildMessage(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 15, color: Color(0xFF848586)),
-        ),
-      ),
     );
   }
 
@@ -414,13 +412,13 @@ class _CreateListSheetState extends State<_CreateListSheet> {
 
         if (state is ListsError) {
           debugPrint(
-            '[ListsPage] CreateList emitted ListsError '
-            'message=${state.message}',
+            '[ListsPage] CreateList emitted ListsError error=${state.error}',
           );
           if (mounted) {
             setState(() => _isLoading = false);
           }
-          showPrimaryToast(context, state.message);
+          final info = AppErrorCopy.fromException(state.error);
+          showPrimaryToast(context, '${info.title} · ${info.subtitle}');
         }
       },
       child: Padding(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_category_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_item_variants_sheet.dart';
@@ -33,7 +34,6 @@ class MenuFullPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        // Removed title from here
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
@@ -57,102 +57,112 @@ class MenuFullPage extends StatelessWidget {
               ),
             ),
           ),
+          if (menuItems.isEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 22.0),
+              child: SectionEmptyWidget(
+                title: 'No menu posted yet',
+                subtitle:
+                    'This cafe has not shared a menu. Check back later.',
+                icon: Icons.restaurant_menu_outlined,
+              ),
+            ),
+          ] else ...[
+            if (highlights.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 178,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  itemCount: highlights.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final item = highlights[index];
 
-          // ------------------------------
-          if (highlights.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 178,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 22),
-                itemCount: highlights.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (context, index) {
-                  final item = highlights[index];
-
-                  final card = Container(
-                    width: cardWidth,
-                    height: 178,
-                    clipBehavior: Clip.hardEdge,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFFE0E0E0),
-                        width: 1.0,
+                    final card = Container(
+                      width: cardWidth,
+                      height: 178,
+                      clipBehavior: Clip.hardEdge,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFFE0E0E0),
+                          width: 1.0,
+                        ),
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child:
-                              item.imageUrl != null && item.imageUrl!.isNotEmpty
-                              ? Image.network(
-                                  item.imageUrl!,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child:
+                                item.imageUrl != null && item.imageUrl!.isNotEmpty
+                                ? Image.network(
+                                    item.imageUrl!,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      color: const Color(0xFFF5F5F5),
+                                      alignment: Alignment.center,
+                                      child: const Icon(
+                                        Icons.image_not_supported_outlined,
+                                        color: Color(0xFFBDBDBD),
+                                      ),
+                                    ),
+                                  )
+                                : Container(
                                     color: const Color(0xFFF5F5F5),
                                     alignment: Alignment.center,
                                     child: const Icon(
-                                      Icons.image_not_supported_outlined,
+                                      Icons.image_outlined,
                                       color: Color(0xFFBDBDBD),
                                     ),
                                   ),
-                                )
-                              : Container(
-                                  color: const Color(0xFFF5F5F5),
-                                  alignment: Alignment.center,
-                                  child: const Icon(
-                                    Icons.image_outlined,
-                                    color: Color(0xFFBDBDBD),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 15),
                                   ),
-                                ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 15),
-                                ),
-                                const Gap(2),
-                                Text(
-                                  '₱${item.displayPrice}',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    color: Colors.black,
+                                  const Gap(2),
+                                  Text(
+                                    '₱${item.displayPrice}',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.black,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
+                        ],
+                      ),
+                    );
 
-                  if (!item.hasVariants) {
-                    return card;
-                  }
+                    if (!item.hasVariants) {
+                      return card;
+                    }
 
-                  return GestureDetector(
-                    onTap: () => MenuItemVariantsSheet.show(context, item),
-                    child: card,
-                  );
-                },
+                    return GestureDetector(
+                      onTap: () => MenuItemVariantsSheet.show(context, item),
+                      child: card,
+                    );
+                  },
+                ),
               ),
-            ),
 
-            const Gap(24),
+              const Gap(24),
+            ],
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22),

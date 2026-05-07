@@ -47,6 +47,13 @@ class SaveToListCubit extends Cubit<SaveToListState> {
   final LastSavedListStore lastSavedListStore;
   final CurrentUserIdGetter currentUserId;
 
+  void acknowledgeListActionError() {
+    final s = state;
+    if (s is SaveToListLoaded && s.listActionError != null) {
+      emit(s.copyWith(clearListActionError: true));
+    }
+  }
+
   Future<void> load(String cafeId) async {
     emit(SaveToListLoading());
 
@@ -64,8 +71,8 @@ class SaveToListCubit extends Cubit<SaveToListState> {
           pendingListIds: const {},
         ),
       );
-    } catch (_) {
-      emit(SaveToListError('Unable to load your lists. Please try again.'));
+    } catch (e) {
+      emit(SaveToListError(e));
     }
   }
 
@@ -92,7 +99,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
       current.copyWith(
         savedListIds: optimisticSavedListIds,
         pendingListIds: {...current.pendingListIds, listId},
-        clearErrorMessage: true,
+        clearListActionError: true,
       ),
     );
 
@@ -113,10 +120,10 @@ class SaveToListCubit extends Cubit<SaveToListState> {
           lists: refreshedLists,
           pendingListIds: pending,
           refreshNonce: latest.refreshNonce + 1,
-          clearErrorMessage: true,
+          clearListActionError: true,
         ),
       );
-    } catch (_) {
+    } catch (e) {
       final latest = state;
       if (latest is! SaveToListLoaded) return;
       final pending = Set<String>.from(latest.pendingListIds)..remove(listId);
@@ -124,9 +131,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
         latest.copyWith(
           savedListIds: previousSavedListIds,
           pendingListIds: pending,
-          errorMessage: wasSaved
-              ? 'Unable to remove this cafe from the list.'
-              : 'Unable to save this cafe to the list.',
+          listActionError: e,
         ),
       );
     }
@@ -140,7 +145,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     final current = state;
     if (current is! SaveToListLoaded || current.isCreating) return;
 
-    emit(current.copyWith(isCreating: true, clearErrorMessage: true));
+    emit(current.copyWith(isCreating: true, clearListActionError: true));
 
     try {
       final listId = await createListUseCase(
@@ -160,16 +165,16 @@ class SaveToListCubit extends Cubit<SaveToListState> {
           savedListIds: savedListIds,
           isCreating: false,
           refreshNonce: current.refreshNonce + 1,
-          clearErrorMessage: true,
+          clearListActionError: true,
         ),
       );
-    } catch (_) {
+    } catch (e) {
       final latest = state;
       if (latest is! SaveToListLoaded) return;
       emit(
         latest.copyWith(
           isCreating: false,
-          errorMessage: 'Failed to create list. Please try again.',
+          listActionError: e,
         ),
       );
     }
@@ -201,7 +206,7 @@ class SaveToListLoaded extends SaveToListState {
     required Set<String> savedListIds,
     required Set<String> pendingListIds,
     this.isCreating = false,
-    this.errorMessage,
+    this.listActionError,
     this.refreshNonce = 0,
   }) : savedListIds = Set.unmodifiable(savedListIds),
        pendingListIds = Set.unmodifiable(pendingListIds);
@@ -210,7 +215,7 @@ class SaveToListLoaded extends SaveToListState {
   final Set<String> savedListIds;
   final Set<String> pendingListIds;
   final bool isCreating;
-  final String? errorMessage;
+  final Object? listActionError;
   final int refreshNonce;
 
   SaveToListLoaded copyWith({
@@ -218,8 +223,8 @@ class SaveToListLoaded extends SaveToListState {
     Set<String>? savedListIds,
     Set<String>? pendingListIds,
     bool? isCreating,
-    String? errorMessage,
-    bool clearErrorMessage = false,
+    Object? listActionError,
+    bool clearListActionError = false,
     int? refreshNonce,
   }) {
     return SaveToListLoaded(
@@ -227,16 +232,16 @@ class SaveToListLoaded extends SaveToListState {
       savedListIds: savedListIds ?? this.savedListIds,
       pendingListIds: pendingListIds ?? this.pendingListIds,
       isCreating: isCreating ?? this.isCreating,
-      errorMessage: clearErrorMessage
+      listActionError: clearListActionError
           ? null
-          : errorMessage ?? this.errorMessage,
+          : listActionError ?? this.listActionError,
       refreshNonce: refreshNonce ?? this.refreshNonce,
     );
   }
 }
 
 class SaveToListError extends SaveToListState {
-  SaveToListError(this.message);
+  SaveToListError(this.error);
 
-  final String message;
+  final Object error;
 }

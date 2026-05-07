@@ -16,6 +16,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   }) : super(MapInitialState()) {
     on<LoadMapDataEvent>(_onLoadMapData);
     on<LoadFilterTagsEvent>(_onLoadFilterTags);
+    on<MapDismissLocationBannerEvent>(_onDismissLocationBanner);
   }
 
   Future<void> _onLoadMapData(
@@ -28,9 +29,16 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       final currentTags = state is MapLoadedState
           ? (state as MapLoadedState).tags
           : <CafeTagsEntity>[];
-      emit(MapLoadedState(cafes: result.cafes, tags: currentTags));
+      emit(
+        MapLoadedState(
+          cafes: result.cafes,
+          tags: currentTags,
+          locationDenied: result.locationDenied,
+          locationBannerDismissed: false,
+        ),
+      );
     } catch (e) {
-      emit(MapError(e.toString()));
+      emit(MapError(e));
     }
   }
 
@@ -40,12 +48,27 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   ) async {
     try {
       final tags = await getFilterTagsUseCase.call();
-      final currentCafes = state is MapLoadedState
-          ? (state as MapLoadedState).cafes
-          : <CafeSummary>[];
-      emit(MapLoadedState(cafes: currentCafes, tags: tags));
+      final current = state;
+      if (current is MapLoadedState) {
+        emit(current.copyWith(tags: tags));
+      } else {
+        final currentCafes = current is MapLoadedState
+            ? current.cafes
+            : <CafeSummary>[];
+        emit(MapLoadedState(cafes: currentCafes, tags: tags));
+      }
     } catch (e) {
-      emit(MapError(e.toString()));
+      emit(MapError(e));
+    }
+  }
+
+  void _onDismissLocationBanner(
+    MapDismissLocationBannerEvent event,
+    Emitter<MapState> emit,
+  ) {
+    final s = state;
+    if (s is MapLoadedState) {
+      emit(s.copyWith(locationBannerDismissed: true));
     }
   }
 }

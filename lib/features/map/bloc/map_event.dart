@@ -8,3 +8,5 @@ class LoadMapDataEvent extends MapEvent {
 }
 
 class LoadFilterTagsEvent extends MapEvent {}
+
+class MapDismissLocationBannerEvent extends MapEvent {}

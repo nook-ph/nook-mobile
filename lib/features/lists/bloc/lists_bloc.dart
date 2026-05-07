@@ -59,7 +59,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
 
       emit(ListsLoaded(lists));
     } catch (e) {
-      emit(ListsError('Failed to load your lists. Please try again.'));
+      emit(ListsError(e));
     }
   }
 
@@ -85,7 +85,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
 
       emit(ListCafesLoaded(targetList, cafes.cast()));
     } catch (e) {
-      emit(ListsError('Failed to load cafes for this list. Please try again.'));
+      emit(ListsError(e));
     }
   }
 
@@ -106,7 +106,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     } catch (e, st) {
       debugPrint('[ListsBloc] CreateList failed error=$e');
       debugPrint('[ListsBloc] CreateList stackTrace=$st');
-      emit(ListsError('Failed to create list. Please try again.'));
+      emit(ListsError(e));
     }
   }
 
@@ -117,7 +117,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       add(LoadUserLists());
     } catch (e, st) {
       debugPrint('[ListsBloc] RenameList failed error=$e stackTrace=$st');
-      emit(ListsError('Failed to rename list. Please try again.'));
+      emit(ListsError(e));
     }
   }
 
@@ -128,7 +128,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       add(LoadUserLists());
     } catch (e, st) {
       debugPrint('[ListsBloc] DeleteList failed error=$e stackTrace=$st');
-      emit(ListsError('Failed to delete list. Please try again.'));
+      emit(ListsError(e));
     }
   }
 
@@ -146,7 +146,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
         }
       }
     } catch (e) {
-      emit(ListsError('Failed to save cafe. Please try again.'));
+      emit(ListsError(e));
     }
   }
 
@@ -164,7 +164,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
         }
       }
     } catch (e) {
-      emit(ListsError('Failed to remove cafe. Please try again.'));
+      emit(ListsError(e));
     }
   }
 }

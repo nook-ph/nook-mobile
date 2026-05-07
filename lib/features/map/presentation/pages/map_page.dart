@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
@@ -14,6 +15,10 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/features/search/presentation/widgets/search_entry_button.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/full_page_error_widget.dart';
+import 'package:nook/core/widgets/error/location_denied_banner.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -173,16 +178,42 @@ class _MapPageState extends State<MapPage> {
                         ? BottomModalSheet(
                             cafes: const [],
                             tags: const [],
+                            isLoadingCafes: true,
                             onMetricsChanged: _onSheetMetricsChanged,
                           )
                         : state is MapLoadedState
                         ? BottomModalSheet(
                             cafes: state.cafes,
                             tags: state.tags,
+                            isLoadingCafes: false,
                             onMetricsChanged: _onSheetMetricsChanged,
                           )
                         : state is MapError
-                        ? Center(child: Text(state.message))
+                        ? Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Builder(
+                                builder: (ctx) {
+                                  final info = AppErrorCopy.fromException(
+                                    state.error,
+                                  );
+                                  final filter =
+                                      ctx.read<FilterCubit>().state;
+                                  return FullPageErrorWidget(
+                                    error: info,
+                                    onRetry: info.type ==
+                                            ErrorType.sessionExpired
+                                        ? () => ctx.push('/login')
+                                        : () => ctx.read<MapBloc>().add(
+                                              LoadMapDataEvent(
+                                                filter: filter,
+                                              ),
+                                            ),
+                                  );
+                                },
+                              ),
+                            ),
+                          )
                         : const SizedBox.shrink(),
                   ),
                 Positioned(
@@ -191,9 +222,24 @@ class _MapPageState extends State<MapPage> {
                   right: 0,
                   child: SafeArea(
                     bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 8, 22, 0),
-                      child: const SearchEntryButton(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (state is MapLoadedState &&
+                            state.locationDenied &&
+                            !state.locationBannerDismissed)
+                          LocationDeniedBanner(
+                            visible: true,
+                            onDismiss: () => context.read<MapBloc>().add(
+                              MapDismissLocationBannerEvent(),
+                            ),
+                          ),
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(22, 8, 22, 0),
+                          child: SearchEntryButton(),
+                        ),
+                      ],
                     ),
                   ),
                 ),
