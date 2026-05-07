@@ -9,6 +9,7 @@ import 'package:nook/injection_container.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_location_map_preview.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -556,14 +557,29 @@ class CafeInfo extends StatelessWidget {
 
               const Gap(16),
 
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  'assets/images/Frame 181(1).png',
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+              Builder(
+                builder: (context) {
+                  final details = cafe?.cafeDetails;
+                  if (details != null &&
+                      MapsDirectionsLauncher.hasValidCoordinates(
+                        details.lat,
+                        details.lng,
+                      )) {
+                    return CafeLocationMapPreview(
+                      lat: details.lat,
+                      lng: details.lng,
+                    );
+                  }
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.asset(
+                      'assets/images/Frame 181(1).png',
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  );
+                },
               ),
 
               const Gap(16),

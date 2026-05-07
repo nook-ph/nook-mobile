@@ -671,7 +671,15 @@ class CafeRemoteDataSource {
       params: {'p_cafe_id': cafeId},
     );
 
-    return (rpcResponse as List)
+    // RPC may return null when the cafe has no menu rows (Postgres / SQL).
+    if (rpcResponse == null) {
+      return const [];
+    }
+    if (rpcResponse is! List) {
+      return const [];
+    }
+
+    return rpcResponse
         .whereType<Map>()
         .map((item) => Map<String, dynamic>.from(item))
         .toList();
