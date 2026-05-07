@@ -317,6 +317,11 @@ class _FakeCafeRepository implements ICafeRepository {
   }
 
   @override
+  Future<List<WrittenReview>> getReviewsWrittenByUser(String userId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<CafeSummary>> getCafes(CafeQuery query) {
     throw UnimplementedError();
   }

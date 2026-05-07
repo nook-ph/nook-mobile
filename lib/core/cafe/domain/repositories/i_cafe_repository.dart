@@ -31,6 +31,8 @@ abstract class ICafeRepository {
     int? ratingFilter,
   });
 
+  Future<List<WrittenReview>> getReviewsWrittenByUser(String userId);
+
   Future<void> toggleHelpfulVote(
     String reviewId,
     String userId,

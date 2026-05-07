@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 import 'package:nook/core/cafe/data/cafe_summary_model.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
@@ -212,6 +211,50 @@ class CafeRemoteDataSource {
       if (e is CafeFetchException) rethrow;
       throw CafeFetchException(
         'Failed to fetch cafe reviews for id "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Reviews authored by [userId], newest first, with embedded cafe name.
+  Future<List<Map<String, dynamic>>> fetchReviewsWrittenByUser(
+    String userId,
+  ) async {
+    try {
+      final response = await supabase
+          .from('reviews')
+          .select('''
+            id,
+            cafe_id,
+            user_id,
+            rating,
+            content,
+            image_urls,
+            created_at,
+            updated_at,
+            cafes!reviews_cafe_id_fkey (
+              name
+            )
+          ''')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      final list = response as List;
+      return list
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch reviews written by user "$userId".',
+        cause: e,
+        stackTrace: st,
+      );
+    } catch (e, st) {
+      if (e is CafeFetchException) rethrow;
+      throw CafeFetchException(
+        'Failed to fetch reviews written by user "$userId".',
         cause: e,
         stackTrace: st,
       );
@@ -524,11 +567,7 @@ class CafeRemoteDataSource {
           .from('lists')
           .update({'cover_image_url': coverUrl})
           .eq('id', listId);
-    } catch (e, st) {
-      debugPrint(
-        '[Lists] cover_image_url refresh failed for list="$listId": $e\n$st',
-      );
-    }
+    } catch (_) {}
   }
 
   Future<void> removeCafeFromList(String listId, String cafeId) async {
@@ -598,31 +637,18 @@ class CafeRemoteDataSource {
 
   Future<String> createList({required String name, String? description}) async {
     try {
-      debugPrint(
-        '[Lists] RPC create_new_list start '
-        'nameLength=${name.trim().length} '
-        'hasDescription=${description?.trim().isNotEmpty == true}',
-      );
       final response = await supabase.rpc(
         'create_new_list',
         params: {'list_name': name, 'list_description': description},
       );
-      debugPrint('[Lists] RPC create_new_list success response=$response');
       return response as String;
     } on PostgrestException catch (e, st) {
-      debugPrint(
-        '[Lists] RPC create_new_list PostgrestException '
-        'code=${e.code} message=${e.message} details=${e.details} hint=${e.hint}',
-      );
-      debugPrint('[Lists] RPC create_new_list stackTrace=$st');
       throw CafeFetchException(
         'Failed to create list "$name".',
         cause: e,
         stackTrace: st,
       );
     } catch (e, st) {
-      debugPrint('[Lists] RPC create_new_list unexpected error=$e');
-      debugPrint('[Lists] RPC create_new_list stackTrace=$st');
       throw CafeFetchException(
         'Failed to create list "$name".',
         cause: e,

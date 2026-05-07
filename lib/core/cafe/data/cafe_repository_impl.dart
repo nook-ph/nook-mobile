@@ -143,6 +143,67 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
+  Future<List<WrittenReview>> getReviewsWrittenByUser(String userId) async {
+    final rows = await remoteDataSource.fetchReviewsWrittenByUser(userId);
+    return rows.map(_mapWrittenReviewRow).toList();
+  }
+
+  WrittenReview _mapWrittenReviewRow(Map<String, dynamic> json) {
+    final cafeRaw = json['cafes'] ?? json['cafe'];
+    var cafeName = 'Cafe';
+    if (cafeRaw is Map) {
+      final m = Map<String, dynamic>.from(cafeRaw);
+      final n = m['name']?.toString().trim();
+      if (n != null && n.isNotEmpty) {
+        cafeName = n;
+      }
+    } else if (cafeRaw is List && cafeRaw.isNotEmpty) {
+      final first = cafeRaw.first;
+      if (first is Map) {
+        final m = Map<String, dynamic>.from(first);
+        final n = m['name']?.toString().trim();
+        if (n != null && n.isNotEmpty) {
+          cafeName = n;
+        }
+      }
+    }
+
+    return WrittenReview(
+      id: json['id']?.toString() ?? '',
+      cafeId: json['cafe_id']?.toString() ?? '',
+      cafeName: cafeName,
+      rating: _writtenReviewRating(json['rating']),
+      content: json['content']?.toString() ?? '',
+      imageUrls: _writtenReviewStringList(json['image_urls']),
+      createdAt: _writtenReviewDateTime(json['created_at']),
+      updatedAt: _writtenReviewDateTime(json['updated_at']),
+    );
+  }
+
+  static int _writtenReviewRating(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.round();
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  static List<String> _writtenReviewStringList(dynamic value) {
+    if (value == null) return const [];
+    if (value is List) {
+      return value.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    }
+    return const [];
+  }
+
+  static DateTime _writtenReviewDateTime(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  @override
   Future<void> toggleHelpfulVote(
     String reviewId,
     String userId,

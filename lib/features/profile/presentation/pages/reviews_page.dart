@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
+import 'package:nook/injection_container.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReviewsPage extends StatefulWidget {
   const ReviewsPage({super.key});
@@ -9,39 +13,76 @@ class ReviewsPage extends StatefulWidget {
 }
 
 class _ReviewsPageState extends State<ReviewsPage> {
-  int? _selectedStar; // null = all
+  int? _selectedStar;
   String _sortBy = 'Most Recent';
 
-  final List<String> _sortOptions = ['Most Recent', 'Oldest', 'Highest Rated', 'Lowest Rated'];
-
-  final List<Map<String, dynamic>> _allReviews = [
-    {'name': 'Name Name Name', 'date': '03/01/25', 'rating': 5.0, 'reviewText': 'Absolutely amazing experience!', 'photos': <String>[]},
-    {'name': 'Name Name Name', 'date': '02/28/25', 'rating': 4.9, 'reviewText': 'The quick brown fox jumps over the lazy dog.', 'photos': <String>[]},
-    {'name': 'Name Name Name', 'date': '02/20/25', 'rating': 4.0, 'reviewText': 'Pretty good overall, would recommend.', 'photos': <String>[]},
-    {'name': 'Name Name Name', 'date': '02/10/25', 'rating': 3.5, 'reviewText': 'It was okay, nothing too special.', 'photos': <String>[]},
-    {'name': 'Name Name Name', 'date': '01/30/25', 'rating': 3.0, 'reviewText': 'Average experience, met expectations.', 'photos': <String>[]},
-    {'name': 'Name Name Name', 'date': '01/15/25', 'rating': 2.0, 'reviewText': 'A bit disappointing honestly.', 'photos': <String>[]},
-    {'name': 'Name Name Name', 'date': '01/05/25', 'rating': 1.0, 'reviewText': 'Would not visit again.', 'photos': <String>[]},
+  final List<String> _sortOptions = [
+    'Most Recent',
+    'Oldest',
+    'Highest Rated',
+    'Lowest Rated',
   ];
 
-  List<Map<String, dynamic>> get _filteredReviews {
-    List<Map<String, dynamic>> result = [..._allReviews];
+  List<WrittenReview> _allReviews = const [];
+  bool _loading = true;
+  Object? _loadError;
 
-    // filter
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      setState(() {
+        _allReviews = const [];
+        _loading = false;
+      });
+      return;
+    }
+
+    try {
+      final list = await sl<GetReviewsWrittenByUserUseCase>()(userId);
+      if (!mounted) return;
+      setState(() {
+        _allReviews = list;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e;
+        _allReviews = const [];
+        _loading = false;
+      });
+    }
+  }
+
+  List<WrittenReview> get _filteredReviews {
+    List<WrittenReview> result = [..._allReviews];
+
     if (_selectedStar != null) {
       result = result.where((r) {
-        final rating = r['rating'] as double;
+        final rating = r.rating.toDouble();
         return rating >= _selectedStar! && rating < _selectedStar! + 1;
       }).toList();
     }
 
-    // sort
     if (_sortBy == 'Highest Rated') {
-      result.sort((a, b) => (b['rating'] as double).compareTo(a['rating'] as double));
+      result.sort((a, b) => b.rating.compareTo(a.rating));
     } else if (_sortBy == 'Lowest Rated') {
-      result.sort((a, b) => (a['rating'] as double).compareTo(b['rating'] as double));
+      result.sort((a, b) => a.rating.compareTo(b.rating));
     } else if (_sortBy == 'Oldest') {
-      result = result.reversed.toList();
+      result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    } else {
+      result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     }
 
     return result;
@@ -74,15 +115,11 @@ class _ReviewsPageState extends State<ReviewsPage> {
       ),
       body: Column(
         children: [
-
-          // --- Filters ---
           Padding(
             padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                // Star filter chips
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -107,10 +144,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
-                // Sort dropdown
                 Row(
                   children: [
                     const Text(
@@ -155,51 +189,89 @@ class _ReviewsPageState extends State<ReviewsPage> {
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 12),
                 const Divider(height: 1, color: Color(0xFFEEEEEE)),
               ],
             ),
           ),
-
-          // --- Reviews List ---
           Expanded(
-            child: reviews.isEmpty
-                ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.rate_review_outlined, size: 48, color: Colors.grey),
-                  SizedBox(height: 12),
-                  Text(
-                    'No reviews found.',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                ],
-              ),
-            )
-                : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
-              itemCount: reviews.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 14),
-              itemBuilder: (context, index) {
-                final review = reviews[index];
-                return ReviewCard(
-                  name: review['name'] as String,
-                  date: review['date'] as String,
-                  rating: review['rating'] as double,
-                  reviewText: review['reviewText'] as String,
-                  photos: review['photos'] as List<String>,
-                );
-              },
-            ),
+            child: _buildBody(reviews),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildBody(List<WrittenReview> reviews) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_loadError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+              const SizedBox(height: 12),
+              Text(
+                'Could not load reviews.',
+                style: TextStyle(color: Colors.grey[800], fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: _loadReviews,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (reviews.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.rate_review_outlined, size: 48, color: Colors.grey),
+            SizedBox(height: 12),
+            Text(
+              'No reviews found.',
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
+      itemCount: reviews.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 14),
+      itemBuilder: (context, index) {
+        final review = reviews[index];
+        return ReviewCard(
+          name: review.cafeName,
+          date: _formatReviewDate(review.createdAt),
+          rating: review.rating.toDouble(),
+          reviewText: review.content,
+          photos: review.imageUrls,
+        );
+      },
+    );
+  }
 }
 
+String _formatReviewDate(DateTime date) {
+  final mm = date.month.toString().padLeft(2, '0');
+  final dd = date.day.toString().padLeft(2, '0');
+  final yy = (date.year % 100).toString().padLeft(2, '0');
+  return '$mm/$dd/$yy';
+}
 
 class _StarChip extends StatelessWidget {
   final String label;
