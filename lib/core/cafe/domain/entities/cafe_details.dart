@@ -125,3 +125,26 @@ class Review {
     this.hasVoted = false,
   });
 }
+
+/// A review authored by a user, with cafe context for profile / "my reviews" UIs.
+class WrittenReview {
+  final String id;
+  final String cafeId;
+  final String cafeName;
+  final int rating;
+  final String content;
+  final List<String> imageUrls;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const WrittenReview({
+    required this.id,
+    required this.cafeId,
+    required this.cafeName,
+    required this.rating,
+    required this.content,
+    this.imageUrls = const [],
+    required this.createdAt,
+    required this.updatedAt,
+  });
+}

@@ -12,6 +12,7 @@ import 'package:nook/core/cafe/domain/use_cases/create_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_list_memberships_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_reviews_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafes_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_user_lists_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/remove_cafe_from_list_usecase.dart';
@@ -107,6 +108,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetCafeReviewsUseCase>(
     () => GetCafeReviewsUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<GetReviewsWrittenByUserUseCase>(
+    () => GetReviewsWrittenByUserUseCase(sl<ICafeRepository>()),
   );
   sl.registerLazySingleton<AddReviewUseCase>(
     () => AddReviewUseCase(sl<ICafeRepository>()),

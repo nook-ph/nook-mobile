@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
@@ -13,6 +15,8 @@ import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/injection_container.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 class ProfilePage extends StatelessWidget {
@@ -20,48 +24,11 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reviews = [
-      {
-        'name': 'Name Name Name',
-        'date': '00/00/00',
-        'rating': 4.9,
-        'reviewText': 'The quick brown fox jumps over the lazy dog.',
-        'photos': <String>[],
-      },
-      {
-        'name': 'Name Name Name',
-        'date': '00/00/00',
-        'rating': 4.9,
-        'reviewText': 'The quick brown fox jumps over the lazy dog.',
-        'photos': <String>[],
-      },
-      {
-        'name': 'Name Name Name',
-        'date': '00/00/00',
-        'rating': 3.5,
-        'reviewText': 'The quick brown fox jumps over the lazy dog.',
-        'photos': <String>[],
-      },
-      {
-        'name': 'Name Name Name',
-        'date': '00/00/00',
-        'rating': 5.0,
-        'reviewText': 'The quick brown fox jumps over the lazy dog.',
-        'photos': <String>[],
-      },
-      {
-        'name': 'Name Name Name',
-        'date': '00/00/00',
-        'rating': 2.0,
-        'reviewText': 'Extra review that should not show.',
-        'photos': <String>[],
-      },
-    ];
-
-    final visibleReviews = reviews.take(4).toList();
     return BlocProvider(
-      create: (_) =>
-          ProfileCubit(client: Supabase.instance.client)..loadProfile(),
+      create: (_) => ProfileCubit(
+        client: Supabase.instance.client,
+        getReviewsWrittenByUser: sl<GetReviewsWrittenByUserUseCase>(),
+      )..loadProfile(),
       child: BlocListener<AuthBloc, AuthState>(
         listener: (context, state) {
           if (state is AuthAuthenticated) {
@@ -91,6 +58,13 @@ class ProfilePage extends StatelessWidget {
                   );
                 }
 
+                final isReviewsLoading = profileState is ProfileLoading ||
+                    profileState is ProfileInitial;
+                final writtenReviews = profileState is ProfileLoaded
+                    ? profileState.reviews
+                    : const <WrittenReview>[];
+                final visibleReviews = writtenReviews.take(4).toList();
+
                 return SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,12 +74,17 @@ class ProfilePage extends StatelessWidget {
                         builder: (context, state) {
                           if (state is ProfileLoading ||
                               state is ProfileInitial) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 22),
-                              child: SizedBox(
-                                height: 80,
-                                child: Center(
-                                  child: CircularProgressIndicator(),
+                            return Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 22),
+                              child: Skeletonizer(
+                                enabled: true,
+                                effect: const PulseEffect(),
+                                child: IgnorePointer(
+                                  child: ProfileHeroSection(
+                                    name: 'Display name placeholder',
+                                    email: 'email.address.placeholder@example.com',
+                                  ),
                                 ),
                               ),
                             );
@@ -138,30 +117,57 @@ class ProfilePage extends StatelessWidget {
                               ),
                             ),
                             _SeeMoreLink(
-                              onTap: () {
-                                Navigator.push(
+                              onTap: () async {
+                                await Navigator.push<void>(
                                   context,
-                                  MaterialPageRoute(
+                                  MaterialPageRoute<void>(
                                     builder: (_) => const ReviewsPage(),
                                   ),
                                 );
+                                if (!context.mounted) return;
+                                context.read<ProfileCubit>().loadProfile();
                               },
                             ),
                           ],
                         ),
                       ),
-                      if (visibleReviews.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(
-                            left: 22,
-                            right: 22,
-                            top: 8,
+                      if (isReviewsLoading)
+                        Skeletonizer(
+                          enabled: true,
+                          effect: const PulseEffect(),
+                          child: IgnorePointer(
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 22),
+                              itemCount: 3,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 14),
+                              itemBuilder: (context, index) {
+                                return const ReviewCard(
+                                  name: 'Cafe name placeholder',
+                                  date: '00/00/00',
+                                  rating: 4.5,
+                                  reviewText:
+                                      'Review body placeholder text for skeleton layout while loading.',
+                                  photos: [],
+                                );
+                              },
+                            ),
                           ),
-                          child: SectionEmptyWidget(
-                            title: 'No reviews yet',
-                            subtitle:
-                                'When you share reviews, they will appear here.',
-                            icon: Icons.chat_bubble_outline,
+                        )
+                      else if (visibleReviews.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.fromLTRB(22, 8, 22, 0),
+                          child: SizedBox(
+                            width: double.infinity,
+                            child: SectionEmptyWidget(
+                              title: 'No reviews yet',
+                              subtitle:
+                                  'When you share reviews, they will appear here.',
+                              icon: Icons.chat_bubble_outline,
+                            ),
                           ),
                         )
                       else
@@ -175,11 +181,11 @@ class ProfilePage extends StatelessWidget {
                           itemBuilder: (context, index) {
                             final review = visibleReviews[index];
                             return ReviewCard(
-                              name: review['name'] as String,
-                              date: review['date'] as String,
-                              rating: review['rating'] as double,
-                              reviewText: review['reviewText'] as String,
-                              photos: review['photos'] as List<String>,
+                              name: review.cafeName,
+                              date: _formatReviewDate(review.createdAt),
+                              rating: review.rating.toDouble(),
+                              reviewText: review.content,
+                              photos: review.imageUrls,
                             );
                           },
                         ),
@@ -398,6 +404,13 @@ class _SettingsTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatReviewDate(DateTime date) {
+  final mm = date.month.toString().padLeft(2, '0');
+  final dd = date.day.toString().padLeft(2, '0');
+  final yy = (date.year % 100).toString().padLeft(2, '0');
+  return '$mm/$dd/$yy';
 }
 
 // --- Logout Dialog ---

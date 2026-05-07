@@ -22,7 +22,7 @@ class MainScreen extends StatelessWidget {
             const HomePage(),
             MapPage(key: ValueKey('map_tab_${state.tabIndex == 1}')),
             const ListsPage(showBackButton: false),
-            const ProfilePage(),
+            ProfilePage(key: ValueKey('profile_tab_${state.tabIndex == 3}')),
           ];
 
           return Scaffold(

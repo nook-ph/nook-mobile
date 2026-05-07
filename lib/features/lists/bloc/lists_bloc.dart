@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
@@ -39,8 +38,6 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     on<AddCafeToList>(_onAddCafeToList);
     on<RemoveCafeFromList>(_onRemoveCafeFromList);
   }
-
-  // ─── Handlers ────────────────────────────────────────────────────────────────
 
   Future<void> _onLoadUserLists(
     LoadUserLists event,
@@ -91,21 +88,13 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
 
   Future<void> _onCreateList(CreateList event, Emitter<ListsState> emit) async {
     try {
-      debugPrint(
-        '[ListsBloc] CreateList start '
-        'nameLength=${event.name.trim().length} '
-        'hasDescription=${event.description?.trim().isNotEmpty == true}',
-      );
-      final listId = await createListUseCase(
+      await createListUseCase(
         name: event.name,
         description: event.description,
       );
-      debugPrint('[ListsBloc] CreateList success listId=$listId');
 
       add(LoadUserLists());
-    } catch (e, st) {
-      debugPrint('[ListsBloc] CreateList failed error=$e');
-      debugPrint('[ListsBloc] CreateList stackTrace=$st');
+    } catch (e) {
       emit(ListsError(e));
     }
   }
@@ -115,8 +104,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       await repository.renameList(event.listId, event.name);
       unawaited(analytics.logEvent('list_renamed'));
       add(LoadUserLists());
-    } catch (e, st) {
-      debugPrint('[ListsBloc] RenameList failed error=$e stackTrace=$st');
+    } catch (e) {
       emit(ListsError(e));
     }
   }
@@ -126,8 +114,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       await repository.deleteList(event.listId);
       unawaited(analytics.logEvent('list_deleted'));
       add(LoadUserLists());
-    } catch (e, st) {
-      debugPrint('[ListsBloc] DeleteList failed error=$e stackTrace=$st');
+    } catch (e) {
       emit(ListsError(e));
     }
   }
