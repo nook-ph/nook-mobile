@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -27,7 +28,8 @@ class FeaturedCard extends StatelessWidget {
         ? cafe.coverImage!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
 
-    return GestureDetector(
+    return AdaptiveTap(
+      borderRadius: BorderRadius.circular(12),
       onTap: () {
         context.push('/cafe/${cafe.id}');
       },
@@ -73,7 +75,7 @@ class FeaturedCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 cafe.name,
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 20,

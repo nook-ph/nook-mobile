@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/search/presentation/pages/search_results_page.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
@@ -53,7 +54,7 @@ class SearchEntryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final borderColor = Theme.of(context).colorScheme.border;
 
-    return GestureDetector(
+    return AdaptiveTap(
       onTap: () => _openSearch(context),
       child: Container(
         height: height,

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+
+
 
 class HomeCafeCard extends StatelessWidget {
   final CafeSummary cafe;
@@ -21,11 +24,11 @@ class HomeCafeCard extends StatelessWidget {
 
     return Align(
       alignment: Alignment.topCenter,
-      child: GestureDetector(
-        // Opaque ensures the entire area of the container intercepts the tap
-        behavior: HitTestBehavior.opaque,
+      child: AdaptiveTap(
+        borderRadius: BorderRadius.circular(
+          12,
+        ), 
         onTap: () {
-          // Prevent navigation if the card is in its skeleton/loading state
           if (isSkeleton) return;
 
           if (cafe.id.isNotEmpty) {
@@ -60,7 +63,6 @@ class HomeCafeCard extends StatelessWidget {
                       child: Image.network(
                         imageUrl,
                         fit: BoxFit.cover,
-                        // Ensure image doesn't block hits if loading fails
                         errorBuilder: (context, error, stackTrace) => Container(
                           height: 120,
                           color: Colors.grey[200],
@@ -110,7 +112,7 @@ class HomeCafeCard extends StatelessWidget {
                   children: [
                     Text(
                       cafe.name,
-                      maxLines: 1,
+                      maxLines: 1, 
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 15,

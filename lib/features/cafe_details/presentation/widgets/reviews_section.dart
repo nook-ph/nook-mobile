@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:like_button/like_button.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
@@ -398,7 +399,7 @@ class _ReviewCardState extends State<ReviewCard> {
           ],
           if (hasOverflow) ...[
             const SizedBox(height: 8),
-            GestureDetector(
+            AdaptiveTap(
               onTap: () {
                 setState(() {
                   _isExpanded = !_isExpanded;

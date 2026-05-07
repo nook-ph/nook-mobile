@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
@@ -69,7 +70,7 @@ class BestForTagList extends StatelessWidget {
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: GestureDetector(
+                child: AdaptiveTap(
                   onTap: onTagTap == null ? null : () => onTagTap!(label),
                   child: Row(
                     children: [

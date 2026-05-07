@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
@@ -40,9 +41,8 @@ class CafeOverlayCard extends StatelessWidget {
           child: Stack(
             clipBehavior: Clip.hardEdge,
             children: [
-              GestureDetector(
+              AdaptiveTap(
                 onTap: () => context.push('/cafe/${cafe.id}'),
-                behavior: HitTestBehavior.opaque,
                 child: Column(
                   children: [
                     Expanded(

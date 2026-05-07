@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 
 class ListCard extends StatelessWidget {
@@ -11,24 +12,29 @@ class ListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cardWidth = MediaQuery.of(context).size.width - 44;
+    const double radius = 12.0;
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CafeDetailsPage(cafeId: cafe.id),
-          ),
-        );
-      },
-      child: Container(
-        width: cardWidth,
-        clipBehavior: Clip.hardEdge,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
-        ),
-        height: 106,
+    return Container(
+      width: cardWidth,
+      height: 106,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
+        color:
+            Colors.white, 
+      ),
+      
+      clipBehavior: Clip.antiAlias,
+      child: AdaptiveTap(
+        borderRadius: BorderRadius.circular(radius),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CafeDetailsPage(cafeId: cafe.id),
+            ),
+          );
+        },
         child: Row(
           children: [
             Expanded(
