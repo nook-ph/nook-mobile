@@ -26,16 +26,17 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
     super.initState();
     _nameController.addListener(() {
       if (_nameError != null && _nameController.text.trim().isNotEmpty) {
-        _nameError = null;
+        setState(() => _nameError = null);
+      } else {
+        setState(() {});
       }
-      setState(() {});
     });
-
     _passwordController.addListener(() {
       if (_passwordError != null && _passwordController.text.length >= 8) {
-        _passwordError = null;
+        setState(() => _passwordError = null);
+      } else {
+        setState(() {});
       }
-      setState(() {});
     });
   }
 
@@ -46,6 +47,51 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
     super.dispose();
   }
 
+  void _onContinuePressed(BuildContext context, String email) {
+    final name = _nameController.text.trim();
+    final password = _passwordController.text;
+    String? nameError;
+    String? passwordError;
+
+    if (name.isEmpty) nameError = 'Name is required';
+    if (password.length < 8) {
+      passwordError = 'Password must contain at least 8 characters';
+    }
+
+    if (nameError != null || passwordError != null) {
+      setState(() {
+        _nameError = nameError;
+        _passwordError = passwordError;
+      });
+      return;
+    }
+
+    setState(() {
+      _nameError = null;
+      _passwordError = null;
+    });
+
+    context.read<AuthBloc>().add(
+      AuthSignUpEvent(email: email, name: name, password: password),
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFFA8AAAA), fontSize: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.black87),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final emailFromExtra = GoRouterState.of(context).extra as String?;
@@ -53,6 +99,17 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
 
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
+        if (state is AuthNeedsUsername) {
+          context.go(
+            '/username-setup',
+            extra: {'fullName': state.fullName, 'avatarUrl': state.avatarUrl},
+          );
+          return;
+        }
+        if (state is AuthAuthenticated) {
+          context.go('/');
+          return;
+        }
         if (state is AuthError) {
           showPrimaryToast(context, state.message);
         }
@@ -109,7 +166,7 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'What should we call you?',
+                        'What is your full name?',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -153,11 +210,9 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                                   : Icons.visibility,
                               color: const Color(0xFFA8AAAA),
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                           ),
                         ),
                       ),
@@ -222,54 +277,6 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
           ),
         );
       },
-    );
-  }
-
-  void _onContinuePressed(BuildContext context, String email) {
-    final name = _nameController.text.trim();
-    final password = _passwordController.text;
-    String? nameError;
-    String? passwordError;
-
-    if (name.isEmpty) {
-      nameError = 'Name is required';
-    }
-
-    if (password.length < 8) {
-      passwordError = 'Password must contain at least 8 characters';
-    }
-
-    if (nameError != null || passwordError != null) {
-      setState(() {
-        _nameError = nameError;
-        _passwordError = passwordError;
-      });
-      return;
-    }
-
-    setState(() {
-      _nameError = null;
-      _passwordError = null;
-    });
-
-    context.read<AuthBloc>().add(
-      AuthSignUpEvent(email: email, name: name, password: password),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFFA8AAAA), fontSize: 14),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.black87),
-      ),
     );
   }
 }

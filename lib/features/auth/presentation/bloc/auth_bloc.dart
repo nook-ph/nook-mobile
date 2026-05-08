@@ -1,5 +1,10 @@
+import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+
+// Use Cases
 import 'package:nook/features/auth/domain/use_cases/check_email_exists_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/get_current_session_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_apple_usecase.dart';
@@ -7,10 +12,13 @@ import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_email_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_out_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_up_with_email_usecase.dart';
+
+// External Blocs
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
-import 'package:posthog_flutter/posthog_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+part 'auth_event.dart';
+part 'auth_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final CheckEmailExistsUseCase _checkEmailExistsUseCase;
@@ -21,6 +29,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignOutUseCase _signOutUseCase;
   final GetCurrentSessionUseCase _getCurrentSessionUseCase;
   final ListsBloc listsBloc;
+
   static const String _googleWebClientId =
       '190651012817-4l9qejfb0uhpr6jstk1hl2b6ish2gjfo.apps.googleusercontent.com';
 
@@ -47,15 +56,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignInWithAppleEvent>(_onSignInWithApple);
     on<AuthSignInWithGoogleEvent>(_onSignInWithGoogle);
     on<AuthSignOutEvent>(_onSignOut);
+    on<AuthUsernameSetEvent>(_onUsernameSet);
     on<AuthSessionCheckEvent>(_onSessionCheck);
   }
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   Future<void> _onCheckEmail(
     AuthCheckEmailEvent event,
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-
     try {
       final exists = await _checkEmailExistsUseCase(event.email);
       emit(AuthEmailChecked(exists: exists, email: event.email));
@@ -70,7 +81,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onSignUp(AuthSignUpEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
-
     try {
       final response = await _signUpWithEmailUseCase(
         email: event.email,
@@ -86,7 +96,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       await _identifyPosthogUser(user);
       _initListsSession();
-      emit(AuthAuthenticated(user));
+      await _emitAuthSuccess(user, emit);
     } on AuthException catch (e) {
       emit(AuthError(_mapAuthError(e)));
     } on PostgrestException catch (e) {
@@ -98,7 +108,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onSignIn(AuthSignInEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
-
     try {
       final response = await _signInWithEmailUseCase(
         email: event.email,
@@ -113,7 +122,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       await _identifyPosthogUser(user);
       _initListsSession();
-      emit(AuthAuthenticated(user));
+      await _emitAuthSuccess(user, emit);
     } on AuthException catch (e) {
       emit(AuthError(_mapAuthError(e)));
     } on PostgrestException catch (e) {
@@ -128,19 +137,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-
     final result = await _signInWithAppleUsecase();
-
     await result.fold((failure) async => emit(AuthError(failure.message)), (
       _,
     ) async {
-      final session = _getCurrentSessionUseCase();
-      final user = session?.user;
-
+      final user = _getCurrentSessionUseCase()?.user;
       if (user != null) {
         await _identifyPosthogUser(user);
         _initListsSession();
-        emit(AuthAuthenticated(user));
+        await _emitAuthSuccess(user, emit);
         return;
       }
       emit(const AuthUnauthenticated());
@@ -152,20 +157,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-
     final result = await _signInWithGoogleUseCase(_googleWebClientId);
     await result.fold((failure) async => emit(AuthError(failure.message)), (
       _,
     ) async {
-      final session = _getCurrentSessionUseCase();
-      final user = session?.user;
+      final user = _getCurrentSessionUseCase()?.user;
       if (user != null) {
         await _identifyPosthogUser(user);
         _initListsSession();
-        emit(AuthAuthenticated(user));
+        await _emitAuthSuccess(user, emit);
         return;
       }
-
       emit(const AuthUnauthenticated());
     });
   }
@@ -190,27 +192,83 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  Future<void> _onUsernameSet(
+    AuthUsernameSetEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        emit(const AuthUnauthenticated());
+        return;
+      }
+
+      await Supabase.instance.client.rpc(
+        'set_username',
+        params: {'p_username': event.username},
+      );
+
+      emit(AuthAuthenticated(user));
+    } on PostgrestException catch (e) {
+      final msg = e.message.toLowerCase();
+      if (msg.contains('invalid username format')) {
+        emit(const AuthError('Invalid username format.'));
+      } else if (msg.contains('already taken')) {
+        emit(const AuthError('That username is already taken.'));
+      } else {
+        emit(AuthError(_mapDatabaseError(e)));
+      }
+    } catch (_) {
+      emit(const AuthError('Failed to save username. Try again.'));
+    }
+  }
 
   Future<void> _onSessionCheck(
     AuthSessionCheckEvent event,
     Emitter<AuthState> emit,
   ) async {
-    final session = _getCurrentSessionUseCase();
-
-    final user = session?.user;
+    final user = _getCurrentSessionUseCase()?.user;
     if (user != null) {
       await _identifyPosthogUser(user);
       _initListsSession();
-      emit(AuthAuthenticated(user));
+      await _emitAuthSuccess(user, emit);
       return;
     }
-
-    emit(AuthUnauthenticated());
+    emit(const AuthUnauthenticated());
   }
 
-  void _initListsSession() {
-    listsBloc.add(LoadUserLists());
+  // ── Shared Success Gate ───────────────────────────────────────────────────
+
+  Future<void> _emitAuthSuccess(User user, Emitter<AuthState> emit) async {
+    try {
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('username, full_name, avatar_url')
+          .eq('id', user.id)
+          .single();
+
+      final username = profile['username'] as String?;
+
+      if (username == null || username.trim().isEmpty) {
+        emit(
+          AuthNeedsUsername(
+            user: user,
+            fullName: profile['full_name'] as String?,
+            avatarUrl: profile['avatar_url'] as String?,
+          ),
+        );
+      } else {
+        emit(AuthAuthenticated(user));
+      }
+    } catch (_) {
+      emit(AuthAuthenticated(user));
+    }
   }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  void _initListsSession() => listsBloc.add(LoadUserLists());
 
   void _clearListsSession() {
     listsBloc.defaultListId = null;
@@ -233,17 +291,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         userId: user.id,
         userProperties: userProperties.isEmpty ? null : userProperties,
       );
-    } catch (_) {
-      // Identification is best-effort and must not block auth state updates.
-    }
+    } catch (_) {}
   }
 
   Future<void> _resetPosthogUser() async {
     try {
       await Posthog().reset();
-    } catch (_) {
-      // Reset is best-effort and must not block auth state updates.
-    }
+    } catch (_) {}
   }
 
   String _mapAuthError(AuthException exception) {
@@ -252,42 +306,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
     if (code == 'invalid_credentials' ||
         code == 'invalid_grant' ||
-        message.contains('invalid_credentials') ||
         message.contains('invalid login credentials')) {
       return 'Email or password is incorrect';
     }
-
     if (code == 'email_not_confirmed' ||
         message.contains('email not confirmed')) {
       return 'Please verify your email before logging in';
     }
-
     if (code == 'user_already_exists' ||
-        message.contains('user_already_exists') ||
-        message.contains('already registered') ||
-        message.contains('user already registered')) {
+        message.contains('already registered')) {
       return 'An account with this email already exists';
     }
-
-    if (code == 'weak_password' || message.contains('weak_password')) {
+    if (code == 'weak_password') {
       return 'Password must be at least 8 characters';
     }
-
-    if (code == 'over_request_rate_limit' ||
-        message.contains('over_request_rate_limit') ||
-        message.contains('rate limit')) {
+    if (code == 'over_request_rate_limit' || message.contains('rate limit')) {
       return 'Too many attempts. Please wait a moment.';
     }
-
-    if (message.contains('network') ||
-        message.contains('connection') ||
-        message.contains('socket')) {
+    if (message.contains('network') || message.contains('connection')) {
       return 'Connection failed. Check your internet.';
     }
-
     return exception.message.isNotEmpty
         ? exception.message
-        : 'Connection failed. Check your internet.';
+        : 'Connection failed.';
   }
 
   String _mapDatabaseError(PostgrestException exception) {
@@ -295,119 +336,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final message = exception.message.toLowerCase();
 
     if (code == '42501' || message.contains('permission denied')) {
-      return 'Email check is blocked by database policy. Please update your Supabase RLS policy for profiles.';
+      return 'Email check is blocked by database policy.';
     }
-
     return exception.message.isNotEmpty
         ? exception.message
-        : 'Connection failed. Check your internet.';
+        : 'Connection failed.';
   }
-}
-
-abstract class AuthEvent extends Equatable {
-  const AuthEvent();
-
-  @override
-  List<Object?> get props => [];
-}
-
-class AuthCheckEmailEvent extends AuthEvent {
-  final String email;
-
-  const AuthCheckEmailEvent(this.email);
-
-  @override
-  List<Object?> get props => [email];
-}
-
-class AuthSignUpEvent extends AuthEvent {
-  final String email;
-  final String name;
-  final String password;
-
-  const AuthSignUpEvent({
-    required this.email,
-    required this.name,
-    required this.password,
-  });
-
-  @override
-  List<Object?> get props => [email, name, password];
-}
-
-class AuthSignInEvent extends AuthEvent {
-  final String email;
-  final String password;
-
-  const AuthSignInEvent({required this.email, required this.password});
-
-  @override
-  List<Object?> get props => [email, password];
-}
-
-class AuthSignInWithAppleEvent extends AuthEvent {
-  const AuthSignInWithAppleEvent();
-}
-
-class AuthSignInWithGoogleEvent extends AuthEvent {
-  const AuthSignInWithGoogleEvent();
-}
-
-class AuthSignOutEvent extends AuthEvent {
-  const AuthSignOutEvent();
-}
-
-class AuthSessionCheckEvent extends AuthEvent {
-  const AuthSessionCheckEvent();
-}
-
-abstract class AuthState extends Equatable {
-  const AuthState();
-
-  @override
-  List<Object?> get props => [];
-}
-
-class AuthInitial extends AuthState {
-  const AuthInitial();
-}
-
-class AuthLoading extends AuthState {
-  const AuthLoading();
-}
-
-class AuthEmailChecked extends AuthState {
-  final bool exists;
-  final String email;
-
-  const AuthEmailChecked({required this.exists, required this.email});
-
-  @override
-  List<Object?> get props => [exists, email];
-}
-
-class AuthAuthenticated extends AuthState {
-  final User user;
-
-  const AuthAuthenticated(this.user);
-
-  @override
-  List<Object?> get props => [user.id, user.email];
-}
-
-class AuthUnauthenticated extends AuthState {
-  const AuthUnauthenticated();
-}
-
-class AuthLoggedOut extends AuthState {
-  const AuthLoggedOut();
-}
-
-class AuthError extends AuthState {
-  final String message;
-
-  const AuthError(this.message);
-
-  @override
-  List<Object?> get props => [message];
 }
