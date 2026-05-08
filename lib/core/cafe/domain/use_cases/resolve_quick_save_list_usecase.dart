@@ -57,7 +57,7 @@ class ResolveQuickSaveListUseCase {
       debugPrint('[ResolveQuickSave] getDefaultListId failed: $e');
       debugPrint('$st');
       debugPrint('[ResolveQuickSave] branch: create Favorites fallback');
-      final newId = await createListUseCase(name: 'Favorites');
+      final newId = await createListUseCase(name: 'Favorites', isPublic: false);
       debugPrint('[ResolveQuickSave] created list id=$newId');
       final refreshed = await repository.getUserLists();
       for (final list in refreshed) {

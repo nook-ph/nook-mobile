@@ -33,7 +33,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     on<LoadUserLists>(_onLoadUserLists);
     on<LoadListCafes>(_onLoadListCafes);
     on<CreateList>(_onCreateList);
-    on<RenameList>(_onRenameList);
+    on<UpdateList>(_onUpdateList);
     on<DeleteList>(_onDeleteList);
     on<AddCafeToList>(_onAddCafeToList);
     on<RemoveCafeFromList>(_onRemoveCafeFromList);
@@ -91,6 +91,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       await createListUseCase(
         name: event.name,
         description: event.description,
+        isPublic: event.isPublic,
       );
 
       add(LoadUserLists());
@@ -99,10 +100,16 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     }
   }
 
-  Future<void> _onRenameList(RenameList event, Emitter<ListsState> emit) async {
+  Future<void> _onUpdateList(UpdateList event, Emitter<ListsState> emit) async {
     try {
-      await repository.renameList(event.listId, event.name);
-      unawaited(analytics.logEvent('list_renamed'));
+      // Make sure your ICafeRepository has this method implemented
+      await repository.updateList(
+        event.listId,
+        name: event.name,
+        description: event.description,
+        isPublic: event.isPublic,
+      );
+      unawaited(analytics.logEvent('list_updated'));
       add(LoadUserLists());
     } catch (e) {
       emit(ListsError(e));

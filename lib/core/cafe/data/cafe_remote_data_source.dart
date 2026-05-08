@@ -533,9 +533,6 @@ class CafeRemoteDataSource {
         : coverImageUrl;
   }
 
-  /// Recomputes `lists.cover_image_url` after membership changes so the cover stays in sync:
-  /// uses the **newest remaining** café (`added_at` desc) whose `featured_image_url` is set;
-  /// clears the URL when the list is empty or no remaining café has a hero image.
   Future<void> _refreshListCoverAfterMembershipChange(String listId) async {
     try {
       final response = await supabase
@@ -587,7 +584,6 @@ class CafeRemoteDataSource {
     }
   }
 
-  /// Deletes [cafeId] from all lists owned by the current user (same scope as [fetchUserLists]).
   Future<void> removeCafeFromAllUserLists(String cafeId) async {
     try {
       final userId = _resolveUserId(null);
@@ -635,11 +631,19 @@ class CafeRemoteDataSource {
     }
   }
 
-  Future<String> createList({required String name, String? description}) async {
+  Future<String> createList({
+    required String name,
+    String? description,
+    required bool isPublic,
+  }) async {
     try {
       final response = await supabase.rpc(
         'create_new_list',
-        params: {'list_name': name, 'list_description': description},
+        params: {
+          'list_name': name,
+          'list_description': description,
+          'list_is_public': isPublic,
+        },
       );
       return response as String;
     } on PostgrestException catch (e, st) {
@@ -669,12 +673,25 @@ class CafeRemoteDataSource {
     }
   }
 
-  Future<void> renameList(String listId, String name) async {
+  // Replaced renameList with updateList
+  Future<void> updateList(
+    String listId, {
+    required String name,
+    String? description,
+    required bool isPublic,
+  }) async {
     try {
-      await supabase.from('lists').update({'name': name}).eq('id', listId);
+      await supabase
+          .from('lists')
+          .update({
+            'name': name,
+            'description': description,
+            'is_public': isPublic,
+          })
+          .eq('id', listId);
     } on PostgrestException catch (e, st) {
       throw CafeFetchException(
-        'Failed to rename list "$listId".',
+        'Failed to update list "$listId".',
         cause: e,
         stackTrace: st,
       );
@@ -761,5 +778,3 @@ class CafeFetchException implements Exception {
   @override
   String toString() => 'CafeFetchException(message: $message, cause: $cause)';
 }
-
-//lists stuff

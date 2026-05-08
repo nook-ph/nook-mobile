@@ -65,9 +65,21 @@ abstract class ICafeRepository {
 
   /// Removes [cafeId] from every list the user owns (same membership scope as [getUserLists]).
   Future<void> removeCafeFromAllUserLists(String cafeId);
-  Future<String> createList({required String name, String? description});
+
+  Future<String> createList({
+    required String name,
+    String? description,
+    required bool isPublic,
+  });
   Future<void> deleteList(String listId);
-  Future<void> renameList(String listId, String name);
+
+  // Replaced renameList with updateList
+  Future<void> updateList(
+    String listId, {
+    required String name,
+    String? description,
+    required bool isPublic,
+  });
 
   Future<void> warmCache(List<CafeSummary> summaries);
 }
