@@ -99,6 +99,10 @@ class _MapPageState extends State<MapPage> {
               children: [
                 MapLibreMap(
                   initialCameraPosition: _initial,
+                  myLocationEnabled: true,
+                  myLocationRenderMode: MyLocationRenderMode.compass,
+                  myLocationTrackingMode: MyLocationTrackingMode.none,
+
                   styleString:
                       _styleJson ??
                       'https://tiles.openfreemap.org/styles/bright',
@@ -197,18 +201,15 @@ class _MapPageState extends State<MapPage> {
                                   final info = AppErrorCopy.fromException(
                                     state.error,
                                   );
-                                  final filter =
-                                      ctx.read<FilterCubit>().state;
+                                  final filter = ctx.read<FilterCubit>().state;
                                   return FullPageErrorWidget(
                                     error: info,
-                                    onRetry: info.type ==
-                                            ErrorType.sessionExpired
+                                    onRetry:
+                                        info.type == ErrorType.sessionExpired
                                         ? () => ctx.push('/login')
                                         : () => ctx.read<MapBloc>().add(
-                                              LoadMapDataEvent(
-                                                filter: filter,
-                                              ),
-                                            ),
+                                            LoadMapDataEvent(filter: filter),
+                                          ),
                                   );
                                 },
                               ),
@@ -270,7 +271,7 @@ class _MapPageState extends State<MapPage> {
           iconImage: 'map_pin',
           iconSize: 0.17,
         ),
-        {'id': cafe.id}, // positional, no label
+        {'id': cafe.id},
       );
     }
   }
@@ -360,8 +361,9 @@ class _MapPageState extends State<MapPage> {
     await _mapController!.addImage('map_pin', imageData);
   }
 
+  // --- UPDATED METHOD ---
   Future<void> _defaultView() async {
     final c = await _controllerCompleter.future;
-    await c.animateCamera(CameraUpdate.newCameraPosition(_initial));
+    await c.updateMyLocationTrackingMode(MyLocationTrackingMode.tracking);
   }
 }
