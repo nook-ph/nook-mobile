@@ -320,8 +320,8 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
-  Future<String> createList({required String name, String? description}) {
-    return remoteDataSource.createList(name: name, description: description);
+  Future<String> createList({required String name, String? description, required bool isPublic}) {
+    return remoteDataSource.createList(name: name, description: description, isPublic: isPublic);
   }
 
   @override
@@ -330,8 +330,18 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
-  Future<void> renameList(String listId, String name) {
-    return remoteDataSource.renameList(listId, name);
+  Future<void> updateList(
+    String listId, {
+    required String name,
+    String? description,
+    required bool isPublic,
+  }) {
+    return remoteDataSource.updateList(
+      listId,
+      name: name,
+      description: description,
+      isPublic: isPublic,
+    );
   }
 
   @override

@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 class ListOptionsBottomSheet extends StatelessWidget {
   final String listId;
   final String listName;
-  final VoidCallback onRename;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const ListOptionsBottomSheet({
     super.key,
     required this.listId,
     required this.listName,
-    required this.onRename,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -52,22 +52,16 @@ class ListOptionsBottomSheet extends StatelessWidget {
                 Icons.edit_outlined,
                 color: Color(0xFF344E41),
               ),
-              title: const Text(
-                'Rename',
-                style: TextStyle(color: Colors.black),
-              ),
+              title: const Text('Edit', style: TextStyle(color: Colors.black)),
               onTap: () {
                 Navigator.pop(context);
-                onRename();
+                onEdit();
               },
             ),
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text(
-                'Delete',
-                style: TextStyle(color: Colors.red),
-              ),
+              title: const Text('Delete', style: TextStyle(color: Colors.red)),
               onTap: () {
                 Navigator.pop(context);
                 onDelete();

@@ -25,7 +25,7 @@ class ListsPage extends StatefulWidget {
 class _ListsPageState extends State<ListsPage> {
   static const _fallbackImageUrl =
       'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-  String? _pendingRenameName;
+  String? _pendingEditName;
   String? _pendingDeleteName;
 
   @override
@@ -41,15 +41,15 @@ class _ListsPageState extends State<ListsPage> {
         if (state is ListsError) {
           final info = AppErrorCopy.fromException(state.error);
           showPrimaryToast(context, '${info.title} · ${info.subtitle}');
-          _pendingRenameName = null;
+          _pendingEditName = null;
           _pendingDeleteName = null;
           return;
         }
 
         if (state is ListsLoaded) {
-          if (_pendingRenameName != null) {
-            showPrimaryToast(context, 'List renamed.');
-            _pendingRenameName = null;
+          if (_pendingEditName != null) {
+            showPrimaryToast(context, 'List updated.');
+            _pendingEditName = null;
           }
 
           if (_pendingDeleteName != null) {
@@ -127,17 +127,6 @@ class _ListsPageState extends State<ListsPage> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    AdaptiveTap(
-                      onTap: () {},
-                      child: const Text(
-                        'Sort by: Recent',
-                        style: TextStyle(
-                          color: Color(0xFF33523F),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -167,7 +156,7 @@ class _ListsPageState extends State<ListsPage> {
           },
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () => _showCreateListModal(context),
+          onPressed: () => _showCreateListDialog(context),
           backgroundColor: const Color(0xFF33523F),
           elevation: 4,
           shape: RoundedRectangleBorder(
@@ -179,22 +168,15 @@ class _ListsPageState extends State<ListsPage> {
     );
   }
 
-  void _showCreateListModal(BuildContext context) {
+  void _showCreateListDialog(BuildContext context) {
     final listsBloc = context.read<ListsBloc>();
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24.0)),
-      ),
-      builder: (sheetContext) {
+      builder: (dialogContext) {
         return BlocProvider.value(
           value: listsBloc,
-          child: _CreateListSheet(
-            listsBloc: listsBloc,
-          ),
+          child: _CreateListDialog(listsBloc: listsBloc),
         );
       },
     );
@@ -254,7 +236,6 @@ class _ListsPageState extends State<ListsPage> {
                       color: Colors.black87,
                     ),
                   ),
-
                   Text(
                     _placeCountText(favoritesList?.cafeCount ?? 0),
                     style: const TextStyle(
@@ -290,25 +271,30 @@ class _ListsPageState extends State<ListsPage> {
       builder: (_) => ListOptionsBottomSheet(
         listId: list.id,
         listName: list.name,
-        onRename: () => _showRenameDialog(context, bloc, list.id, list.name),
+        onEdit: () => _showEditDialog(context, bloc, list),
         onDelete: () => _showDeleteDialog(context, bloc, list.id, list.name),
       ),
     );
   }
 
-  void _showRenameDialog(
-    BuildContext context,
-    ListsBloc bloc,
-    String listId,
-    String currentName,
-  ) {
+  void _showEditDialog(BuildContext context, ListsBloc bloc, CafeList list) {
     showDialog(
       context: context,
-      builder: (_) => _RenameListDialog(
-        currentName: currentName,
-        onSave: (newName) {
-          _pendingRenameName = currentName;
-          bloc.add(RenameList(listId: listId, name: newName));
+      builder: (_) => _EditListDialog(
+        currentName: list.name,
+        currentDescription:
+            list.description, // Assuming CafeList has a description field
+        currentIsPublic: list.isPublic,
+        onSave: (newName, newDesc, newIsPublic) {
+          _pendingEditName = list.name;
+          bloc.add(
+            UpdateList(
+              listId: list.id,
+              name: newName,
+              description: newDesc,
+              isPublic: newIsPublic,
+            ),
+          );
         },
       ),
     );
@@ -371,22 +357,21 @@ class _ListsPageState extends State<ListsPage> {
   }
 }
 
-class _CreateListSheet extends StatefulWidget {
+class _CreateListDialog extends StatefulWidget {
   final ListsBloc listsBloc;
 
-  const _CreateListSheet({
-    required this.listsBloc,
-  });
+  const _CreateListDialog({required this.listsBloc});
 
   @override
-  State<_CreateListSheet> createState() => _CreateListSheetState();
+  State<_CreateListDialog> createState() => _CreateListDialogState();
 }
 
-class _CreateListSheetState extends State<_CreateListSheet> {
+class _CreateListDialogState extends State<_CreateListDialog> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
 
   bool _isLoading = false;
+  bool _isPublic = false;
 
   @override
   void dispose() {
@@ -422,101 +407,117 @@ class _CreateListSheetState extends State<_CreateListSheet> {
           showPrimaryToast(context, '${info.title} · ${info.subtitle}');
         }
       },
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          left: 24.0,
-          right: 24.0,
-          top: 24.0,
+      child: AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.0),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Create New List',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                color: Colors.black,
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _nameController,
-              autofocus: true,
-              enabled: !_isLoading,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: 'List Name',
-                hintText: 'e.g., Cebu Specialty Spots',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF33523F),
-                    width: 2.0,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descController,
-              enabled: !_isLoading,
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: 'Description (Optional)',
-                hintText: 'What is this list for?',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF33523F),
-                    width: 2.0,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF33523F),
-                  shape: RoundedRectangleBorder(
+        title: const Text(
+          'Create New List',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _nameController,
+                autofocus: true,
+                enabled: !_isLoading,
+                textInputAction: TextInputAction.next,
+                decoration: InputDecoration(
+                  labelText: 'List Name',
+                  hintText: 'e.g., Cebu Specialty Spots',
+                  border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12.0),
                   ),
-                  elevation: 0,
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF33523F),
+                      width: 2.0,
+                    ),
+                  ),
                 ),
-                onPressed: _isLoading ? null : _submit,
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Create List',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
+              const SizedBox(height: 16),
+              TextField(
+                controller: _descController,
+                enabled: !_isLoading,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'Description (Optional)',
+                  hintText: 'What is this list for?',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF33523F),
+                      width: 2.0,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Public list',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                ),
+                subtitle: const Text(
+                  'Anyone can view this list',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                value: _isPublic,
+                activeColor: const Color(0xFF344E41),
+                onChanged: _isLoading
+                    ? null
+                    : (val) => setState(() => _isPublic = val),
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF33523F),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              elevation: 0,
+            ),
+            onPressed: _isLoading ? null : _submit,
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Text(
+                    'Create',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -536,48 +537,72 @@ class _CreateListSheetState extends State<_CreateListSheet> {
     );
     setState(() => _isLoading = true);
     widget.listsBloc.add(
-      CreateList(name: name, description: desc.isNotEmpty ? desc : null),
+      CreateList(
+        name: name,
+        description: desc.isNotEmpty ? desc : null,
+        isPublic: _isPublic,
+      ),
     );
   }
 }
 
-class _RenameListDialog extends StatefulWidget {
+class _EditListDialog extends StatefulWidget {
   final String currentName;
-  final ValueChanged<String> onSave;
+  final String? currentDescription;
+  final bool currentIsPublic;
+  final void Function(String name, String? description, bool isPublic) onSave;
 
-  const _RenameListDialog({required this.currentName, required this.onSave});
+  const _EditListDialog({
+    required this.currentName,
+    this.currentDescription,
+    required this.currentIsPublic,
+    required this.onSave,
+  });
 
   @override
-  State<_RenameListDialog> createState() => _RenameListDialogState();
+  State<_EditListDialog> createState() => _EditListDialogState();
 }
 
-class _RenameListDialogState extends State<_RenameListDialog> {
+class _EditListDialogState extends State<_EditListDialog> {
   static const _green = Color(0xFF344E41);
 
-  late final TextEditingController _controller;
+  late final TextEditingController _nameController;
+  late final TextEditingController _descController;
+  late bool _isPublic;
 
-  String get _trimmedName => _controller.text.trim();
+  String get _trimmedName => _nameController.text.trim();
+  String get _trimmedDesc => _descController.text.trim();
 
-  bool get _canSave =>
-      _trimmedName.isNotEmpty && _trimmedName != widget.currentName.trim();
+  bool get _canSave {
+    if (_trimmedName.isEmpty) return false;
+    // Check if any value has changed
+    return _trimmedName != widget.currentName ||
+        _trimmedDesc != (widget.currentDescription ?? '') ||
+        _isPublic != widget.currentIsPublic;
+  }
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.currentName)
-      ..addListener(_onNameChanged);
+    _nameController = TextEditingController(text: widget.currentName)
+      ..addListener(_onFormChanged);
+    _descController = TextEditingController(
+      text: widget.currentDescription ?? '',
+    )..addListener(_onFormChanged);
+    _isPublic = widget.currentIsPublic;
   }
 
   @override
   void dispose() {
-    _controller
-      ..removeListener(_onNameChanged)
-      ..dispose();
+    _nameController.removeListener(_onFormChanged);
+    _descController.removeListener(_onFormChanged);
+    _nameController.dispose();
+    _descController.dispose();
     super.dispose();
   }
 
-  void _onNameChanged() {
-    setState(() {});
+  void _onFormChanged() {
+    setState(() {}); // Triggers rebuild to evaluate _canSave
   }
 
   @override
@@ -586,22 +611,67 @@ class _RenameListDialogState extends State<_RenameListDialog> {
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text(
-        'Rename list',
-        style: TextStyle(fontWeight: FontWeight.w600),
+        'Edit list',
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
       ),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        maxLength: 50,
-        textInputAction: TextInputAction.done,
-        onSubmitted: (_) => _saveIfValid(context),
-        decoration: InputDecoration(
-          labelText: 'List name',
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: _green, width: 2),
-          ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _nameController,
+              autofocus: true,
+              maxLength: 50,
+              textInputAction: TextInputAction.next,
+              decoration: InputDecoration(
+                labelText: 'List name',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _green, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _descController,
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _saveIfValid(context),
+              decoration: InputDecoration(
+                labelText: 'Description (Optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: _green, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                'Public list',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text(
+                'Anyone can view this list',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              value: _isPublic,
+              activeColor: _green,
+              onChanged: (bool value) {
+                setState(() {
+                  _isPublic = value;
+                });
+              },
+            ),
+          ],
         ),
       ),
       actions: [
@@ -609,10 +679,23 @@ class _RenameListDialogState extends State<_RenameListDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
         ),
-        TextButton(
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF33523F),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            elevation: 0,
+          ),
           onPressed: _canSave ? () => _saveIfValid(context) : null,
-          style: TextButton.styleFrom(foregroundColor: _green),
-          child: const Text('Save'),
+          child: const Text(
+            'Save',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
         ),
       ],
     );
@@ -621,7 +704,11 @@ class _RenameListDialogState extends State<_RenameListDialog> {
   void _saveIfValid(BuildContext context) {
     if (!_canSave) return;
 
-    widget.onSave(_trimmedName);
+    widget.onSave(
+      _trimmedName,
+      _trimmedDesc.isEmpty ? null : _trimmedDesc,
+      _isPublic,
+    );
     Navigator.pop(context);
   }
 }

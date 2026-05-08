@@ -5,8 +5,9 @@ class LoadUserLists extends ListsEvent {}
 class CreateList extends ListsEvent {
   final String name;
   final String? description;
+  final bool isPublic;
 
-  CreateList({required this.name, this.description});
+  CreateList({required this.name, this.description, required this.isPublic});
 }
 
 class RenameList extends ListsEvent {
@@ -40,4 +41,18 @@ class RemoveCafeFromList extends ListsEvent {
   final String cafeId;
 
   RemoveCafeFromList({required this.listId, required this.cafeId});
+}
+
+class UpdateList extends ListsEvent {
+  final String listId;
+  final String name;
+  final String? description;
+  final bool isPublic;
+
+  UpdateList({
+    required this.listId,
+    required this.name,
+    this.description,
+    required this.isPublic,
+  });
 }

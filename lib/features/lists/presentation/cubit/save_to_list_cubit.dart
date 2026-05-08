@@ -14,8 +14,7 @@ typedef CurrentUserIdGetter = String? Function();
 /// `last_saved_at`).
 List<CafeList> sortListsForSaveSheet(List<CafeList> lists) {
   final out = List<CafeList>.from(lists);
-  DateTime sortKey(CafeList l) =>
-      l.lastSavedAt ?? l.updatedAt;
+  DateTime sortKey(CafeList l) => l.lastSavedAt ?? l.updatedAt;
 
   out.sort((a, b) {
     if (a.isDefault != b.isDefault) {
@@ -151,6 +150,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
       final listId = await createListUseCase(
         name: name,
         description: description,
+        isPublic: false,
       );
       await addCafeToListUseCase(listId, cafeId);
 
@@ -171,12 +171,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     } catch (e) {
       final latest = state;
       if (latest is! SaveToListLoaded) return;
-      emit(
-        latest.copyWith(
-          isCreating: false,
-          listActionError: e,
-        ),
-      );
+      emit(latest.copyWith(isCreating: false, listActionError: e));
     }
   }
 

@@ -55,14 +55,12 @@ class _ListDetailPageState extends State<ListDetailPage> {
               error: info,
               onRetry: info.type == ErrorType.sessionExpired
                   ? () => context.push('/login')
-                  : () => listsBloc.add(
-                      LoadListCafes(listId: widget.listId),
-                    ),
+                  : () => listsBloc.add(LoadListCafes(listId: widget.listId)),
             );
           }
 
           if (state is ListCafesLoaded && state.list.id == widget.listId) {
-            return _buildList(state.cafes);
+            return _buildList(state.cafes, state.list.description);
           }
 
           return const Center(child: CircularProgressIndicator());
@@ -71,7 +69,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     );
   }
 
-  Widget _buildList(List<CafeSummary> cafes) {
+  Widget _buildList(List<CafeSummary> cafes, String? description) {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
       children: [
@@ -83,6 +81,17 @@ class _ListDetailPageState extends State<ListDetailPage> {
             fontWeight: FontWeight.w500,
           ),
         ),
+        if (description != null && description.trim().isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: const TextStyle(
+              color: Color(0xFF848586),
+              fontSize: 15,
+              height: 1.4,
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         if (cafes.isEmpty)
           const Padding(

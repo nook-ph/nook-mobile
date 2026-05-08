@@ -5,10 +5,10 @@ class CreateListUseCase {
 
   const CreateListUseCase(this.repository);
 
-  Future<String> call({required String name, String? description}) {
+  Future<String> call({required String name, String? description, required bool isPublic}) {
     if (name.trim().isEmpty) {
       throw ArgumentError('List name cannot be empty.');
     }
-    return repository.createList(name: name.trim(), description: description);
+    return repository.createList(name: name.trim(), description: description, isPublic: isPublic);
   }
 }
