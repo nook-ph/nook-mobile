@@ -25,26 +25,23 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       if (_emailError != null) {
         final text = _emailController.text.trim();
         if (_isValidEmail(text) || text.isEmpty) {
-          _emailError = null;
+          setState(() => _emailError = null);
         }
+      } else {
+        setState(() {});
       }
-      setState(() {});
     });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    if (_didPrefillFromExtra) {
-      return;
-    }
+    if (_didPrefillFromExtra) return;
 
     final email = GoRouterState.of(context).extra as String?;
     if (email != null && email.trim().isNotEmpty) {
       _emailController.text = email.trim();
     }
-
     _didPrefillFromExtra = true;
   }
 
@@ -54,10 +51,53 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
     super.dispose();
   }
 
+  void _onContinuePressed(BuildContext context) {
+    final email = _emailController.text.trim();
+    if (!_isValidEmail(email)) {
+      setState(() => _emailError = 'This email is invalid');
+      return;
+    }
+    setState(() => _emailError = null);
+    context.read<AuthBloc>().add(AuthCheckEmailEvent(email));
+  }
+
+  bool _isValidEmail(String email) {
+    final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+    return regex.hasMatch(email);
+  }
+
+  Widget _buildSocialButton({
+    required String text,
+    required Widget icon,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: icon,
+        label: Text(
+          text,
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          side: const BorderSide(color: Color(0xFFE0E0E0)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final email = _emailController.text.trim();
-
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthEmailChecked) {
@@ -66,14 +106,26 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
           } else {
             context.go('/signup-details', extra: state.email);
           }
+          return;
         }
-
+        if (state is AuthNeedsUsername) {
+          context.go(
+            '/username-setup',
+            extra: {'fullName': state.fullName, 'avatarUrl': state.avatarUrl},
+          );
+          return;
+        }
+        if (state is AuthAuthenticated) {
+          context.go('/');
+          return;
+        }
         if (state is AuthError) {
           showPrimaryToast(context, state.message);
         }
       },
       builder: (context, state) {
         final isLoading = state is AuthLoading;
+        final email = _emailController.text.trim();
         final canSubmit = email.isNotEmpty && !isLoading;
 
         return Scaffold(
@@ -95,7 +147,6 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
             ),
           ),
           body: SingleChildScrollView(
-            // Added to prevent overflow with the new buttons
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Center(
@@ -228,15 +279,14 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         height: 20,
                         width: 20,
                       ),
-                      onPressed: () {
-                        context.read<AuthBloc>().add(
-                          const AuthSignInWithGoogleEvent(),
-                        );
-                      },
+                      onPressed: isLoading
+                          ? () {}
+                          : () => context.read<AuthBloc>().add(
+                              const AuthSignInWithGoogleEvent(),
+                            ),
                     ),
-                    const SizedBox(height: 12),
-                    
-                    if (Platform.isIOS)         
+                    if (Platform.isIOS) ...[
+                      const SizedBox(height: 12),
                       _buildSocialButton(
                         text: 'Continue with Apple',
                         icon: const Icon(
@@ -244,14 +294,13 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                           color: Colors.black,
                           size: 28,
                         ),
-                        onPressed: () {
-                          // TODO: Implement Apple Sign-In
-                          context.read<AuthBloc>().add(
-                            const AuthSignInWithAppleEvent(),
-                          );
-                        },
+                        onPressed: isLoading
+                            ? () {}
+                            : () => context.read<AuthBloc>().add(
+                                const AuthSignInWithAppleEvent(),
+                              ),
                       ),
-                      
+                    ],
                   ],
                 ),
               ),
@@ -259,59 +308,6 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
           ),
         );
       },
-    );
-  }
-
-  void _onContinuePressed(BuildContext context) {
-    final email = _emailController.text.trim();
-
-    if (!_isValidEmail(email)) {
-      setState(() {
-        _emailError = 'This email is invalid';
-      });
-      return;
-    }
-
-    setState(() {
-      _emailError = null;
-    });
-
-    context.read<AuthBloc>().add(AuthCheckEmailEvent(email));
-  }
-
-  bool _isValidEmail(String email) {
-    final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    return regex.hasMatch(email);
-  }
-
-  // Helper method for social buttons
-  Widget _buildSocialButton({
-    required String text,
-    required Widget icon,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: icon,
-        label: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.black87,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          side: const BorderSide(color: Color(0xFFE0E0E0)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-        ),
-      ),
     );
   }
 }

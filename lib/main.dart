@@ -69,7 +69,9 @@ class MyApp extends StatelessWidget {
         builder: (context, child) {
           return BlocListener<AuthBloc, AuthState>(
             listenWhen: (previous, current) {
-              return current is AuthAuthenticated || current is AuthLoggedOut;
+              return current is AuthAuthenticated ||
+                  current is AuthLoggedOut ||
+                  current is AuthNeedsUsername;
             },
             listener: (context, state) {
               final appState = context.read<AppBloc>().state;
@@ -81,6 +83,14 @@ class MyApp extends StatelessWidget {
                 appRouter.go('/');
               } else if (state is AuthLoggedOut) {
                 appRouter.go('/login');
+              } else if (state is AuthNeedsUsername) {
+                appRouter.go(
+                  '/username-setup',
+                  extra: {
+                    'fullName': state.fullName,
+                    'avatarUrl': state.avatarUrl,
+                  },
+                );
               }
             },
             child: child ?? const SizedBox.shrink(),

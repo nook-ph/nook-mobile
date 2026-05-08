@@ -21,9 +21,7 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    _passwordController.addListener(() {
-      setState(() {});
-    });
+    _passwordController.addListener(() => setState(() {}));
   }
 
   @override
@@ -39,6 +37,17 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
 
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
+        if (state is AuthNeedsUsername) {
+          context.go(
+            '/username-setup',
+            extra: {'fullName': state.fullName, 'avatarUrl': state.avatarUrl},
+          );
+          return;
+        }
+        if (state is AuthAuthenticated) {
+          context.go('/');
+          return;
+        }
         if (state is AuthError) {
           showPrimaryToast(context, state.message);
         }
@@ -121,11 +130,9 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                                     : Icons.visibility,
                                 color: const Color(0xFFA8AAAA),
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                             ),
                           ),
                         ),
@@ -150,14 +157,12 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: hasPassword && !isLoading
-                                ? () {
-                                    context.read<AuthBloc>().add(
-                                      AuthSignInEvent(
-                                        email: email,
-                                        password: _passwordController.text,
-                                      ),
-                                    );
-                                  }
+                                ? () => context.read<AuthBloc>().add(
+                                    AuthSignInEvent(
+                                      email: email,
+                                      password: _passwordController.text,
+                                    ),
+                                  )
                                 : null,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF344E41),

@@ -8,6 +8,7 @@ import 'package:nook/core/presentation/pages/main_screen.dart';
 import 'package:nook/features/auth/presentation/pages/email_entry_page.dart';
 import 'package:nook/features/auth/presentation/pages/login_page.dart';
 import 'package:nook/features/auth/presentation/pages/signup_details_page.dart';
+import 'package:nook/features/auth/presentation/pages/username_setup_page.dart';
 import 'package:nook/features/search/presentation/pages/search_results_page.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
@@ -59,6 +60,17 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) {
         final email = state.extra as String? ?? '';
         return SignupDetailsScreen(email: email);
+      },
+    ),
+
+    GoRoute(
+      path: '/username-setup',
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return UsernameSetupScreen(
+          fullName: extra?['fullName'] as String?,
+          avatarUrl: extra?['avatarUrl'] as String?,
+        );
       },
     ),
 

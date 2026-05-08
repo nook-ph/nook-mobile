@@ -27,13 +27,13 @@ class ProfileCubit extends Cubit<ProfileState> {
     try {
       final profileFuture = _client
           .from('profiles')
-          .select('full_name,email,username')
+          .select('full_name,email,username,bio')
           .eq('id', user.id)
           .maybeSingle();
 
-      final reviewsFuture = _getReviewsWrittenByUser(user.id).catchError(
-        (Object error, StackTrace stackTrace) => <WrittenReview>[],
-      );
+      final reviewsFuture = _getReviewsWrittenByUser(
+        user.id,
+      ).catchError((Object error, StackTrace stackTrace) => <WrittenReview>[]);
 
       final outcomes = await Future.wait<dynamic>([
         profileFuture,
@@ -44,21 +44,27 @@ class ProfileCubit extends Cubit<ProfileState> {
       final reviews = outcomes[1] as List<WrittenReview>;
 
       final map = row is Map<String, dynamic> ? row : const <String, dynamic>{};
+
       final name =
           (map['full_name'] as String?) ??
           (map['username'] as String?) ??
           (user.userMetadata?['full_name'] as String?) ??
           'No name';
+
       final email =
           (map['email'] as String?) ??
           user.email ??
           (user.userMetadata?['email'] as String?) ??
           'No email';
 
+
+      final bio = (map['bio'] as String?) ?? '';
+
       emit(
         ProfileLoaded(
           name: name,
           email: email,
+          bio: bio, 
           userId: user.id,
           reviews: reviews,
         ),
@@ -91,18 +97,20 @@ class ProfileLoading extends ProfileState {
 class ProfileLoaded extends ProfileState {
   final String name;
   final String email;
+  final String bio; 
   final String userId;
   final List<WrittenReview> reviews;
 
   const ProfileLoaded({
     required this.name,
     required this.email,
+    required this.bio, 
     required this.userId,
     this.reviews = const [],
   });
 
   @override
-  List<Object?> get props => [name, email, userId, reviews];
+  List<Object?> get props => [name, email, bio, userId, reviews]; 
 }
 
 class ProfileError extends ProfileState {
