@@ -142,7 +142,7 @@ class CafeRemoteDataSource {
           profile:profiles!reviews_user_id_fkey (
             username,
             full_name,
-            avatar_url,
+            avatar_url
           )
         )
         ''');

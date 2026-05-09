@@ -20,10 +20,9 @@ class ListCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
-        color:
-            Colors.white, 
+        color: Colors.white,
       ),
-      
+
       clipBehavior: Clip.antiAlias,
       child: AdaptiveTap(
         borderRadius: BorderRadius.circular(radius),
@@ -39,13 +38,16 @@ class ListCard extends StatelessWidget {
           children: [
             Expanded(
               flex: 4,
-              child: Image.network(
-                cafe.coverImage ??
-                    'https://images.unsplash.com/photo-1497935586351-b67a49e012bf',
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              child: cafe.coverImage != null && cafe.coverImage!.isNotEmpty
+                  ? Image.network(
+                      cafe.coverImage!,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildPlaceholder(),
+                    )
+                  : _buildPlaceholder(),
             ),
             Expanded(
               flex: 8,
@@ -165,4 +167,19 @@ class ListCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _buildPlaceholder() {
+  return Container(
+    width: double.infinity,
+    height: double.infinity,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFE8E8E8), Color(0xFF9E9E9E)],
+      ),
+    ),
+    child: const Icon(LucideIcons.coffee, color: Color(0xFFBDBDBD), size: 28),
+  );
 }

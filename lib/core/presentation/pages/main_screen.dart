@@ -7,6 +7,7 @@ import 'package:nook/features/home_page/presentation/pages/home_page.dart';
 import 'package:nook/features/lists/presentation/pages/list_page.dart';
 import 'package:nook/features/map/presentation/pages/map_page.dart';
 import 'package:nook/features/profile/presentation/pages/profile_page.dart';
+import 'package:nook/features/profile/presentation/pages/profile_pagev2.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MainScreen extends StatelessWidget {
@@ -22,7 +23,7 @@ class MainScreen extends StatelessWidget {
             const HomePage(),
             MapPage(key: ValueKey('map_tab_${state.tabIndex == 1}')),
             const ListsPage(showBackButton: false),
-            ProfilePage(key: ValueKey('profile_tab_${state.tabIndex == 3}')),
+            ProfileRedesignPage(key: ValueKey('profile_tab_${state.tabIndex == 3}')),
           ];
 
           return Scaffold(
