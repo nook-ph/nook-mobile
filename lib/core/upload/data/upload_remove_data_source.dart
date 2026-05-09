@@ -1,26 +1,27 @@
+// lib/core/upload/data/upload_remote_data_source.dart
+
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
-import 'package:nook/core/upload/data/review_image_upload_exception.dart';
+import 'package:nook/core/upload/data/upload_exception.dart.dart';
+import 'package:nook/core/upload/domain/entities/uploaded_avatar.dart';
 import 'package:nook/core/upload/domain/entities/uploaded_review_image.dart';
 
-class ReviewImageUploadRemoteDataSource {
+class UploadRemoteDataSource {
   final http.Client httpClient;
-  final String apiBaseUrl;
-  final String presignPath;
+  final String presignUrl;
   final String? Function()? authTokenGetter;
   final Future<String?> Function()? authTokenRefresher;
-  final String? supabaseApikey;
 
-  ReviewImageUploadRemoteDataSource({
+  const UploadRemoteDataSource({
     required this.httpClient,
-    required this.apiBaseUrl,
-    required this.presignPath,
+    required this.presignUrl,
     this.authTokenGetter,
     this.authTokenRefresher,
-    this.supabaseApikey,
   });
+
+  // ── Review images ──────────────────────────────────────────────────────────
 
   Future<List<UploadedReviewImage>> uploadReviewImages({
     required String cafeId,
@@ -28,31 +29,35 @@ class ReviewImageUploadRemoteDataSource {
     required List<File> images,
     String? accessToken,
   }) async {
-    if (images.isEmpty) {
-      return const [];
-    }
+    if (images.isEmpty) return const [];
 
     final uploaded = <UploadedReviewImage>[];
 
-    for (int index = 0; index < images.length; index++) {
-      final file = images[index];
-      final fileName = file.path.split(Platform.pathSeparator).last;
-      final fileExt = fileName.contains('.') ? fileName.split('.').last : 'jpg';
+    for (int i = 0; i < images.length; i++) {
+      final file = images[i];
+      final contentType = _contentTypeFor(file);
 
-      final presign = await _requestPresignedUpload(
-        cafeId: cafeId,
-        userId: userId,
-        file: file,
-        index: index,
+      final presign = await _requestPresign(
+        payload: {
+          'uploadType': 'review_image',
+          'cafeId': cafeId,
+          'slot': i,
+          'contentType': contentType,
+        },
         accessToken: accessToken,
       );
 
-      await _uploadToS3(file: file, uploadUrl: presign.uploadUrl);
+      await _putToS3(
+        file: file,
+        uploadUrl: presign.uploadUrl,
+        contentType: contentType,
+      );
 
       uploaded.add(
         UploadedReviewImage(
           objectKey: presign.objectKey,
           publicUrl: presign.publicUrl,
+          slot: i,
         ),
       );
     }
@@ -60,53 +65,60 @@ class ReviewImageUploadRemoteDataSource {
     return uploaded;
   }
 
-  Future<_PresignResponse> _requestPresignedUpload({
-    required String cafeId,
-    required String userId,
+  // ── Avatar ─────────────────────────────────────────────────────────────────
+
+  Future<UploadedAvatar> uploadAvatar({
     required File file,
-    required int index,
     String? accessToken,
   }) async {
-    if (apiBaseUrl.trim().isEmpty) {
-      throw const ReviewImageUploadException(
-        'Missing UPLOAD_API_BASE_URL configuration.',
-      );
+    final contentType = _contentTypeFor(file);
+
+    final presign = await _requestPresign(
+      payload: {'uploadType': 'avatar', 'contentType': contentType},
+      accessToken: accessToken,
+    );
+
+    await _putToS3(
+      file: file,
+      uploadUrl: presign.uploadUrl,
+      contentType: contentType,
+    );
+
+    return UploadedAvatar(
+      objectKey: presign.objectKey,
+      publicUrl: presign.publicUrl,
+    );
+  }
+
+  // ── Shared internals ───────────────────────────────────────────────────────
+
+  Future<_PresignResponse> _requestPresign({
+    required Map<String, dynamic> payload,
+    String? accessToken,
+  }) async {
+    if (presignUrl.trim().isEmpty) {
+      throw const UploadException('Missing UPLOAD_PRESIGN_URL configuration.');
     }
-
-    final endpoint = _buildEndpoint(apiBaseUrl: apiBaseUrl, path: presignPath);
-    final fileName = file.path.split(Platform.pathSeparator).last;
-    final fileExt = fileName.contains('.') ? fileName.split('.').last : 'jpg';
-
-    final payload = <String, dynamic>{
-      'cafeId': cafeId,
-      'userId': userId,
-      'fileName': fileName,
-      'fileExt': fileExt,
-      'slot': index,
-      'acl': 'public-read',
-      'contentType': _contentTypeFor(fileExt),
-    };
 
     try {
       final headers = await _buildJsonHeaders(accessTokenOverride: accessToken);
-
       final response = await httpClient
           .post(
-            endpoint,
+            Uri.parse(presignUrl),
             headers: headers,
             body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw ReviewImageUploadException(
+        throw UploadException(
           'Unable to get upload URL. HTTP ${response.statusCode}.',
         );
       }
 
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) {
-        throw const ReviewImageUploadException('Invalid upload URL response.');
+        throw const UploadException('Invalid upload URL response.');
       }
 
       final uploadUrl = decoded['uploadUrl']?.toString() ?? '';
@@ -116,7 +128,7 @@ class ReviewImageUploadRemoteDataSource {
       );
 
       if (uploadUrl.isEmpty || objectKey.isEmpty || publicUrl.isEmpty) {
-        throw const ReviewImageUploadException(
+        throw const UploadException(
           'Upload response is missing required fields.',
         );
       }
@@ -126,51 +138,41 @@ class ReviewImageUploadRemoteDataSource {
         objectKey: objectKey,
         publicUrl: publicUrl,
       );
-    } on ReviewImageUploadException {
+    } on UploadException {
       rethrow;
     } catch (e, st) {
-      throw ReviewImageUploadException(
-        'Unable to prepare image upload.',
+      throw UploadException(
+        'Unable to prepare upload.',
         cause: e,
         stackTrace: st,
       );
     }
   }
 
-  Future<void> _uploadToS3({
+  Future<void> _putToS3({
     required File file,
     required String uploadUrl,
+    required String contentType,
   }) async {
-    final uri = Uri.parse(uploadUrl);
-    final bytes = await file.readAsBytes();
-    final fileName = file.path.split(Platform.pathSeparator).last;
-    final fileExt = fileName.contains('.') ? fileName.split('.').last : 'jpg';
-
     try {
+      final bytes = await file.readAsBytes();
       final response = await httpClient
           .put(
-            uri,
-            headers: <String, String>{
-              'Content-Type': _contentTypeFor(fileExt),
-              'x-amz-acl': 'public-read',
-            },
+            Uri.parse(uploadUrl),
+            headers: {'Content-Type': contentType, 'x-amz-acl': 'public-read'},
             body: bytes,
           )
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw ReviewImageUploadException(
-          'Image upload failed. HTTP ${response.statusCode}.',
+        throw UploadException(
+          'Upload to S3 failed. HTTP ${response.statusCode}.',
         );
       }
-    } on ReviewImageUploadException {
+    } on UploadException {
       rethrow;
     } catch (e, st) {
-      throw ReviewImageUploadException(
-        'Image upload failed.',
-        cause: e,
-        stackTrace: st,
-      );
+      throw UploadException('Upload to S3 failed.', cause: e, stackTrace: st);
     }
   }
 
@@ -179,41 +181,29 @@ class ReviewImageUploadRemoteDataSource {
   }) async {
     final headers = <String, String>{'Content-Type': 'application/json'};
 
-    String? authToken = accessTokenOverride;
-    authToken ??= authTokenGetter?.call();
-    if (authToken == null || authToken.isEmpty) {
+    String? token = accessTokenOverride ?? authTokenGetter?.call();
+    if (token == null || token.isEmpty) {
       try {
-        authToken = await authTokenRefresher?.call();
-      } catch (_) {
-        // Ignore token refresh errors and proceed with available credentials.
-      }
+        token = await authTokenRefresher?.call();
+      } catch (_) {}
     }
 
-    if (authToken != null && authToken.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $authToken';
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
     }
 
     return headers;
   }
 
-  Uri _buildEndpoint({required String apiBaseUrl, required String path}) {
-    final base = apiBaseUrl.trim().replaceAll(RegExp(r'/+$'), '');
-    final normalizedPath = path.trim().replaceAll(RegExp(r'^/+'), '');
-    return Uri.parse('$base/$normalizedPath');
-  }
-
-  String _contentTypeFor(String fileExt) {
-    final ext = fileExt.toLowerCase();
+  String _contentTypeFor(File file) {
+    final ext = file.path.split('.').last.toLowerCase();
     switch (ext) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
       case 'png':
         return 'image/png';
       case 'webp':
         return 'image/webp';
       default:
-        return 'application/octet-stream';
+        return 'image/jpeg';
     }
   }
 
@@ -274,7 +264,6 @@ class _PresignResponse {
   final String uploadUrl;
   final String objectKey;
   final String publicUrl;
-
   const _PresignResponse({
     required this.uploadUrl,
     required this.objectKey,

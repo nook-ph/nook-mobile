@@ -19,7 +19,10 @@ void main() {
   group('SaveToListCubit', () {
     test('loads regular lists with saved memberships', () async {
       final repository = _FakeCafeRepository(
-        lists: [_defaultList(), _list(id: 'list-1')],
+        lists: [
+          _defaultList(),
+          _list(id: 'list-1'),
+        ],
         memberships: {'list-1'},
       );
       final cubit = _buildCubit(repository);
@@ -86,24 +89,27 @@ void main() {
       expect(store.recordedListId, 'list-1');
     });
 
-    test('does not persist last saved list when removing cafe from list', () async {
-      final store = _RecordingLastSavedListStore();
-      final repository = _FakeCafeRepository(
-        lists: [_list(id: 'list-1')],
-        memberships: {'list-1'},
-      );
-      final cubit = _buildCubit(
-        repository,
-        lastSavedListStore: store,
-        currentUserId: () => 'user-1',
-      );
-      await cubit.load('cafe-1');
+    test(
+      'does not persist last saved list when removing cafe from list',
+      () async {
+        final store = _RecordingLastSavedListStore();
+        final repository = _FakeCafeRepository(
+          lists: [_list(id: 'list-1')],
+          memberships: {'list-1'},
+        );
+        final cubit = _buildCubit(
+          repository,
+          lastSavedListStore: store,
+          currentUserId: () => 'user-1',
+        );
+        await cubit.load('cafe-1');
 
-      await cubit.toggleList(cafeId: 'cafe-1', listId: 'list-1');
+        await cubit.toggleList(cafeId: 'cafe-1', listId: 'list-1');
 
-      expect(store.recordedUserId, isNull);
-      expect(store.recordedListId, isNull);
-    });
+        expect(store.recordedUserId, isNull);
+        expect(store.recordedListId, isNull);
+      },
+    );
 
     test('persists last saved list id after createListAndSave', () async {
       final store = _RecordingLastSavedListStore();
@@ -138,21 +144,21 @@ void main() {
     test(
       'sortListsForSaveSheet pins default first; rest by lastSavedAt else updatedAt desc',
       () {
-      final favorites = _list(
-        id: 'fav',
-        isDefault: true,
-        lastSavedAt: DateTime(2000),
-      );
-      final old = _list(id: 'old', lastSavedAt: DateTime(2020));
-      final recent = _list(id: 'recent', lastSavedAt: DateTime(2025));
-      final unset = _list(
-        id: 'unset',
-        lastSavedAt: null,
-        updatedAt: DateTime(2010),
-      );
-      final sorted = sortListsForSaveSheet([old, recent, favorites, unset]);
-      expect(sorted.map((l) => l.id), ['fav', 'recent', 'old', 'unset']);
-    },
+        final favorites = _list(
+          id: 'fav',
+          isDefault: true,
+          lastSavedAt: DateTime(2000),
+        );
+        final old = _list(id: 'old', lastSavedAt: DateTime(2020));
+        final recent = _list(id: 'recent', lastSavedAt: DateTime(2025));
+        final unset = _list(
+          id: 'unset',
+          lastSavedAt: null,
+          updatedAt: DateTime(2010),
+        );
+        final sorted = sortListsForSaveSheet([old, recent, favorites, unset]);
+        expect(sorted.map((l) => l.id), ['fav', 'recent', 'old', 'unset']);
+      },
     );
   });
 }
@@ -251,7 +257,11 @@ class _FakeCafeRepository implements ICafeRepository {
   }
 
   @override
-  Future<String> createList({required String name, String? description}) async {
+  Future<String> createList({
+    required String name,
+    String? description,
+    required bool isPublic,
+  }) async {
     const listId = 'created-list';
     lists.add(_list(id: listId));
     return listId;
