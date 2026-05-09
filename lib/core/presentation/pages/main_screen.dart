@@ -43,22 +43,6 @@ class MainScreen extends StatelessWidget {
                 context.read<NavigationBloc>().add(TabChange(tabIndex: index));
               },
             ),
-            // body: Stack(                         could do this
-            //   children: [
-            //     IndexedStack(index: state.tabIndex, children: _pages),
-            //     Align(
-            //       alignment: Alignment.bottomCenter,
-            //       child: BottomNav(
-            //         currentIndex: state.tabIndex,
-            //         onTap: (index) {
-            //           context.read<NavigationBloc>().add(
-            //             TabChange(tabIndex: index),
-            //           );
-            //         },
-            //       ),
-            //     ),
-            //   ],
-            // ),
           );
         },
       ),

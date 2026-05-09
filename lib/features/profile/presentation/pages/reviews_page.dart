@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
-import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
-import 'package:nook/injection_container.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 
 class ReviewsPage extends StatefulWidget {
   const ReviewsPage({super.key});
@@ -24,50 +23,8 @@ class _ReviewsPageState extends State<ReviewsPage> {
     'Lowest Rated',
   ];
 
-  List<WrittenReview> _allReviews = const [];
-  bool _loading = true;
-  Object? _loadError;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadReviews();
-  }
-
-  Future<void> _loadReviews() async {
-    setState(() {
-      _loading = true;
-      _loadError = null;
-    });
-
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) {
-      setState(() {
-        _allReviews = const [];
-        _loading = false;
-      });
-      return;
-    }
-
-    try {
-      final list = await sl<GetReviewsWrittenByUserUseCase>()(userId);
-      if (!mounted) return;
-      setState(() {
-        _allReviews = list;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loadError = e;
-        _allReviews = const [];
-        _loading = false;
-      });
-    }
-  }
-
-  List<WrittenReview> get _filteredReviews {
-    List<WrittenReview> result = [..._allReviews];
+  List<WrittenReview> _getFiltered(List<WrittenReview> all) {
+    List<WrittenReview> result = [...all];
 
     if (_selectedStar != null) {
       result = result.where((r) {
@@ -91,8 +48,6 @@ class _ReviewsPageState extends State<ReviewsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final reviews = _filteredReviews;
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -101,7 +56,11 @@ class _ReviewsPageState extends State<ReviewsPage> {
         leading: Transform.scale(
           scaleX: -1,
           child: IconButton(
-            icon: const Icon(Icons.chevron_right, color: Colors.black, size: 28),
+            icon: const Icon(
+              Icons.chevron_right,
+              color: Colors.black,
+              size: 28,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -114,101 +73,112 @@ class _ReviewsPageState extends State<ReviewsPage> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _StarChip(
-                        label: 'All',
-                        selected: _selectedStar == null,
-                        onTap: () => setState(() => _selectedStar = null),
-                      ),
-                      const SizedBox(width: 8),
-                      ...List.generate(5, (i) {
-                        final star = 5 - i;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: _StarChip(
-                            label: '$star ★',
-                            selected: _selectedStar == star,
-                            onTap: () => setState(() => _selectedStar = star),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
+      body: BlocBuilder<ProfileCubit, ProfileState>(
+        builder: (context, profileState) {
+          // Filter controls are always shown
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Sort by:',
-                      style: TextStyle(fontSize: 13, color: Colors.grey),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _sortBy,
-                          isDense: true,
-                          dropdownColor: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _StarChip(
+                            label: 'All',
+                            selected: _selectedStar == null,
+                            onTap: () => setState(() => _selectedStar = null),
                           ),
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 18,
-                            color: Colors.black54,
-                          ),
-                          items: _sortOptions.map((option) {
-                            return DropdownMenuItem(
-                              value: option,
-                              child: Text(option),
+                          const SizedBox(width: 8),
+                          ...List.generate(5, (i) {
+                            final star = 5 - i;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _StarChip(
+                                label: '$star ★',
+                                selected: _selectedStar == star,
+                                onTap: () =>
+                                    setState(() => _selectedStar = star),
+                              ),
                             );
-                          }).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _sortBy = val);
-                          },
-                        ),
+                          }),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text(
+                          'Sort by:',
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFE0E0E0)),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: _sortBy,
+                              isDense: true,
+                              dropdownColor: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down,
+                                size: 18,
+                                color: Colors.black54,
+                              ),
+                              items: _sortOptions.map((option) {
+                                return DropdownMenuItem(
+                                  value: option,
+                                  child: Text(option),
+                                );
+                              }).toList(),
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() => _sortBy = val);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: Color(0xFFEEEEEE)),
                   ],
                 ),
-                const SizedBox(height: 12),
-                const Divider(height: 1, color: Color(0xFFEEEEEE)),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _buildBody(reviews),
-          ),
-        ],
+              ),
+              Expanded(child: _buildBody(profileState)),
+            ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildBody(List<WrittenReview> reviews) {
-    if (_loading) {
+  Widget _buildBody(ProfileState profileState) {
+    // Loading
+    if (profileState is ProfileLoading || profileState is ProfileInitial) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_loadError != null) {
+    // Error
+    if (profileState is ProfileError) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -224,7 +194,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: _loadReviews,
+                onPressed: () => context.read<ProfileCubit>().loadProfile(),
                 child: const Text('Retry'),
               ),
             ],
@@ -232,6 +202,13 @@ class _ReviewsPageState extends State<ReviewsPage> {
         ),
       );
     }
+
+    // Loaded
+    if (profileState is! ProfileLoaded) return const SizedBox.shrink();
+
+    final username = profileState.username;
+    final avatarUrl = profileState.avatarUrl;
+    final reviews = _getFiltered(profileState.reviews);
 
     if (reviews.isEmpty) {
       return const Center(
@@ -252,11 +229,14 @@ class _ReviewsPageState extends State<ReviewsPage> {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
       itemCount: reviews.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 14),
+      separatorBuilder: (_, __) => const SizedBox(height: 14),
       itemBuilder: (context, index) {
         final review = reviews[index];
         return ReviewCard(
-          name: review.cafeName,
+          isOwner: true,
+          username: username,
+          avatarUrl: avatarUrl,
+          cafeReviewed: review.cafeName,
           date: _formatReviewDate(review.createdAt),
           rating: review.rating.toDouble(),
           reviewText: review.content,

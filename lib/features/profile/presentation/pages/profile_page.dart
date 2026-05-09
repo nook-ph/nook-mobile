@@ -45,7 +45,6 @@ class ProfilePage extends StatelessWidget {
       ],
       child: MultiBlocListener(
         listeners: [
-          // Auth Listener
           BlocListener<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state is AuthAuthenticated) {
@@ -60,12 +59,10 @@ class ProfilePage extends StatelessWidget {
               }
             },
           ),
-          // Avatar Upload Listener
           BlocListener<AvatarUploadBloc, AvatarUploadState>(
             listener: (context, state) {
               if (state is AvatarUploadSuccess) {
                 showPrimaryToast(context, 'Avatar updated successfully!');
-                // Reload profile so the new avatarURL trickles down!
                 context.read<ProfileCubit>().loadProfile();
               }
               if (state is AvatarUploadError) {
@@ -96,12 +93,20 @@ class ProfilePage extends StatelessWidget {
                     ? profileState.reviews
                     : const <WrittenReview>[];
                 final visibleReviews = writtenReviews.take(4).toList();
+                final username = profileState is ProfileLoaded
+                    ? profileState.username
+                    : '';
+
+                final avatarUrl = profileState is ProfileLoaded
+                    ? profileState.avatarUrl
+                    : '';
 
                 return SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 24),
+                      // Profile Hero
                       BlocBuilder<ProfileCubit, ProfileState>(
                         builder: (context, state) {
                           if (state is ProfileLoading ||
@@ -118,7 +123,7 @@ class ProfilePage extends StatelessWidget {
                                     name: 'Display name placeholder',
                                     email:
                                         'email.address.placeholder@example.com',
-                                    avatarUrl: null, // skeleton loading
+                                    avatarUrl: null,
                                   ),
                                 ),
                               ),
@@ -138,11 +143,12 @@ class ProfilePage extends StatelessWidget {
                           return ProfileHeroSection(
                             name: name,
                             email: email,
-                            avatarUrl: avatarUrl, // Pass the URL!
+                            avatarUrl: avatarUrl,
                           );
                         },
                       ),
                       const SizedBox(height: 32),
+                      // Reviews header
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 22),
                         child: Row(
@@ -160,7 +166,10 @@ class ProfilePage extends StatelessWidget {
                                 await Navigator.push<void>(
                                   context,
                                   MaterialPageRoute<void>(
-                                    builder: (_) => const ReviewsPage(),
+                                    builder: (_) => BlocProvider.value(
+                                      value: context.read<ProfileCubit>(),
+                                      child: const ReviewsPage(),
+                                    ),
                                   ),
                                 );
                                 if (!context.mounted) return;
@@ -170,6 +179,8 @@ class ProfilePage extends StatelessWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 14),
+                      // Reviews list
                       if (isReviewsLoading)
                         Skeletonizer(
                           enabled: true,
@@ -182,18 +193,17 @@ class ProfilePage extends StatelessWidget {
                                 horizontal: 22,
                               ),
                               itemCount: 3,
-                              separatorBuilder: (context, index) =>
+                              separatorBuilder: (_, __) =>
                                   const SizedBox(height: 14),
-                              itemBuilder: (context, index) {
-                                return const ReviewCard(
-                                  name: 'Cafe name placeholder',
-                                  date: '00/00/00',
-                                  rating: 4.5,
-                                  reviewText:
-                                      'Review body placeholder text for skeleton layout while loading.',
-                                  photos: [],
-                                );
-                              },
+                              itemBuilder: (_, __) => const ReviewCard(
+                                username: 'username',
+                                cafeReviewed: 'Cafe name placeholder',
+                                date: '00/00/00',
+                                rating: 4.5,
+                                reviewText:
+                                    'Review body placeholder text for skeleton layout while loading.',
+                                photos: [],
+                              ),
                             ),
                           ),
                         )
@@ -216,12 +226,14 @@ class ProfilePage extends StatelessWidget {
                           physics: const NeverScrollableScrollPhysics(),
                           padding: const EdgeInsets.symmetric(horizontal: 22),
                           itemCount: visibleReviews.length,
-                          separatorBuilder: (_, _) =>
+                          separatorBuilder: (_, __) =>
                               const SizedBox(height: 14),
                           itemBuilder: (context, index) {
                             final review = visibleReviews[index];
                             return ReviewCard(
-                              name: review.cafeName,
+                              username: username,
+                              avatarUrl: avatarUrl,
+                              cafeReviewed: review.cafeName,
                               date: _formatReviewDate(review.createdAt),
                               rating: review.rating.toDouble(),
                               reviewText: review.content,
@@ -230,6 +242,7 @@ class ProfilePage extends StatelessWidget {
                           },
                         ),
                       const SizedBox(height: 32),
+                      // Settings
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 22),
                         child: Column(
@@ -292,6 +305,7 @@ class ProfilePage extends StatelessWidget {
                           ],
                         ),
                       ),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 );
@@ -307,7 +321,7 @@ class ProfilePage extends StatelessWidget {
 class ProfileHeroSection extends StatelessWidget {
   final String name;
   final String email;
-  final String? avatarUrl; // ADDED
+  final String? avatarUrl;
 
   const ProfileHeroSection({
     super.key,
@@ -354,7 +368,6 @@ class ProfileHeroSection extends StatelessWidget {
   }
 }
 
-// --- NEW Editable Avatar Component ---
 class EditableAvatar extends StatefulWidget {
   final String? avatarUrl;
 
@@ -419,7 +432,6 @@ class _EditableAvatarState extends State<EditableAvatar> {
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Outer border ring exactly as you had it
               Container(
                 width: 80,
                 height: 80,
@@ -459,8 +471,6 @@ class _EditableAvatarState extends State<EditableAvatar> {
                   ),
                 ),
               ),
-
-              // Dim overlay & loading spinner when uploading
               if (isUploading)
                 Container(
                   width: 70,
@@ -477,8 +487,6 @@ class _EditableAvatarState extends State<EditableAvatar> {
                     ),
                   ),
                 ),
-
-              // Small camera icon indicator
               Positioned(
                 bottom: 0,
                 right: 0,
@@ -541,7 +549,6 @@ class _SeeMoreLinkState extends State<_SeeMoreLink> {
   }
 }
 
-// --- Settings Tile ---
 class _SettingsTile extends StatelessWidget {
   final String label;
   final PhosphorIconData iconData;
@@ -582,7 +589,6 @@ String _formatReviewDate(DateTime date) {
   return '$mm/$dd/$yy';
 }
 
-// --- Logout Dialog ---
 void _showLogoutDialog(BuildContext context) {
   showDialog(
     context: context,
