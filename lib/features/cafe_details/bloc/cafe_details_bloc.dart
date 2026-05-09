@@ -3,6 +3,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart' as core;
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_details_usecase.dart'
     as core_usecase;
+import 'package:flutter/foundation.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
@@ -31,7 +32,12 @@ class CafeDetailsBloc extends Bloc<CafeDetailsEvent, CafeDetailsState> {
       );
 
       emit(CafeDetailsLoaded(result));
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint(
+        '[CafeDetailsBloc] LoadCafeDetails failed cafeId=${event.cafeId}',
+      );
+      debugPrint('  error: $e');
+      debugPrint('  stack: $stackTrace');
       emit(CafeDetailsError(e));
     }
   }

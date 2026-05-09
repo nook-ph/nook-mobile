@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
@@ -37,12 +38,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool _canEditUsername = true;
   int _daysUntilUsernameUnlock = 0;
 
+  // Bio char count
+  int _bioCharCount = 0;
+  static const int _bioMaxLength = 150;
+
   File? _avatarFile;
   final ImagePicker _imagePicker = ImagePicker();
 
   static const _green = Color(0xFF344E41);
+  static const _greenLight = Color(0xFF4A6741);
   static const _grey = Color(0xFFA8AAAA);
-  static const _border = Color(0xFFE0E0E0);
+  static const _labelColor = Color(0xFF888888);
+  static const _borderColor = Color(0xFFD0D0D0);
+  static const _sectionTitleColor = Color(0xFF1A1A1A);
 
   @override
   void initState() {
@@ -66,6 +74,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _usernameController = TextEditingController(text: _initialUsername);
     _bioController = TextEditingController(text: initialBio);
     _emailController = TextEditingController(text: initialEmail);
+
+    _bioCharCount = initialBio.length;
+    _bioController.addListener(() {
+      setState(() => _bioCharCount = _bioController.text.length);
+    });
 
     // Calculate 14-day cooldown
     if (lastChange != null) {
@@ -93,7 +106,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void _onUsernameChanged() {
     final value = _usernameController.text.trim();
 
-    // If it's their current username, it's automatically valid!
     if (value == _initialUsername) {
       setState(() {
         _isAvailable = true;
@@ -132,7 +144,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'is_username_available',
         params: {'p_username': username},
       );
-
       if (!mounted) return;
       setState(() {
         _isAvailable = result as bool? ?? false;
@@ -198,7 +209,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final avatarBloc = context.read<AvatarUploadBloc>();
 
     final typedUsername = _usernameController.text.trim();
-    // Only pass username to Cubit if it actually changed
     final usernameToSave = typedUsername == _initialUsername
         ? null
         : typedUsername;
@@ -219,7 +229,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
           accessToken = refreshed.session?.accessToken;
         } catch (_) {}
       }
-
       avatarBloc.add(
         SubmitAvatarRequested(file: _avatarFile!, accessToken: accessToken),
       );
@@ -244,173 +253,197 @@ class _EditProfilePageState extends State<EditProfilePage> {
       builder: (context, avatarState) {
         final isSaving = avatarState is AvatarUploading;
 
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle.dark,
+          child: Scaffold(
             backgroundColor: Colors.white,
-            elevation: 0,
-            leading: Transform.scale(
-              scaleX: -1,
-              child: IconButton(
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              surfaceTintColor: Colors.white,
+              leading: IconButton(
                 icon: const Icon(
-                  Icons.chevron_right,
-                  color: Colors.black,
-                  size: 28,
+                  Icons.arrow_back,
+                  color: Colors.black87,
+                  size: 22,
                 ),
                 onPressed: isSaving ? null : () => Navigator.pop(context),
               ),
-            ),
-            title: const Text(
-              'Edit Profile',
-              style: TextStyle(
-                color: Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+              title: const Text(
+                'Edit Profile',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
               ),
+              centerTitle: false,
             ),
-          ),
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
+            body: SafeArea(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const SizedBox(height: 32),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 28),
 
-                  // --- Avatar ---
-                  Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      Container(
-                        width: 130,
-                        height: 130,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: _green, width: 2.5),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(2.5),
-                          child: ClipOval(child: _buildAvatarImage()),
-                        ),
-                      ),
-                      AdaptiveTap(
-                        onTap: isSaving ? null : _pickAvatar,
-                        child: Container(
-                          width: 30,
-                          height: 30,
-                          decoration: const BoxDecoration(
-                            color: _green,
-                            shape: BoxShape.circle,
+                          // ── Avatar ──────────────────────────────────────
+                          Center(
+                            child: Column(
+                              children: [
+                                AdaptiveTap(
+                                  onTap: isSaving ? null : _pickAvatar,
+                                  child: Stack(
+                                    children: [
+                                      Container(
+                                        width: 100,
+                                        height: 100,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: ClipOval(
+                                          child: _buildAvatarImage(),
+                                        ),
+                                      ),
+                                      // Subtle dim overlay on tap area
+                                      Positioned.fill(
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          shape: const CircleBorder(),
+                                          clipBehavior: Clip.antiAlias,
+                                          child: InkWell(
+                                            onTap: isSaving
+                                                ? null
+                                                : _pickAvatar,
+                                            splashColor: Colors.black12,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                GestureDetector(
+                                  onTap: isSaving ? null : _pickAvatar,
+                                  child: Text(
+                                    'Change Photo',
+                                    style: TextStyle(
+                                      color: isSaving ? _grey : _green,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: const Icon(
-                            Icons.edit,
-                            size: 16,
-                            color: Colors.white,
+
+                          const SizedBox(height: 32),
+
+                          // ── Section Header ───────────────────────────────
+                          const Text(
+                            'Personal Information',
+                            style: TextStyle(
+                              color: _sectionTitleColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: -0.2,
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
 
-                  const SizedBox(height: 36),
+                          const SizedBox(height: 16),
 
-                  // --- Full Name ---
-                  _buildFieldLabel('Full Name'),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _nameController,
-                    hint: 'Enter your name',
-                    enabled: !isSaving,
-                  ),
+                          // ── Name ─────────────────────────────────────────
+                          _buildOutlinedField(
+                            controller: _nameController,
+                            label: 'Name',
+                            enabled: !isSaving,
+                          ),
 
-                  const SizedBox(height: 24),
+                          const SizedBox(height: 12),
 
-                  // --- Username ---
-                  _buildFieldLabel('Username'),
-                  const SizedBox(height: 8),
-                  _buildUsernameField(enabled: !isSaving && _canEditUsername),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: _buildUsernameStatusText(),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // --- Bio ---
-                  _buildFieldLabel('Bio'),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _bioController,
-                    hint: 'Tell people about your coffee preferences...',
-                    enabled: !isSaving,
-                    maxLines: 4,
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // --- Email (read-only) ---
-                  _buildFieldLabel('Email'),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _emailController,
-                    hint: '',
-                    enabled: false,
-                    suffixIcon: const Icon(
-                      Icons.lock_outline,
-                      size: 18,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Email cannot be changed.',
-                      style: TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                  ),
-
-                  const SizedBox(height: 48),
-
-                  // --- Save Button ---
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: (isSaving || !_canSubmit)
-                          ? null
-                          : _onSaveChanges,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _green,
-                        disabledBackgroundColor: _green.withOpacity(0.5),
-                        foregroundColor: Colors.white,
-                        disabledForegroundColor: Colors.white.withOpacity(0.8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Save Changes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                          // ── Username ──────────────────────────────────────
+                          _buildUsernameOutlinedField(
+                            enabled: !isSaving && _canEditUsername,
+                          ),
+                          if (!_canEditUsername) ...[
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: Text(
+                                'You can change your username in $_daysUntilUsernameUnlock days.',
+                                style: const TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 11.5,
+                                ),
                               ),
                             ),
+                          ] else ...[
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 4),
+                              child: _buildUsernameStatusText(),
+                            ),
+                          ],
+
+                          const SizedBox(height: 12),
+
+                          // ── Bio ───────────────────────────────────────────
+                          _buildBioOutlinedField(enabled: !isSaving),
+
+                          const SizedBox(height: 32),
+                        ],
+                      ),
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  // ── Save Button (pinned bottom) ──────────────────────────
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: (isSaving || !_canSubmit)
+                            ? null
+                            : _onSaveChanges,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _green,
+                          disabledBackgroundColor: _green.withOpacity(0.45),
+                          foregroundColor: Colors.white,
+                          disabledForegroundColor: Colors.white.withOpacity(
+                            0.7,
+                          ),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Save Changes',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -420,14 +453,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  // --- Helpers ---
+  // ── Avatar Helpers ──────────────────────────────────────────────────────────
+
   Widget _buildAvatarImage() {
     if (_avatarFile != null) {
       return Image.file(
         _avatarFile!,
         fit: BoxFit.cover,
-        width: 125,
-        height: 125,
+        width: 100,
+        height: 100,
       );
     }
 
@@ -436,9 +470,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return Image.network(
         profileState.avatarUrl!,
         fit: BoxFit.cover,
-        width: 125,
-        height: 125,
-        errorBuilder: (context, error, stackTrace) => _buildPlaceholderAvatar(),
+        width: 100,
+        height: 100,
+        errorBuilder: (_, __, ___) => _buildPlaceholderAvatar(),
       );
     }
 
@@ -450,123 +484,235 @@ class _EditProfilePageState extends State<EditProfilePage> {
       color: const Color(0xFFE8E8E8),
       child: const Icon(
         Icons.person_rounded,
-        size: 56,
+        size: 48,
         color: Color(0xFFBDBDBD),
       ),
     );
   }
 
-  Widget _buildFieldLabel(String label) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          color: Colors.black87,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
+  // ── Field Widgets ───────────────────────────────────────────────────────────
+  //
+  // Pattern: a decorated Container holds a Column with:
+  //   Row( label Text  +  optional suffix )
+  //   TextField with no decoration at all (border: InputBorder.none)
+  // This is the exact layout in the reference screenshot.
+ 
+  Widget _buildOutlinedField({
     required TextEditingController controller,
-    required String hint,
+    required String label,
     required bool enabled,
     int maxLines = 1,
     Widget? suffixIcon,
+    Color borderColor = _borderColor,
   }) {
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      maxLines: maxLines,
-      style: TextStyle(
-        fontSize: 14,
-        color: enabled ? Colors.black : Colors.grey[600],
-      ),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
-        suffixIcon: suffixIcon,
-        filled: true,
-        fillColor: enabled ? const Color(0xFFF5F5F5) : const Color(0xFFEEEEEE),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
+    return Focus(
+      onFocusChange: (_) => setState(() {}), // repaint border on focus
+      child: Builder(
+        builder: (ctx) {
+          final focused = Focus.of(ctx).hasFocus;
+          final activeBorder = focused ? _green : borderColor;
+ 
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: enabled ? activeBorder : const Color(0xFFE8E8E8),
+                width: focused ? 1.5 : 1.2,
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: _labelColor,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    if (suffixIcon != null) suffixIcon,
+                  ],
+                ),
+                TextField(
+                  controller: controller,
+                  enabled: enabled,
+                  maxLines: maxLines,
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    color: enabled ? Colors.black87 : const Color(0xFF888888),
+                    fontWeight: FontWeight.w400,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.only(bottom: 8),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
-
-  // --- Specific Username Widgets ---
-  Widget _buildUsernameField({required bool enabled}) {
-    final hasInput = _usernameController.text.isNotEmpty;
-
-    // Determine border color based on validation
-    Color borderColor = _border;
-    if (hasInput && _usernameController.text != _initialUsername) {
+ 
+  /// Username field — same container pattern, with @-prefix and validation icon
+  Widget _buildUsernameOutlinedField({required bool enabled}) {
+    Color borderColor = _borderColor;
+    if (_usernameController.text.isNotEmpty &&
+        _usernameController.text != _initialUsername) {
       if (_validationError != null || _isAvailable == false) {
         borderColor = Colors.red;
       } else if (_isAvailable == true) {
         borderColor = _green;
       }
     }
-
-    return TextField(
-      controller: _usernameController,
-      enabled: enabled,
-      style: TextStyle(
-        fontSize: 14,
-        color: enabled ? Colors.black : Colors.grey[600],
-      ),
-      decoration: InputDecoration(
-        hintText: 'username',
-        hintStyle: const TextStyle(color: Colors.grey),
-        prefixText: '@',
-        prefixStyle: TextStyle(
-          color: enabled ? Colors.black87 : Colors.grey[600],
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-        ),
-        suffixIcon: _buildUsernameSuffixIcon(),
-        filled: true,
-        fillColor: enabled ? const Color(0xFFF5F5F5) : const Color(0xFFEEEEEE),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: borderColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(
-            color: borderColor == _border ? Colors.black87 : borderColor,
-          ),
-        ),
-        disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
+ 
+    return Focus(
+      onFocusChange: (_) => setState(() {}),
+      child: Builder(
+        builder: (ctx) {
+          final focused = Focus.of(ctx).hasFocus;
+          final activeBorder = focused
+              ? (borderColor == _borderColor ? _green : borderColor)
+              : borderColor;
+ 
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: enabled ? activeBorder : const Color(0xFFE8E8E8),
+                width: focused ? 1.5 : 1.2,
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Username',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: _labelColor,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    if (_buildUsernameSuffixIcon() != null)
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: _buildUsernameSuffixIcon(),
+                      ),
+                  ],
+                ),
+                TextField(
+                  controller: _usernameController,
+                  enabled: enabled,
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    color: enabled ? Colors.black87 : const Color(0xFF888888),
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    contentPadding: const EdgeInsets.only(bottom: 8),
+                    border: InputBorder.none,
+                    prefixText: '@',
+                    prefixStyle: TextStyle(
+                      fontSize: 15.5,
+                      color: enabled ? Colors.black87 : _grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
-
+ 
+  /// Bio field — label + char counter on top row, TextField below
+  Widget _buildBioOutlinedField({required bool enabled}) {
+    return Focus(
+      onFocusChange: (_) => setState(() {}),
+      child: Builder(
+        builder: (ctx) {
+          final focused = Focus.of(ctx).hasFocus;
+ 
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: enabled
+                    ? (focused ? _green : _borderColor)
+                    : const Color(0xFFE8E8E8),
+                width: focused ? 1.5 : 1.2,
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Bio',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: _labelColor,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    Text(
+                      '$_bioCharCount/$_bioMaxLength',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: _grey,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+                TextField(
+                  controller: _bioController,
+                  enabled: enabled,
+                  maxLines: 5,
+                  maxLength: _bioMaxLength,
+                  buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
+                      const SizedBox.shrink(),
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    color: enabled ? Colors.black87 : const Color(0xFF888888),
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.only(bottom: 8),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+ 
+  // ── Username Status Widgets ─────────────────────────────────────────────────
+ 
   Widget? _buildUsernameSuffixIcon() {
     if (_usernameController.text.isEmpty ||
-        _usernameController.text == _initialUsername)
-      return null;
-
+        _usernameController.text == _initialUsername) return null;
+ 
     if (_isChecking) {
       return const Padding(
         padding: EdgeInsets.all(14),
@@ -580,7 +726,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
       );
     }
-
+ 
     if (_validationError != null || _isAvailable == false) {
       return const Icon(Icons.cancel_rounded, color: Colors.red, size: 20);
     }
@@ -589,44 +735,37 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
     return null;
   }
-
+ 
   Widget _buildUsernameStatusText() {
-    if (!_canEditUsername) {
-      return Text(
-        'You can change your username in $_daysUntilUsernameUnlock days.',
-        style: const TextStyle(color: Colors.orange, fontSize: 12),
-      );
-    }
-
     if (_usernameController.text == _initialUsername ||
         _usernameController.text.isEmpty) {
       return const SizedBox.shrink();
     }
-
     if (_validationError != null) {
       return Text(
         _validationError!,
-        style: const TextStyle(color: Colors.red, fontSize: 12),
+        style: const TextStyle(color: Colors.red, fontSize: 11.5),
       );
     }
     if (_isChecking) {
       return const Text(
         'Checking availability...',
-        style: TextStyle(color: _grey, fontSize: 12),
+        style: TextStyle(color: _grey, fontSize: 11.5),
       );
     }
     if (_isAvailable == true) {
       return Text(
         '@${_usernameController.text} is available!',
-        style: const TextStyle(color: _green, fontSize: 12),
+        style: const TextStyle(color: _green, fontSize: 11.5),
       );
     }
     if (_isAvailable == false) {
       return Text(
         '@${_usernameController.text} is already taken.',
-        style: const TextStyle(color: Colors.red, fontSize: 12),
+        style: const TextStyle(color: Colors.red, fontSize: 11.5),
       );
     }
     return const SizedBox.shrink();
   }
 }
+

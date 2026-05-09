@@ -126,7 +126,6 @@ class Review {
   });
 }
 
-/// A review authored by a user, with cafe context for profile / "my reviews" UIs.
 class WrittenReview {
   final String id;
   final String cafeId;

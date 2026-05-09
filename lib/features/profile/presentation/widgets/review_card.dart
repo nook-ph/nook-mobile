@@ -3,22 +3,33 @@ import 'package:flutter/material.dart';
 class ReviewCard extends StatelessWidget {
   const ReviewCard({
     super.key,
-    required this.name,
+    required this.username,
+    required this.cafeReviewed,
     required this.date,
     required this.rating,
     required this.reviewText,
+    this.avatarUrl,
     this.photos = const [],
+    this.isOwner = false,
+    this.helpfulCount = 0,
+    this.onHelpfulTap,
+    this.onMoreTap,
   });
 
-  final String name;
+  final String username;
+  final String cafeReviewed;
   final String date;
   final double rating;
   final String reviewText;
-  final List<String> photos; // list of image URLs
+  final String? avatarUrl;
+  final List<String> photos;
+  final bool isOwner;
+  final int helpfulCount;
+  final VoidCallback? onHelpfulTap;
+  final VoidCallback? onMoreTap;
 
   @override
   Widget build(BuildContext context) {
-    const double cardWidth = 344;
     const int maxVisiblePhotos = 3;
     const double photoSize = 100;
     const double photoSpacing = 8;
@@ -34,7 +45,7 @@ class ReviewCard extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
       ),
       child: Padding(
@@ -43,82 +54,91 @@ class ReviewCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header row: name + rating
+            // Header: avatar + name/cafe + stars
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: const Color(0xFFE0E0E0),
+                  backgroundImage: avatarUrl != null
+                      ? NetworkImage(avatarUrl!)
+                      : null,
+                  child: avatarUrl == null
+                      ? const Icon(Icons.person, color: Colors.white54)
+                      : null,
                 ),
-                RichText(
-                  text: TextSpan(
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextSpan(
-                        text: rating.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.black,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: username,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const TextSpan(
+                              text: ' reviewed ',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                            TextSpan(
+                              text: cafeReviewed,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
-                    ),
-                      const TextSpan(
-                        text: '/5',
-                        style: TextStyle(
-                          fontSize: 14,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        date,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black45,
                           fontWeight: FontWeight.w400,
-                          color: Colors.black54,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            // Date + Stars row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  date,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF588157),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                const SizedBox(width: 8),
                 _StarRow(rating: rating),
               ],
             ),
-            const SizedBox(height: 12),
-            const Divider(color: Color(0xFFE0E0E0), height: 1),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             // Review text
             Text(
               reviewText,
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 14,
                 color: Colors.black87,
-                height: 1.4,
+                height: 1.45,
               ),
             ),
-            // Photos section (only shown if photos is not empty)
+            // Photos section
             if (photos.isNotEmpty) ...[
               const SizedBox(height: 12),
               Row(
-                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  // Visible photos
                   ...visiblePhotos.asMap().entries.map((entry) {
                     return Padding(
                       padding: EdgeInsets.only(
-                        right: entry.key < visiblePhotos.length - 1 || extraCount > 0
+                        right:
+                            entry.key < visiblePhotos.length - 1 ||
+                                extraCount > 0
                             ? photoSpacing
                             : 0,
                       ),
@@ -129,14 +149,12 @@ class ReviewCard extends StatelessWidget {
                           width: photoSize,
                           height: photoSize,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _PhotoPlaceholder(
-                            size: photoSize,
-                          ),
+                          errorBuilder: (_, __, ___) =>
+                              _PhotoPlaceholder(size: photoSize),
                         ),
                       ),
                     );
                   }),
-                  // "+N" overflow tile
                   if (extraCount > 0)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
@@ -147,9 +165,8 @@ class ReviewCard extends StatelessWidget {
                             width: photoSize,
                             height: photoSize,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _PhotoPlaceholder(
-                              size: photoSize,
-                            ),
+                            errorBuilder: (_, __, ___) =>
+                                _PhotoPlaceholder(size: photoSize),
                           ),
                           Container(
                             width: photoSize,
@@ -171,6 +188,46 @@ class ReviewCard extends StatelessWidget {
                 ],
               ),
             ],
+            // Footer: hidden for owner, shown for public
+            if (!isOwner) ...[
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: onHelpfulTap,
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.thumb_up_outlined,
+                          size: 18,
+                          color: Color(0xFF588157),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          helpfulCount > 0
+                              ? 'helpful ($helpfulCount)'
+                              : 'helpful',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF588157),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: onMoreTap,
+                    child: const Icon(
+                      Icons.more_horiz,
+                      color: Colors.black54,
+                      size: 22,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -187,7 +244,7 @@ class _StarRow extends StatelessWidget {
   Widget build(BuildContext context) {
     const int totalStars = 5;
     const Color starColor = Color(0xFF588157);
-    const double starSize = 16;
+    const double starSize = 18;
 
     return Row(
       children: List.generate(totalStars, (index) {
@@ -197,7 +254,11 @@ class _StarRow extends StatelessWidget {
         } else if (fill > 0.0) {
           return const Icon(Icons.star_half, color: starColor, size: starSize);
         } else {
-          return const Icon(Icons.star_border, color: starColor, size: starSize);
+          return const Icon(
+            Icons.star_border,
+            color: starColor,
+            size: starSize,
+          );
         }
       }),
     );

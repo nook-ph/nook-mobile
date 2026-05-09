@@ -23,8 +23,6 @@ class ListsPage extends StatefulWidget {
 }
 
 class _ListsPageState extends State<ListsPage> {
-  static const _fallbackImageUrl =
-      'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
   String? _pendingEditName;
   String? _pendingDeleteName;
 
@@ -351,10 +349,7 @@ class _ListsPageState extends State<ListsPage> {
     return list.isPublic ? 'Public' : 'Private';
   }
 
-  static String _imageUrl(String? imageUrl) {
-    final trimmed = imageUrl?.trim();
-    return trimmed == null || trimmed.isEmpty ? _fallbackImageUrl : trimmed;
-  }
+  static String _imageUrl(String? imageUrl) => imageUrl?.trim() ?? '';
 }
 
 class _CreateListDialog extends StatefulWidget {
@@ -753,14 +748,7 @@ class CollectionCard extends StatelessWidget {
             SizedBox(
               height: 160,
               width: double.infinity,
-              child: Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: Colors.grey[300],
-                  child: const Icon(Icons.image_not_supported),
-                ),
-              ),
+              child: _buildCoverImage(imageUrl),
             ),
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -820,6 +808,35 @@ class CollectionCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCoverImage(String imageUrl) {
+    final isEmpty = imageUrl.trim().isEmpty;
+
+    if (isEmpty) return _placeholder();
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (_, __, ___) => _placeholder(),
+    );
+  }
+
+  Widget _placeholder() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFE8E8E8), Color(0xFF9E9E9E)],
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.coffee, color: Color(0xFFBDBDBD), size: 36),
       ),
     );
   }
