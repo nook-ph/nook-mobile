@@ -13,6 +13,7 @@ import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
+import 'package:nook/features/profile/presentation/pages/settings_page.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -62,7 +63,12 @@ class ProfileRedesignPage extends StatelessWidget {
             actions: [
               IconButton(
                 icon: Icon(PhosphorIcons.gearSix(), color: Colors.black87),
-                onPressed: () {},
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
+                },
               ),
             ],
           ),
