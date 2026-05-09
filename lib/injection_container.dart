@@ -19,13 +19,18 @@ import 'package:nook/core/cafe/domain/use_cases/remove_cafe_from_list_usecase.da
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
+import 'package:nook/core/upload/data/upload_remove_data_source.dart';
+import 'package:nook/core/upload/data/upload_repository_impl.dart';
+import 'package:nook/core/upload/domain/use_cases/upload_use_case.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
+import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
+import 'package:nook/features/profile/data/profile_remote_data_source.dart';
+import 'package:nook/features/profile/data/profile_repository_impl.dart';
+import 'package:nook/features/profile/domain/i_profile_repository.dart';
+import 'package:nook/features/profile/use_cases/update_profile_usecase.dart';
 import 'package:nook/features/search/bloc/search_bloc.dart';
 import 'package:nook/features/search/domain/use_cases/search_cafes_usecase.dart';
-import 'package:nook/core/upload/data/review_image_upload_remote_data_source.dart';
-import 'package:nook/core/upload/data/review_image_upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/repositories/i_review_image_upload_repository.dart';
-import 'package:nook/core/upload/domain/use_cases/upload_review_images_usecase.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
@@ -61,13 +66,15 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<CafeRemoteDataSource>(
     () => CafeRemoteDataSource(sl<SupabaseClient>()),
   );
-  sl.registerLazySingleton<ReviewImageUploadRemoteDataSource>(
-    () => ReviewImageUploadRemoteDataSource(
+
+  sl.registerLazySingleton<ProfileRemoteDataSource>(
+    () => ProfileRemoteDataSource(supabaseClient: sl<SupabaseClient>()),
+  );
+
+  sl.registerLazySingleton<UploadRemoteDataSource>(
+    () => UploadRemoteDataSource(
       httpClient: sl<http.Client>(),
-      apiBaseUrl: dotenv.env['UPLOAD_API_BASE_URL'] ?? '',
-      presignPath:
-          dotenv.env['UPLOAD_REVIEW_IMAGES_PRESIGN_PATH'] ??
-          '/uploads/review-images/presign',
+      presignUrl: dotenv.env['UPLOAD_PRESIGN_URL'] ?? '',
       authTokenGetter: () =>
           Supabase.instance.client.auth.currentSession?.accessToken,
       authTokenRefresher: () async {
@@ -76,6 +83,7 @@ Future<void> initDependencies() async {
       },
     ),
   );
+
   sl.registerLazySingleton<CafeTagsRemoteDataSource>(
     () => CafeTagsRemoteDataSourceImpl(sl<SupabaseClient>()),
   );
@@ -84,11 +92,15 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<ICafeRepository>(
     () => CafeRepositoryImpl(sl<CafeRemoteDataSource>(), sl<CafeStore>()),
   );
-  sl.registerLazySingleton<IReviewImageUploadRepository>(
-    () => ReviewImageUploadRepositoryImpl(
-      sl<ReviewImageUploadRemoteDataSource>(),
-    ),
+
+  sl.registerLazySingleton<IProfileRepository>(
+    () => ProfileRepositoryImpl(sl<ProfileRemoteDataSource>()),
   );
+
+  sl.registerLazySingleton<IUploadRepository>(
+    () => UploadRepositoryImpl(sl<UploadRemoteDataSource>()),
+  );
+
   sl.registerLazySingleton<ICafeTagsRepository>(
     () => CafeTagsRepositoryImpl(sl<CafeTagsRemoteDataSource>()),
   );
@@ -115,8 +127,12 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<AddReviewUseCase>(
     () => AddReviewUseCase(sl<ICafeRepository>()),
   );
+
   sl.registerLazySingleton<UploadReviewImagesUseCase>(
-    () => UploadReviewImagesUseCase(sl<IReviewImageUploadRepository>()),
+    () => UploadReviewImagesUseCase(sl<IUploadRepository>()),
+  );
+  sl.registerLazySingleton<UploadAvatarUseCase>(
+    () => UploadAvatarUseCase(sl<IUploadRepository>()),
   );
 
   //list usecases
@@ -144,11 +160,22 @@ Future<void> initDependencies() async {
     ),
   );
 
+  sl.registerLazySingleton<UpdateProfileUseCase>(
+    () => UpdateProfileUseCase(sl<IProfileRepository>()),
+  );
+
   // 5) Blocs
   sl.registerFactory<MapBloc>(
     () => MapBloc(
       getCafeCardUseCase: sl<GetCafeCardUseCase>(),
       getFilterTagsUseCase: sl<GetFilterTagsUseCase>(),
+    ),
+  );
+
+  sl.registerFactory<AvatarUploadBloc>(
+    () => AvatarUploadBloc(
+      uploadAvatarUseCase: sl<UploadAvatarUseCase>(),
+      updateProfileAvatarUseCase: sl<UpdateProfileUseCase>(),
     ),
   );
   sl.registerFactory<HomeBloc>(

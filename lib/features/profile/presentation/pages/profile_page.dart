@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -15,6 +19,9 @@ import 'package:nook/features/profile/presentation/widgets/review_card.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
+import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
+import 'package:nook/features/profile/bloc/avatar_upload_event.dart';
+import 'package:nook/features/profile/bloc/avatar_upload_state.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/injection_container.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -25,24 +32,48 @@ class ProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => ProfileCubit(
-        client: Supabase.instance.client,
-        getReviewsWrittenByUser: sl<GetReviewsWrittenByUserUseCase>(),
-      )..loadProfile(),
-      child: BlocListener<AuthBloc, AuthState>(
-        listener: (context, state) {
-          if (state is AuthAuthenticated) {
-            context.read<ProfileCubit>().loadProfile();
-          }
-          if (state is AuthUnauthenticated) {
-            context.read<ProfileCubit>().clear();
-            context.go('/login');
-          }
-          if (state is AuthError) {
-            showPrimaryToast(context, state.message);
-          }
-        },
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => ProfileCubit(
+            client: Supabase.instance.client,
+            getReviewsWrittenByUser: sl<GetReviewsWrittenByUserUseCase>(),
+            updateProfileUseCase: sl(),
+          )..loadProfile(),
+        ),
+        BlocProvider(create: (_) => sl<AvatarUploadBloc>()),
+      ],
+      child: MultiBlocListener(
+        listeners: [
+          // Auth Listener
+          BlocListener<AuthBloc, AuthState>(
+            listener: (context, state) {
+              if (state is AuthAuthenticated) {
+                context.read<ProfileCubit>().loadProfile();
+              }
+              if (state is AuthUnauthenticated) {
+                context.read<ProfileCubit>().clear();
+                context.go('/login');
+              }
+              if (state is AuthError) {
+                showPrimaryToast(context, state.message);
+              }
+            },
+          ),
+          // Avatar Upload Listener
+          BlocListener<AvatarUploadBloc, AvatarUploadState>(
+            listener: (context, state) {
+              if (state is AvatarUploadSuccess) {
+                showPrimaryToast(context, 'Avatar updated successfully!');
+                // Reload profile so the new avatarURL trickles down!
+                context.read<ProfileCubit>().loadProfile();
+              }
+              if (state is AvatarUploadError) {
+                showPrimaryToast(context, state.message);
+              }
+            },
+          ),
+        ],
         child: Scaffold(
           backgroundColor: Colors.white,
           body: SafeArea(
@@ -54,12 +85,12 @@ class ProfilePage extends StatelessWidget {
                     error: info,
                     onRetry: info.type == ErrorType.sessionExpired
                         ? () => context.push('/login')
-                        : () =>
-                            context.read<ProfileCubit>().loadProfile(),
+                        : () => context.read<ProfileCubit>().loadProfile(),
                   );
                 }
 
-                final isReviewsLoading = profileState is ProfileLoading ||
+                final isReviewsLoading =
+                    profileState is ProfileLoading ||
                     profileState is ProfileInitial;
                 final writtenReviews = profileState is ProfileLoaded
                     ? profileState.reviews
@@ -76,15 +107,18 @@ class ProfilePage extends StatelessWidget {
                           if (state is ProfileLoading ||
                               state is ProfileInitial) {
                             return Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 22),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                              ),
                               child: Skeletonizer(
                                 enabled: true,
                                 effect: const PulseEffect(),
                                 child: IgnorePointer(
                                   child: ProfileHeroSection(
                                     name: 'Display name placeholder',
-                                    email: 'email.address.placeholder@example.com',
+                                    email:
+                                        'email.address.placeholder@example.com',
+                                    avatarUrl: null, // skeleton loading
                                   ),
                                 ),
                               ),
@@ -97,10 +131,14 @@ class ProfilePage extends StatelessWidget {
                           final email = state is ProfileLoaded
                               ? state.email
                               : 'No email';
+                          final avatarUrl = state is ProfileLoaded
+                              ? state.avatarUrl
+                              : null;
 
                           return ProfileHeroSection(
                             name: name,
                             email: email,
+                            avatarUrl: avatarUrl, // Pass the URL!
                           );
                         },
                       ),
@@ -140,8 +178,9 @@ class ProfilePage extends StatelessWidget {
                             child: ListView.separated(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 22),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 22,
+                              ),
                               itemCount: 3,
                               separatorBuilder: (context, index) =>
                                   const SizedBox(height: 14),
@@ -217,10 +256,7 @@ class ProfilePage extends StatelessWidget {
                                 );
                               },
                             ),
-                            const Divider(
-                              height: 1,
-                              color: Color(0xFFE0E0E0),
-                            ),
+                            const Divider(height: 1, color: Color(0xFFE0E0E0)),
                             _SettingsTile(
                               label: 'Edit Profile',
                               iconData: PhosphorIcons.caretRight(),
@@ -229,16 +265,23 @@ class ProfilePage extends StatelessWidget {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) =>
-                                        const EditProfilePage(),
+                                    builder: (_) => MultiBlocProvider(
+                                      providers: [
+                                        BlocProvider.value(
+                                          value: context.read<ProfileCubit>(),
+                                        ),
+                                        BlocProvider.value(
+                                          value: context
+                                              .read<AvatarUploadBloc>(),
+                                        ),
+                                      ],
+                                      child: const EditProfilePage(),
+                                    ),
                                   ),
                                 );
                               },
                             ),
-                            const Divider(
-                              height: 1,
-                              color: Color(0xFFE0E0E0),
-                            ),
+                            const Divider(height: 1, color: Color(0xFFE0E0E0)),
                             _SettingsTile(
                               label: 'Logout',
                               iconData: PhosphorIcons.signOut(),
@@ -264,11 +307,13 @@ class ProfilePage extends StatelessWidget {
 class ProfileHeroSection extends StatelessWidget {
   final String name;
   final String email;
+  final String? avatarUrl; // ADDED
 
   const ProfileHeroSection({
     super.key,
     required this.name,
     required this.email,
+    this.avatarUrl,
   });
 
   @override
@@ -278,35 +323,8 @@ class ProfileHeroSection extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Avatar
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFF344E41), width: 2.5),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(2.5),
-              child: Container(
-                width: 75,
-                height: 75,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFFE8E8E8),
-                ),
-                child: Icon(
-                  PhosphorIcons.user(),
-                  size: 40,
-                  color: const Color(0xFFBDBDBD),
-                ),
-              ),
-            ),
-          ),
-
+          EditableAvatar(avatarUrl: avatarUrl),
           const SizedBox(width: 12),
-
-          // Name + bio
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -332,6 +350,156 @@ class ProfileHeroSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// --- NEW Editable Avatar Component ---
+class EditableAvatar extends StatefulWidget {
+  final String? avatarUrl;
+
+  const EditableAvatar({super.key, this.avatarUrl});
+
+  @override
+  State<EditableAvatar> createState() => _EditableAvatarState();
+}
+
+class _EditableAvatarState extends State<EditableAvatar> {
+  final ImagePicker _imagePicker = ImagePicker();
+
+  Future<File> _compressAvatar(File file) async {
+    final filePath = file.path;
+    final ext = filePath.split('.').last.toLowerCase();
+    final targetPath = filePath.replaceAll('.$ext', '_avatar_compressed.$ext');
+
+    final result = await FlutterImageCompress.compressAndGetFile(
+      filePath,
+      targetPath,
+      quality: 70,
+      minWidth: 512,
+      minHeight: 512,
+      format: ext == 'png' ? CompressFormat.png : CompressFormat.jpeg,
+    );
+
+    return result == null ? file : File(result.path);
+  }
+
+  Future<void> _pickAndUploadAvatar(BuildContext context) async {
+    final XFile? picked = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+    );
+    if (picked == null) return;
+
+    final compressedFile = await _compressAvatar(File(picked.path));
+
+    String? accessToken =
+        Supabase.instance.client.auth.currentSession?.accessToken;
+    if (accessToken == null || accessToken.isEmpty) {
+      try {
+        final refreshed = await Supabase.instance.client.auth.refreshSession();
+        accessToken = refreshed.session?.accessToken;
+      } catch (_) {}
+    }
+
+    if (!context.mounted) return;
+
+    context.read<AvatarUploadBloc>().add(
+      SubmitAvatarRequested(file: compressedFile, accessToken: accessToken),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AvatarUploadBloc, AvatarUploadState>(
+      builder: (context, state) {
+        final isUploading = state is AvatarUploading;
+
+        return GestureDetector(
+          onTap: isUploading ? null : () => _pickAndUploadAvatar(context),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer border ring exactly as you had it
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFF344E41),
+                    width: 2.5,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(2.5),
+                  child: Container(
+                    width: 75,
+                    height: 75,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFFE8E8E8),
+                    ),
+                    clipBehavior: Clip.hardEdge,
+                    child:
+                        widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
+                        ? Image.network(
+                            widget.avatarUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                              PhosphorIcons.user(),
+                              size: 40,
+                              color: const Color(0xFFBDBDBD),
+                            ),
+                          )
+                        : Icon(
+                            PhosphorIcons.user(),
+                            size: 40,
+                            color: const Color(0xFFBDBDBD),
+                          ),
+                  ),
+                ),
+              ),
+
+              // Dim overlay & loading spinner when uploading
+              if (isUploading)
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: const BoxDecoration(
+                    color: Colors.black45,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(22.0),
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  ),
+                ),
+
+              // Small camera icon indicator
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF344E41),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    color: Colors.white,
+                    size: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
