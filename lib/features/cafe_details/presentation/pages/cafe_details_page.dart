@@ -163,8 +163,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                       onRetry: info.type == ErrorType.sessionExpired
                           ? () => context.push('/login')
                           : () => context.read<CafeDetailsBloc>().add(
-                                LoadCafeDetailsRequested(cafeId: widget.cafeId),
-                              ),
+                              LoadCafeDetailsRequested(cafeId: widget.cafeId),
+                            ),
                     ),
                   );
                 }
@@ -429,7 +429,11 @@ class _SavedButtonState extends State<_SavedButton> {
   int _savedStateRequest = 0;
   bool _loadErrorToastShown = false;
 
-  void _showErrorToast(BuildContext context, Object e, {required bool goLogin}) {
+  void _showErrorToast(
+    BuildContext context,
+    Object e, {
+    required bool goLogin,
+  }) {
     final info = AppErrorCopy.fromException(e);
     if (goLogin && info.type == ErrorType.sessionExpired) {
       showPrimaryToast(context, info.title);
@@ -460,7 +464,7 @@ class _SavedButtonState extends State<_SavedButton> {
     return BookmarkIconButton(
       isSaved: _isSaved,
       isEnabled: !_isSaving,
-      onTap: _toggleSaved,
+      onTap: _onTap,
     );
   }
 
@@ -478,94 +482,62 @@ class _SavedButtonState extends State<_SavedButton> {
       );
       if (!mounted ||
           widget.cafeId != cafeId ||
-          requestId != _savedStateRequest) {
+          requestId != _savedStateRequest)
         return;
-      }
-
       setState(() => _isSaved = isSaved);
     } catch (e, st) {
-      debugPrint('[CafeDetailsSave] _loadSavedState failed cafeId=$cafeId error=$e');
-      debugPrint('$st');
+      debugPrint(
+        '[CafeDetailsSave] _loadSavedState failed cafeId=$cafeId error=$e\n$st',
+      );
       if (!mounted || _loadErrorToastShown) return;
       _loadErrorToastShown = true;
       _showErrorToast(context, e, goLogin: true);
     }
   }
 
-  Future<void> _toggleSaved() async {
-    debugPrint(
-      '[CafeDetailsSave] tap cafeId=${widget.cafeId} '
-      '_isSaved=$_isSaved _isSaving=$_isSaving',
-    );
-
+  Future<void> _onTap() async {
     final session = Supabase.instance.client.auth.currentSession;
     if (session == null) {
-      debugPrint('[CafeDetailsSave] no session → login');
       context.push('/login');
       return;
     }
 
+    if (_isSaved) {
+      await _showSaveToListSheet();
+      return;
+    }
+
     _savedStateRequest++;
-    final wasSaved = _isSaved;
     setState(() => _isSaving = true);
 
     try {
       final listsBloc = context.read<ListsBloc>();
       final userId = session.user.id;
-      debugPrint('[CafeDetailsSave] userId=$userId wasSaved=$wasSaved');
 
-      ResolvedQuickSaveList? quickSave;
-      if (wasSaved) {
-        debugPrint('[CafeDetailsSave] removing from all user lists…');
-        await listsBloc.repository.removeCafeFromAllUserLists(widget.cafeId);
-        debugPrint('[CafeDetailsSave] remove OK');
-      } else {
-        debugPrint('[CafeDetailsSave] resolving quick-save target…');
-        quickSave = await sl<ResolveQuickSaveListUseCase>()(userId);
-        debugPrint(
-          '[CafeDetailsSave] resolved listId=${quickSave.listId} '
-          'displayTitle=${quickSave.displayTitle}',
-        );
-        debugPrint('[CafeDetailsSave] addCafeToList…');
-        await listsBloc.addCafeToListUseCase(
-          quickSave.listId,
-          widget.cafeId,
-        );
-        debugPrint('[CafeDetailsSave] addCafeToList OK');
-        await sl<LastSavedListStore>().setLastSavedListId(
-          userId,
-          quickSave.listId,
-        );
-        debugPrint('[CafeDetailsSave] last-saved preference updated');
-      }
+      final quickSave = await sl<ResolveQuickSaveListUseCase>()(userId);
+      await listsBloc.addCafeToListUseCase(quickSave.listId, widget.cafeId);
+      await sl<LastSavedListStore>().setLastSavedListId(
+        userId,
+        quickSave.listId,
+      );
 
       listsBloc.add(LoadUserLists());
 
-      if (!mounted) {
-        debugPrint('[CafeDetailsSave] unmounted after success, skip UI update');
-        return;
-      }
-      setState(() => _isSaved = !wasSaved);
-      if (!wasSaved && quickSave != null) {
-        debugPrint('[CafeDetailsSave] showing toast');
-        showSavedToListToast(
-          context,
-          widget.cafeName,
-          widget.thumbnailUrl,
-          listDisplayName: quickSave.displayTitle,
-          onChange: () => _showSaveToListSheet(),
-        );
-      }
-      debugPrint('[CafeDetailsSave] done _isSaved=$_isSaved');
+      if (!mounted) return;
+      setState(() => _isSaved = true);
+      showSavedToListToast(
+        context,
+        widget.cafeName,
+        widget.thumbnailUrl,
+        listDisplayName: quickSave.displayTitle,
+        onChange: () => _showSaveToListSheet(),
+      );
     } catch (e, st) {
-      debugPrint('[CafeDetailsSave] FAILED error=$e');
-      debugPrint('$st');
+      debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
       if (!mounted) return;
       _showErrorToast(context, e, goLogin: true);
     } finally {
-      if (mounted) {
-        setState(() => _isSaving = false);
-      }
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -586,14 +558,13 @@ class _SavedButtonState extends State<_SavedButton> {
           BlocProvider.value(value: listsBloc),
           BlocProvider(create: (_) => sl<SaveToListCubit>()),
         ],
-        child: SaveToListBottomSheet(
-          cafeId: widget.cafeId,
-        ),
+        child: SaveToListBottomSheet(cafeId: widget.cafeId),
       ),
     );
 
     if (mounted) {
       _loadSavedState();
+      context.read<ListsBloc>().add(LoadUserLists());
     }
   }
 }

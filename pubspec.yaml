@@ -67,6 +67,7 @@ dependencies:
   stream_transform: ^2.1.1
   rxdart: ^0.28.0
   toastification: ^3.2.0
+  flutter_slidable: ^4.0.3
 
 dev_dependencies:
   flutter_test:
