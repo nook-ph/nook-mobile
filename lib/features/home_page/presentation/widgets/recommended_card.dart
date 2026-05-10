@@ -10,11 +10,14 @@ class RecommendedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
+    final String imageUrl = (cafe.coverImage?.trim().isNotEmpty ?? false)
         ? cafe.coverImage!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+
     final String ratingText = cafe.rating.toStringAsFixed(1);
-    final String? primaryTag = cafe.tags.isNotEmpty ? cafe.tags.first : null;
+    final String? primaryTag = cafe.tags.isNotEmpty
+        ? cafe.tags.first.trim()
+        : null;
 
     return AdaptiveTap(
       onTap: () {
@@ -27,12 +30,13 @@ class RecommendedCard extends StatelessWidget {
       },
       child: Container(
         width: double.infinity,
+        height: 112,
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
+          color: Colors.white, // Added white background
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
         ),
-        height: 112,
         child: Row(
           children: [
             Expanded(
@@ -52,6 +56,7 @@ class RecommendedCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -68,7 +73,6 @@ class RecommendedCard extends StatelessWidget {
                               ),
                             ),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
                                   ratingText,
@@ -77,7 +81,7 @@ class RecommendedCard extends StatelessWidget {
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 4),
                                 const Icon(
                                   Icons.star,
                                   color: Color(0xFF588157),
@@ -87,10 +91,11 @@ class RecommendedCard extends StatelessWidget {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 2),
                         Row(
                           children: [
                             const Icon(
-                              LucideIcons.mapPin500,
+                              LucideIcons.mapPin,
                               size: 12,
                               color: Color(0xFF848586),
                             ),
@@ -114,34 +119,28 @@ class RecommendedCard extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            if (primaryTag != null &&
-                                primaryTag.trim().isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: const Color(0xFFE0E0E0),
-                                  ),
-                                ),
-                                child: Text(
-                                  primaryTag,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.black54,
-                                  ),
-                                ),
+                        if (primaryTag != null && primaryTag.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE0E0E0),
                               ),
-                            if (primaryTag != null &&
-                                primaryTag.trim().isNotEmpty)
-                              const SizedBox(width: 6),
-                          ],
-                        ),
+                            ),
+                            child: Text(
+                              primaryTag,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          )
+                        else
+                          const SizedBox.shrink(),
                         const Text(
                           '5.0 km',
                           style: TextStyle(

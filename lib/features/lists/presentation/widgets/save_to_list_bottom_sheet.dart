@@ -15,10 +15,7 @@ import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class SaveToListBottomSheet extends StatefulWidget {
-  const SaveToListBottomSheet({
-    super.key,
-    required this.cafeId,
-  });
+  const SaveToListBottomSheet({super.key, required this.cafeId});
 
   final String cafeId;
 
@@ -102,8 +99,8 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
                       'Save to...',
                       style: TextStyle(
                         color: Colors.black,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -270,8 +267,9 @@ class _SaveToListRow extends StatelessWidget {
                 width: 64,
                 height: 64,
                 clipBehavior: Clip.hardEdge,
-                decoration:
-                    BoxDecoration(borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: _ListCoverThumbnail(imageUrl: list.coverImageUrl),
               ),
               const SizedBox(width: 16),
@@ -286,10 +284,10 @@ class _SaveToListRow extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.black,
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 4),
+
                     Text(
                       list.isPublic ? 'Public' : 'Private',
                       style: const TextStyle(
@@ -402,11 +400,11 @@ class _NewListButton extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: isEnabled ? onPressed : null,
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFFF2F2F2),
-          foregroundColor: Colors.black,
+          backgroundColor: const Color(0xFF344E41),
+          foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
         icon: isLoading
@@ -415,10 +413,10 @@ class _NewListButton extends StatelessWidget {
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Icon(Icons.add, size: 28),
+            : const Icon(Icons.add, size: 24),
         label: const Text(
           'New list',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
         ),
       ),
     );
@@ -454,7 +452,7 @@ class _CreateListDialogState extends State<_CreateListDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       title: const Text(
         'Create New List',
-        style: TextStyle(fontWeight: FontWeight.w700),
+        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 22),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
