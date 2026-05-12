@@ -38,12 +38,18 @@ class _MapPageState extends State<MapPage> {
   bool _overlayDismissed = false;
   bool _suppressOverlayAnimation = false;
   bool _animateOverlayDismiss = false;
-  double _sheetTopFromBottom = 0.0;
-  double _sheetExtent = 0.0;
-  double _sheetMinExtent = 0.0;
-  List<CafeSummary> _cafes = const [];
+
+
+  final _sheetMetrics = ValueNotifier<BottomSheetMetrics?>(null);
+
+  Map<String, CafeSummary> _cafeById = {};
 
   static const double _overlaySpacing = 16.0;
+
+  static const _initial = CameraPosition(
+    target: LatLng(10.3167, 123.8907),
+    zoom: 12,
+  );
 
   @override
   void initState() {
@@ -54,16 +60,31 @@ class _MapPageState extends State<MapPage> {
     });
   }
 
-  static const _initial = CameraPosition(
-    target: LatLng(10.3167, 123.8907),
-    zoom: 12,
-  );
-
   @override
   void dispose() {
     sl<FilterCubit>().reset();
     _mapController?.onSymbolTapped.remove(_onSymbolTapped);
+    _sheetMetrics.dispose();
     super.dispose();
+  }
+
+  
+  void _onSheetMetricsChanged(BottomSheetMetrics metrics) {
+    _sheetMetrics.value = metrics;
+  }
+
+  bool get _isSheetExpanded {
+    final m = _sheetMetrics.value;
+    if (m == null) return false;
+    return m.extent > m.minExtent + 0.01;
+  }
+
+  bool get _shouldShowOverlay {
+    final m = _sheetMetrics.value;
+    return _selectedCafe != null &&
+        !_overlayDismissed &&
+        !_isSheetExpanded &&
+        (m?.topFromBottom ?? 0.0) > 0;
   }
 
   @override
@@ -75,26 +96,15 @@ class _MapPageState extends State<MapPage> {
       child: Scaffold(
         body: BlocConsumer<MapBloc, MapState>(
           listener: (context, state) {
-            if (state is MapLoadedState && _styleLoaded) {
-              _cafes = state.cafes;
-              _plotCafeMarkers(state.cafes);
-            } else if (state is MapLoadedState) {
-              _cafes = state.cafes;
+            if (state is MapLoadedState) {
+              // [OPT-2] Build lookup map once when data arrives.
+              _cafeById = {for (final c in state.cafes) c.id: c};
+              if (_styleLoaded) {
+                _plotCafeMarkers(state.cafes);
+              }
             }
           },
           builder: (context, state) {
-            if (_suppressOverlayAnimation && _shouldShowOverlay) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted) return;
-                setState(() => _suppressOverlayAnimation = false);
-              });
-            }
-
-            final animateOverlayIn =
-                _shouldShowOverlay && !_suppressOverlayAnimation;
-            final animateOverlayOut = _animateOverlayDismiss;
-            final animateOverlay = animateOverlayIn || animateOverlayOut;
-
             return Stack(
               children: [
                 MapLibreMap(
@@ -102,7 +112,6 @@ class _MapPageState extends State<MapPage> {
                   myLocationEnabled: true,
                   myLocationRenderMode: MyLocationRenderMode.compass,
                   myLocationTrackingMode: MyLocationTrackingMode.none,
-
                   styleString:
                       _styleJson ??
                       'https://tiles.openfreemap.org/styles/bright',
@@ -116,6 +125,7 @@ class _MapPageState extends State<MapPage> {
                     if (mounted) setState(() => _styleLoaded = true);
                   },
                 ),
+
                 if (_styleLoaded)
                   Positioned(
                     right: 16,
@@ -132,46 +142,69 @@ class _MapPageState extends State<MapPage> {
                       child: const Icon(Icons.my_location),
                     ),
                   ),
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: _sheetTopFromBottom + _overlaySpacing,
-                  child: AnimatedSwitcher(
-                    duration: animateOverlay
-                        ? const Duration(milliseconds: 260)
-                        : Duration.zero,
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) {
-                      if (!animateOverlay) return child;
-                      final isExiting =
-                          animation.status == AnimationStatus.reverse;
-                      final offsetAnimation = isExiting
-                          ? Tween<Offset>(
-                              begin: Offset.zero,
-                              end: const Offset(0, 1.1),
-                            ).animate(ReverseAnimation(animation))
-                          : Tween<Offset>(
-                              begin: const Offset(0, 1.1),
-                              end: Offset.zero,
-                            ).animate(animation);
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: offsetAnimation,
-                          child: child,
-                        ),
-                      );
-                    },
-                    child: _shouldShowOverlay
-                        ? CafeOverlayCard(
-                            key: ValueKey(_selectedCafe!.id),
-                            cafe: _selectedCafe!,
-                            onClose: _dismissOverlay,
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+
+         
+                ValueListenableBuilder<BottomSheetMetrics?>(
+                  valueListenable: _sheetMetrics,
+                  builder: (context, metrics, _) {
+                    final topFromBottom = metrics?.topFromBottom ?? 0.0;
+                    final extent = metrics?.extent ?? 0.0;
+                    final minExtent = metrics?.minExtent ?? 0.0;
+                    final isExpanded = extent > minExtent + 0.01;
+                    final shouldShow =
+                        _selectedCafe != null &&
+                        !_overlayDismissed &&
+                        !isExpanded &&
+                        topFromBottom > 0;
+
+                    final animateOverlayIn =
+                        shouldShow && !_suppressOverlayAnimation;
+                    final animateOverlay =
+                        animateOverlayIn || _animateOverlayDismiss;
+
+                    return Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: topFromBottom + _overlaySpacing,
+                      child: AnimatedSwitcher(
+                        duration: animateOverlay
+                            ? const Duration(milliseconds: 260)
+                            : Duration.zero,
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          if (!animateOverlay) return child;
+                          final isExiting =
+                              animation.status == AnimationStatus.reverse;
+                          final offsetAnimation = isExiting
+                              ? Tween<Offset>(
+                                  begin: Offset.zero,
+                                  end: const Offset(0, 1.1),
+                                ).animate(ReverseAnimation(animation))
+                              : Tween<Offset>(
+                                  begin: const Offset(0, 1.1),
+                                  end: Offset.zero,
+                                ).animate(animation);
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: offsetAnimation,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: shouldShow
+                            ? CafeOverlayCard(
+                                key: ValueKey(_selectedCafe!.id),
+                                cafe: _selectedCafe!,
+                                onClose: _dismissOverlay,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    );
+                  },
                 ),
+
                 if (_styleLoaded)
                   Positioned(
                     top: SearchEntryButton.mapBottomSheetTop(context),
@@ -217,6 +250,7 @@ class _MapPageState extends State<MapPage> {
                           )
                         : const SizedBox.shrink(),
                   ),
+
                 Positioned(
                   top: 0,
                   left: 0,
@@ -263,17 +297,21 @@ class _MapPageState extends State<MapPage> {
       });
     }
 
-    for (final cafe in cafes) {
-      if (cafe.lat == null || cafe.lng == null) continue;
-      await controller.addSymbol(
-        SymbolOptions(
-          geometry: LatLng(cafe.lat!, cafe.lng!),
-          iconImage: 'map_pin',
-          iconSize: 0.17,
+    final validCafes = cafes
+        .where((c) => c.lat != null && c.lng != null)
+        .toList();
+    await Future.wait(
+      validCafes.map(
+        (cafe) => controller.addSymbol(
+          SymbolOptions(
+            geometry: LatLng(cafe.lat!, cafe.lng!),
+            iconImage: 'map_pin',
+            iconSize: 0.17,
+          ),
+          {'id': cafe.id},
         ),
-        {'id': cafe.id},
-      );
-    }
+      ),
+    );
   }
 
   void _onSymbolTapped(Symbol symbol) {
@@ -285,17 +323,11 @@ class _MapPageState extends State<MapPage> {
     }
     _mapController?.updateSymbol(symbol, const SymbolOptions(iconSize: 0.23));
     _selectedSymbol = symbol;
+
     final cafeId = symbol.data?['id'];
     if (cafeId == null) return;
 
-    CafeSummary? selectedCafe;
-    for (final cafe in _cafes) {
-      if (cafe.id == cafeId) {
-        selectedCafe = cafe;
-        break;
-      }
-    }
-
+    final selectedCafe = _cafeById[cafeId];
     if (selectedCafe == null) return;
 
     final wasVisible = _shouldShowOverlay;
@@ -305,33 +337,14 @@ class _MapPageState extends State<MapPage> {
       _overlayDismissed = false;
       _suppressOverlayAnimation = wasVisible;
     });
-  }
 
-  void _onSheetMetricsChanged(BottomSheetMetrics metrics) {
-    final extent = metrics.extent;
-    final minExtent = metrics.minExtent;
-    final topFromBottom = metrics.topFromBottom;
-    final changed =
-        _sheetExtent != extent ||
-        _sheetMinExtent != minExtent ||
-        _sheetTopFromBottom != topFromBottom;
 
-    if (!changed) return;
-
-    setState(() {
-      _sheetExtent = extent;
-      _sheetMinExtent = minExtent;
-      _sheetTopFromBottom = topFromBottom;
-    });
-  }
-
-  bool get _isSheetExpanded => _sheetExtent > _sheetMinExtent + 0.01;
-
-  bool get _shouldShowOverlay {
-    return _selectedCafe != null &&
-        !_overlayDismissed &&
-        !_isSheetExpanded &&
-        _sheetTopFromBottom > 0;
+    if (wasVisible) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _suppressOverlayAnimation = false);
+      });
+    }
   }
 
   void _dismissOverlay() {
@@ -361,7 +374,6 @@ class _MapPageState extends State<MapPage> {
     await _mapController!.addImage('map_pin', imageData);
   }
 
-  // --- UPDATED METHOD ---
   Future<void> _defaultView() async {
     final c = await _controllerCompleter.future;
     await c.updateMyLocationTrackingMode(MyLocationTrackingMode.tracking);
