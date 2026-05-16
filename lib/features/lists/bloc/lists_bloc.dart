@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_cafe_to_list_usecase.dart';
@@ -39,10 +42,15 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     on<RemoveCafeFromList>(_onRemoveCafeFromList);
   }
 
+  bool get _isAuthenticated =>
+      Supabase.instance.client.auth.currentSession != null;
+
   Future<void> _onLoadUserLists(
     LoadUserLists event,
     Emitter<ListsState> emit,
   ) async {
+    if (!_isAuthenticated) return; 
+
     emit(ListsLoading());
     try {
       final results = await Future.wait([
@@ -50,12 +58,13 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
         getUserListsUseCase(),
       ]);
 
-      defaultListId = results[0] as String;
+      defaultListId = results[0] as String?;
       final lists = (results[1] as List).cast<CafeList>();
       userLists = lists;
 
       emit(ListsLoaded(lists));
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('ListsBloc._onLoadUserLists error: $e\n$st');
       emit(ListsError(e));
     }
   }
@@ -64,6 +73,8 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     LoadListCafes event,
     Emitter<ListsState> emit,
   ) async {
+    if (!_isAuthenticated) return;
+
     emit(ListsLoading());
     try {
       final results = await Future.wait([
@@ -72,7 +83,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       ]);
 
       final lists = (results[0] as List).cast<CafeList>();
-      final cafes = results[1] as List;
+      final cafes = (results[1] as List).cast<CafeSummary>();
       userLists = lists;
 
       final targetList = lists.firstWhere(
@@ -80,29 +91,33 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
         orElse: () => throw StateError('List ${event.listId} not found.'),
       );
 
-      emit(ListCafesLoaded(targetList, cafes.cast()));
-    } catch (e) {
+      emit(ListCafesLoaded(targetList, cafes));
+    } catch (e, st) {
+      debugPrint('ListsBloc._onLoadListCafes error: $e\n$st');
       emit(ListsError(e));
     }
   }
 
   Future<void> _onCreateList(CreateList event, Emitter<ListsState> emit) async {
+    if (!_isAuthenticated) return;
+
     try {
       await createListUseCase(
         name: event.name,
         description: event.description,
         isPublic: event.isPublic,
       );
-
       add(LoadUserLists());
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('ListsBloc._onCreateList error: $e\n$st');
       emit(ListsError(e));
     }
   }
 
   Future<void> _onUpdateList(UpdateList event, Emitter<ListsState> emit) async {
+    if (!_isAuthenticated) return;
+
     try {
-      // Make sure your ICafeRepository has this method implemented
       await repository.updateList(
         event.listId,
         name: event.name,
@@ -111,17 +126,21 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       );
       unawaited(analytics.logEvent('list_updated'));
       add(LoadUserLists());
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('ListsBloc._onUpdateList error: $e\n$st');
       emit(ListsError(e));
     }
   }
 
   Future<void> _onDeleteList(DeleteList event, Emitter<ListsState> emit) async {
+    if (!_isAuthenticated) return;
+
     try {
       await repository.deleteList(event.listId);
       unawaited(analytics.logEvent('list_deleted'));
       add(LoadUserLists());
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('ListsBloc._onDeleteList error: $e\n$st');
       emit(ListsError(e));
     }
   }
@@ -130,16 +149,16 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     AddCafeToList event,
     Emitter<ListsState> emit,
   ) async {
+    if (!_isAuthenticated) return;
+
     try {
       await addCafeToListUseCase(event.listId, event.cafeId);
-
-      if (state is ListCafesLoaded) {
-        final current = state as ListCafesLoaded;
-        if (current.list.id == event.listId) {
-          add(LoadListCafes(listId: event.listId));
-        }
+      if (state is ListCafesLoaded &&
+          (state as ListCafesLoaded).list.id == event.listId) {
+        add(LoadListCafes(listId: event.listId));
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('ListsBloc._onAddCafeToList error: $e\n$st');
       emit(ListsError(e));
     }
   }
@@ -148,16 +167,16 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     RemoveCafeFromList event,
     Emitter<ListsState> emit,
   ) async {
+    if (!_isAuthenticated) return;
+
     try {
       await removeCafeFromListUseCase(event.listId, event.cafeId);
-
-      if (state is ListCafesLoaded) {
-        final current = state as ListCafesLoaded;
-        if (current.list.id == event.listId) {
-          add(LoadListCafes(listId: event.listId));
-        }
+      if (state is ListCafesLoaded &&
+          (state as ListCafesLoaded).list.id == event.listId) {
+        add(LoadListCafes(listId: event.listId));
       }
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('ListsBloc._onRemoveCafeFromList error: $e\n$st');
       emit(ListsError(e));
     }
   }
