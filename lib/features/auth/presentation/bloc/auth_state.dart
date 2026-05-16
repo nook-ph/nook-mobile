@@ -1,7 +1,5 @@
 part of 'auth_bloc.dart';
 
-
-
 abstract class AuthState extends Equatable {
   const AuthState();
   @override
@@ -9,6 +7,7 @@ abstract class AuthState extends Equatable {
 }
 
 class AuthInitial extends AuthState {}
+
 class AuthLoading extends AuthState {}
 
 class AuthEmailChecked extends AuthState {
@@ -27,6 +26,15 @@ class AuthNeedsUsername extends AuthState {
 
   @override
   List<Object?> get props => [user.id, fullName, avatarUrl];
+}
+
+class AuthAwaitingEmailConfirmation extends AuthState {
+  final String email;
+
+  const AuthAwaitingEmailConfirmation({required this.email});
+
+  @override
+  List<Object?> get props => [email];
 }
 
 class AuthAuthenticated extends AuthState {

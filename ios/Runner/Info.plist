@@ -78,7 +78,7 @@
 	    <dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
-			    <string>nookapp</string>
+			    <string>ph.nook.app</string>
 			</array>
 		</dict>
 	</array>

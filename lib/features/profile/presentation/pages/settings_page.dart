@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/utils/toast_helper.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -13,57 +18,84 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthLoggedOut) {
+            showPrimaryToast(context, 'Logged out');
+            context.go('/login');
+          }
+          if (state is AuthError) {
+            showPrimaryToast(context, state.message);
+          }
+        },
+        child: Scaffold(
           backgroundColor: Colors.white,
-          elevation: 0,
-          surfaceTintColor: Colors.white,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.black87, size: 22),
-            onPressed: () => Navigator.pop(context),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            surfaceTintColor: Colors.white,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back,
+                color: Colors.black87,
+                size: 22,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
           ),
-        ),
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
 
-                // ── Title ──────────────────────────────────────────────
-                const Text(
-                  'Settings',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: _textColor,
-                    letterSpacing: -0.4,
+                  // ── Title ──────────────────────────────────────────────
+                  const Text(
+                    'Settings',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: _textColor,
+                      letterSpacing: -0.4,
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-                // ── Items ──────────────────────────────────────────────
-                _buildItem(
-                  icon: Icons.mail_outline_rounded,
-                  label: 'Change Email',
-                  onTap: () {},
-                ),
-                const Divider(color: _dividerColor, height: 1),
-                _buildItem(
-                  icon: Icons.vpn_key_outlined,
-                  label: 'Change Password',
-                  onTap: () {},
-                ),
-                const Divider(color: _dividerColor, height: 1),
-                _buildItem(
-                  icon: Icons.logout_rounded,
-                  label: 'Logout',
-                  onTap: () {},
-                ),
-              ],
+                  // ── Items ──────────────────────────────────────────────
+                  _buildItem(
+                    icon: Icons.mail_outline_rounded,
+                    label: 'Change Email',
+                    onTap: () {
+                      final email = supabase
+                          .Supabase
+                          .instance
+                          .client
+                          .auth
+                          .currentUser
+                          ?.email;
+                      debugPrint(
+                        'Change Email tapped. currentUser.email=$email',
+                      );
+                      context.push('/change-email', extra: email);
+                    },
+                  ),
+                  const Divider(color: _dividerColor, height: 1),
+                  _buildItem(
+                    icon: Icons.vpn_key_outlined,
+                    label: 'Change Password',
+                    onTap: () {},
+                  ),
+                  const Divider(color: _dividerColor, height: 1),
+                  _buildItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Logout',
+                    onTap: () => _showLogoutDialog(context),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -102,4 +134,32 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showLogoutDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Log out',
+        style: TextStyle(fontWeight: FontWeight.w600),
+      ),
+      content: const Text('Are you sure you want to log out?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        TextButton(
+          onPressed: () {
+            ctx.read<AuthBloc>().add(const AuthSignOutEvent());
+            Navigator.pop(ctx);
+          },
+          child: const Text('Log out', style: TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
 }

@@ -108,6 +108,10 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
           }
           return;
         }
+        if (state is AuthAwaitingEmailConfirmation) {
+          context.go('/email-confirmation');
+          return;
+        }
         if (state is AuthNeedsUsername) {
           context.go(
             '/username-setup',
