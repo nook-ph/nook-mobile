@@ -40,6 +40,10 @@ class AuthSignInEvent extends AuthEvent {
   List<Object?> get props => [email, password];
 }
 
+class AuthPasswordRecoveryEvent extends AuthEvent {
+  const AuthPasswordRecoveryEvent();
+}
+
 class AuthSignInWithAppleEvent extends AuthEvent {
   const AuthSignInWithAppleEvent();
 }

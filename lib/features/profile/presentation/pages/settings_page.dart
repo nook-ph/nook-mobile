@@ -86,7 +86,7 @@ class SettingsPage extends StatelessWidget {
                   _buildItem(
                     icon: Icons.vpn_key_outlined,
                     label: 'Change Password',
-                    onTap: () {},
+                    onTap: () => context.push('/change-password'),
                   ),
                   const Divider(color: _dividerColor, height: 1),
                   _buildItem(
