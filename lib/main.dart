@@ -28,6 +28,7 @@ void main() async {
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_KEY']!,
+    authOptions: FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
   );
 
   final posthogToken = dotenv.env['POSTHOG_PROJECT_TOKEN']?.trim() ?? '';
@@ -88,7 +89,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _handleIncomingLink(Uri uri) async {
     final isLoginCallback =
-      uri.scheme == 'ph.nook.app' && uri.host == 'login-callback';
+        uri.scheme == 'ph.nook.app' && uri.host == 'login-callback';
 
     if (!isLoginCallback) return;
 
@@ -135,39 +136,7 @@ class _MyAppState extends State<MyApp> {
             title: 'Nook',
             theme: TAppTheme.lightTheme,
             routerConfig: _router,
-            builder: (context, child) {
-              return BlocListener<AuthBloc, AuthState>(
-                listenWhen: (previous, current) {
-                  return current is AuthAuthenticated ||
-                      current is AuthLoggedOut ||
-                      current is AuthNeedsUsername ||
-                      current is AuthAwaitingEmailConfirmation;
-                },
-                listener: (context, state) {
-                  final appState = context.read<AppBloc>().state;
-                  if (appState is! ShowHome) {
-                    return;
-                  }
-
-                  if (state is AuthAuthenticated) {
-                    GoRouter.of(context).go('/');
-                  } else if (state is AuthLoggedOut) {
-                    GoRouter.of(context).go('/login');
-                  } else if (state is AuthNeedsUsername) {
-                    GoRouter.of(context).go(
-                      '/username-setup',
-                      extra: {
-                        'fullName': state.fullName,
-                        'avatarUrl': state.avatarUrl,
-                      },
-                    );
-                  } else if (state is AuthAwaitingEmailConfirmation) {
-                    GoRouter.of(context).go('/email-confirmation');
-                  }
-                },
-                child: child ?? const SizedBox.shrink(),
-              );
-            },
+            builder: (context, child) => child ?? const SizedBox.shrink(),
           );
         },
       ),

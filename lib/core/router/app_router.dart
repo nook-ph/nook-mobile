@@ -27,17 +27,20 @@ GoRouter createAppRouter(AuthBloc authBloc) {
     redirect: (context, state) {
       final authState = authBloc.state;
       final location = state.uri.path;
+      debugPrint('GoRouter redirect check: location=$location auth=$authState');
       final isAuthRoute =
           location == '/login' ||
           location == '/login-password' ||
-          location == '/signup-details' ||
-          location == '/change-email';
+          location == '/signup-details';
+      final isProtectedRoute = location == '/change-email';
 
       if (authState is AuthAwaitingEmailConfirmation) {
+        debugPrint('Redirect -> /email-confirmation');
         return location == '/email-confirmation' ? null : '/email-confirmation';
       }
 
       if (authState is AuthNeedsUsername) {
+        debugPrint('Redirect -> /username-setup');
         return location == '/username-setup' ? null : '/username-setup';
       }
 
@@ -45,15 +48,19 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         if (location == '/username-setup' ||
             location == '/email-confirmation' ||
             isAuthRoute) {
+          debugPrint('Redirect authenticated -> /');
           return '/';
         }
+        debugPrint('No redirect (authenticated)');
         return null;
       }
 
       if (authState is AuthUnauthenticated || authState is AuthLoggedOut) {
-        return isAuthRoute ? null : '/login';
+        debugPrint('No redirect (unauthenticated)');
+        return null;
       }
 
+      debugPrint('No redirect (fallback)');
       return null;
     },
     routes: [

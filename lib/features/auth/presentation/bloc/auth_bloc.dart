@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -86,8 +87,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   void _onSupabaseAuthStateChange(supabase.AuthState data) {
     final event = data.event;
+    debugPrint('AuthBloc: supabase auth event=$event');
     if (event == AuthChangeEvent.signedIn ||
         event == AuthChangeEvent.userUpdated) {
+      debugPrint('AuthBloc: trigger AuthSessionCheckEvent');
       add(const AuthSessionCheckEvent());
     }
   }
@@ -253,6 +256,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     final user = _getCurrentSessionUseCase()?.user;
+    debugPrint('AuthBloc: session check user=${user?.id} email=${user?.email}');
     if (user != null) {
       await _identifyPosthogUser(user);
       _initListsSession();
@@ -275,6 +279,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final username = profile['username'] as String?;
 
       if (username == null || username.trim().isEmpty) {
+        debugPrint('AuthBloc: emit AuthNeedsUsername');
         emit(
           AuthNeedsUsername(
             user: user,
@@ -283,9 +288,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           ),
         );
       } else {
+        debugPrint('AuthBloc: emit AuthAuthenticated');
         emit(AuthAuthenticated(user));
       }
     } catch (_) {
+      debugPrint('AuthBloc: emit AuthAuthenticated (profile fetch failed)');
       emit(AuthAuthenticated(user));
     }
   }

@@ -64,6 +64,7 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
       debugPrint('[EmailVerification] Updating user email.');
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(email: email),
+        emailRedirectTo: 'ph.nook.app://login-callback',
       );
       debugPrint('[EmailVerification] Update email request completed.');
       if (!mounted) return;
