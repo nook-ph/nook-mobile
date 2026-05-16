@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -61,7 +63,7 @@ class SettingsPage extends StatelessWidget {
                 _buildItem(
                   icon: Icons.logout_rounded,
                   label: 'Logout',
-                  onTap: () {},
+                  onTap: () => _showLogoutDialog(context),
                 ),
               ],
             ),
@@ -102,4 +104,32 @@ class SettingsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showLogoutDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Log out',
+        style: TextStyle(fontWeight: FontWeight.w600),
+      ),
+      content: const Text('Are you sure you want to log out?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        TextButton(
+          onPressed: () {
+            context.read<AuthBloc>().add(const AuthSignOutEvent());
+            Navigator.pop(ctx);
+          },
+          child: const Text('Log out', style: TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
 }

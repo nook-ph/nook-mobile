@@ -1,22 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/features/search/presentation/pages/search_results_page.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
-/// Tappable search pill used on home and map; opens [SearchResultsPage].
 class SearchEntryButton extends StatelessWidget {
   const SearchEntryButton({super.key});
 
-  /// Fixed height of the search pill (must match the [Container] below).
   static const double height = 52;
 
-  /// Y-offset from the top of the screen to the bottom edge of the map search
-  /// row, matching [MapPage] `SafeArea` + `Padding` above this widget.
-  /// Keep [topPaddingBelowSafeArea] in sync with map page vertical padding.
+ 
   static double mapSearchBarBottom(
     BuildContext context, {
     double topPaddingBelowSafeArea = 8,
@@ -24,8 +17,7 @@ class SearchEntryButton extends StatelessWidget {
     return MediaQuery.paddingOf(context).top + topPaddingBelowSafeArea + height;
   }
 
-  /// Top `Positioned` inset for the map bottom sheet: below the search bar plus
-  /// [gapBelowSearchBar] breathing room.
+  
   static double mapBottomSheetTop(
     BuildContext context, {
     double topPaddingBelowSafeArea = 8,
@@ -38,24 +30,12 @@ class SearchEntryButton extends StatelessWidget {
         gapBelowSearchBar;
   }
 
-  NavigationBloc? _tryReadNavigationBloc(BuildContext context) {
-    try {
-      return BlocProvider.of<NavigationBloc>(context, listen: false);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  void _openSearch(BuildContext context) {
-    context.push('/search');
-  }
-
   @override
   Widget build(BuildContext context) {
     final borderColor = Theme.of(context).colorScheme.border;
 
     return AdaptiveTap(
-      onTap: () => _openSearch(context),
+      onTap: () => context.push('/search'),
       child: Container(
         height: height,
         decoration: BoxDecoration(

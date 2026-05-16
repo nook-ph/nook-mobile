@@ -106,6 +106,10 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
           );
           return;
         }
+        if (state is AuthAwaitingEmailConfirmation) {
+          context.go('/email-confirmation');
+          return;
+        }
         if (state is AuthAuthenticated) {
           context.go('/');
           return;

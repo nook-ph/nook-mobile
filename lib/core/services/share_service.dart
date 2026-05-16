@@ -14,7 +14,7 @@ class ShareService {
     required String? imageUrl,
   }) async {
     // Keep the link on its own line for better auto-linking in share targets.
-    final String deepLink = "nookapp:///cafe/$id";
+    final String deepLink = "ph.nook.app:///cafe/$id";
     final String message = "Check out $name on Nook!\n\n$deepLink";
 
     // Text-first approach: prioritize reliably sharing the deep link.

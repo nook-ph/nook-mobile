@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -37,15 +38,27 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     _searchBloc = sl<SearchBloc>();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future.delayed(const Duration(milliseconds: 200), () {
-        if (mounted) _searchFocusNode.requestFocus();
-      });
+      final route = ModalRoute.of(context);
+      if (route?.animation?.isCompleted == true) {
+        _searchFocusNode.requestFocus();
+      } else {
+        route?.animation?.addStatusListener(_onRouteAnimationStatus);
+      }
     });
 
     if (widget.query.isNotEmpty) {
       _searchBloc.add(SearchQueryChanged(widget.query));
     } else {
       _searchBloc.add(const SearchRefresh());
+    }
+  }
+
+  void _onRouteAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed && mounted) {
+      _searchFocusNode.requestFocus();
+      ModalRoute.of(
+        context,
+      )?.animation?.removeStatusListener(_onRouteAnimationStatus);
     }
   }
 
@@ -58,7 +71,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     super.dispose();
   }
 
-  Future<void> _onRefresh(BuildContext context) async {
+  Future<void> _onRefresh() async {
     _searchBloc.add(const SearchRefresh());
     await _searchBloc.stream.firstWhere(
       (s) => s.status != SearchStatus.loading,
@@ -66,8 +79,8 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     await Future<void>.delayed(Duration.zero);
   }
 
-  void _retryOrSignIn(BuildContext context, SearchState blocState) {
-    final raw = blocState.lastError ?? Exception('Search failed');
+  void _retryOrSignIn(BuildContext context, SearchState state) {
+    final raw = state.lastError ?? Exception('Search failed');
     final info = AppErrorCopy.fromException(raw);
     if (info.type == ErrorType.sessionExpired) {
       context.push('/login');
@@ -97,201 +110,223 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
-          child: BlocBuilder<SearchBloc, SearchState>(
-            builder: (context, state) {
-              final isLoading =
-                  state.status == SearchStatus.loading && state.cafes.isEmpty;
-              final hasError =
-                  state.status == SearchStatus.failure && state.cafes.isEmpty;
-              final isEmpty =
-                  state.status == SearchStatus.success && state.cafes.isEmpty;
-
-              final showLocBanner =
-                  state.locationDenied && !state.locationBannerDismissed;
-
-              return RefreshIndicator(
-                onRefresh: () => _onRefresh(context),
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // ── Search bar row ──
-                        Row(
-                          children: [
-                            AdaptiveTap(
-                              onTap: () => context.pop(),
-                              child: const Icon(
-                                Icons.arrow_back,
-                                color: Colors.black,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: borderColor,
-                                    width: 1.5,
-                                  ),
-                                  borderRadius: BorderRadius.circular(28),
-                                ),
-                                child: TextField(
-                                  controller: _searchController,
-                                  focusNode: _searchFocusNode,
-                                  autofocus: true,
-                                  onChanged: (value) {
-                                    _searchBloc.add(SearchQueryChanged(value));
-                                  },
-                                  decoration: InputDecoration(
-                                    hintText: 'Search cafes...',
-                                    hintStyle: const TextStyle(
-                                      color: Colors.grey,
-                                    ),
-                                    prefixIcon: Icon(
-                                      PhosphorIcons.magnifyingGlass(),
-                                      color: Colors.grey,
-                                    ),
-                                    border: InputBorder.none,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 14,
-                                    ),
-                                  ),
-                                  style: textTheme.bodyLarge?.copyWith(
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: Row(
+                  children: [
+                    AdaptiveTap(
+                      onTap: () => context.pop(),
+                      child: const Icon(Icons.arrow_back, color: Colors.black),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: borderColor, width: 1.5),
+                          borderRadius: BorderRadius.circular(28),
                         ),
-
-                        if (showLocBanner)
-                          LocationDeniedBanner(
-                            visible: true,
-                            onDismiss: () => _searchBloc.add(
-                              const SearchDismissLocationBanner(),
+                        child: TextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          onChanged: (value) =>
+                              _searchBloc.add(SearchQueryChanged(value)),
+                          decoration: InputDecoration(
+                            hintText: 'Search cafes...',
+                            hintStyle: const TextStyle(color: Colors.grey),
+                            prefixIcon: Icon(
+                              PhosphorIcons.magnifyingGlass(),
+                              color: Colors.grey,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
                             ),
                           ),
+                          style: textTheme.bodyLarge?.copyWith(
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-                        const SizedBox(height: 20),
+              Expanded(
+                child: BlocBuilder<SearchBloc, SearchState>(
+                  builder: (context, state) {
+                    final isLoading =
+                        state.status == SearchStatus.loading &&
+                        state.cafes.isEmpty;
+                    final hasError =
+                        state.status == SearchStatus.failure &&
+                        state.cafes.isEmpty;
+                    final isEmpty =
+                        state.status == SearchStatus.success &&
+                        state.cafes.isEmpty;
+                    final showLocBanner =
+                        state.locationDenied && !state.locationBannerDismissed;
 
-                        if (hasError)
-                          SizedBox(
-                            height: 420,
-                            child: FullPageErrorWidget(
-                              error: AppErrorCopy.fromException(
-                                state.lastError ?? Exception('Search failed'),
-                              ),
-                              onRetry: () => _retryOrSignIn(context, state),
-                            ),
-                          )
-                        else if (isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 16),
-                            child: SectionEmptyWidget(
-                              title: 'No cafes found',
-                              subtitle: 'Try another search or adjust filters.',
-                              icon: Icons.search_off_outlined,
-                            ),
-                          )
-                        else
-                          Skeletonizer(
-                            enabled: isLoading,
-                            effect: const PulseEffect(),
-                            child: IgnorePointer(
-                              ignoring: isLoading,
-                              child: ListView.builder(
-                                itemCount: state.cafes.length,
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemBuilder: (context, index) {
-                                  final cafe = state.cafes[index];
-
-                                  return AdaptiveTap(
-                                    onTap: () =>
-                                        context.push('/cafe/${cafe.id}'),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            width: 48,
-                                            height: 48,
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey.shade300,
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                              image: cafe.coverImage != null
-                                                  ? DecorationImage(
-                                                      image: NetworkImage(
-                                                        cafe.coverImage!,
-                                                      ),
-                                                      fit: BoxFit.cover,
-                                                    )
-                                                  : null,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                _buildHighlightedText(
-                                                  textTheme,
-                                                  cafe.name,
-                                                  state.query,
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  cafe.locationLabel,
-                                                  style: textTheme.bodySmall
-                                                      ?.copyWith(
-                                                        color: Colors
-                                                            .grey
-                                                            .shade500,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            _formatDistance(
-                                              cafe.distanceMeters,
-                                            ),
-                                            style: textTheme.bodySmall
-                                                ?.copyWith(
-                                                  color: Colors.grey.shade500,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
+                    return RefreshIndicator(
+                      onRefresh: _onRefresh,
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (showLocBanner)
+                                LocationDeniedBanner(
+                                  visible: true,
+                                  onDismiss: () => _searchBloc.add(
+                                    const SearchDismissLocationBanner(),
+                                  ),
+                                ),
+                              if (hasError)
+                                SizedBox(
+                                  height: 420,
+                                  child: FullPageErrorWidget(
+                                    error: AppErrorCopy.fromException(
+                                      state.lastError ??
+                                          Exception('Search failed'),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
+                                    onRetry: () =>
+                                        _retryOrSignIn(context, state),
+                                  ),
+                                )
+                              else if (isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 16),
+                                  child: SectionEmptyWidget(
+                                    title: 'No cafes found',
+                                    subtitle:
+                                        'Try another search or adjust filters.',
+                                    icon: Icons.search_off_outlined,
+                                  ),
+                                )
+                              else
+                                _SearchResultsList(
+                                  cafes: state.cafes,
+                                  query: state.query,
+                                  isLoading: isLoading,
+                                  textTheme: textTheme,
+                                ),
+                            ],
                           ),
-                      ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchResultsList extends StatelessWidget {
+  const _SearchResultsList({
+    required this.cafes,
+    required this.query,
+    required this.isLoading,
+    required this.textTheme,
+  });
+
+  final List<CafeSummary> cafes;
+  final String query;
+  final bool isLoading;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Skeletonizer(
+      enabled: isLoading,
+      effect: const PulseEffect(),
+      child: IgnorePointer(
+        ignoring: isLoading,
+        child: ListView.builder(
+          itemCount: cafes.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemBuilder: (context, index) => _SearchResultTile(
+            cafe: cafes[index],
+            query: query,
+            textTheme: textTheme,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchResultTile extends StatelessWidget {
+  const _SearchResultTile({
+    required this.cafe,
+    required this.query,
+    required this.textTheme,
+  });
+
+  final CafeSummary cafe;
+  final String query;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdaptiveTap(
+      onTap: () => context.push('/cafe/${cafe.id}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(12),
+                image: cafe.coverImage != null
+                    ? DecorationImage(
+                        image: NetworkImage(cafe.coverImage!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildHighlightedText(cafe.name, query),
+                  const SizedBox(height: 2),
+                  Text(
+                    cafe.locationLabel,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade500,
                     ),
                   ),
-                ),
-              );
-            },
-          ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              _formatDistance(cafe.distanceMeters),
+              style: textTheme.bodySmall?.copyWith(
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -305,7 +340,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
     return '${distanceMeters.round()} m';
   }
 
-  Widget _buildHighlightedText(TextTheme textTheme, String text, String query) {
+  Widget _buildHighlightedText(String text, String query) {
     final trimmed = query.trim();
     final baseStyle = textTheme.bodyLarge?.copyWith(
       fontWeight: FontWeight.w500,

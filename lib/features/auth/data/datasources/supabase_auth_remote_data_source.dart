@@ -1,4 +1,7 @@
+import 'dart:developer' as developer;
+
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:nook/core/constants/app_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseAuthRemoteDataSource {
@@ -10,12 +13,17 @@ class SupabaseAuthRemoteDataSource {
     : _client = client ?? Supabase.instance.client;
 
   Future<bool> checkEmailExists(String email) async {
+    developer.log(
+      'Checking email existence: $email',
+      name: 'EmailVerification',
+    );
     final result = await _client.rpc(
       'check_email_exists',
       params: {'check_email': email},
     );
-
-    return result as bool;
+    final exists = result as bool;
+    developer.log('Email existence result: $exists', name: 'EmailVerification');
+    return exists;
   }
 
   Future<AuthResponse> signUp({
@@ -23,10 +31,15 @@ class SupabaseAuthRemoteDataSource {
     required String name,
     required String password,
   }) async {
+    developer.log(
+      'Signing up user: email=$email, redirect=${AppConstants.emailRedirectUri}',
+      name: 'EmailVerification',
+    );
     return await _client.auth.signUp(
       email: email,
       password: password,
       data: {'full_name': name},
+      emailRedirectTo: AppConstants.emailRedirectUri,
     );
   }
 
@@ -40,7 +53,7 @@ class SupabaseAuthRemoteDataSource {
   Future<void> signInWithApple() async {
     await _client.auth.signInWithOAuth(
       OAuthProvider.apple,
-      redirectTo: 'nookapp://login-callback',
+      redirectTo: 'ph.nook.app://login-callback',
     );
   }
 

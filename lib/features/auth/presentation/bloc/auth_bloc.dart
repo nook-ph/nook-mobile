@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 // Use Cases
 import 'package:nook/features/auth/domain/use_cases/check_email_exists_usecase.dart';
@@ -29,6 +30,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignOutUseCase _signOutUseCase;
   final GetCurrentSessionUseCase _getCurrentSessionUseCase;
   final ListsBloc listsBloc;
+  late final StreamSubscription<supabase.AuthState> _authStateSubscription;
 
   static const String _googleWebClientId =
       '190651012817-4l9qejfb0uhpr6jstk1hl2b6ish2gjfo.apps.googleusercontent.com';
@@ -58,6 +60,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignOutEvent>(_onSignOut);
     on<AuthUsernameSetEvent>(_onUsernameSet);
     on<AuthSessionCheckEvent>(_onSessionCheck);
+
+    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
+        .listen(_onSupabaseAuthStateChange);
   }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -79,6 +84,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
+  void _onSupabaseAuthStateChange(supabase.AuthState data) {
+    final event = data.event;
+    if (event == AuthChangeEvent.signedIn ||
+        event == AuthChangeEvent.userUpdated) {
+      add(const AuthSessionCheckEvent());
+    }
+  }
+
   Future<void> _onSignUp(AuthSignUpEvent event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
@@ -94,6 +107,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         return;
       }
 
+      if (response.session == null) {
+        emit(AuthAwaitingEmailConfirmation(email: event.email));
+        return;
+      }
+
       await _identifyPosthogUser(user);
       _initListsSession();
       await _emitAuthSuccess(user, emit);
@@ -104,6 +122,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (_) {
       emit(const AuthError('Connection failed. Check your internet.'));
     }
+  }
+
+  @override
+  Future<void> close() async {
+    await _authStateSubscription.cancel();
+    return super.close();
   }
 
   Future<void> _onSignIn(AuthSignInEvent event, Emitter<AuthState> emit) async {

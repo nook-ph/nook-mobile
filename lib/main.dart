@@ -1,8 +1,11 @@
+import 'dart:async';
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:go_router/go_router.dart';
 import 'package:nook/utils/theme/theme.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
@@ -43,8 +46,70 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final AppLinks _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
+  GoRouter? _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAppLinks();
+  }
+
+  Future<void> _initAppLinks() async {
+    _linkSubscription = _appLinks.uriLinkStream.listen(
+      _handleIncomingLink,
+      onError: (Object error, StackTrace stackTrace) {
+        if (kDebugMode) {
+          debugPrint('App link error: $error');
+        }
+      },
+    );
+
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleIncomingLink(initialUri);
+      }
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Failed to read initial app link: $error');
+      }
+    }
+  }
+
+  Future<void> _handleIncomingLink(Uri uri) async {
+    final isLoginCallback =
+      uri.scheme == 'ph.nook.app' && uri.host == 'login-callback';
+
+    if (!isLoginCallback) return;
+
+    try {
+      await Supabase.instance.client.auth.getSessionFromUrl(uri);
+    } on AuthException catch (error) {
+      if (kDebugMode) {
+        debugPrint('Login callback failed: ${error.message}');
+      }
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Login callback failed: $error');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,39 +126,48 @@ class MyApp extends StatelessWidget {
                 ..add(const AuthSessionCheckEvent()),
         ),
       ],
-      child: MaterialApp.router(
-        debugShowCheckedModeBanner: false,
-        title: 'Nook',
-        theme: TAppTheme.lightTheme,
-        routerConfig: appRouter,
-        builder: (context, child) {
-          return BlocListener<AuthBloc, AuthState>(
-            listenWhen: (previous, current) {
-              return current is AuthAuthenticated ||
-                  current is AuthLoggedOut ||
-                  current is AuthNeedsUsername;
-            },
-            listener: (context, state) {
-              final appState = context.read<AppBloc>().state;
-              if (appState is! ShowHome) {
-                return;
-              }
+      child: Builder(
+        builder: (context) {
+          _router ??= createAppRouter(context.read<AuthBloc>());
 
-              if (state is AuthAuthenticated) {
-                appRouter.go('/');
-              } else if (state is AuthLoggedOut) {
-                appRouter.go('/login');
-              } else if (state is AuthNeedsUsername) {
-                appRouter.go(
-                  '/username-setup',
-                  extra: {
-                    'fullName': state.fullName,
-                    'avatarUrl': state.avatarUrl,
-                  },
-                );
-              }
+          return MaterialApp.router(
+            debugShowCheckedModeBanner: false,
+            title: 'Nook',
+            theme: TAppTheme.lightTheme,
+            routerConfig: _router,
+            builder: (context, child) {
+              return BlocListener<AuthBloc, AuthState>(
+                listenWhen: (previous, current) {
+                  return current is AuthAuthenticated ||
+                      current is AuthLoggedOut ||
+                      current is AuthNeedsUsername ||
+                      current is AuthAwaitingEmailConfirmation;
+                },
+                listener: (context, state) {
+                  final appState = context.read<AppBloc>().state;
+                  if (appState is! ShowHome) {
+                    return;
+                  }
+
+                  if (state is AuthAuthenticated) {
+                    GoRouter.of(context).go('/');
+                  } else if (state is AuthLoggedOut) {
+                    GoRouter.of(context).go('/login');
+                  } else if (state is AuthNeedsUsername) {
+                    GoRouter.of(context).go(
+                      '/username-setup',
+                      extra: {
+                        'fullName': state.fullName,
+                        'avatarUrl': state.avatarUrl,
+                      },
+                    );
+                  } else if (state is AuthAwaitingEmailConfirmation) {
+                    GoRouter.of(context).go('/email-confirmation');
+                  }
+                },
+                child: child ?? const SizedBox.shrink(),
+              );
             },
-            child: child ?? const SizedBox.shrink(),
           );
         },
       ),

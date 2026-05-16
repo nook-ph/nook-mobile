@@ -97,7 +97,7 @@ await supabase.auth.signInWithPassword(email: email, password: password);
 // OAuth (Apple)
 await supabase.auth.signInWithOAuth(
   OAuthProvider.apple,
-  redirectTo: 'nookapp://login-callback',
+  redirectTo: 'ph.nook.app://login-callback',
 );
 
 // OAuth (Google via ID token)
