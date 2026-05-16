@@ -60,6 +60,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignInWithGoogleEvent>(_onSignInWithGoogle);
     on<AuthSignOutEvent>(_onSignOut);
     on<AuthUsernameSetEvent>(_onUsernameSet);
+    on<AuthPasswordRecoveryEvent>(_onPasswordRecovery);
     on<AuthSessionCheckEvent>(_onSessionCheck);
 
     _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
@@ -88,11 +89,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   void _onSupabaseAuthStateChange(supabase.AuthState data) {
     final event = data.event;
     debugPrint('AuthBloc: supabase auth event=$event');
-    if (event == AuthChangeEvent.signedIn ||
-        event == AuthChangeEvent.userUpdated) {
+
+    if (event == AuthChangeEvent.passwordRecovery) {
+      debugPrint('AuthBloc: trigger AuthPasswordRecoveryEvent');
+      add(const AuthPasswordRecoveryEvent());
+      return;
+    }
+
+    if (event == AuthChangeEvent.userUpdated) return;
+
+    if (event == AuthChangeEvent.signedIn) {
       debugPrint('AuthBloc: trigger AuthSessionCheckEvent');
       add(const AuthSessionCheckEvent());
     }
+  }
+
+  Future<void> _onPasswordRecovery(
+    AuthPasswordRecoveryEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthPasswordRecovery());
   }
 
   Future<void> _onSignUp(AuthSignUpEvent event, Emitter<AuthState> emit) async {

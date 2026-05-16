@@ -19,6 +19,8 @@ class AuthEmailChecked extends AuthState {
   List<Object?> get props => [exists, email];
 }
 
+class AuthPasswordRecovery extends AuthState {}
+
 class AuthNeedsUsername extends AuthState {
   final User user;
   final String? fullName, avatarUrl;

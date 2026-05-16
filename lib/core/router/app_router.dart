@@ -11,6 +11,8 @@ import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/pages/email_entry_page.dart';
 import 'package:nook/features/auth/presentation/pages/email_confirmation_pending_page.dart';
 import 'package:nook/features/auth/presentation/pages/change_email_page.dart';
+import 'package:nook/features/auth/presentation/pages/change_password_page.dart';
+import 'package:nook/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:nook/features/auth/presentation/pages/login_page.dart';
 import 'package:nook/features/auth/presentation/pages/signup_details_page.dart';
 import 'package:nook/features/auth/presentation/pages/username_setup_page.dart';
@@ -21,7 +23,6 @@ import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart
 GoRouter createAppRouter(AuthBloc authBloc) {
   return GoRouter(
     initialLocation: '/',
-    // This helps you see navigation errors in the terminal
     debugLogDiagnostics: true,
     refreshListenable: GoRouterRefreshStream(authBloc.stream),
     redirect: (context, state) {
@@ -32,7 +33,8 @@ GoRouter createAppRouter(AuthBloc authBloc) {
           location == '/login' ||
           location == '/login-password' ||
           location == '/signup-details';
-      final isProtectedRoute = location == '/change-email';
+      final isProtectedRoute =
+          location == '/change-email' || location == '/change-password';
 
       if (authState is AuthAwaitingEmailConfirmation) {
         debugPrint('Redirect -> /email-confirmation');
@@ -44,9 +46,14 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         return location == '/username-setup' ? null : '/username-setup';
       }
 
+      if (authState is AuthPasswordRecovery) {
+        return location == '/change-password' ? null : '/change-password';
+      }
+
       if (authState is AuthAuthenticated) {
         if (location == '/username-setup' ||
             location == '/email-confirmation' ||
+            location == '/change-password' || // ← add this
             isAuthRoute) {
           debugPrint('Redirect authenticated -> /');
           return '/';
@@ -107,6 +114,16 @@ GoRouter createAppRouter(AuthBloc authBloc) {
           final email = state.extra as String?;
           return ChangeEmailScreen(currentEmail: email);
         },
+      ),
+
+      GoRoute(
+        path: '/change-password',
+        builder: (context, state) => const ChangePasswordScreen(),
+      ),
+
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
 
       GoRoute(
