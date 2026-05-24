@@ -15,8 +15,8 @@ extension CustomColor on ColorScheme {
 
   Color get black => const Color(0xFF0A0F0D);
   Color get gray => const Color(0xFF868584);
-
-  Color get textgray => const Color(0x800A0F0D);
+  Color get white => const Color(0xFFFEFEFE);
+  Color get offWhite => const Color(0xFFEEEEEE);
   Color get border => const Color(0xFFE0E0E0);
 
   Color get primary100 => const Color(0xFF344E41);

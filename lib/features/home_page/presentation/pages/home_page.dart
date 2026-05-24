@@ -15,6 +15,8 @@ import 'package:nook/features/home_page/presentation/widgets/home_cafe_section.d
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
 import 'package:nook/injection_container.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:nook/utils/theme/custom_themes/text_theme.dart';
+import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -37,12 +39,14 @@ class HomePage extends StatelessWidget {
     reload();
   }
 
-  Widget _buildSectionTitle(String text) {
+  Widget _buildSectionTitle(BuildContext context, String text) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+        style: Theme.of(context).textTheme.titleLargeSemi.copyWith(
+          color: Theme.of(context).colorScheme.black,
+        ),
       ),
     );
   }
@@ -63,7 +67,11 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildLoadingSkeletonChildren(double cardWidth, double textScale) {
+  List<Widget> _buildLoadingSkeletonChildren(
+    BuildContext context,
+    double cardWidth,
+    double textScale,
+  ) {
     final List<CafeSummary> cafes = List.generate(
       4,
       (index) => const CafeSummary(
@@ -86,10 +94,10 @@ class HomePage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSectionTitle('Featured'),
+              _buildSectionTitle(context, 'Featured'),
               const SizedBox(height: 12),
               SizedBox(
-                height: 312 * textScale,
+                height: 360 * textScale,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -138,13 +146,18 @@ class HomePage extends StatelessWidget {
             builder: (context, state) {
               final double screenWidth = MediaQuery.of(context).size.width;
               final double cardWidth = screenWidth - 44;
-              final double textScale =
-                  MediaQuery.textScalerOf(context).scale(1.0);
+              final double textScale = MediaQuery.textScalerOf(
+                context,
+              ).scale(1.0);
 
               if (state is HomeLoadingState) {
                 return _buildScrollableLayout(
                   context: context,
-                  children: _buildLoadingSkeletonChildren(cardWidth, textScale),
+                  children: _buildLoadingSkeletonChildren(
+                    context,
+                    cardWidth,
+                    textScale,
+                  ),
                 );
               }
 
@@ -206,10 +219,10 @@ class HomePage extends StatelessWidget {
                       ),
                     if (state.featuredCafes.isNotEmpty) ...[
                       const SizedBox(height: 24),
-                      _buildSectionTitle('Featured'),
+                      _buildSectionTitle(context, 'Featured'),
                       const SizedBox(height: 12),
                       SizedBox(
-                        height: 312 * textScale,
+                        height: 370 * textScale,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 22),
