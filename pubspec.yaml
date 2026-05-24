@@ -95,6 +95,9 @@ flutter:
     - assets/logos/
     - assets/icons/
     - assets/images/
+    - assets/images/relaxing.png
+    - assets/images/looking.png
+    - assets/images/friends.png
     - .env
 
   fonts:
