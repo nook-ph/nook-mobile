@@ -96,7 +96,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return;
     }
 
-    if (event == AuthChangeEvent.userUpdated) return;
+    if (event == AuthChangeEvent.userUpdated) {
+      if (state is AuthPasswordRecovery) {
+        debugPrint('AuthBloc: password updated, re-check session');
+        add(const AuthSessionCheckEvent());
+      }
+      return;
+    }
 
     if (event == AuthChangeEvent.signedIn) {
       debugPrint('AuthBloc: trigger AuthSessionCheckEvent');
