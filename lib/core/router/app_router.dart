@@ -29,10 +29,12 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       final authState = authBloc.state;
       final location = state.uri.path;
       debugPrint('GoRouter redirect check: location=$location auth=$authState');
+
       final isAuthRoute =
           location == '/login' ||
           location == '/login-password' ||
           location == '/signup-details';
+
       final isProtectedRoute =
           location == '/change-email' || location == '/change-password';
 
@@ -53,7 +55,6 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       if (authState is AuthAuthenticated) {
         if (location == '/username-setup' ||
             location == '/email-confirmation' ||
-            location == '/change-password' || // ← add this
             isAuthRoute) {
           debugPrint('Redirect authenticated -> /');
           return '/';
@@ -63,6 +64,10 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       }
 
       if (authState is AuthUnauthenticated || authState is AuthLoggedOut) {
+        if (isProtectedRoute) {
+          debugPrint('Redirect unauthenticated from protected route -> /login');
+          return '/login';
+        }
         debugPrint('No redirect (unauthenticated)');
         return null;
       }
