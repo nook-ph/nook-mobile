@@ -18,10 +18,17 @@ class AdaptiveTap extends StatelessWidget {
     final isIos = Theme.of(context).platform == TargetPlatform.iOS;
 
     if (isIos) {
-      return CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: onTap,
-        child: child,
+      final colorScheme = Theme.of(context).colorScheme;
+
+      return CupertinoTheme(
+        data: CupertinoTheme.of(context).copyWith(
+          primaryColor: colorScheme.onSurface,
+        ),
+        child: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: onTap,
+          child: child,
+        ),
       );
     }
 
