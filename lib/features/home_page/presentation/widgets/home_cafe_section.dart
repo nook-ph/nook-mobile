@@ -31,11 +31,10 @@ class HomeCafeSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Text(
             title,
-            // style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-            style: Theme.of(context).textTheme.titleSmallSemi,
+            style: Theme.of(context).textTheme.titleMediumSemi,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (!isSkeleton && cafes.isEmpty)
           SectionEmptyWidget(
             title: 'No cafes in $title',

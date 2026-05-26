@@ -11,11 +11,7 @@ class CafeCard extends StatefulWidget {
   final CafeSummary cafe;
   final bool isSkeleton;
 
-  const CafeCard({
-    super.key,
-    required this.cafe,
-    this.isSkeleton = false,
-  });
+  const CafeCard({super.key, required this.cafe, this.isSkeleton = false});
 
   @override
   State<CafeCard> createState() => _CafeCardState();
@@ -57,7 +53,7 @@ class _CafeCardState extends State<CafeCard> {
                 ),
                 child: Image.network(
                   imageUrl,
-                  height: 240,
+                  height: 320,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),
@@ -75,7 +71,7 @@ class _CafeCardState extends State<CafeCard> {
                       children: [
                         Text(
                           widget.cafe.name,
-                          style: Theme.of(context).textTheme.titleLargeEmp,
+                          style: Theme.of(context).textTheme.bodyLargeSemi,
                         ),
                         Icon(PhosphorIconsBold.heart, size: 24),
                       ],
@@ -86,20 +82,24 @@ class _CafeCardState extends State<CafeCard> {
                     children: [
                       Text(
                         widget.cafe.rating.toString(),
-                        style: Theme.of(context).textTheme.bodyLargeEmp,
+                        style: Theme.of(context).textTheme.bodyExtraSmallMed
+                            .copyWith(
+                              color: Theme.of(context).colorScheme.black,
+                              height: 1.1,
+                            ),
                       ),
                       SizedBox(width: 6),
                       StarRating(rating: widget.cafe.rating),
                       SizedBox(width: 4),
                       Text(
                         '(32)',
-                        style: Theme.of(context).textTheme.bodyMediumEmp,
+                        style: Theme.of(context).textTheme.bodyMediumMed,
                       ),
                       Text(
                         ' • ${widget.cafe.neighborhood}, ${widget.cafe.city}',
-                        style: Theme.of(context).textTheme.bodyMediumEmp
+                        style: Theme.of(context).textTheme.bodyMediumMed
                             .copyWith(
-                              color: Theme.of(context).colorScheme.textgray,
+                              color: Theme.of(context).colorScheme.gray,
                             ),
                       ),
                     ],
@@ -120,13 +120,15 @@ class _CafeCardState extends State<CafeCard> {
                                     horizontal: 0.0,
                                     vertical: -4,
                                   ),
-                                  labelPadding:
-                                      EdgeInsets.symmetric(horizontal: 6),
+                                  labelPadding: EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                  ),
                                   label: Text(
                                     tag,
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmallEmp.copyWith(
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmallMed
+                                        .copyWith(
                                           color: Theme.of(
                                             context,
                                           ).colorScheme.black,
@@ -134,8 +136,9 @@ class _CafeCardState extends State<CafeCard> {
                                   ),
                                   shape: StadiumBorder(
                                     side: BorderSide(
-                                      color:
-                                          Theme.of(context).colorScheme.border,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.border,
                                     ),
                                   ),
                                   materialTapTargetSize:
@@ -148,9 +151,9 @@ class _CafeCardState extends State<CafeCard> {
                       const SizedBox(width: 8),
                       Text(
                         widget.cafe.distanceMeters.toString(),
-                        style: Theme.of(context).textTheme.bodySmallEmp
+                        style: Theme.of(context).textTheme.bodySmallMed
                             .copyWith(
-                              color: Theme.of(context).colorScheme.textgray,
+                              color: Theme.of(context).colorScheme.gray,
                             ),
                       ),
                     ],

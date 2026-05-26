@@ -12,6 +12,7 @@ import 'package:nook/features/map/presentation/widgets/map_filter_sub_sheet.dart
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/map/domain/entities/cafe_tags_entity.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class BottomModalSheet extends StatefulWidget {
@@ -134,7 +135,7 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
     // [OPT-2] Hoist textScale here — it only changes with accessibility
     // settings, not on every panel drag or list scroll.
     final textScale = MediaQuery.textScalerOf(context).scale(1.0);
-    final cardHeight = 312 * textScale;
+    final cardHeight = 360 * textScale;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -414,12 +415,8 @@ class _QuickFilterChip extends StatelessWidget {
   final VoidCallback onTap;
   final bool active;
 
-  static const Color _activeChipBorder = Color(0xFF344E41);
-
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return FilterChip(
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
@@ -430,21 +427,25 @@ class _QuickFilterChip extends StatelessWidget {
         children: [
           Text(
             title,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: colors.primary100,
+            style: Theme.of(context).textTheme.bodyMediumMed.copyWith(
+              color: Theme.of(context).colorScheme.primary100,
             ),
           ),
           const SizedBox(width: 6),
-          Icon(PhosphorIcons.caretDown(), size: 20, color: colors.primary100),
+          Icon(
+            PhosphorIcons.caretDown(),
+            size: 20,
+            color: Theme.of(context).colorScheme.primary100,
+          ),
         ],
       ),
-      backgroundColor: colors.surface,
-      selectedColor: colors.primary60,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      selectedColor: Theme.of(context).colorScheme.primary60,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       side: BorderSide(
-        color: active ? _activeChipBorder : colors.border,
+        color: active
+            ? Theme.of(context).colorScheme.primary100
+            : Theme.of(context).colorScheme.border,
         width: 1.5,
       ),
       showCheckmark: false,

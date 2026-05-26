@@ -48,7 +48,7 @@ class HomeCafeCard extends StatelessWidget {
                       height: 180,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: Colors.black,
+                        color: Theme.of(context).colorScheme.gray,
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
@@ -197,8 +197,10 @@ class HomeCafeCard extends StatelessWidget {
                           const SizedBox.shrink(),
                         const SizedBox(width: 6),
                         Text(
-                          '5.0 km',
-                          style: Theme.of(context).textTheme.bodyExtraSmallMed
+                          cafe.distanceMeters != null
+                              ? '${(cafe.distanceMeters! / 1000).toStringAsFixed(1)} km'
+                              : '',
+                          style: Theme.of(context).textTheme.bodyMedium!
                               .copyWith(
                                 color: Theme.of(context).colorScheme.gray,
                                 height: 1.1,

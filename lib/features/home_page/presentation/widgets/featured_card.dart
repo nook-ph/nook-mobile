@@ -96,10 +96,10 @@ class FeaturedCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             cafe.rating.toStringAsFixed(1),
-                            style: Theme.of(context).textTheme.bodyMediumMed
+                            style: Theme.of(context).textTheme.bodyLargeMed
                                 .copyWith(
                                   color: Theme.of(context).colorScheme.black,
-                                  height: 1.1,
+                                  height: 1.2,
                                 ),
                           ),
                           const SizedBox(width: 4),
@@ -150,12 +150,13 @@ class FeaturedCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '5.0 km',
-                        style: Theme.of(context).textTheme.bodyExtraSmall
-                            .copyWith(
-                              color: Theme.of(context).colorScheme.gray,
-                              height: 1.1,
-                            ),
+                        cafe.distanceMeters != null
+                            ? '${(cafe.distanceMeters! / 1000).toStringAsFixed(1)} km'
+                            : '',
+                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                          color: Theme.of(context).colorScheme.gray,
+                          height: 1.1,
+                        ),
                       ),
                     ],
                   ),

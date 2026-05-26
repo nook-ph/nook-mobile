@@ -7,6 +7,7 @@ import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.da
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 
 /// Map bottom-sheet list row: hero image, then info + tags.
 class MapSheetCafeCard extends StatelessWidget {
@@ -51,7 +52,7 @@ class MapSheetCafeCard extends StatelessWidget {
         child: Column(
           children: [
             Expanded(
-              flex: 22,
+              flex: 30,
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: ClipRRect(
@@ -99,10 +100,10 @@ class MapSheetCafeCard extends StatelessWidget {
                               cafe.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: Theme.of(context).textTheme.titleMediumSemi
+                                  .copyWith(
+                                    color: Theme.of(context).colorScheme.black,
+                                  ),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -111,25 +112,21 @@ class MapSheetCafeCard extends StatelessWidget {
                             children: [
                               Icon(
                                 PhosphorIconsFill.star,
-                                size: 14,
+                                size: 18,
                                 color: colors.primary100,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 cafe.rating.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: Theme.of(context).textTheme.bodyLargeMed
+                                    .copyWith(color: colors.black, height: 1.2),
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 '(${cafe.reviewCount})',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: Color(0xFF848586),
-                                ),
+
+                                style: Theme.of(context).textTheme.bodyMediumMed
+                                    .copyWith(color: colors.gray, height: 1.1),
                               ),
                             ],
                           ),
@@ -137,10 +134,10 @@ class MapSheetCafeCard extends StatelessWidget {
                       ),
                       Row(
                         children: [
-                          const Icon(
-                            LucideIcons.mapPin500,
-                            size: 12,
-                            color: Color(0xFF848586),
+                          Icon(
+                            LucideIcons.mapPin400,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.gray,
                           ),
                           const SizedBox(width: 4),
                           Expanded(
@@ -148,11 +145,10 @@ class MapSheetCafeCard extends StatelessWidget {
                               cafe.locationLabel,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF848586),
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: Theme.of(context).textTheme.bodyMedium!
+                                  .copyWith(
+                                    color: Theme.of(context).colorScheme.gray,
+                                  ),
                             ),
                           ),
                         ],
@@ -160,9 +156,26 @@ class MapSheetCafeCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  CafeSummaryOverflowTagsRow(
-                    tags: cafe.tags,
-                    isSkeleton: isSkeleton,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: CafeSummaryOverflowTagsRow(
+                          tags: cafe.tags,
+                          isSkeleton: isSkeleton,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        cafe.distanceMeters != null
+                            ? '${(cafe.distanceMeters! / 1000).toStringAsFixed(1)} km'
+                            : '',
+                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                          color: colors.gray,
+                          height: 1.1,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

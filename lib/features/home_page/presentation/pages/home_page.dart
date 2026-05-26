@@ -237,27 +237,27 @@ class HomePage extends StatelessWidget {
                           },
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 36),
                     ] else
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 36),
                     HomeCafeSection(
                       title: 'New',
                       cafes: state.newestCafes,
                       emptySubtitle: 'No new cafes yet',
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 36),
                     HomeCafeSection(
                       title: 'Trending',
                       cafes: state.trendingCafes,
                       emptySubtitle: 'Nothing trending right now',
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 36),
                     HomeCafeSection(
                       title: 'Top Rated',
                       cafes: state.topRatedCafes,
                       emptySubtitle: 'Ratings show up soon',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 36),
                   ],
                 );
               }
