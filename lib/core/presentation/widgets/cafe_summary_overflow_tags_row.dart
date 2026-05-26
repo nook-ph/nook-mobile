@@ -101,7 +101,7 @@ class _TagChip extends StatelessWidget {
     final icon = resolveTagIcon(label);
     final borderColor = Theme.of(context).colorScheme.primary60;
     final iconColor = Theme.of(context).colorScheme.primary60;
-    final textColor = Theme.of(context).colorScheme.primary40;
+    final textColor = Theme.of(context).colorScheme.gray;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),

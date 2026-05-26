@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 
 class CafeTagsList extends StatelessWidget {
   const CafeTagsList({super.key, required this.tags});
@@ -32,27 +34,31 @@ class CafeTagsList extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF868584)),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.primary60,
+              ),
             ),
             child: Row(
               children: [
                 tagIcon != null
-                    ? Icon(tagIcon, size: 16, color: const Color(0xFF868584))
+                    ? Icon(
+                        tagIcon,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.primary60,
+                      )
                     : Container(
                         width: 8,
                         height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF868584),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary60,
                           shape: BoxShape.circle,
                         ),
                       ),
                 const SizedBox(width: 4),
                 Text(
                   tag.name,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF868584),
+                  style: Theme.of(context).textTheme.bodySmallMed.copyWith(
+                    color: Theme.of(context).colorScheme.gray,
                   ),
                 ),
               ],
@@ -62,5 +68,4 @@ class CafeTagsList extends StatelessWidget {
       ),
     );
   }
-
 }

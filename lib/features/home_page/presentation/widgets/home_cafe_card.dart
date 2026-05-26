@@ -48,7 +48,7 @@ class HomeCafeCard extends StatelessWidget {
                       height: 180,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.gray,
+                        color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
@@ -185,7 +185,7 @@ class HomeCafeCard extends StatelessWidget {
                                           .copyWith(
                                             color: Theme.of(
                                               context,
-                                            ).colorScheme.primary40,
+                                            ).colorScheme.gray,
                                           ),
                                     ),
                                   ),

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class ReviewCard extends StatelessWidget {
   const ReviewCard({
@@ -242,25 +245,14 @@ class _StarRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const int totalStars = 5;
-    const Color starColor = Color(0xFF588157);
-    const double starSize = 18;
-
-    return Row(
-      children: List.generate(totalStars, (index) {
-        final double fill = (rating - index).clamp(0.0, 1.0);
-        if (fill >= 1.0) {
-          return const Icon(Icons.star, color: starColor, size: starSize);
-        } else if (fill > 0.0) {
-          return const Icon(Icons.star_half, color: starColor, size: starSize);
-        } else {
-          return const Icon(
-            Icons.star_border,
-            color: starColor,
-            size: starSize,
-          );
-        }
-      }),
+    return RatingBarIndicator(
+      rating: rating,
+      itemBuilder: (context, index) => Icon(
+        PhosphorIconsFill.star,
+        color: Theme.of(context).colorScheme.primary60,
+      ),
+      itemCount: 5,
+      itemSize: 14,
     );
   }
 }

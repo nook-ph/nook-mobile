@@ -57,6 +57,8 @@ class HomePage extends StatelessWidget {
   }) {
     return RefreshIndicator(
       onRefresh: () => _refreshHome(context),
+      color: Theme.of(context).colorScheme.primary100,
+      backgroundColor: Theme.of(context).colorScheme.white,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
@@ -97,7 +99,7 @@ class HomePage extends StatelessWidget {
               _buildSectionTitle(context, 'Featured'),
               const SizedBox(height: 12),
               SizedBox(
-                height: 360 * textScale,
+                height: 370 * textScale,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 22),

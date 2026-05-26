@@ -113,7 +113,7 @@ class MapSheetCafeCard extends StatelessWidget {
                               Icon(
                                 PhosphorIconsFill.star,
                                 size: 18,
-                                color: colors.primary100,
+                                color: colors.primary60,
                               ),
                               const SizedBox(width: 4),
                               Text(
