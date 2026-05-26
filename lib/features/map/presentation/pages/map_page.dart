@@ -48,7 +48,7 @@ class _MapPageState extends State<MapPage> {
 
   static const _initial = CameraPosition(
     target: LatLng(10.3167, 123.8907),
-    zoom: 12,
+    zoom: 10,
   );
 
   @override
@@ -109,6 +109,7 @@ class _MapPageState extends State<MapPage> {
               children: [
                 MapLibreMap(
                   initialCameraPosition: _initial,
+                  compassEnabled: false,
                   myLocationEnabled: true,
                   myLocationRenderMode: MyLocationRenderMode.compass,
                   myLocationTrackingMode: MyLocationTrackingMode.none,

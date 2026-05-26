@@ -284,7 +284,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   : null,
                             ),
 
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 12),
 
                             CafeTagsList(
                               tags: state is CafeDetailsLoaded

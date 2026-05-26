@@ -10,10 +10,7 @@ typedef HomeFeedResult = ({
   List<CafeSummary> newest,
 });
 
-typedef HomeFeedWithLocationMeta = ({
-  HomeFeedResult feed,
-  bool locationDenied,
-});
+typedef HomeFeedWithLocationMeta = ({HomeFeedResult feed, bool locationDenied});
 
 class GetHomeFeedUseCase {
   final ICafeRepository repository;
@@ -29,8 +26,8 @@ class GetHomeFeedUseCase {
             label: 'nearby',
             query: CafeQuery(
               sort: 'nearby',
-              lat: loc.position!.latitude,
-              lng: loc.position!.longitude,
+              lat: loc.position?.latitude,
+              lng: loc.position?.longitude,
               page: page,
               limit: limit,
             ),
@@ -38,17 +35,35 @@ class GetHomeFeedUseCase {
 
     final topRated = await _safeFetch(
       label: 'top_rated',
-      query: CafeQuery(sort: 'top_rated', page: page, limit: limit),
+      query: CafeQuery(
+        sort: 'top_rated',
+        lat: loc.position?.latitude,
+        lng: loc.position?.longitude,
+        page: page,
+        limit: limit,
+      ),
     );
 
     final trending = await _safeFetch(
       label: 'trending',
-      query: CafeQuery(sort: 'trending', page: page, limit: limit),
+      query: CafeQuery(
+        sort: 'trending',
+        lat: loc.position?.latitude,
+        lng: loc.position?.longitude,
+        page: page,
+        limit: limit,
+      ),
     );
 
     final newest = await _safeFetch(
       label: 'newest',
-      query: CafeQuery(sort: 'newest', page: page, limit: limit),
+      query: CafeQuery(
+        sort: 'newest',
+        lat: loc.position?.latitude,
+        lng: loc.position?.longitude,
+        page: page,
+        limit: limit,
+      ),
     );
 
     final feed = (

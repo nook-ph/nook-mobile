@@ -7,6 +7,7 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 
 class FeaturedCard extends StatelessWidget {
   final CafeSummary cafe;
@@ -23,7 +24,6 @@ class FeaturedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
         ? cafe.coverImage!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
@@ -40,12 +40,17 @@ class FeaturedCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: isSkeleton
               ? null
-              : Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
+              : Border.all(
+                  color: Theme.of(context).colorScheme.border,
+                  width: 1.0,
+                ),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              flex: 19,
+            SizedBox(
+              height: 260,
+              width: double.infinity,
               child: Skeleton.replace(
                 replace: isSkeleton,
                 replacement: Container(
@@ -60,89 +65,102 @@ class FeaturedCard extends StatelessWidget {
                 ),
               ),
             ),
-            Expanded(
-              flex: 11,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                cafe.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w500,
-                                ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          cafe.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMediumSemi
+                              .copyWith(
+                                color: Theme.of(context).colorScheme.black,
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  PhosphorIconsFill.star,
-                                  size: 14,
-                                  color: colors.primary100,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  cafe.rating.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '(${cafe.reviewCount})',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF848586),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
                         ),
-                        Row(
-                          children: [
-                            const Icon(
-                              LucideIcons.mapPin500,
-                              size: 12,
-                              color: Color(0xFF848586),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                cafe.locationLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF848586),
-                                  fontWeight: FontWeight.w500,
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            PhosphorIconsFill.star,
+                            color: Theme.of(context).colorScheme.primary60,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            cafe.rating.toStringAsFixed(1),
+                            style: Theme.of(context).textTheme.bodyLargeMed
+                                .copyWith(
+                                  color: Theme.of(context).colorScheme.black,
+                                  height: 1.2,
                                 ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '(${cafe.reviewCount})',
+
+                            style: Theme.of(context).textTheme.bodyMediumMed
+                                .copyWith(
+                                  color: Theme.of(context).colorScheme.gray,
+                                  height: 1.1,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        LucideIcons.mapPin400,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.gray,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          cafe.locationLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium!
+                              .copyWith(
+                                color: Theme.of(context).colorScheme.gray,
                               ),
-                            ),
-                          ],
                         ),
-                      ],
-                    ),
-                    CafeSummaryOverflowTagsRow(
-                      tags: cafe.tags,
-                      isSkeleton: isSkeleton,
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: CafeSummaryOverflowTagsRow(
+                          tags: cafe.tags,
+                          isSkeleton: isSkeleton,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        cafe.distanceMeters != null
+                            ? '${(cafe.distanceMeters! / 1000).toStringAsFixed(1)} km'
+                            : '',
+                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                          color: Theme.of(context).colorScheme.gray,
+                          height: 1.1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],

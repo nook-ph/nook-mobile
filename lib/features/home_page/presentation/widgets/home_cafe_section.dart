@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
 import 'package:nook/core/widgets/error/section_empty_widget.dart';
+import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 
 class HomeCafeSection extends StatelessWidget {
   final String title;
@@ -30,10 +31,10 @@ class HomeCafeSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 22),
           child: Text(
             title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+            style: Theme.of(context).textTheme.titleMediumSemi,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (!isSkeleton && cafes.isEmpty)
           SectionEmptyWidget(
             title: 'No cafes in $title',
@@ -42,7 +43,7 @@ class HomeCafeSection extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 215 * scale,
+            height: 266 * scale,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 22),
