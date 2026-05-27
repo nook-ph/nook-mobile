@@ -4,10 +4,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:nook/utils/theme/custom_themes/text_theme.dart';
+import 'package:nook/core/extensions/extensions.dart';
 
 class FeaturedCard extends StatelessWidget {
   final CafeSummary cafe;
@@ -41,16 +40,15 @@ class FeaturedCard extends StatelessWidget {
           border: isSkeleton
               ? null
               : Border.all(
-                  color: Theme.of(context).colorScheme.border,
+                  color: context.colorScheme.border,
                   width: 1.0,
                 ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              height: 260,
-              width: double.infinity,
+            AspectRatio(
+              aspectRatio: 3 / 2,
               child: Skeleton.replace(
                 replace: isSkeleton,
                 replacement: Container(
@@ -79,9 +77,9 @@ class FeaturedCard extends StatelessWidget {
                           cafe.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.titleMediumSemi
+                          style: context.textTheme.titleMediumSemi
                               .copyWith(
-                                color: Theme.of(context).colorScheme.black,
+                                color: context.colorScheme.black,
                               ),
                         ),
                       ),
@@ -90,15 +88,15 @@ class FeaturedCard extends StatelessWidget {
                         children: [
                           Icon(
                             PhosphorIconsFill.star,
-                            color: Theme.of(context).colorScheme.primary60,
+                            color: context.colorScheme.primary60,
                             size: 18,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             cafe.rating.toStringAsFixed(1),
-                            style: Theme.of(context).textTheme.bodyLargeMed
+                            style: context.textTheme.bodyLargeMed
                                 .copyWith(
-                                  color: Theme.of(context).colorScheme.black,
+                                  color: context.colorScheme.black,
                                   height: 1.2,
                                 ),
                           ),
@@ -106,9 +104,9 @@ class FeaturedCard extends StatelessWidget {
                           Text(
                             '(${cafe.reviewCount})',
 
-                            style: Theme.of(context).textTheme.bodyMediumMed
+                            style: context.textTheme.bodyMediumMed
                                 .copyWith(
-                                  color: Theme.of(context).colorScheme.gray,
+                                  color: context.colorScheme.gray,
                                   height: 1.1,
                                 ),
                           ),
@@ -122,7 +120,7 @@ class FeaturedCard extends StatelessWidget {
                       Icon(
                         LucideIcons.mapPin400,
                         size: 16,
-                        color: Theme.of(context).colorScheme.gray,
+                        color: context.colorScheme.gray,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -130,9 +128,9 @@ class FeaturedCard extends StatelessWidget {
                           cafe.locationLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium!
+                          style: context.textTheme.bodyMedium!
                               .copyWith(
-                                color: Theme.of(context).colorScheme.gray,
+                                color: context.colorScheme.gray,
                               ),
                         ),
                       ),
@@ -153,8 +151,8 @@ class FeaturedCard extends StatelessWidget {
                         cafe.distanceMeters != null
                             ? '${(cafe.distanceMeters! / 1000).toStringAsFixed(1)} km'
                             : '',
-                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                          color: Theme.of(context).colorScheme.gray,
+                        style: context.textTheme.bodyMedium!.copyWith(
+                          color: context.colorScheme.gray,
                           height: 1.1,
                         ),
                       ),
