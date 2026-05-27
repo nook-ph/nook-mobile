@@ -15,8 +15,7 @@ import 'package:nook/features/home_page/presentation/widgets/home_cafe_section.d
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
 import 'package:nook/injection_container.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:nook/utils/theme/custom_themes/text_theme.dart';
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:nook/core/extensions/extensions.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -44,8 +43,8 @@ class HomePage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Text(
         text,
-        style: Theme.of(context).textTheme.titleLargeSemi.copyWith(
-          color: Theme.of(context).colorScheme.black,
+        style: context.textTheme.titleLargeSemi.copyWith(
+          color: context.colorScheme.black,
         ),
       ),
     );
@@ -57,8 +56,8 @@ class HomePage extends StatelessWidget {
   }) {
     return RefreshIndicator(
       onRefresh: () => _refreshHome(context),
-      color: Theme.of(context).colorScheme.primary100,
-      backgroundColor: Theme.of(context).colorScheme.white,
+      color: context.colorScheme.primary100,
+      backgroundColor: context.colorScheme.white,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
@@ -72,7 +71,7 @@ class HomePage extends StatelessWidget {
   List<Widget> _buildLoadingSkeletonChildren(
     BuildContext context,
     double cardWidth,
-    double textScale,
+    double cardHeight,
   ) {
     final List<CafeSummary> cafes = List.generate(
       4,
@@ -99,20 +98,17 @@ class HomePage extends StatelessWidget {
               _buildSectionTitle(context, 'Featured'),
               const SizedBox(height: 12),
               SizedBox(
-                height: 370 * textScale,
+                height: cardHeight,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 22),
                   itemCount: 2,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 12),
-                  itemBuilder: (context, index) {
-                    return FeaturedCard(
-                      width: cardWidth,
-                      cafe: cafes[index],
-                      isSkeleton: true,
-                    );
-                  },
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (_, index) => FeaturedCard(
+                    width: cardWidth,
+                    cafe: cafes[index],
+                    isSkeleton: true,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),
@@ -146,11 +142,8 @@ class HomePage extends StatelessWidget {
         body: SafeArea(
           child: BlocBuilder<HomeBloc, HomeState>(
             builder: (context, state) {
-              final double screenWidth = MediaQuery.of(context).size.width;
-              final double cardWidth = screenWidth - 44;
-              final double textScale = MediaQuery.textScalerOf(
-                context,
-              ).scale(1.0);
+              final double cardWidth = context.screenWidth - 44;
+              final double cardHeight = cardWidth * (2 / 3) + 120;
 
               if (state is HomeLoadingState) {
                 return _buildScrollableLayout(
@@ -158,7 +151,7 @@ class HomePage extends StatelessWidget {
                   children: _buildLoadingSkeletonChildren(
                     context,
                     cardWidth,
-                    textScale,
+                    cardHeight,
                   ),
                 );
               }
@@ -177,7 +170,6 @@ class HomePage extends StatelessWidget {
               if (state is HomeLoadedState) {
                 final showLocBanner =
                     state.locationDenied && !state.locationBannerDismissed;
-
                 final bool hasAnyData =
                     state.featuredCafes.isNotEmpty ||
                     state.newestCafes.isNotEmpty ||
@@ -196,9 +188,9 @@ class HomePage extends StatelessWidget {
                           ),
                         ),
                       const SizedBox(height: 24),
-                      SizedBox(
+                      const SizedBox(
                         height: 360,
-                        child: const FullPageEmptyWidget(
+                        child: FullPageEmptyWidget(
                           title: 'No cafes yet',
                           subtitle:
                               'Pull to refresh — new spots appear here soon.',
@@ -224,19 +216,17 @@ class HomePage extends StatelessWidget {
                       _buildSectionTitle(context, 'Featured'),
                       const SizedBox(height: 12),
                       SizedBox(
-                        height: 370 * textScale,
+                        height: cardHeight,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(horizontal: 22),
                           itemCount: state.featuredCafes.length,
-                          separatorBuilder: (context, index) =>
+                          separatorBuilder: (_, __) =>
                               const SizedBox(width: 12),
-                          itemBuilder: (context, index) {
-                            return FeaturedCard(
-                              width: cardWidth,
-                              cafe: state.featuredCafes[index],
-                            );
-                          },
+                          itemBuilder: (_, index) => FeaturedCard(
+                            width: cardWidth,
+                            cafe: state.featuredCafes[index],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 36),
