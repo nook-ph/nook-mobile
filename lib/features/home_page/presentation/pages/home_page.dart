@@ -143,7 +143,27 @@ class HomePage extends StatelessWidget {
           child: BlocBuilder<HomeBloc, HomeState>(
             builder: (context, state) {
               final double cardWidth = context.screenWidth - 44;
-              final double cardHeight = cardWidth * (2 / 3) + 120;
+              final textTheme = context.textTheme;
+              final double imageHeight = cardWidth * (2 / 3);
+              final double titleSize = textTheme.titleMediumSemi.fontSize ?? 0;
+              final double titleHeight =
+                  titleSize * (textTheme.titleMediumSemi.height ?? 1.0);
+              final double bodyMediumSize = textTheme.bodyMedium?.fontSize ?? 0;
+              final double bodyMediumHeight =
+                  bodyMediumSize * (textTheme.bodyMedium?.height ?? 1.0);
+              final double bodySmallSize = textTheme.bodySmallMed.fontSize ?? 0;
+              final double bodySmallHeight =
+                  bodySmallSize * (textTheme.bodySmallMed.height ?? 1.0);
+              final double tagsRowHeight = bodySmallHeight + 4;
+              final double cardHeight =
+                  imageHeight +
+                  10 +
+                  titleHeight +
+                  4 +
+                  bodyMediumHeight +
+                  8 +
+                  tagsRowHeight +
+                  10;
 
               if (state is HomeLoadingState) {
                 return _buildScrollableLayout(
