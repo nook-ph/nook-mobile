@@ -102,7 +102,21 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     final items = <Widget>[
       for (int i = 0; i < filled.length; i++) ...[
         if (i > 0) const SizedBox(width: 10),
-        Expanded(child: _PhotoThumbnail(file: filled[i])),
+        Expanded(
+          child: _PhotoThumbnail(
+            file: filled[i],
+            onRemove: isSubmitting
+                ? null
+                : () {
+                    setState(() {
+                      final indexToRemove = _photos.indexOf(filled[i]);
+                      if (indexToRemove != -1) {
+                        _photos[indexToRemove] = null;
+                      }
+                    });
+                  },
+          ),
+        ),
       ],
       if (showAddButton) ...[
         if (filled.isNotEmpty) const SizedBox(width: 10),
@@ -394,17 +408,40 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
 }
 
 class _PhotoThumbnail extends StatelessWidget {
-  const _PhotoThumbnail({required this.file});
+  const _PhotoThumbnail({required this.file, this.onRemove});
 
   final File file;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: 100,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Image.file(file, fit: BoxFit.cover),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.file(file, fit: BoxFit.cover),
+            ),
+          ),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                width: 22,
+                height: 22,
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 14),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
