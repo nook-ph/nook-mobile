@@ -21,6 +21,19 @@ class HomeCafeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double scale = MediaQuery.textScalerOf(context).scale(1.0);
+    final textTheme = Theme.of(context).textTheme;
+    final double bodyLargeSize = textTheme.bodyLargeSemi.fontSize ?? 0;
+    final double bodyLargeHeight =
+      bodyLargeSize * (textTheme.bodyLargeSemi.height ?? 1.0) * scale;
+    final double bodyMediumSize = textTheme.bodyMedium?.fontSize ?? 0;
+    final double bodyMediumHeight =
+      bodyMediumSize * (textTheme.bodyMedium?.height ?? 1.0) * scale;
+    final double bodySmallSize = textTheme.bodySmallMed.fontSize ?? 0;
+    final double bodySmallHeight =
+      bodySmallSize * (textTheme.bodySmallMed.height ?? 1.0) * scale;
+    final double tagsRowHeight = bodySmallHeight + 4 + 2;
+    final double cardHeight =
+      180 + 12 + bodyLargeHeight + 2 + bodyMediumHeight + 6 + tagsRowHeight;
 
     final emptyCopy = emptySubtitle ?? 'Nothing here yet';
 
@@ -43,7 +56,7 @@ class HomeCafeSection extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 266 * scale,
+            height: cardHeight,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 22),

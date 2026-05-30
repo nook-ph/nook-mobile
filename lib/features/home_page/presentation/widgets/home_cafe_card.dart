@@ -20,6 +20,8 @@ class HomeCafeCard extends StatelessWidget {
     final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
         ? cafe.coverImage!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+
+        
     final String ratingText = cafe.rating.toStringAsFixed(1);
     final String? primaryTag = cafe.tags.isNotEmpty ? cafe.tags.first : null;
 

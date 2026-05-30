@@ -39,32 +39,36 @@ class FeaturedCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: isSkeleton
               ? null
-              : Border.all(
-                  color: context.colorScheme.border,
-                  width: 1.0,
-                ),
+              : Border.all(color: context.colorScheme.border, width: 1.0),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AspectRatio(
-              aspectRatio: 3 / 2,
-              child: Skeleton.replace(
-                replace: isSkeleton,
-                replacement: Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  color: Colors.black,
-                ),
-                child: Image.network(
-                  imageUrl,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final imageHeight = constraints.maxWidth / (3 / 2);
+                return SizedBox(
+                  width: constraints.maxWidth,
+                  height: imageHeight,
+                  child: Skeleton.replace(
+                    replace: isSkeleton,
+                    replacement: Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      color: Colors.black,
+                    ),
+                    child: Image.network(
+                      imageUrl,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                );
+              },
             ),
             Padding(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -77,10 +81,9 @@ class FeaturedCard extends StatelessWidget {
                           cafe.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: context.textTheme.titleMediumSemi
-                              .copyWith(
-                                color: context.colorScheme.black,
-                              ),
+                          style: context.textTheme.titleMediumSemi.copyWith(
+                            color: context.colorScheme.black,
+                          ),
                         ),
                       ),
                       Row(
@@ -94,21 +97,19 @@ class FeaturedCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             cafe.rating.toStringAsFixed(1),
-                            style: context.textTheme.bodyLargeMed
-                                .copyWith(
-                                  color: context.colorScheme.black,
-                                  height: 1.2,
-                                ),
+                            style: context.textTheme.bodyLargeMed.copyWith(
+                              color: context.colorScheme.black,
+                              height: 1.2,
+                            ),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '(${cafe.reviewCount})',
 
-                            style: context.textTheme.bodyMediumMed
-                                .copyWith(
-                                  color: context.colorScheme.gray,
-                                  height: 1.1,
-                                ),
+                            style: context.textTheme.bodyMediumMed.copyWith(
+                              color: context.colorScheme.gray,
+                              height: 1.1,
+                            ),
                           ),
                         ],
                       ),
@@ -128,10 +129,9 @@ class FeaturedCard extends StatelessWidget {
                           cafe.locationLabel,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: context.textTheme.bodyMedium!
-                              .copyWith(
-                                color: context.colorScheme.gray,
-                              ),
+                          style: context.textTheme.bodyMedium!.copyWith(
+                            color: context.colorScheme.gray,
+                          ),
                         ),
                       ),
                     ],
