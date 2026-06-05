@@ -7,7 +7,7 @@ class HomeTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 46, left: 22, right: 22),
+      padding: const EdgeInsets.only(top: 32, left: 22, right: 22),
       child: Row(
         children: [
           Image.asset(
