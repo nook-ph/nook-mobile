@@ -11,6 +11,7 @@ import 'package:nook/core/extensions/extensions.dart';
 class FeaturedCard extends StatelessWidget {
   final CafeSummary cafe;
   final bool isSkeleton;
+  final double width;
 
   const FeaturedCard({
     super.key,
@@ -19,7 +20,7 @@ class FeaturedCard extends StatelessWidget {
     this.isSkeleton = false,
   });
 
-  final double width;
+  static double cardWidth = 420.0;
 
   @override
   Widget build(BuildContext context) {
@@ -58,10 +59,25 @@ class FeaturedCard extends StatelessWidget {
                       height: double.infinity,
                       color: Colors.black,
                     ),
+
                     child: Image.network(
                       imageUrl,
-                      width: double.infinity,
                       fit: BoxFit.cover,
+                      frameBuilder:
+                          (context, child, frame, wasSynchronouslyLoaded) {
+                            if (wasSynchronouslyLoaded) return child;
+                            return AnimatedOpacity(
+                              opacity: frame == null ? 0 : 1,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeIn,
+                              child: child,
+                            );
+                          },
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: imageHeight,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.broken_image),
+                      ),
                     ),
                   ),
                 );
@@ -105,7 +121,6 @@ class FeaturedCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             '(${cafe.reviewCount})',
-
                             style: context.textTheme.bodyMediumMed.copyWith(
                               color: context.colorScheme.gray,
                               height: 1.1,
