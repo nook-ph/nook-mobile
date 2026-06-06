@@ -1,6 +1,7 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
+import 'package:nook/core/preferences/review_draft_store.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/data/cafe_repository_impl.dart';
@@ -54,6 +55,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<AnalyticsService>(() => AnalyticsService());
 
   sl.registerLazySingleton<LastSavedListStore>(() => LastSavedListStore());
+  sl.registerLazySingleton<ReviewDraftStore>(() => ReviewDraftStore());
 
   sl.registerLazySingleton<http.Client>(() => http.Client());
 

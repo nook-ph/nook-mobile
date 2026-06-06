@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_image_compress/flutter_image_compress.dart';
@@ -11,6 +12,7 @@ import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/preferences/review_draft_store.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -48,17 +50,84 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
   late final TextEditingController _reviewController;
   final List<File?> _photos = <File?>[null, null, null];
   final ImagePicker _imagePicker = ImagePicker();
+  final ReviewDraftStore _draftStore = sl<ReviewDraftStore>();
+  AppLifecycleListener? _appLifecycleListener;
+  bool _isSavingDraft = false;
+  bool _recoveredDraft = false;
 
   @override
   void initState() {
     super.initState();
     _reviewController = TextEditingController();
+    _appLifecycleListener = AppLifecycleListener(
+      onStateChange: _handleAppLifecycle,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadDraft();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant WriteReviewSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cafeId != widget.cafeId) {
+      _reviewController.clear();
+      setState(() {
+        _selectedRating = 0;
+        _recoveredDraft = false;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadDraft();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _appLifecycleListener?.dispose();
     _reviewController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveDraft({bool showToast = false}) async {
+    if (_isSavingDraft) return;
+    if (_reviewController.text.trim().isEmpty && _selectedRating == 0) return;
+    _isSavingDraft = true;
+    try {
+      await _draftStore.save(
+        widget.cafeId,
+        text: _reviewController.text,
+        rating: _selectedRating,
+      );
+      if (showToast && mounted) {
+        showPrimaryToast(context, 'Draft saved');
+      }
+    } finally {
+      _isSavingDraft = false;
+    }
+  }
+
+  Future<void> _loadDraft() async {
+    final draft = await _draftStore.load(widget.cafeId);
+    if (!mounted || draft == null) return;
+    if (_recoveredDraft) return;
+
+    _reviewController.value = TextEditingValue(
+      text: draft.text,
+      selection: TextSelection.collapsed(offset: draft.text.length),
+    );
+    setState(() {
+      _selectedRating = draft.rating;
+      _recoveredDraft = true;
+    });
+    showPrimaryToast(context, 'Draft recovered');
+  }
+
+  void _handleAppLifecycle(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _saveDraft(showToast: true);
+    }
   }
 
   Future<File> _compressImage(File file) async {
@@ -191,6 +260,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     }
 
     final selectedPhotos = _photos.whereType<File>().toList(growable: false);
+    final submitBloc = context.read<ReviewSubmitBloc>();
 
     String? accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
     if (accessToken == null || accessToken.isEmpty) {
@@ -202,7 +272,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       }
     }
 
-    context.read<ReviewSubmitBloc>().add(
+    submitBloc.add(
       SubmitReviewRequested(
         cafeId: widget.cafeId,
         userId: user.id,
@@ -219,6 +289,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     return BlocConsumer<ReviewSubmitBloc, ReviewSubmitState>(
       listener: (context, state) {
         if (state is ReviewSubmitSuccess) {
+          unawaited(_draftStore.clear(widget.cafeId));
           Navigator.of(context).pop();
           showPrimaryToast(context, 'Review submitted successfully.');
         }
@@ -230,7 +301,13 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       builder: (context, state) {
         final isSubmitting = state is ReviewSubmitting;
 
-        return SingleChildScrollView(
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) return;
+            unawaited(_saveDraft());
+          },
+          child: SingleChildScrollView(
           padding: EdgeInsets.only(
             left: 24,
             right: 24,
@@ -401,6 +478,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
               const SizedBox(height: 32),
             ],
           ),
+        ),
         );
       },
     );
