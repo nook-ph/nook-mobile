@@ -102,10 +102,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     }
   }
 
-  void _requestExitRecovery() {
+  void _onBackPressed() {
     if (_isExiting) return;
-    setState(() => _isExiting = true);
-    context.read<AuthBloc>().add(const AuthSignOutEvent());
+    final isRecoveryFlow =
+        context.read<AuthBloc>().state is AuthPasswordRecovery;
+    if (isRecoveryFlow) {
+      setState(() => _isExiting = true);
+      context.read<AuthBloc>().add(const AuthSignOutEvent());
+    } else {
+      context.pop();
+    }
   }
 
   @override
@@ -114,6 +120,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         _newPasswordController.text.isNotEmpty &&
         _confirmPasswordController.text.isNotEmpty &&
         !_isLoading;
+
+    final isRecoveryFlow =
+        context.read<AuthBloc>().state is AuthPasswordRecovery;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -127,7 +136,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       child: PopScope(
         canPop: false,
         onPopInvoked: (didPop) {
-          if (!didPop) _requestExitRecovery();
+          if (didPop) return;
+          if (isRecoveryFlow) return;
+          _onBackPressed();
         },
         child: Scaffold(
           backgroundColor: Colors.white,
@@ -136,10 +147,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             surfaceTintColor: Colors.white,
             elevation: 0,
             scrolledUnderElevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: _requestExitRecovery,
-            ),
+            automaticallyImplyLeading: !isRecoveryFlow,
+            leading: isRecoveryFlow
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: _onBackPressed,
+                  ),
           ),
           body: SafeArea(
             child: SingleChildScrollView(
