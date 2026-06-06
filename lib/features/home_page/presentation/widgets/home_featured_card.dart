@@ -20,7 +20,7 @@ class FeaturedCard extends StatelessWidget {
     this.isSkeleton = false,
   });
 
-  static double cardWidth = 420.0;
+  static double cardWidth = 410.0;
   static const double _imageAspectRatio = 3 / 2;
 
   @override
@@ -55,7 +55,7 @@ class FeaturedCard extends StatelessWidget {
                 height: imgHeight,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
