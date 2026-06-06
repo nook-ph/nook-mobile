@@ -21,9 +21,12 @@ class FeaturedCard extends StatelessWidget {
   });
 
   static double cardWidth = 420.0;
+  static const double _imageAspectRatio = 3 / 2;
 
   @override
   Widget build(BuildContext context) {
+    final double imgHeight = width / _imageAspectRatio;
+
     final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
         ? cafe.coverImage!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
@@ -46,42 +49,42 @@ class FeaturedCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final imageHeight = constraints.maxWidth / (3 / 2);
-                return SizedBox(
-                  width: constraints.maxWidth,
-                  height: imageHeight,
-                  child: Skeleton.replace(
-                    replace: isSkeleton,
-                    replacement: Container(
-                      width: double.infinity,
-                      height: double.infinity,
-                      color: Colors.black,
-                    ),
-
-                    child: Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      frameBuilder:
-                          (context, child, frame, wasSynchronouslyLoaded) {
-                            if (wasSynchronouslyLoaded) return child;
-                            return AnimatedOpacity(
-                              opacity: frame == null ? 0 : 1,
-                              duration: const Duration(milliseconds: 300),
-                              curve: Curves.easeIn,
-                              child: child,
-                            );
-                          },
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: imageHeight,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.broken_image),
-                      ),
+            Skeleton.replace(
+              replace: isSkeleton,
+              replacement: Container(
+                height: imgHeight,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: SizedBox(
+                  height: imgHeight,
+                  width: double.infinity,
+                  child: Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    frameBuilder:
+                        (context, child, frame, wasSynchronouslyLoaded) {
+                          if (wasSynchronouslyLoaded) return child;
+                          return AnimatedOpacity(
+                            opacity: frame == null ? 0 : 1,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeIn,
+                            child: child,
+                          );
+                        },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: imgHeight,
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.broken_image),
                     ),
                   ),
-                );
-              },
+                ),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
