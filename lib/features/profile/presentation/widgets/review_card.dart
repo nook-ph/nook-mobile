@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
@@ -137,55 +138,80 @@ class ReviewCard extends StatelessWidget {
               Row(
                 children: [
                   ...visiblePhotos.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final url = entry.value;
                     return Padding(
                       padding: EdgeInsets.only(
                         right:
-                            entry.key < visiblePhotos.length - 1 ||
+                            index < visiblePhotos.length - 1 ||
                                 extraCount > 0
                             ? photoSpacing
                             : 0,
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          entry.value,
-                          width: photoSize,
-                          height: photoSize,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _PhotoPlaceholder(size: photoSize),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => showReviewPhotoViewer(
+                            context,
+                            imageUrls: photos,
+                            initialIndex: index,
+                          ),
+                          child: Hero(
+                            tag: 'photo-${url.hashCode}',
+                            child: Image.network(
+                              url,
+                              width: photoSize,
+                              height: photoSize,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _PhotoPlaceholder(size: photoSize),
+                            ),
+                          ),
                         ),
                       ),
                     );
                   }),
                   if (extraCount > 0)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Stack(
-                        children: [
-                          Image.network(
-                            photos[maxVisiblePhotos - 1],
-                            width: photoSize,
-                            height: photoSize,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                _PhotoPlaceholder(size: photoSize),
-                          ),
-                          Container(
-                            width: photoSize,
-                            height: photoSize,
-                            color: Colors.black.withOpacity(0.45),
-                            alignment: Alignment.center,
-                            child: Text(
-                              '+$extraCount',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w600,
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => showReviewPhotoViewer(
+                        context,
+                        imageUrls: photos,
+                        initialIndex: maxVisiblePhotos - 1,
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Hero(
+                          tag:
+                              'photo-${photos[maxVisiblePhotos - 1].hashCode}',
+                          child: Stack(
+                            children: [
+                              Image.network(
+                                photos[maxVisiblePhotos - 1],
+                                width: photoSize,
+                                height: photoSize,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    _PhotoPlaceholder(size: photoSize),
                               ),
-                            ),
+                              Container(
+                                width: photoSize,
+                                height: photoSize,
+                                color: Colors.black.withOpacity(0.45),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '+$extraCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                 ],

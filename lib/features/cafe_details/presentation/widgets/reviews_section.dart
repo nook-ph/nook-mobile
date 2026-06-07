@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:like_button/like_button.dart';
+import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
@@ -496,7 +497,12 @@ class _ReviewCardState extends State<ReviewCard> {
     final height = _imageHeightForCount(count);
 
     if (count == 1) {
-      return _buildImageTile(url: visibleUrls.first, height: height);
+      return _buildImageTile(
+        url: visibleUrls.first,
+        height: height,
+        imageUrls: imageUrls,
+        index: 0,
+      );
     }
 
     return SizedBox(
@@ -506,7 +512,12 @@ class _ReviewCardState extends State<ReviewCard> {
           for (int i = 0; i < visibleUrls.length; i++) ...[
             if (i > 0) const SizedBox(width: 8),
             Expanded(
-              child: _buildImageTile(url: visibleUrls[i], height: height),
+              child: _buildImageTile(
+                url: visibleUrls[i],
+                height: height,
+                imageUrls: imageUrls,
+                index: i,
+              ),
             ),
           ],
         ],
@@ -514,24 +525,41 @@ class _ReviewCardState extends State<ReviewCard> {
     );
   }
 
-  Widget _buildImageTile({required String url, required double height}) {
+  Widget _buildImageTile({
+    required String url,
+    required double height,
+    required List<String> imageUrls,
+    required int index,
+  }) {
     return SizedBox(
       height: height,
       width: double.infinity,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) {
-            return Container(
-              color: const Color(0xFFF0F0F0),
-              child: const Icon(
-                Icons.broken_image_outlined,
-                color: Color(0xFFBDBDBD),
-              ),
-            );
-          },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => showReviewPhotoViewer(
+            context,
+            imageUrls: imageUrls,
+            initialIndex: index,
+            heroTagPrefix: 'review-${widget.review.id}',
+          ),
+          child: Hero(
+            tag: 'review-${widget.review.id}-$index',
+            child: Image.network(
+              url,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) {
+                return Container(
+                  color: const Color(0xFFF0F0F0),
+                  child: const Icon(
+                    Icons.broken_image_outlined,
+                    color: Color(0xFFBDBDBD),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
