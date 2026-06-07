@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -56,28 +57,10 @@ class HomeCafeCard extends StatelessWidget {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
+                    child: CafeCardImage(
+                      imageUrl: imageUrl,
                       height: imgHeight,
                       width: double.infinity,
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        frameBuilder:
-                            (context, child, frame, wasSynchronouslyLoaded) {
-                              if (wasSynchronouslyLoaded) return child;
-                              return AnimatedOpacity(
-                                opacity: frame == null ? 0 : 1,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeIn,
-                                child: child,
-                              );
-                            },
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          height: imgHeight,
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.broken_image),
-                        ),
-                      ),
                     ),
                   ),
                 ),
