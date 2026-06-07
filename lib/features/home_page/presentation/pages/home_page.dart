@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:nook/core/cache/custom_cache_manager.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_empty_widget.dart';
@@ -46,60 +48,80 @@ class HomePage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
-          child: BlocBuilder<HomeBloc, HomeState>(
-            builder: (context, state) {
-              if (state is HomeLoadingState) {
-                return _HomeScrollView(
-                  onRefresh: () => _onRefresh(context),
-                  children: const [_HomeSkeleton()],
+          child: BlocListener<HomeBloc, HomeState>(
+            listenWhen: (prev, curr) =>
+                prev is! HomeLoadedState && curr is HomeLoadedState,
+            listener: (context, state) {
+              if (state is HomeLoadedState && state.featuredCafes.isNotEmpty) {
+                final first = state.featuredCafes.first;
+                final url = first.coverImage?.trim().isNotEmpty == true
+                    ? first.coverImage!.trim()
+                    : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+
+                precacheImage(
+                  CachedNetworkImageProvider(
+                    url,
+                    cacheManager: CustomCacheManager.instance,
+                  ),
+                  context,
                 );
               }
-
-              if (state is HomeError) {
-                return FullPageErrorWidget(
-                  error: AppErrorCopy.fromException(state.error),
-                  onRetry: () => _onRetry(context),
-                );
-              }
-
-              if (state is HomeLoadedState) {
-                final hasData = state.featuredCafes.isNotEmpty ||
-                    state.newestCafes.isNotEmpty ||
-                    state.trendingCafes.isNotEmpty ||
-                    state.topRatedCafes.isNotEmpty;
-
-                final locationBanner =
-                    state.locationDenied && !state.locationBannerDismissed
-                        ? LocationDeniedBanner(
-                            visible: true,
-                            onDismiss: () => context.read<HomeBloc>().add(
-                              HomeDismissLocationBannerEvent(),
-                            ),
-                          )
-                        : null;
-
-                return _HomeScrollView(
-                  onRefresh: () => _onRefresh(context),
-                  children: [
-                    if (locationBanner != null) locationBanner,
-                    if (!hasData)
-                      const SizedBox(
-                        height: 360,
-                        child: FullPageEmptyWidget(
-                          title: 'No cafes yet',
-                          subtitle:
-                              'Pull to refresh — new spots appear here soon.',
-                        ),
-                      )
-                    else
-                      _HomeContent(state: state),
-                    const SizedBox(height: 36),
-                  ],
-                );
-              }
-
-              return const SizedBox.shrink();
             },
+            child: BlocBuilder<HomeBloc, HomeState>(
+              builder: (context, state) {
+                if (state is HomeLoadingState) {
+                  return _HomeScrollView(
+                    onRefresh: () => _onRefresh(context),
+                    children: const [_HomeSkeleton()],
+                  );
+                }
+
+                if (state is HomeError) {
+                  return FullPageErrorWidget(
+                    error: AppErrorCopy.fromException(state.error),
+                    onRetry: () => _onRetry(context),
+                  );
+                }
+
+                if (state is HomeLoadedState) {
+                  final hasData = state.featuredCafes.isNotEmpty ||
+                      state.newestCafes.isNotEmpty ||
+                      state.trendingCafes.isNotEmpty ||
+                      state.topRatedCafes.isNotEmpty;
+
+                  final locationBanner =
+                      state.locationDenied && !state.locationBannerDismissed
+                          ? LocationDeniedBanner(
+                              visible: true,
+                              onDismiss: () => context.read<HomeBloc>().add(
+                                HomeDismissLocationBannerEvent(),
+                              ),
+                            )
+                          : null;
+
+                  return _HomeScrollView(
+                    onRefresh: () => _onRefresh(context),
+                    children: [
+                      if (locationBanner != null) locationBanner,
+                      if (!hasData)
+                        const SizedBox(
+                          height: 360,
+                          child: FullPageEmptyWidget(
+                            title: 'No cafes yet',
+                            subtitle:
+                                'Pull to refresh — new spots appear here soon.',
+                          ),
+                        )
+                      else
+                        _HomeContent(state: state),
+                      const SizedBox(height: 36),
+                    ],
+                  );
+                }
+
+                return const SizedBox.shrink();
+              },
+            ),
           ),
         ),
       ),
