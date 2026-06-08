@@ -1,6 +1,6 @@
 # Crawl
 
-> **Status:** ✅ Domain & Data Layer Complete — Presentation layer not yet started
+> **Status:** ✅ Domain, Data, and Presentation layers complete
 > **Last updated:** 2026-06-08
 
 ---
@@ -17,8 +17,7 @@ The feature is built across two locations:
 - **`lib/features/crawl/`** — Core crawl domain (entities, tiers, stamps, registration)
 - **`lib/core/achievements/`** — Cross-feature achievement system (shared by crawls, drops, social, milestones)
 
-Only the **domain** and **data** layers exist. No UI, BLoC, Cubit, page, or
-widget has been created yet.
+The **domain**, **data**, and **presentation** layers are all complete.
 
 ---
 
@@ -55,47 +54,71 @@ lib/
 │   │   │   └── crawl_remote_data_source.dart
 │   │   └── repositories/
 │   │       └── crawl_repository_impl.dart
-│   └── domain/
-│       ├── entities/
-│       │   ├── crawl.dart                   + CrawlStatus enum
-│       │   ├── crawl_tier.dart
-│       │   ├── crawl_stop.dart
-│       │   ├── crawl_detail.dart
-│       │   ├── crawl_progress.dart
-│       │   ├── crawl_stamp.dart
-│       │   ├── stamp_claim_result.dart      + TierCompletionResult
-│       │   └── crawl_share_card_data.dart   + CrawlStopShareItem
-│       ├── failures/
-│       │   └── crawl_failures.dart
-│       ├── repositories/
-│       │   └── i_crawl_repository.dart
-│       └── use_cases/
-│           ├── get_active_crawls_usecase.dart
-│           ├── get_crawl_detail_usecase.dart
-│           ├── register_for_crawl_usecase.dart
-│           ├── claim_stamp_usecase.dart
-│           └── get_share_card_data_usecase.dart
-│
-└── core/
-    ├── achievements/
-    │   ├── data/
-    │   │   ├── models/
-    │   │   │   ├── achievement_definition_model.dart
-    │   │   │   └── user_achievement_model.dart
-    │   │   ├── sources/
-    │   │   │   └── achievement_remote_data_source.dart
-    │   │   └── repositories/
-    │   │       └── achievement_repository_impl.dart
-    │   └── domain/
-    │       ├── entities/
-    │       │   ├── achievement_definition.dart  + AchievementCategory enum
-    │       │   └── user_achievement.dart
-    │       ├── repositories/
-    │       │   └── i_achievement_repository.dart
-    │       └── use_cases/
-    │           └── get_user_achievements_usecase.dart
-    └── errors/
-        └── failure.dart
+│   ├── domain/
+│   │   ├── entities/
+│   │   │   ├── crawl.dart                   + CrawlStatus enum
+│   │   │   ├── crawl_tier.dart
+│   │   │   ├── crawl_stop.dart
+│   │   │   ├── crawl_detail.dart
+│   │   │   ├── crawl_progress.dart
+│   │   │   ├── crawl_stamp.dart
+│   │   │   ├── stamp_claim_result.dart      + TierCompletionResult
+│   │   │   └── crawl_share_card_data.dart   + CrawlStopShareItem
+│   │   ├── failures/
+│   │   │   └── crawl_failures.dart
+│   │   ├── repositories/
+│   │   │   └── i_crawl_repository.dart
+│   │   └── use_cases/
+│   │       ├── get_active_crawls_usecase.dart
+│   │       ├── get_crawl_detail_usecase.dart
+│   │       ├── register_for_crawl_usecase.dart
+│   │       ├── claim_stamp_usecase.dart
+│   │       └── get_share_card_data_usecase.dart
+│   └── presentation/
+│       ├── bloc/
+│       │   ├── crawl_claim_bloc.dart
+│       │   ├── crawl_claim_event.dart
+│       │   └── crawl_claim_state.dart
+│       ├── cubit/
+│       │   ├── active_crawls_cubit.dart
+│       │   ├── active_crawls_state.dart
+│       │   ├── crawl_detail_cubit.dart
+│       │   └── crawl_detail_state.dart
+│       ├── pages/
+│       │   ├── stamp_claim_page.dart        # Placeholder UI
+│       │   ├── crawl_detail_page.dart       # Placeholder UI
+│       │   └── passport_page.dart           # Placeholder UI
+│       ├── widgets/
+│       │   ├── crawl_home_banner.dart       # Placeholder
+│       │   ├── tier_completion_modal.dart   # Placeholder
+│       │   └── share_card_view.dart         # Placeholder
+│       ├── deep_link/
+│       │   └── crawl_deep_link_handler.dart
+│       └── injection/
+│           └── crawl_presentation_injection.dart
+
+├── core/
+│   ├── achievements/
+│   │   ├── data/
+│   │   │   ├── models/
+│   │   │   │   ├── achievement_definition_model.dart
+│   │   │   │   └── user_achievement_model.dart
+│   │   │   ├── sources/
+│   │   │   │   └── achievement_remote_data_source.dart
+│   │   │   └── repositories/
+│   │   │       └── achievement_repository_impl.dart
+│   │   └── domain/
+│   │       ├── entities/
+│   │       │   ├── achievement_definition.dart  + AchievementCategory enum
+│   │       │   └── user_achievement.dart
+│   │       ├── repositories/
+│   │       │   └── i_achievement_repository.dart
+│   │       └── use_cases/
+│   │           └── get_user_achievements_usecase.dart
+│   ├── errors/
+│   │   └── failure.dart
+│   └── services/
+│       └── gps_service.dart
 ```
 
 ---
@@ -278,7 +301,7 @@ All registered as lazy singletons in `lib/injection_container.dart` in the
 "Future features registration area" section, following this ordering:
 
 ```
-data sources → repositories → use cases
+data sources → repositories → use cases → services → cubits → blocs
 ```
 
 ```
@@ -293,6 +316,11 @@ GetShareCardDataUseCase
 IAchievementRemoteDataSource → AchievementRemoteDataSourceImpl
 IAchievementRepository       → AchievementRepositoryImpl
 GetUserAchievementsUseCase
+
+GpsService → GpsServiceImpl
+ActiveCrawlsCubit
+CrawlDetailCubit
+CrawlClaimBloc
 ```
 
 ---
@@ -319,6 +347,16 @@ GetUserAchievementsUseCase
 | `dartz` | `Either<Failure, T>` for repository return types |
 | `supabase_flutter` | All data access (tables + RPCs) |
 | `get_it` | DI registration |
+| `flutter_bloc` | BLoC + Cubit state management |
+| `equatable` | Value equality for state/event classes |
+| `geolocator` | GPS position acquisition for stamp claiming |
+
+### Dev Dependencies
+
+| Package | Why |
+|---|---|
+| `bloc_test` | Unit testing BLoC and Cubit emission sequences |
+| `mockito` | Mocking use cases and services in tests |
 
 ---
 
@@ -335,16 +373,210 @@ GetUserAchievementsUseCase
 
 ---
 
-## 14. Coming Soon: Presentation Layer
+## 14. Presentation Layer
 
-When implementing the presentation layer, follow these constraints:
+### 14.1 State Management Strategy
 
-- **No hardcoded tier slugs** (`city_explorer`, `island_run`) in Dart — they come from the DB
-- **Do not duplicate `CafeSummary`/`CafeDetails`** — `CrawlStop` embeds only needed cafe fields
-- **Do not create a second filter or list state** — no dependency on `FilterCubit` or `ListsBloc`
-- **Use `MapsDirectionsLauncher`** (in `core/utils/`) for map directions, not `url_launcher` directly
-- **No hardcoded colors** — use theme tokens from `utils/theme/`
-- **Defer `stamp_template_url`** on `Crawl` entity unless the share card rendering needs it
+Hybrid approach:
+
+- **Cubit** — Simple async fetch-and-emit flows (`ActiveCrawlsCubit`, `CrawlDetailCubit`)
+- **BLoC** — Complex event-driven pipelines with multiple orchestration steps (`CrawlClaimBloc`)
+
+All states use `sealed class` hierarchies for exhaustive pattern matching with Dart 3 switch expressions.
+
+### 14.2 CrawlClaimBloc
+
+**File:** `features/crawl/presentation/bloc/crawl_claim_bloc.dart`
+
+Orchestrates the stamp-claim flow: acquire GPS position → validate → submit claim → map result.
+
+**Events (3):**
+
+| Event | Payload | Trigger |
+|---|---|---|
+| `ClaimInitialized` | `crawlId`, `stopId`, `crawlTitle`, `cafeName` | Page mount / deep link |
+| `ClaimRetryRequested` | — | User taps retry |
+| `ClaimResetRequested` | — | User closes / resets |
+
+**States (12, sealed):**
+
+| State | Fields | Meaning |
+|---|---|---|
+| `CrawlClaimInitial` | — | Idle, no claim in progress |
+| `AcquiringGps` | `crawlId`, `stopId`, `crawlTitle`, `cafeName` | Waiting for GPS fix |
+| `ClaimSubmitting` | `crawlId`, `stopId`, `crawlTitle`, `cafeName`, `lat`, `lng` | Submitting to server |
+| `ClaimSuccess` | `result`, `crawlTitle`, `cafeName` | Stamp claimed (no tier completion) |
+| `ClaimSuccessWithTierCompletion` | `result`, `tier`, `crawlTitle`, `cafeName` | Stamp claimed + tier completed |
+| `GpsDenied` | — | Location permission denied |
+| `GpsTimeout` | — | GPS acquisition timed out (10s) |
+| `LocationTooFar` | `distanceMeters` | User >200m from stop |
+| `AlreadyClaimed` | `claimedAt` | Stamp already collected |
+| `CrawlExpired` | — | Crawl is no longer active |
+| `StopInactive` | — | Stop disabled by admin |
+| `NotRegistered` | — | User not registered for crawl |
+| `ClaimNetworkError` | `failure` | Generic server/network error |
+
+**Flow:**
+
+```
+CrawlClaimInitial
+  → ClaimInitialized → AcquiringGps
+    → (GPS success) → ClaimSubmitting
+      → (success)           → ClaimSuccess / ClaimSuccessWithTierCompletion
+      → (location_too_far)  → LocationTooFar
+      → (already_claimed)   → AlreadyClaimed
+      → (crawl_ended)       → CrawlExpired
+      → (stop_inactive)     → StopInactive
+      → (generic)           → ClaimNetworkError
+    → (GPS denied)  → GpsDenied
+    → (GPS timeout) → GpsTimeout
+
+ClaimRetryRequested → (re-emits ClaimInitialized from AcquiringGps) / (resets to CrawlClaimInitial from error states)
+ClaimResetRequested → CrawlClaimInitial (from any state)
+```
+
+**Dependencies:** `ClaimStampUseCase`, `GpsService`
+
+### 14.3 ActiveCrawlsCubit
+
+**File:** `features/crawl/presentation/cubit/active_crawls_cubit.dart`
+
+Simple fetch cubit for the home screen crawl banner.
+
+**States (4, sealed):**
+
+| State | Fields | Meaning |
+|---|---|---|
+| `ActiveCrawlsLoading` | — | Fetch in progress |
+| `ActiveCrawlsLoaded` | `crawls`, `registeredCrawlIds` | Data available |
+| `ActiveCrawlsEmpty` | — | No active crawls |
+| `ActiveCrawlsError` | `failure` | Fetch failed |
+
+**Dependencies:** `GetActiveCrawlsUseCase`, `SupabaseClient` (for auth)
+
+### 14.4 CrawlDetailCubit
+
+**File:** `features/crawl/presentation/cubit/crawl_detail_cubit.dart`
+
+Fetches crawl detail and handles registration.
+
+**States (4, sealed):**
+
+| State | Fields | Meaning |
+|---|---|---|
+| `CrawlDetailInitial` | — | Not loaded |
+| `CrawlDetailLoading` | — | Fetch in progress |
+| `CrawlDetailLoaded` | `detail` (with `totalStamps`, `totalStops`, `progressFraction` getters) | Data available |
+| `CrawlDetailError` | `failure` | Fetch failed |
+
+**Methods:**
+- `loadDetail(String slug)` — fetches detail, maps failures
+- `register()` — calls `RegisterForCrawlUseCase`, then re-fetches detail; silently ignores `AlreadyRegisteredFailure`
+
+**Dependencies:** `GetCrawlDetailUseCase`, `RegisterForCrawlUseCase`
+
+### 14.5 GPS Service
+
+**File:** `core/services/gps_service.dart`
+
+Abstract wrapper around `Geolocator` to decouple BLoC from static SDK methods.
+
+```dart
+abstract class GpsService {
+  Future<GpsResult> getCurrentPosition({Duration timeout = Duration(seconds: 10)});
+  Future<bool> requestPermission();
+  Future<bool> isLocationEnabled();
+}
+```
+
+`GpsResult` is a sealed-like value class with `position`, `denied`, and `timeout` fields. `GpsServiceImpl` handles permission checks, service checks, and timeout exceptions internally.
+
+**Dependencies:** `geolocator`
+
+### 14.6 Deep Link Handler
+
+**File:** `features/crawl/presentation/deep_link/crawl_deep_link_handler.dart`
+
+Parses deep links in the format `nook://crawl/{crawlId}/stop/{stopId}/claim`.
+
+```dart
+CrawlDeepLinkHandler.canHandle(uri)   // checks scheme + host
+CrawlDeepLinkHandler.parse(uri)        // returns CrawlDeepLinkResult? 
+```
+
+Integrated in `main.dart` via `_handleIncomingLink` — rewrites URI path to GoRouter route `/crawl/:crawlId/stop/:stopId/claim`. Platform config:
+
+- **Android:** `AndroidManifest.xml` intent filter for `nook://` scheme
+- **iOS:** `Info.plist` `FlutterDeepLinkingEnabled` + `CFBundleURLTypes`
+
+### 14.7 Pages (Placeholder — UI pending)
+
+| Page | File | State |
+|---|---|---|
+| `StampClaimPage` | `pages/stamp_claim_page.dart` | Wires `CrawlClaimBloc`, calls `ClaimInitialized` on mount |
+| `CrawlDetailPage` | `pages/crawl_detail_page.dart` | Accepts `crawlSlug`, uses `CrawlDetailCubit` |
+| `PassportPage` | `pages/passport_page.dart` | Renders placeholder text |
+
+All pages use `sl<...>()` (GetIt) for BLoC/Cubit resolution in production, and accept an optional `bloc` parameter for test injection.
+
+### 14.8 Widgets (Placeholder — UI pending)
+
+| Widget | File | Purpose |
+|---|---|---|
+| `CrawlHomeBanner` | `widgets/crawl_home_banner.dart` | Home screen active crawl highlight |
+| `TierCompletionModal` | `widgets/tier_completion_modal.dart` | Shown when a tier is completed |
+| `ShareCardView` | `widgets/share_card_view.dart` | Crawl recap share card |
+
+### 14.9 DI Registration
+
+**File:** `features/crawl/presentation/injection/crawl_presentation_injection.dart`
+
+Called from `injection_container.dart` after domain/data registrations.
+
+```
+registerLazySingleton → GpsService → GpsServiceImpl
+registerFactory       → ActiveCrawlsCubit
+registerFactory       → CrawlDetailCubit
+registerFactory       → CrawlClaimBloc
+```
+
+### 14.10 Tests
+
+**23 tests total** — all passing:
+
+| Suite | File | Tests |
+|---|---|---|
+| CrawlClaimBloc | `presentation/bloc/crawl_claim_bloc_test.dart` | 11 |
+| ActiveCrawlsCubit | `presentation/cubit/active_crawls_cubit_test.dart` | 3 |
+| CrawlDetailCubit | `presentation/cubit/crawl_detail_cubit_test.dart` | 7 |
+| StampClaimPage (widget) | `presentation/widgets/stamp_claim_page_test.dart` | 2 |
+
+Mocks generated with `@GenerateNiceMocks` via `build_runner`.
+
+### 14.11 Deep Link Config
+
+**Android** (`android/app/src/main/AndroidManifest.xml`):
+```xml
+<intent-filter>
+  <action android:name="android.intent.action.VIEW" />
+  <category android:name="android.intent.category.DEFAULT" />
+  <category android:name="android.intent.category.BROWSABLE" />
+  <data android:scheme="nook" />
+</intent-filter>
+```
+
+**iOS** (`ios/Runner/Info.plist`):
+```xml
+<key>FlutterDeepLinkingEnabled</key>
+<true/>
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLSchemes</key>
+    <array><string>nook</string></array>
+  </dict>
+</array>
+```
 
 ---
 

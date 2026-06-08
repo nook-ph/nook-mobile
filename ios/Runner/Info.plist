@@ -81,6 +81,12 @@
 			    <string>ph.nook.app</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+			    <string>nook</string>
+			</array>
+		</dict>
 	</array>
 
 	<!-- post hog -->

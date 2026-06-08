@@ -35,6 +35,7 @@ import 'package:nook/features/crawl/domain/use_cases/get_active_crawls_usecase.d
 import 'package:nook/features/crawl/domain/use_cases/get_crawl_detail_usecase.dart';
 import 'package:nook/features/crawl/domain/use_cases/get_share_card_data_usecase.dart';
 import 'package:nook/features/crawl/domain/use_cases/register_for_crawl_usecase.dart';
+import 'package:nook/features/crawl/presentation/injection/crawl_presentation_injection.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/data/profile_remote_data_source.dart';
@@ -292,4 +293,10 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<GetUserAchievementsUseCase>(
     () => GetUserAchievementsUseCase(sl<IAchievementRepository>()),
   );
+
+  // Presentation layer registrations
+  registerCrawlPresentation();
 }
+
+// Import at top of file
+

@@ -16,6 +16,7 @@ import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/crawl/presentation/deep_link/crawl_deep_link_handler.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -91,18 +92,27 @@ class _MyAppState extends State<MyApp> {
     final isLoginCallback =
         uri.scheme == 'ph.nook.app' && uri.host == 'login-callback';
 
-    if (!isLoginCallback) return;
+    if (isLoginCallback) {
+      try {
+        await Supabase.instance.client.auth.getSessionFromUrl(uri);
+      } on AuthException catch (error) {
+        if (kDebugMode) {
+          debugPrint('Login callback failed: ${error.message}');
+        }
+      } catch (error) {
+        if (kDebugMode) {
+          debugPrint('Login callback failed: $error');
+        }
+      }
+      return;
+    }
 
-    try {
-      await Supabase.instance.client.auth.getSessionFromUrl(uri);
-    } on AuthException catch (error) {
-      if (kDebugMode) {
-        debugPrint('Login callback failed: ${error.message}');
+    if (CrawlDeepLinkHandler.canHandle(uri)) {
+      final parsed = CrawlDeepLinkHandler.parse(uri);
+      if (parsed != null && _router != null) {
+        _router!.go('/crawl/${parsed.crawlId}/stop/${parsed.stopId}/claim');
       }
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Login callback failed: $error');
-      }
+      return;
     }
   }
 

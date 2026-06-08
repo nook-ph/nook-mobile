@@ -18,6 +18,7 @@ import 'package:nook/features/auth/presentation/pages/signup_details_page.dart';
 import 'package:nook/features/auth/presentation/pages/username_setup_page.dart';
 import 'package:nook/features/search/presentation/pages/search_results_page.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
+import 'package:nook/features/crawl/presentation/pages/stamp_claim_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
 GoRouter createAppRouter(AuthBloc authBloc) {
@@ -169,6 +170,16 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         builder: (context, state) {
           final query = state.uri.queryParameters['q'] ?? '';
           return SearchResultsPage(query: query);
+        },
+      ),
+
+      /// 4. Crawl Stamp Claim (Deep Link Target)
+      GoRoute(
+        path: '/crawl/:crawlId/stop/:stopId/claim',
+        builder: (context, state) {
+          final crawlId = state.pathParameters['crawlId'] ?? '';
+          final stopId = state.pathParameters['stopId'] ?? '';
+          return StampClaimPage(crawlSlug: crawlId, stopId: stopId);
         },
       ),
     ],
