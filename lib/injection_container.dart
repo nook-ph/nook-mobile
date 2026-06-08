@@ -1,5 +1,9 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
+import 'package:nook/core/achievements/data/repositories/achievement_repository_impl.dart';
+import 'package:nook/core/achievements/data/sources/achievement_remote_data_source.dart';
+import 'package:nook/core/achievements/domain/repositories/i_achievement_repository.dart';
+import 'package:nook/core/achievements/domain/use_cases/get_user_achievements_usecase.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
 import 'package:nook/core/preferences/review_draft_store.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -23,6 +27,14 @@ import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/upload/data/upload_remove_data_source.dart';
 import 'package:nook/core/upload/data/upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/use_cases/upload_use_case.dart';
+import 'package:nook/features/crawl/data/repositories/crawl_repository_impl.dart';
+import 'package:nook/features/crawl/data/sources/crawl_remote_data_source.dart';
+import 'package:nook/features/crawl/domain/repositories/i_crawl_repository.dart';
+import 'package:nook/features/crawl/domain/use_cases/claim_stamp_usecase.dart';
+import 'package:nook/features/crawl/domain/use_cases/get_active_crawls_usecase.dart';
+import 'package:nook/features/crawl/domain/use_cases/get_crawl_detail_usecase.dart';
+import 'package:nook/features/crawl/domain/use_cases/get_share_card_data_usecase.dart';
+import 'package:nook/features/crawl/domain/use_cases/register_for_crawl_usecase.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/data/profile_remote_data_source.dart';
@@ -239,4 +251,45 @@ Future<void> initDependencies() async {
   // map
   // profile
   // search
+
+  // --------------------------------------------------
+  // Crawl
+  // --------------------------------------------------
+  sl.registerLazySingleton<ICrawlRemoteDataSource>(
+    () => CrawlRemoteDataSourceImpl(sl<SupabaseClient>()),
+  );
+  sl.registerLazySingleton<ICrawlRepository>(
+    () => CrawlRepositoryImpl(
+      sl<ICrawlRemoteDataSource>(),
+      sl<SupabaseClient>(),
+    ),
+  );
+  sl.registerLazySingleton<GetActiveCrawlsUseCase>(
+    () => GetActiveCrawlsUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<GetCrawlDetailUseCase>(
+    () => GetCrawlDetailUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<RegisterForCrawlUseCase>(
+    () => RegisterForCrawlUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<ClaimStampUseCase>(
+    () => ClaimStampUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<GetShareCardDataUseCase>(
+    () => GetShareCardDataUseCase(sl<ICrawlRepository>()),
+  );
+
+  // --------------------------------------------------
+  // Achievements
+  // --------------------------------------------------
+  sl.registerLazySingleton<IAchievementRemoteDataSource>(
+    () => AchievementRemoteDataSourceImpl(sl<SupabaseClient>()),
+  );
+  sl.registerLazySingleton<IAchievementRepository>(
+    () => AchievementRepositoryImpl(sl<IAchievementRemoteDataSource>()),
+  );
+  sl.registerLazySingleton<GetUserAchievementsUseCase>(
+    () => GetUserAchievementsUseCase(sl<IAchievementRepository>()),
+  );
 }

@@ -1,11 +1,8 @@
 import 'package:dartz/dartz.dart';
+import 'package:nook/core/errors/failure.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class Failure {
-  final String message;
-
-  const Failure(this.message);
-}
+export 'package:nook/core/errors/failure.dart';
 
 abstract class AuthRepository {
   Future<bool> emailExists(String email);
