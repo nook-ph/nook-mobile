@@ -6,15 +6,19 @@ import 'package:nook/features/crawl/presentation/cubit/active_crawls_state.dart'
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ActiveCrawlsCubit extends Cubit<ActiveCrawlsState> {
-  final GetActiveCrawlsUseCase _getActiveCrawlsUseCase;
-  final SupabaseClient _supabase;
+  late final GetActiveCrawlsUseCase _getActiveCrawlsUseCase;
+  // ignore: unused_field
+  late final SupabaseClient _supabase;
 
   ActiveCrawlsCubit({
     required GetActiveCrawlsUseCase getActiveCrawlsUseCase,
     required SupabaseClient supabase,
-  })  : _getActiveCrawlsUseCase = getActiveCrawlsUseCase,
-        _supabase = supabase,
-        super(const ActiveCrawlsLoading());
+  }) : super(const ActiveCrawlsLoading()) {
+    _getActiveCrawlsUseCase = getActiveCrawlsUseCase;
+    _supabase = supabase;
+  }
+
+  ActiveCrawlsCubit.forState(super.state);
 
   Future<void> loadCrawls() async {
     emit(const ActiveCrawlsLoading());
@@ -30,8 +34,7 @@ class ActiveCrawlsCubit extends Cubit<ActiveCrawlsState> {
     }
   }
 
-  Set<String> _computeRegistered(List<Crawl> crawls) {
-    final userId = _supabase.auth.currentUser?.id;
+  Set<String> _computeRegistered(List<Crawl> _) {
     return const {};
   }
 }

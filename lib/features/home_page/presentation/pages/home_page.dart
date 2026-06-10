@@ -9,6 +9,8 @@ import 'package:nook/core/widgets/error/full_page_empty_widget.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
 import 'package:nook/core/widgets/prototype_height.dart';
+import 'package:nook/features/crawl/presentation/cubit/active_crawls_cubit.dart';
+import 'package:nook/features/crawl/presentation/widgets/crawl_home_banner.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
@@ -43,8 +45,13 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => sl<HomeBloc>()..add(LoadHomeDataEvent()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => sl<HomeBloc>()..add(LoadHomeDataEvent())),
+        BlocProvider<ActiveCrawlsCubit>(
+          create: (_) => sl<ActiveCrawlsCubit>()..loadCrawls(),
+        ),
+      ],
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
@@ -173,6 +180,13 @@ class _HomeContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
+          child: CrawlHomeBanner(
+            onJoinCrawl: (slug) => context.push('/crawl/$slug'),
+          ),
+        ),
+        const SizedBox(height: 24),
         if (state.featuredCafes.isNotEmpty) ...[
           const SizedBox(height: 24),
           const _SectionTitle('Featured'),
