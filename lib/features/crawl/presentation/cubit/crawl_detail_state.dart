@@ -24,8 +24,8 @@ class CrawlDetailLoaded extends CrawlDetailState {
 
   int get totalStamps => detail.userProgress?.totalStamps ?? 0;
   int get totalStops => detail.stops.length;
-  double get progressFraction =>
-      totalStops > 0 ? totalStamps / totalStops : 0;
+  double get progressFraction => totalStops > 0 ? totalStamps / totalStops : 0;
+  String get currentTierName => detail.userProgress?.highestTier?.name ?? '';
 
   @override
   List<Object?> get props => [detail];

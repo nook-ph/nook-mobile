@@ -4,6 +4,7 @@ import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
 import 'package:nook/features/crawl/presentation/cubit/crawl_detail_cubit.dart';
 import 'package:nook/features/crawl/presentation/cubit/crawl_detail_state.dart';
 import 'package:nook/features/crawl/presentation/widgets/crawl_hero_header.dart';
+import 'package:nook/features/crawl/presentation/widgets/crawl_progress_card.dart';
 import 'package:nook/injection_container.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -57,6 +58,18 @@ class CrawlDetailPage extends StatelessWidget {
                         crawlImageUrl: detail?.crawl.coverImageUrl ?? '',
                         participantCount: detail?.crawl.totalStops,
                       ),
+                      if (detail?.userProgress != null) ...[
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 22),
+                          child: CrawlProgressCard(
+                            claimedStops: detail!.userProgress!.totalStamps,
+                            totalStops: detail.stops.length,
+                            currentTierName:
+                                detail.userProgress!.highestTier?.name ?? '',
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
