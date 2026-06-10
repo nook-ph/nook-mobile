@@ -91,20 +91,21 @@ class HomePage extends StatelessWidget {
                 }
 
                 if (state is HomeLoadedState) {
-                  final hasData = state.featuredCafes.isNotEmpty ||
+                  final hasData =
+                      state.featuredCafes.isNotEmpty ||
                       state.newestCafes.isNotEmpty ||
                       state.trendingCafes.isNotEmpty ||
                       state.topRatedCafes.isNotEmpty;
 
                   final locationBanner =
                       state.locationDenied && !state.locationBannerDismissed
-                          ? LocationDeniedBanner(
-                              visible: true,
-                              onDismiss: () => context.read<HomeBloc>().add(
-                                HomeDismissLocationBannerEvent(),
-                              ),
-                            )
-                          : null;
+                      ? LocationDeniedBanner(
+                          visible: true,
+                          onDismiss: () => context.read<HomeBloc>().add(
+                            HomeDismissLocationBannerEvent(),
+                          ),
+                        )
+                      : null;
 
                   return _HomeScrollView(
                     onRefresh: () => _onRefresh(context),
@@ -184,6 +185,7 @@ class _HomeContent extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
           child: CrawlHomeBanner(
             onJoinCrawl: (slug) => context.push('/crawl/$slug'),
+            onViewCrawl: (slug) => context.push('/crawl/$slug'),
           ),
         ),
         const SizedBox(height: 24),
@@ -192,10 +194,7 @@ class _HomeContent extends StatelessWidget {
           const _SectionTitle('Featured'),
           const SizedBox(height: 12),
           PrototypeHeight(
-            prototype: FeaturedCard(
-              width: featuredWidth,
-              cafe: _prototypeCafe,
-            ),
+            prototype: FeaturedCard(width: featuredWidth, cafe: _prototypeCafe),
             listView: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 22),

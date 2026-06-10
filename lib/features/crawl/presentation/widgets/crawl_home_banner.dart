@@ -12,10 +12,12 @@ class CrawlHomeBanner extends StatelessWidget {
     super.key,
     this.stampProgress,
     this.onJoinCrawl,
+    this.onViewCrawl,
   });
 
   final Map<String, int>? stampProgress;
   final void Function(String crawlSlug)? onJoinCrawl;
+  final void Function(String crawlSlug)? onViewCrawl;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +31,7 @@ class CrawlHomeBanner extends StatelessWidget {
               isRegistered: registeredCrawlIds.contains(crawls.first.id),
               stampCount: stampProgress?[crawls.first.id],
               onJoinCrawl: onJoinCrawl,
+              onViewCrawl: onViewCrawl,
             ),
           _ => const SizedBox.shrink(),
         };
@@ -43,98 +46,115 @@ class _CrawlBannerCard extends StatelessWidget {
     required this.isRegistered,
     this.stampCount,
     this.onJoinCrawl,
+    this.onViewCrawl,
   });
 
   final Crawl crawl;
   final bool isRegistered;
   final int? stampCount;
   final void Function(String crawlSlug)? onJoinCrawl;
+  final void Function(String crawlSlug)? onViewCrawl;
 
   @override
   Widget build(BuildContext context) {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            height: 220,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: _buildBackground(),
-                ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0),
-                          Colors.black.withValues(alpha: 0.7),
+        child: GestureDetector(
+          onTap: onViewCrawl != null ? () => onViewCrawl!(crawl.slug) : null,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              height: 220,
+              child: Stack(
+                children: [
+                  Positioned.fill(child: _buildBackground()),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0),
+                            Colors.black.withValues(alpha: 0.7),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            crawl.city.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              letterSpacing: 1.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            crawl.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              height: 1.1,
+                            ),
+                          ),
+                          if (crawl.description != null) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              crawl.description!,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                          const Spacer(),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              _FooterItem(
+                                icon: LucideIcons.ticket,
+                                text:
+                                    '${crawl.totalStops} stops across ${crawl.city}',
+                              ),
+                              const SizedBox(width: 16),
+                              _FooterItem(
+                                icon: LucideIcons.clock,
+                                text: '${crawl.daysRemaining} days left',
+                              ),
+                              const Spacer(),
+                              if (isRegistered)
+                                _RegisteredPill(
+                                  stampCount: stampCount ?? 0,
+                                  totalStops: crawl.totalStops,
+                                )
+                              else
+                                _JoinButton(
+                                  onTap: onJoinCrawl != null
+                                      ? () => onJoinCrawl!(crawl.slug)
+                                      : null,
+                                ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
                   ),
-                ),
-                Positioned.fill(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          '${crawl.city.toUpperCase()} ISLAND CRAWL',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        const Text(
-                          'Collect stamps. Earn badges.',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            height: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            _FooterItem(
-                              icon: LucideIcons.ticket,
-                              text:
-                                  '${crawl.totalStops} stops across ${crawl.city}',
-                            ),
-                            const SizedBox(width: 16),
-                            _FooterItem(
-                              icon: LucideIcons.clock,
-                              text: '${crawl.daysRemaining} days left',
-                            ),
-                            const Spacer(),
-                            if (isRegistered)
-                              _RegisteredPill(
-                                stampCount: stampCount ?? 0,
-                                totalStops: crawl.totalStops,
-                              )
-                            else
-                              _JoinButton(
-                                onTap: onJoinCrawl != null
-                                    ? () => onJoinCrawl!(crawl.slug)
-                                    : null,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -169,10 +189,7 @@ class _CrawlBannerCard extends StatelessWidget {
 }
 
 class _FooterItem extends StatelessWidget {
-  const _FooterItem({
-    required this.icon,
-    required this.text,
-  });
+  const _FooterItem({required this.icon, required this.text});
 
   final IconData icon;
   final String text;
@@ -203,10 +220,7 @@ class _FooterItem extends StatelessWidget {
 }
 
 class _RegisteredPill extends StatelessWidget {
-  const _RegisteredPill({
-    required this.stampCount,
-    required this.totalStops,
-  });
+  const _RegisteredPill({required this.stampCount, required this.totalStops});
 
   final int stampCount;
   final int totalStops;
@@ -258,13 +272,8 @@ class _JoinButton extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        textStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
       child: const Text('Join the Crawl'),
     );
