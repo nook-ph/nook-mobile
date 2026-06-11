@@ -3,9 +3,17 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
+import 'package:nook/core/presentation/widgets/cafe_overlay_card.dart';
+import 'package:nook/core/presentation/widgets/slide_up_overlay.dart';
 import 'package:nook/features/crawl/domain/entities/crawl_stop.dart';
+import 'package:nook/features/crawl/presentation/cubit/crawl_stops_map_cubit.dart';
+import 'package:nook/features/crawl/presentation/cubit/crawl_stops_map_state.dart';
+import 'package:nook/features/map/domain/use_cases/get_cafe_cards_usecase.dart';
+import 'package:nook/injection_container.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
 class CrawlStopsMapPage extends StatefulWidget {
@@ -29,11 +37,18 @@ class _CrawlStopsMapPageState extends State<CrawlStopsMapPage> {
   static const _cebuDefault = LatLng(10.3167, 123.8907);
   static const _cebuDefaultZoom = 9.0;
 
+  static const double _overlaySpacing = 16.0;
+
   bool _styleResolved = false;
   String? _styleJson;
   MapLibreMapController? _mapController;
   final Completer<MapLibreMapController> _controllerCompleter =
       Completer<MapLibreMapController>();
+
+  Map<String, CafeSummary> _cafeById = {};
+  CafeSummary? _selectedCafe;
+  Symbol? _selectedSymbol;
+  bool _overlayDismissed = false;
 
   @override
   void initState() {
@@ -177,6 +192,7 @@ class _CrawlStopsMapPageState extends State<CrawlStopsMapPage> {
             iconImage: 'map_pin',
             iconSize: 0.17,
           ),
+          {'id': stop.cafeId},
         );
       }
 
@@ -197,6 +213,37 @@ class _CrawlStopsMapPageState extends State<CrawlStopsMapPage> {
   void _onSymbolTapped(Symbol symbol) {
     final cafeId = symbol.data?['id'];
     if (cafeId == null) return;
+
+    if (_selectedSymbol != null && _selectedSymbol!.id != symbol.id) {
+      _mapController?.updateSymbol(
+        _selectedSymbol!,
+        const SymbolOptions(iconSize: 0.17),
+      );
+    }
+    _mapController?.updateSymbol(symbol, const SymbolOptions(iconSize: 0.23));
+    _selectedSymbol = symbol;
+
+    final selectedCafe = _cafeById[cafeId];
+    if (selectedCafe == null) return;
+
+    setState(() {
+      _selectedCafe = selectedCafe;
+      _overlayDismissed = false;
+    });
+  }
+
+  void _dismissOverlay() {
+    if (_overlayDismissed) return;
+    if (_selectedSymbol != null) {
+      _mapController?.updateSymbol(
+        _selectedSymbol!,
+        const SymbolOptions(iconSize: 0.17),
+      );
+    }
+    setState(() {
+      _overlayDismissed = true;
+      _selectedSymbol = null;
+    });
   }
 
   Future<void> _defaultView() async {
@@ -228,65 +275,91 @@ class _CrawlStopsMapPageState extends State<CrawlStopsMapPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leadingWidth: 70,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 22.0),
-          child: Center(
-            child: AppBarCircleIconButton(
-              icon: Icons.arrow_back,
-              iconSize: 18,
-              onTap: () => Navigator.pop(context),
-            ),
-          ),
-        ),
-        title: Text(
-          'Crawl Map',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      body: Stack(
-        children: [
-          if (!_styleResolved)
-            const Center(child: CircularProgressIndicator())
-          else
-            MapLibreMap(
-              initialCameraPosition: _initialCamera(),
-              compassEnabled: false,
-              styleString: _styleJson ?? _fallbackStyle,
-              onMapCreated: (c) {
-                _mapController = c;
-                if (!_controllerCompleter.isCompleted) {
-                  _controllerCompleter.complete(c);
-                }
-                c.onSymbolTapped.add(_onSymbolTapped);
-              },
-              onStyleLoadedCallback: _onStyleLoaded,
-            ),
-          if (_styleResolved)
-            Positioned(
-              right: 16,
-              bottom: 32,
-              child: FloatingActionButton(
-                backgroundColor: Colors.white,
-                foregroundColor: Theme.of(context).colorScheme.primary100,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: Colors.white, width: 1.5),
+    return BlocProvider(
+      create: (_) => CrawlStopsMapCubit(sl<GetCafeCardUseCase>())
+        ..loadCafes(widget.stops),
+      child: BlocListener<CrawlStopsMapCubit, CrawlStopsMapState>(
+        listener: (context, state) {
+          if (state is CrawlStopsMapLoaded) {
+            setState(() => _cafeById = state.cafeById);
+          }
+        },
+        child: Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            automaticallyImplyLeading: false,
+            leadingWidth: 70,
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 22.0),
+              child: Center(
+                child: AppBarCircleIconButton(
+                  icon: Icons.arrow_back,
+                  iconSize: 18,
+                  onTap: () => Navigator.pop(context),
                 ),
-                onPressed: _defaultView,
-                child: const Icon(Icons.my_location),
               ),
             ),
-        ],
+            title: Text(
+              'Crawl Map',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          body: Stack(
+            children: [
+              if (!_styleResolved)
+                const Center(child: CircularProgressIndicator())
+              else
+                MapLibreMap(
+                  initialCameraPosition: _initialCamera(),
+                  compassEnabled: false,
+                  styleString: _styleJson ?? _fallbackStyle,
+                  onMapCreated: (c) {
+                    _mapController = c;
+                    if (!_controllerCompleter.isCompleted) {
+                      _controllerCompleter.complete(c);
+                    }
+                    c.onSymbolTapped.add(_onSymbolTapped);
+                  },
+                  onStyleLoadedCallback: _onStyleLoaded,
+                ),
+              if (_styleResolved)
+                Positioned(
+                  right: 16,
+                  bottom: 32,
+                  child: FloatingActionButton(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Theme.of(context).colorScheme.primary100,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: Colors.white, width: 1.5),
+                    ),
+                    onPressed: _defaultView,
+                    child: const Icon(Icons.my_location),
+                  ),
+                ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 90 + _overlaySpacing,
+                child: SlideUpOverlay(
+                  visible: _selectedCafe != null && !_overlayDismissed,
+                  child: _selectedCafe != null
+                      ? CafeOverlayCard(
+                          key: ValueKey(_selectedCafe!.id),
+                          cafe: _selectedCafe!,
+                          onClose: _dismissOverlay,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -6,7 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
-import 'package:nook/features/map/presentation/widgets/cafe_overlay_card.dart';
+import 'package:nook/core/presentation/widgets/cafe_overlay_card.dart';
+import 'package:nook/core/presentation/widgets/slide_up_overlay.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
@@ -167,33 +168,11 @@ class _MapPageState extends State<MapPage> {
                       left: 16,
                       right: 16,
                       bottom: topFromBottom + _overlaySpacing,
-                      child: AnimatedSwitcher(
+                      child: SlideUpOverlay(
+                        visible: shouldShow,
                         duration: animateOverlay
                             ? const Duration(milliseconds: 260)
                             : Duration.zero,
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) {
-                          if (!animateOverlay) return child;
-                          final isExiting =
-                              animation.status == AnimationStatus.reverse;
-                          final offsetAnimation = isExiting
-                              ? Tween<Offset>(
-                                  begin: Offset.zero,
-                                  end: const Offset(0, 1.1),
-                                ).animate(ReverseAnimation(animation))
-                              : Tween<Offset>(
-                                  begin: const Offset(0, 1.1),
-                                  end: Offset.zero,
-                                ).animate(animation);
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: offsetAnimation,
-                              child: child,
-                            ),
-                          );
-                        },
                         child: shouldShow
                             ? CafeOverlayCard(
                                 key: ValueKey(_selectedCafe!.id),
