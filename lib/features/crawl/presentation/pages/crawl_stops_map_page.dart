@@ -196,6 +196,8 @@ class _CrawlStopsMapPageState extends State<CrawlStopsMapPage> {
         );
       }
 
+      await controller.symbolManager?.setIconAllowOverlap(true);
+
       if (valid.length >= 2) {
         await controller.moveCamera(
           CameraUpdate.newLatLngBounds(

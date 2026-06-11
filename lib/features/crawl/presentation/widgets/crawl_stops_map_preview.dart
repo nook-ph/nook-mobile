@@ -168,14 +168,16 @@ class _CrawlStopsMapPreviewState extends State<CrawlStopsMapPreview> {
         );
       }
 
+      await controller.symbolManager?.setIconAllowOverlap(true);
+
       if (valid.length >= 2) {
         await controller.moveCamera(
           CameraUpdate.newLatLngBounds(
             _computeBounds(),
-            left: 80,
-            top: 80,
-            right: 80,
-            bottom: 80,
+            left: 40,
+            top: 20,
+            right: 40,
+            bottom: 20,
           ),
         );
       }

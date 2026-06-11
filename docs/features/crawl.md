@@ -1,6 +1,6 @@
 # Crawl
 
-> **Status:** ✅ Domain, Data, and Presentation layers complete; detail page fully implemented with sticky CTA, registration toast, pull-to-refresh, and auto-refresh on re-entry.
+> **Status:** ✅ Domain, Data, and Presentation layers complete; detail page fully implemented with sticky CTA, registration toast, pull-to-refresh, and auto-refresh on re-entry; crawl stops map page fully implemented with interactive map, pin markers, symbol tapping, and slide-up cafe overlay card.
 > **Last updated:** 2026-06-11
 
 ---
@@ -17,7 +17,7 @@ The feature is built across two locations:
 - **`lib/features/crawl/`** — Core crawl domain (entities, tiers, stamps, registration)
 - **`lib/core/achievements/`** — Cross-feature achievement system (shared by crawls, drops, social, milestones)
 
-The **domain**, **data**, and **presentation** layers are all complete. The crawl detail page (`CrawlDetailPage`) has been fully implemented with a sticky CTA, registration toast, pull-to-refresh, and auto-refresh on route re-entry. The stamp claim page (`StampClaimPage`) and passport page (`PassportPage`) remain placeholder UIs pending further work.
+The **domain**, **data**, and **presentation** layers are all complete. The crawl detail page (`CrawlDetailPage`) has been fully implemented with a sticky CTA, registration toast, pull-to-refresh, and auto-refresh on route re-entry. The crawl stops map page (`CrawlStopsMapPage`) is fully implemented with an interactive MapLibre map, pin markers, symbol tapping, and a slide-up cafe overlay card. The stamp claim page (`StampClaimPage`) and passport page (`PassportPage`) remain placeholder UIs pending further work.
 
 ---
 
@@ -83,14 +83,18 @@ lib/
 │       │   ├── active_crawls_cubit.dart
 │       │   ├── active_crawls_state.dart
 │       │   ├── crawl_detail_cubit.dart
-│       │   └── crawl_detail_state.dart
+│       │   ├── crawl_detail_state.dart
+│       │   ├── crawl_stops_map_cubit.dart   # Loads CafeSummary data for stops map
+│       │   └── crawl_stops_map_state.dart   # sealed: Initial, Loading, Loaded, Error
 │       ├── pages/
 │       │   ├── stamp_claim_page.dart        # Placeholder UI — wires CrawlClaimBloc
-│       │   ├── crawl_detail_page.dart       # Fully implemented — sticky CTA, refresh, progress card
+│       │   ├── crawl_detail_page.dart       # Fully implemented — sticky CTA, refresh, progress card, map preview
+│       │   ├── crawl_stops_map_page.dart    # Fully implemented — interactive map, pins, overlay card
 │       │   └── passport_page.dart           # Placeholder UI
 │       ├── widgets/
 │       │   ├── crawl_detail_cta.dart        # Sticky CTA for register / claim-stop
 │       │   ├── crawl_home_banner.dart       # Placeholder
+│       │   ├── crawl_stops_map_preview.dart # Non-interactive mini map for detail page
 │       │   ├── tier_completion_modal.dart   # Placeholder
 │       │   └── share_card_view.dart         # Placeholder
 │       ├── deep_link/
@@ -118,6 +122,10 @@ lib/
 │   │           └── get_user_achievements_usecase.dart
 │   ├── errors/
 │   │   └── failure.dart
+│   ├── presentation/
+│   │   └── widgets/
+│   │       ├── cafe_overlay_card.dart      # Reusable cafe card — image, name, rating, location, tags
+│   │       └── slide_up_overlay.dart       # Animated slide-up wrapper (AnimatedSwitcher + SlideTransition)
 │   └── services/
 │       └── gps_service.dart
 ```
@@ -351,6 +359,9 @@ CrawlClaimBloc
 | `flutter_bloc` | BLoC + Cubit state management |
 | `equatable` | Value equality for state/event classes |
 | `geolocator` | GPS position acquisition for stamp claiming |
+| `maplibre_gl` | Interactive map rendering for `CrawlStopsMapPage` and `CrawlStopsMapPreview` |
+| `lucide_icons_flutter` | Map pin icons in `CafeOverlayCard` |
+| `phosphor_flutter` | Star rating icon in `CafeOverlayCard` |
 
 ### Dev Dependencies
 
@@ -380,7 +391,7 @@ CrawlClaimBloc
 
 Hybrid approach:
 
-- **Cubit** — Simple async fetch-and-emit flows (`ActiveCrawlsCubit`, `CrawlDetailCubit`)
+- **Cubit** — Simple async fetch-and-emit flows (`ActiveCrawlsCubit`, `CrawlDetailCubit`, `CrawlStopsMapCubit`)
 - **BLoC** — Complex event-driven pipelines with multiple orchestration steps (`CrawlClaimBloc`)
 
 All states use `sealed class` hierarchies for exhaustive pattern matching with Dart 3 switch expressions.
@@ -496,7 +507,29 @@ abstract class GpsService {
 
 **Dependencies:** `geolocator`
 
-### 14.6 Deep Link Handler
+### 14.6 CrawlStopsMapCubit
+
+**File:** `features/crawl/presentation/cubit/crawl_stops_map_cubit.dart`
+
+Simple fetch cubit that loads `CafeSummary` data for the crawl stops map, filtering cafes by the crawl's stop cafe IDs.
+
+**States (4, sealed):**
+
+| State | Fields | Meaning |
+|---|---|---|
+| `CrawlStopsMapInitial` | — | Not loaded |
+| `CrawlStopsMapLoading` | — | Fetch in progress |
+| `CrawlStopsMapLoaded` | `cafeById`, `cafes` | Cafe data available, keyed by ID |
+| `CrawlStopsMapError` | `error` | Fetch failed |
+
+**Method:**
+- `loadCafes(List<CrawlStop> stops)` — calls `GetCafeCardUseCase(limit: 50)`, filters to cafes matching stop IDs, emits `Loaded` with `cafeById` map
+
+**Dependencies:** `GetCafeCardUseCase`
+
+Not registered in DI — created inline in `CrawlStopsMapPage` via `BlocProvider(create: ...)`.
+
+### 14.7 Deep Link Handler
 
 **File:** `features/crawl/presentation/deep_link/crawl_deep_link_handler.dart`
 
@@ -512,12 +545,13 @@ Integrated in `main.dart` via `_handleIncomingLink` — rewrites URI path to GoR
 - **Android:** `AndroidManifest.xml` intent filter for `nook://` scheme
 - **iOS:** `Info.plist` `FlutterDeepLinkingEnabled` + `CFBundleURLTypes`
 
-### 14.7 Pages
+### 14.8 Pages
 
 | Page | File | State |
 |---|---|---|
 | `StampClaimPage` | `pages/stamp_claim_page.dart` | **Placeholder** — wires `CrawlClaimBloc`, calls `ClaimInitialized` on mount |
 | `CrawlDetailPage` | `pages/crawl_detail_page.dart` | **Fully implemented** — see details below |
+| `CrawlStopsMapPage` | `pages/crawl_stops_map_page.dart` | **Fully implemented** — see details below |
 | `PassportPage` | `pages/passport_page.dart` | **Placeholder** — renders placeholder text |
 
 All pages use `sl<...>()` (GetIt) for BLoC/Cubit resolution in production, and accept an optional `bloc` parameter for test injection.
@@ -526,7 +560,7 @@ All pages use `sl<...>()` (GetIt) for BLoC/Cubit resolution in production, and a
 
 **File:** `features/crawl/presentation/pages/crawl_detail_page.dart`
 
-Accepts `crawlSlug` and uses `CrawlDetailCubit`. Implemented as a `StatefulWidget` that owns the cubit instance.
+Accepts `crawlSlug` and uses `CrawlDetailCubit`. Implemented as a `StatefulWidget` that owns the cubit instance. Renders a `CrawlStopsMapPreview` as a non-interactive mini-map within the detail content.
 
 **Behavior:**
 - Loads crawl detail on `initState` via `_cubit.loadDetail(slug)`
@@ -548,14 +582,51 @@ Accepts `crawlSlug` and uses `CrawlDetailCubit`. Implemented as a `StatefulWidge
 
 **Dependencies:** `GetCrawlDetailUseCase`, `RegisterForCrawlUseCase`, `GoRouter`
 
-### 14.8 Widgets
+#### CrawlStopsMapPage
+
+**File:** `features/crawl/presentation/pages/crawl_stops_map_page.dart`
+
+Full-screen interactive crawl stops map. Accepts `slug` and `stops` list. Navigated to via GoRouter route `/crawl/:slug/map` (defined in `app_router.dart`).
+
+Implemented as a `StatefulWidget` that owns the `MapLibreMapController`.
+
+**Behavior:**
+- Loads the map style from `assets/mapstyle.json` on `initState` (falls back to `tiles.openfreemap.org` on failure)
+- Computes initial camera position and bounds from stop coordinates — handles 0, 1, or 2+ valid stops
+- On style load, adds custom `MapPin.png` symbol icons for each stop with `iconSize: 0.17`
+- Fits camera to bounds for 2+ stops; single stop zooms to 13.0
+- `_onSymbolTapped`: highlights tapped pin (`iconSize: 0.23`), resets previous pin, shows the `CafeOverlayCard` via `SlideUpOverlay` with cafe details
+- `_dismissOverlay`: resets the selected symbol size, hides the overlay
+- `_defaultView`: floating action button that re-centers camera to bounds
+
+**Key UI elements:**
+- **Background**: `MapLibreMap` with compass disabled
+- **Pin markers**: One `Symbol` per stop, identified by `cafeId` stored in custom `data` payload
+- **FloatingActionButton**: "Reset view" button (my_location icon) — white bg, `borderRadius: 16`
+- **SlideUpOverlay**: Positioned above the bottom of the screen, wraps `CafeOverlayCard` — animates in/out with `AnimatedSwitcher`
+
+**CafeOverlayCard** (in `core/presentation/widgets/`):
+- Displays cafe cover image (or `_fallbackImageUrl`), name, rating, review count, location label, and tags
+- Entire card is tappable via `AdaptiveTap` → navigates to `/cafe/:id`
+- Close button (top-right) dismisses the overlay
+
+**Dependencies:** `GetCafeCardUseCase`, `CrawlStopsMapCubit`
+
+### 14.9 Widgets
 
 | Widget | File | Purpose |
 |---|---|---|
 | `CrawlDetailCta` | `widgets/crawl_detail_cta.dart` | **Fully implemented** — sticky CTA button for crawl detail page; adapts to registration and claim states |
 | `CrawlHomeBanner` | `widgets/crawl_home_banner.dart` | **Placeholder** — home screen active crawl highlight |
+| `CrawlStopsMapPreview` | `widgets/crawl_stops_map_preview.dart` | **Fully implemented** — non-interactive mini map (220px) used in `CrawlDetailPage`; all gestures disabled, single pin per stop |
 | `TierCompletionModal` | `widgets/tier_completion_modal.dart` | **Placeholder** — shown when a tier is completed |
 | `ShareCardView` | `widgets/share_card_view.dart` | **Placeholder** — crawl recap share card |
+
+#### CrawlStopsMapPreview
+
+**File:** `features/crawl/presentation/widgets/crawl_stops_map_preview.dart`
+
+Non-interactive minimap (220px tall) embedded in `CrawlDetailPage`. All gestures disabled (`scrollGesturesEnabled: false`, `zoomGesturesEnabled: false`, etc.). Renders the same `MapLibreMap` with pin markers for each stop, fitted to bounds.
 
 #### CrawlDetailCta
 
@@ -573,7 +644,18 @@ Button style matches the login page: `Color(0xFF344E41)` background, `borderRadi
 
 Has a widget preview file (`crawl_detail_cta_preview.dart`) with 3 `@Preview` annotations covering all states.
 
-### 14.9 DI Registration
+### 14.10 Shared Core Widgets
+
+The following widgets extracted to `core/presentation/widgets/` for reuse across features:
+
+| Widget | File | Purpose |
+|---|---|---|
+| `CafeOverlayCard` | `core/presentation/widgets/cafe_overlay_card.dart` | **Fully implemented** — cafe detail card with image, name, rating, location, tags; tappable to navigate to `/cafe/:id` |
+| `SlideUpOverlay` | `core/presentation/widgets/slide_up_overlay.dart` | **Fully implemented** — generic animated slide-up wrapper using `AnimatedSwitcher` with `SlideTransition` + `FadeTransition`; configurable `duration`, `switchInCurve`, `switchOutCurve` |
+
+Both moved/extracted from `features/map/presentation/widgets/` during the crawl map implementation.
+
+### 14.11 DI Registration
 
 **File:** `features/crawl/presentation/injection/crawl_presentation_injection.dart`
 
@@ -586,9 +668,28 @@ registerFactory       → CrawlDetailCubit
 registerFactory       → CrawlClaimBloc
 ```
 
-### 14.10 Tests
+`CrawlStopsMapCubit` is **not** registered in DI — it's created inline in `CrawlStopsMapPage` via `BlocProvider(create: (_) => CrawlStopsMapCubit(sl<GetCafeCardUseCase>()))`.
 
-**~29 tests total** — all passing:
+### 14.12 GoRouter Route
+
+**File:** `lib/core/router/app_router.dart`
+
+The crawl stops map is registered as a full-screen route — must come before the `/crawl/:slug` route to avoid conflicts:
+
+```dart
+GoRoute(
+  path: '/crawl/:slug/map',
+  builder: (context, state) {
+    final slug = state.pathParameters['slug'] ?? '';
+    final stops = state.extra as List<CrawlStop>? ?? [];
+    return CrawlStopsMapPage(slug: slug, stops: stops);
+  },
+),
+```
+
+### 14.13 Tests
+
+**~35 tests total** — all passing:
 
 | Suite | File | Tests |
 |---|---|---|
@@ -597,12 +698,13 @@ registerFactory       → CrawlClaimBloc
 | CrawlDetailCubit | `crawl_detail_cubit_test.dart` | 10 — covers `loadDetail` (3), `register` (4), `refresh` (3) |
 | StampClaimPage (widget) | `stamp_claim_page_test.dart` | 2 |
 | CrawlDetailCta (widget) | `crawl_detail_cta_test.dart` | 6 — covers all CTA states: unauthenticated, register, registered but no stops, registered with unclaimed stops, all claimed, and error |
+| SlideUpOverlay (widget) | `slide_up_overlay_test.dart` | 6 — covers visibility toggle, animation transitions, custom child, narrow screen rendering |
 
 All cubit/bloc tests use `blocTest` for declarative emission assertions.
 Widget tests use `WidgetTester` with `pumpWidget` + `MaterialApp` wrapper, and mock cubits via `BlocProvider.value`.
 Mocks generated with `@GenerateNiceMocks` via `build_runner`.
 
-### 14.11 Deep Link Config
+### 14.14 Deep Link Config
 
 **Android** (`android/app/src/main/AndroidManifest.xml`):
 ```xml
