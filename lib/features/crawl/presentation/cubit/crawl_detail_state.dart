@@ -31,6 +31,20 @@ class CrawlDetailLoaded extends CrawlDetailState {
   List<Object?> get props => [detail];
 }
 
+class CrawlDetailRegisterSuccess extends CrawlDetailState {
+  final CrawlDetail detail;
+
+  const CrawlDetailRegisterSuccess(this.detail);
+
+  int get totalStamps => detail.userProgress?.totalStamps ?? 0;
+  int get totalStops => detail.stops.length;
+  double get progressFraction => totalStops > 0 ? totalStamps / totalStops : 0;
+  String get currentTierName => detail.userProgress?.highestTier?.name ?? '';
+
+  @override
+  List<Object?> get props => [detail];
+}
+
 class CrawlDetailError extends CrawlDetailState {
   final Failure failure;
 

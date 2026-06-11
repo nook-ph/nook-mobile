@@ -1,7 +1,7 @@
 # Crawl
 
-> **Status:** ✅ Domain, Data, and Presentation layers complete
-> **Last updated:** 2026-06-08
+> **Status:** ✅ Domain, Data, and Presentation layers complete; detail page fully implemented with sticky CTA, registration toast, pull-to-refresh, and auto-refresh on re-entry.
+> **Last updated:** 2026-06-11
 
 ---
 
@@ -17,7 +17,7 @@ The feature is built across two locations:
 - **`lib/features/crawl/`** — Core crawl domain (entities, tiers, stamps, registration)
 - **`lib/core/achievements/`** — Cross-feature achievement system (shared by crawls, drops, social, milestones)
 
-The **domain**, **data**, and **presentation** layers are all complete.
+The **domain**, **data**, and **presentation** layers are all complete. The crawl detail page (`CrawlDetailPage`) has been fully implemented with a sticky CTA, registration toast, pull-to-refresh, and auto-refresh on route re-entry. The stamp claim page (`StampClaimPage`) and passport page (`PassportPage`) remain placeholder UIs pending further work.
 
 ---
 
@@ -85,10 +85,11 @@ lib/
 │       │   ├── crawl_detail_cubit.dart
 │       │   └── crawl_detail_state.dart
 │       ├── pages/
-│       │   ├── stamp_claim_page.dart        # Placeholder UI
-│       │   ├── crawl_detail_page.dart       # Placeholder UI
+│       │   ├── stamp_claim_page.dart        # Placeholder UI — wires CrawlClaimBloc
+│       │   ├── crawl_detail_page.dart       # Fully implemented — sticky CTA, refresh, progress card
 │       │   └── passport_page.dart           # Placeholder UI
 │       ├── widgets/
+│       │   ├── crawl_detail_cta.dart        # Sticky CTA for register / claim-stop
 │       │   ├── crawl_home_banner.dart       # Placeholder
 │       │   ├── tier_completion_modal.dart   # Placeholder
 │       │   └── share_card_view.dart         # Placeholder
@@ -458,20 +459,22 @@ Simple fetch cubit for the home screen crawl banner.
 
 **File:** `features/crawl/presentation/cubit/crawl_detail_cubit.dart`
 
-Fetches crawl detail and handles registration.
+Fetches crawl detail, handles registration, and supports refresh for pull-to-refresh / auto-refresh on re-entry.
 
-**States (4, sealed):**
+**States (5, sealed):**
 
 | State | Fields | Meaning |
 |---|---|---|
 | `CrawlDetailInitial` | — | Not loaded |
 | `CrawlDetailLoading` | — | Fetch in progress |
 | `CrawlDetailLoaded` | `detail` (with `totalStamps`, `totalStops`, `progressFraction` getters) | Data available |
+| `CrawlDetailRegisterSuccess` | `detail` | Registration succeeded — distinct from `Loaded` so the UI layer can show a toast |
 | `CrawlDetailError` | `failure` | Fetch failed |
 
 **Methods:**
 - `loadDetail(String slug)` — fetches detail, maps failures
-- `register()` — calls `RegisterForCrawlUseCase`, then re-fetches detail; silently ignores `AlreadyRegisteredFailure`
+- `register()` — calls `RegisterForCrawlUseCase`. On success, emits `CrawlDetailRegisterSuccess(detail)` after re-fetch; silently ignores `AlreadyRegisteredFailure` (re-fetches silently)
+- `refresh()` — re-fetches detail from current slug. Only acts when current state is `Loaded` or `RegisterSuccess`; no-op otherwise
 
 **Dependencies:** `GetCrawlDetailUseCase`, `RegisterForCrawlUseCase`
 
@@ -509,23 +512,66 @@ Integrated in `main.dart` via `_handleIncomingLink` — rewrites URI path to GoR
 - **Android:** `AndroidManifest.xml` intent filter for `nook://` scheme
 - **iOS:** `Info.plist` `FlutterDeepLinkingEnabled` + `CFBundleURLTypes`
 
-### 14.7 Pages (Placeholder — UI pending)
+### 14.7 Pages
 
 | Page | File | State |
 |---|---|---|
-| `StampClaimPage` | `pages/stamp_claim_page.dart` | Wires `CrawlClaimBloc`, calls `ClaimInitialized` on mount |
-| `CrawlDetailPage` | `pages/crawl_detail_page.dart` | Accepts `crawlSlug`, uses `CrawlDetailCubit` |
-| `PassportPage` | `pages/passport_page.dart` | Renders placeholder text |
+| `StampClaimPage` | `pages/stamp_claim_page.dart` | **Placeholder** — wires `CrawlClaimBloc`, calls `ClaimInitialized` on mount |
+| `CrawlDetailPage` | `pages/crawl_detail_page.dart` | **Fully implemented** — see details below |
+| `PassportPage` | `pages/passport_page.dart` | **Placeholder** — renders placeholder text |
 
 All pages use `sl<...>()` (GetIt) for BLoC/Cubit resolution in production, and accept an optional `bloc` parameter for test injection.
 
-### 14.8 Widgets (Placeholder — UI pending)
+#### CrawlDetailPage
+
+**File:** `features/crawl/presentation/pages/crawl_detail_page.dart`
+
+Accepts `crawlSlug` and uses `CrawlDetailCubit`. Implemented as a `StatefulWidget` that owns the cubit instance.
+
+**Behavior:**
+- Loads crawl detail on `initState` via `_cubit.loadDetail(slug)`
+- Renders a `RefreshIndicator` (pull-to-refresh) wrapping the scrollable body; uses `AlwaysScrollableScrollPhysics` so the indicator activates even when content doesn't overflow
+- Listens to GoRouter route changes via `GoRouter.of(context).routerDelegate.listen(...)`; on re-entry to `/crawl/:slug`, calls `_cubit.loadDetail(widget.slug)` to auto-refresh data (uses `_isFirstRouteChange` flag to avoid double-load on initial navigation)
+- Cleans up the cubit and route listener in `dispose`
+
+**Sticky CTA (bottomNavigationBar):**
+- Uses `CrawlDetailCta` widget in `bottomNavigationBar`
+- When `isRegistered == false`: shows "Register" button → calls `_cubit.register()`
+- When `isRegistered == true`: shows "Claim your next stamp" button → navigates to first unclaimed stop's claim page (`/crawl/:slug/stop/:stopId/claim`)
+- When the user is not authenticated: navigates to `/login` instead of calling `register()`
+- Button style matches the login page: `Color(0xFF344E41)` background, `borderRadius: 12`, `fontSize: 16` w500, `vertical: 18` padding, elevation 0, white text
+
+**Toast on Registration:**
+- Uses `BlocConsumer` (instead of `BlocBuilder`) to listen for `CrawlDetailRegisterSuccess` state
+- On that state, calls `showPrimaryToast(context, 'Successfully registered for the crawl!')`
+- Renders `CrawlDetailLoaded` content normally (body and CTA unchanged)
+
+**Dependencies:** `GetCrawlDetailUseCase`, `RegisterForCrawlUseCase`, `GoRouter`
+
+### 14.8 Widgets
 
 | Widget | File | Purpose |
 |---|---|---|
-| `CrawlHomeBanner` | `widgets/crawl_home_banner.dart` | Home screen active crawl highlight |
-| `TierCompletionModal` | `widgets/tier_completion_modal.dart` | Shown when a tier is completed |
-| `ShareCardView` | `widgets/share_card_view.dart` | Crawl recap share card |
+| `CrawlDetailCta` | `widgets/crawl_detail_cta.dart` | **Fully implemented** — sticky CTA button for crawl detail page; adapts to registration and claim states |
+| `CrawlHomeBanner` | `widgets/crawl_home_banner.dart` | **Placeholder** — home screen active crawl highlight |
+| `TierCompletionModal` | `widgets/tier_completion_modal.dart` | **Placeholder** — shown when a tier is completed |
+| `ShareCardView` | `widgets/share_card_view.dart` | **Placeholder** — crawl recap share card |
+
+#### CrawlDetailCta
+
+**File:** `features/crawl/presentation/widgets/crawl_detail_cta.dart`
+
+Placed in `CrawlDetailPage.bottomNavigationBar`. Adapts its button based on state:
+
+| Prop | Value | Behavior |
+|---|---|---|
+| `isRegistered: false` | "Register" | Calls `onRegisterTap` |
+| `isRegistered: true, allStopsClaimed: false` | "Claim your next stamp" | Calls `onClaimStopTap` |
+| `isRegistered: true, allStopsClaimed: true` | "All stamps claimed! 🎉" | Disabled button |
+
+Button style matches the login page: `Color(0xFF344E41)` background, `borderRadius: 12`, `fontSize: 16` w500, `vertical: 18` padding, elevation 0, white text.
+
+Has a widget preview file (`crawl_detail_cta_preview.dart`) with 3 `@Preview` annotations covering all states.
 
 ### 14.9 DI Registration
 
@@ -542,15 +588,18 @@ registerFactory       → CrawlClaimBloc
 
 ### 14.10 Tests
 
-**23 tests total** — all passing:
+**~29 tests total** — all passing:
 
 | Suite | File | Tests |
 |---|---|---|
-| CrawlClaimBloc | `presentation/bloc/crawl_claim_bloc_test.dart` | 11 |
-| ActiveCrawlsCubit | `presentation/cubit/active_crawls_cubit_test.dart` | 3 |
-| CrawlDetailCubit | `presentation/cubit/crawl_detail_cubit_test.dart` | 7 |
-| StampClaimPage (widget) | `presentation/widgets/stamp_claim_page_test.dart` | 2 |
+| CrawlClaimBloc | `crawl_claim_bloc_test.dart` | 11 |
+| ActiveCrawlsCubit | `active_crawls_cubit_test.dart` | 3 |
+| CrawlDetailCubit | `crawl_detail_cubit_test.dart` | 10 — covers `loadDetail` (3), `register` (4), `refresh` (3) |
+| StampClaimPage (widget) | `stamp_claim_page_test.dart` | 2 |
+| CrawlDetailCta (widget) | `crawl_detail_cta_test.dart` | 6 — covers all CTA states: unauthenticated, register, registered but no stops, registered with unclaimed stops, all claimed, and error |
 
+All cubit/bloc tests use `blocTest` for declarative emission assertions.
+Widget tests use `WidgetTester` with `pumpWidget` + `MaterialApp` wrapper, and mock cubits via `BlocProvider.value`.
 Mocks generated with `@GenerateNiceMocks` via `build_runner`.
 
 ### 14.11 Deep Link Config

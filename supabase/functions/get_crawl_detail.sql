@@ -122,7 +122,7 @@ begin
 
     if v_registration is not null then
       v_progress := jsonb_build_object(
-        'total_stamps', v_registration->>'total_stamps',
+        'total_stamps', v_registration->'total_stamps',
         'highest_tier', (
           select to_jsonb(ct)
           from public.crawl_tiers ct

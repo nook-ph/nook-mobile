@@ -121,7 +121,7 @@ void main() {
       },
       expect: () => [
         isA<CrawlDetailLoading>(),
-        isA<CrawlDetailLoaded>(),
+        isA<CrawlDetailRegisterSuccess>(),
       ],
       verify: (_) {
         verify(mockRegister.call('crawl-1')).called(1);
@@ -168,6 +168,51 @@ void main() {
       build: () => cubit,
       seed: () => const CrawlDetailInitial(),
       act: (cubit) => cubit.register(),
+      expect: () => [],
+    );
+  });
+
+  group('refresh', () {
+    blocTest<CrawlDetailCubit, CrawlDetailState>(
+      're-fetches detail when state is CrawlDetailLoaded',
+      build: () => cubit,
+      seed: () => CrawlDetailLoaded(_fakeDetail()),
+      act: (cubit) => cubit.refresh(),
+      setUp: () {
+        when(mockGetDetail.call('test-crawl')).thenAnswer(
+          (_) async => Right(_fakeDetail()),
+        );
+      },
+      expect: () => [
+        isA<CrawlDetailLoading>(),
+        isA<CrawlDetailLoaded>(),
+      ],
+      verify: (_) {
+        verify(mockGetDetail.call('test-crawl')).called(1);
+      },
+    );
+
+    blocTest<CrawlDetailCubit, CrawlDetailState>(
+      're-fetches detail when state is CrawlDetailRegisterSuccess',
+      build: () => cubit,
+      seed: () => CrawlDetailRegisterSuccess(_fakeDetail()),
+      act: (cubit) => cubit.refresh(),
+      setUp: () {
+        when(mockGetDetail.call('test-crawl')).thenAnswer(
+          (_) async => Right(_fakeDetail()),
+        );
+      },
+      expect: () => [
+        isA<CrawlDetailLoading>(),
+        isA<CrawlDetailLoaded>(),
+      ],
+    );
+
+    blocTest<CrawlDetailCubit, CrawlDetailState>(
+      'does nothing when state is not Loaded or RegisterSuccess',
+      build: () => cubit,
+      seed: () => const CrawlDetailInitial(),
+      act: (cubit) => cubit.refresh(),
       expect: () => [],
     );
   });

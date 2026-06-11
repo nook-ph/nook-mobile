@@ -14,13 +14,18 @@ class CrawlProgressCard extends StatelessWidget {
     required this.currentTierName,
   });
 
-  double get _percentage =>
-      totalStops > 0 ? (claimedStops / totalStops) * 100 : 0;
+  /// Returns a safe progress factor clamped between 0.0 and 1.0
+  double get _progressFactor {
+    if (totalStops <= 0) return 0.0;
+    return (claimedStops / totalStops).clamp(0.0, 1.0);
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+
+    final displayPercentage = (_progressFactor * 100).round();
 
     return Container(
       width: double.infinity,
@@ -34,22 +39,24 @@ class CrawlProgressCard extends StatelessWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
                 'Your progress',
-                style: textTheme.bodyLargeMed.copyWith(color: colors.black),
+                style: textTheme.bodyLargeMed?.copyWith(color: colors.black),
               ),
-              _TierPill(tierName: currentTierName),
+              // Fix: Only render the pill if there is an actual tier name string
+              if (currentTierName.trim().isNotEmpty)
+                _TierPill(tierName: currentTierName),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            '$claimedStops of $totalStops stops claimed \u00B7 ${_percentage.round()}%',
+            '$claimedStops of $totalStops stops claimed • $displayPercentage%',
             style: textTheme.bodySmall?.copyWith(color: colors.gray),
           ),
           const SizedBox(height: 12),
-          _ProgressBar(percentage: _percentage),
+          // Fix: Passing factor instead of raw percentage to the optimized progress bar
+          _ProgressBar(progress: _progressFactor),
         ],
       ),
     );
@@ -64,6 +71,7 @@ class _TierPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -73,9 +81,8 @@ class _TierPill extends StatelessWidget {
       ),
       child: Text(
         tierName,
-        style: TextStyle(
+        style: textTheme.bodySmall?.copyWith(
           color: colors.white,
-          fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -84,24 +91,22 @@ class _TierPill extends StatelessWidget {
 }
 
 class _ProgressBar extends StatelessWidget {
-  final double percentage;
+  final double progress; // Expects a value from 0.0 to 1.0
 
-  const _ProgressBar({required this.percentage});
+  const _ProgressBar({required this.progress});
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
+    // Fix: Replaced layout-breaking FractionallySizedBox with a robust native indicator
     return ClipRRect(
       borderRadius: BorderRadius.circular(4),
-      child: Container(
-        height: 8,
-        color: colors.border,
-        child: FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: percentage / 100,
-          child: Container(color: colors.success),
-        ),
+      child: LinearProgressIndicator(
+        value: progress,
+        minHeight: 8,
+        backgroundColor: colors.border,
+        valueColor: AlwaysStoppedAnimation<Color>(colors.success),
       ),
     );
   }

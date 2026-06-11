@@ -28,13 +28,29 @@ class CrawlDetailCubit extends Cubit<CrawlDetailState> {
     }
   }
 
+  Future<void> refresh() async {
+    final current = state;
+    if (current case CrawlDetailLoaded(:final detail)) {
+      await loadDetail(detail.crawl.slug);
+    } else if (current case CrawlDetailRegisterSuccess(:final detail)) {
+      await loadDetail(detail.crawl.slug);
+    }
+  }
+
   Future<void> register() async {
     final current = state;
     if (current case CrawlDetailLoaded(:final detail)) {
       final result = await _registerForCrawlUseCase.call(detail.crawl.id);
       switch (result) {
         case Right():
-          await loadDetail(detail.crawl.slug);
+          emit(const CrawlDetailLoading());
+          final fresh = await _getCrawlDetailUseCase.call(detail.crawl.slug);
+          switch (fresh) {
+            case Right(value: final d):
+              emit(CrawlDetailRegisterSuccess(d));
+            case Left(value: final f):
+              emit(CrawlDetailError(f));
+          }
         case Left(value: final failure) when failure is AlreadyRegisteredFailure:
           await loadDetail(detail.crawl.slug);
         case Left(value: final failure):
