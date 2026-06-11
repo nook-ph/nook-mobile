@@ -10,8 +10,11 @@ import 'package:nook/features/crawl/presentation/cubit/crawl_detail_state.dart';
 import 'package:nook/features/crawl/presentation/widgets/crawl_detail_cta.dart';
 import 'package:nook/features/crawl/presentation/widgets/crawl_hero_header.dart';
 import 'package:nook/features/crawl/presentation/widgets/crawl_progress_card.dart';
+import 'package:nook/features/crawl/presentation/widgets/crawl_stops_map_preview.dart';
 import 'package:nook/features/crawl/presentation/widgets/crawl_tiers_card.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class CrawlDetailPage extends StatefulWidget {
@@ -128,6 +131,54 @@ class _CrawlDetailPageState extends State<CrawlDetailPage> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 22),
                             child: CrawlTiersCard(tiers: detail.tiers),
+                          ),
+                        ],
+                        if (detail != null && detail.stops.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 22),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Crawl Map',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyLargeMed
+                                          .copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .black,
+                                          ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () => context.push(
+                                        '/crawl/${detail.crawl.slug}/map',
+                                        extra: detail.stops,
+                                      ),
+                                      child: Text(
+                                        'See more',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary60,
+                                              fontWeight: FontWeight.w600,
+                                              decoration: TextDecoration.underline,
+                                            ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                CrawlStopsMapPreview(stops: detail.stops),
+                              ],
+                            ),
                           ),
                         ],
                         SizedBox(

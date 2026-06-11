@@ -9,6 +9,7 @@ import 'package:nook/core/app_state.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/pages/email_entry_page.dart';
+import 'package:nook/features/crawl/domain/entities/crawl_stop.dart';
 import 'package:nook/features/auth/presentation/pages/email_confirmation_pending_page.dart';
 import 'package:nook/features/auth/presentation/pages/change_email_page.dart';
 import 'package:nook/features/auth/presentation/pages/change_password_page.dart';
@@ -19,6 +20,7 @@ import 'package:nook/features/auth/presentation/pages/username_setup_page.dart';
 import 'package:nook/features/search/presentation/pages/search_results_page.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/crawl/presentation/pages/crawl_detail_page.dart';
+import 'package:nook/features/crawl/presentation/pages/crawl_stops_map_page.dart';
 import 'package:nook/features/crawl/presentation/pages/stamp_claim_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
@@ -171,6 +173,16 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         builder: (context, state) {
           final query = state.uri.queryParameters['q'] ?? '';
           return SearchResultsPage(query: query);
+        },
+      ),
+
+      /// 4. Crawl Stops Map (Full Screen) — must come before /crawl/:slug
+      GoRoute(
+        path: '/crawl/:slug/map',
+        builder: (context, state) {
+          final slug = state.pathParameters['slug'] ?? '';
+          final stops = state.extra as List<CrawlStop>? ?? [];
+          return CrawlStopsMapPage(slug: slug, stops: stops);
         },
       ),
 
