@@ -9,12 +9,15 @@ import 'package:dartz/dartz.dart' as _i3;
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:nook/core/errors/failure.dart' as _i7;
 import 'package:nook/core/services/gps_service.dart' as _i4;
+import 'package:nook/features/crawl/domain/entities/crawl_detail.dart' as _i10;
 import 'package:nook/features/crawl/domain/entities/stamp_claim_result.dart'
     as _i8;
 import 'package:nook/features/crawl/domain/repositories/i_crawl_repository.dart'
     as _i2;
 import 'package:nook/features/crawl/domain/use_cases/claim_stamp_usecase.dart'
     as _i5;
+import 'package:nook/features/crawl/domain/use_cases/get_crawl_detail_usecase.dart'
+    as _i9;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -150,4 +153,46 @@ class MockGpsService extends _i1.Mock implements _i4.GpsService {
             returnValueForMissingStub: _i6.Future<bool>.value(false),
           )
           as _i6.Future<bool>);
+}
+
+/// A class which mocks [GetCrawlDetailUseCase].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockGetCrawlDetailUseCase extends _i1.Mock
+    implements _i9.GetCrawlDetailUseCase {
+  @override
+  _i2.ICrawlRepository get repository =>
+      (super.noSuchMethod(
+            Invocation.getter(#repository),
+            returnValue: _FakeICrawlRepository_0(
+              this,
+              Invocation.getter(#repository),
+            ),
+            returnValueForMissingStub: _FakeICrawlRepository_0(
+              this,
+              Invocation.getter(#repository),
+            ),
+          )
+          as _i2.ICrawlRepository);
+
+  @override
+  _i6.Future<_i3.Either<_i7.Failure, _i10.CrawlDetail>> call(String? slug) =>
+      (super.noSuchMethod(
+            Invocation.method(#call, [slug]),
+            returnValue:
+                _i6.Future<_i3.Either<_i7.Failure, _i10.CrawlDetail>>.value(
+                  _FakeEither_1<_i7.Failure, _i10.CrawlDetail>(
+                    this,
+                    Invocation.method(#call, [slug]),
+                  ),
+                ),
+            returnValueForMissingStub:
+                _i6.Future<_i3.Either<_i7.Failure, _i10.CrawlDetail>>.value(
+                  _FakeEither_1<_i7.Failure, _i10.CrawlDetail>(
+                    this,
+                    Invocation.method(#call, [slug]),
+                  ),
+                ),
+          )
+          as _i6.Future<_i3.Either<_i7.Failure, _i10.CrawlDetail>>);
 }

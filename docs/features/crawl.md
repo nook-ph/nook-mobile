@@ -1,6 +1,6 @@
 # Crawl
 
-> **Status:** ✅ Domain, Data, and Presentation layers complete; detail page fully implemented with sticky CTA, registration toast, pull-to-refresh, and auto-refresh on re-entry; crawl stops map page fully implemented with interactive map, pin markers, symbol tapping, and slide-up cafe overlay card.
+> **Status:** ✅ Domain, Data, and Presentation layers complete; detail page fully implemented with sticky CTA, registration toast, pull-to-refresh, and auto-refresh on re-entry; crawl stops map page fully implemented with interactive map, pin markers, symbol tapping, and slide-up cafe overlay card; stamp claim page and tier completion modal fully implemented.
 > **Last updated:** 2026-06-11
 
 ---
@@ -17,7 +17,7 @@ The feature is built across two locations:
 - **`lib/features/crawl/`** — Core crawl domain (entities, tiers, stamps, registration)
 - **`lib/core/achievements/`** — Cross-feature achievement system (shared by crawls, drops, social, milestones)
 
-The **domain**, **data**, and **presentation** layers are all complete. The crawl detail page (`CrawlDetailPage`) has been fully implemented with a sticky CTA, registration toast, pull-to-refresh, and auto-refresh on route re-entry. The crawl stops map page (`CrawlStopsMapPage`) is fully implemented with an interactive MapLibre map, pin markers, symbol tapping, and a slide-up cafe overlay card. The stamp claim page (`StampClaimPage`) and passport page (`PassportPage`) remain placeholder UIs pending further work.
+The **domain**, **data**, and **presentation** layers are all complete. The crawl detail page (`CrawlDetailPage`) has been fully implemented with a sticky CTA, registration toast, pull-to-refresh, and auto-refresh on route re-entry. The crawl stops map page (`CrawlStopsMapPage`) is fully implemented with an interactive MapLibre map, pin markers, symbol tapping, and a slide-up cafe overlay card. The stamp claim page (`StampClaimPage`) is fully implemented with GPS acquisition, stamp animation, and tier completion flow. The passport page (`PassportPage`) remains a placeholder UI pending further work.
 
 ---
 
@@ -87,7 +87,7 @@ lib/
 │       │   ├── crawl_stops_map_cubit.dart   # Loads CafeSummary data for stops map
 │       │   └── crawl_stops_map_state.dart   # sealed: Initial, Loading, Loaded, Error
 │       ├── pages/
-│       │   ├── stamp_claim_page.dart        # Placeholder UI — wires CrawlClaimBloc
+│       │   ├── stamp_claim_page.dart        # Fully implemented — GPS, animation, tier completion flow
 │       │   ├── crawl_detail_page.dart       # Fully implemented — sticky CTA, refresh, progress card, map preview
 │       │   ├── crawl_stops_map_page.dart    # Fully implemented — interactive map, pins, overlay card
 │       │   └── passport_page.dart           # Placeholder UI
@@ -95,7 +95,7 @@ lib/
 │       │   ├── crawl_detail_cta.dart        # Sticky CTA for register / claim-stop
 │       │   ├── crawl_home_banner.dart       # Placeholder
 │       │   ├── crawl_stops_map_preview.dart # Non-interactive mini map for detail page
-│       │   ├── tier_completion_modal.dart   # Placeholder
+│       │   ├── tier_completion_modal.dart   # Fully implemented — badge, share, continue buttons
 │       │   └── share_card_view.dart         # Placeholder
 │       ├── deep_link/
 │       │   └── crawl_deep_link_handler.dart
@@ -352,15 +352,19 @@ CrawlClaimBloc
 ## 12. Packages Used
 
 | Package | Why |
-|---|---|
+|---|---|---|
 | `dartz` | `Either<Failure, T>` for repository return types |
 | `supabase_flutter` | All data access (tables + RPCs) |
 | `get_it` | DI registration |
 | `flutter_bloc` | BLoC + Cubit state management |
 | `equatable` | Value equality for state/event classes |
 | `geolocator` | GPS position acquisition for stamp claiming |
+| `go_router` | Navigation, deep links, route params |
+| `cached_network_image` | Cafe photo caching with `CustomCacheManager` |
+| `flutter_animate` | Stamp success animation (scale + fadeIn) |
+| `gap` | Spacing widgets (`Gap(4)`, `Gap(12)`, etc.) |
 | `maplibre_gl` | Interactive map rendering for `CrawlStopsMapPage` and `CrawlStopsMapPreview` |
-| `lucide_icons_flutter` | Map pin icons in `CafeOverlayCard` |
+| `lucide_icons_flutter` | Map pin icons in `CafeOverlayCard`, GPS status icons (`loader`, `mapPinOff`, `circleCheckBig`) |
 | `phosphor_flutter` | Star rating icon in `CafeOverlayCard` |
 
 ### Dev Dependencies
@@ -548,8 +552,8 @@ Integrated in `main.dart` via `_handleIncomingLink` — rewrites URI path to GoR
 ### 14.8 Pages
 
 | Page | File | State |
-|---|---|---|
-| `StampClaimPage` | `pages/stamp_claim_page.dart` | **Placeholder** — wires `CrawlClaimBloc`, calls `ClaimInitialized` on mount |
+|---|---|---|---|
+| `StampClaimPage` | `pages/stamp_claim_page.dart` | **Fully implemented** — see details below |
 | `CrawlDetailPage` | `pages/crawl_detail_page.dart` | **Fully implemented** — see details below |
 | `CrawlStopsMapPage` | `pages/crawl_stops_map_page.dart` | **Fully implemented** — see details below |
 | `PassportPage` | `pages/passport_page.dart` | **Placeholder** — renders placeholder text |
@@ -612,14 +616,51 @@ Implemented as a `StatefulWidget` that owns the `MapLibreMapController`.
 
 **Dependencies:** `GetCafeCardUseCase`, `CrawlStopsMapCubit`
 
+#### StampClaimPage
+
+**File:** `features/crawl/presentation/pages/stamp_claim_page.dart`
+
+Full-screen stamp claim page. Accepts `crawlSlug`, `stopId`, and optional `bloc`, `getCrawlDetailUseCase`, and `cafeRemoteDataSource` for test injection. Renders cafe hero photo (fetched via `CafeRemoteDataSource.fetchDetailsById` with `CustomCacheManager` fallback), cafe info header, GPS status row, and action area. Implements `SingleTickerProviderStateMixin` for the GPS spin animation.
+
+**Behavior:**
+- On `initState`: starts `_loadPageData()` which fetches crawl detail via `GetCrawlDetailUseCase`, finds the matching stop, optionally fetches cafe details for hero photo and neighborhood, then dispatches `ClaimInitialized` to the bloc. Shows a `CircularProgressIndicator` while loading.
+- On data error (use case failure, stop not found): shows error screen with "Retry" button that re-triggers `_loadPageData()`.
+- On `AcquiringGps` state: rotates a `loader` icon via `AnimationController.repeat()` (1s duration, linear curve). Shows "Acquiring GPS..." text. "Claim Stamp" button is disabled.
+- On `GpsDenied` state: shows `mapPinOff` icon and "Enable location access in Settings" text with an "Open Settings" link (`Geolocator.openAppSettings()`). Button is disabled.
+- On `GpsTimeout` state: same UI as `GpsDenied`.
+- On `ClaimSubmitting` state: shows a `CircularProgressIndicator` inside the claim button.
+- On `AlreadyClaimed` state: shows "Already Claimed" banner with the `claimedAt` date.
+- On `LocationTooFar` state: shows "Too Far Away" banner with distance (meters or kilometers).
+- On `ClaimSuccess`: triggers stamp animation — 80px `stamp` icon with `flutter_animate` scale (elasticOut, 500ms) + fadeIn (300ms), and "Stop X claimed!" text. After 2 seconds, auto-pops via `Navigator.maybePop(context)`.
+- On `ClaimSuccessWithTierCompletion`: same stamp animation, but after 1.5 seconds, opens `TierCompletionModal` as a bottom sheet. "Continue" button pops back to crawl detail.
+- On `CrawlExpired`: shows "This crawl has ended" banner with `clock` icon.
+- On `StopInactive`: shows "This stop is no longer active" banner with `circleX` icon.
+- On `NotRegistered`: shows "You are not registered for this crawl" banner with `userX` icon.
+- On `ClaimNetworkError`: shows error message with "Retry" button that re-dispatches `ClaimInitialized`.
+
+**Hero photo logic:**
+```dart
+final imageUrl = _cafePhotoUrl ??
+    _crawlDetail?.crawl.coverImageUrl ?? '';
+```
+If neither cafe photo nor crawl cover exists, renders a gradient placeholder with an `image` icon.
+
+**Deep link format:**
+```
+nook://crawl/{crawlSlug}/stop/{stopId}/claim
+```
+The `crawlSlug` in the deep link is the crawl's string slug (e.g., `summer-brew-trail`), not a UUID. The `stopId` is a UUID. This link is what each cafe's QR code encodes.
+
+**Dependencies:** `GetCrawlDetailUseCase`, `CafeRemoteDataSource`, `CrawlClaimBloc`, `GpsService`
+
 ### 14.9 Widgets
 
 | Widget | File | Purpose |
-|---|---|---|
+|---|---|---|---|
 | `CrawlDetailCta` | `widgets/crawl_detail_cta.dart` | **Fully implemented** — sticky CTA button for crawl detail page; adapts to registration and claim states |
 | `CrawlHomeBanner` | `widgets/crawl_home_banner.dart` | **Placeholder** — home screen active crawl highlight |
 | `CrawlStopsMapPreview` | `widgets/crawl_stops_map_preview.dart` | **Fully implemented** — non-interactive mini map (220px) used in `CrawlDetailPage`; all gestures disabled, single pin per stop |
-| `TierCompletionModal` | `widgets/tier_completion_modal.dart` | **Placeholder** — shown when a tier is completed |
+| `TierCompletionModal` | `widgets/tier_completion_modal.dart` | **Fully implemented** — shown as a bottom sheet when a tier is completed after claiming a stamp |
 | `ShareCardView` | `widgets/share_card_view.dart` | **Placeholder** — crawl recap share card |
 
 #### CrawlStopsMapPreview
@@ -644,7 +685,22 @@ Button style matches the login page: `Color(0xFF344E41)` background, `borderRadi
 
 Has a widget preview file (`crawl_detail_cta_preview.dart`) with 3 `@Preview` annotations covering all states.
 
-### 14.10 Shared Core Widgets
+#### TierCompletionModal
+
+**File:** `features/crawl/presentation/widgets/tier_completion_modal.dart`
+
+Shown as a bottom sheet when a `ClaimSuccessWithTierCompletion` state is emitted. Displayed 1.5 seconds after the stamp animation via `showModalBottomSheet`.
+
+**Layout (top to bottom):**
+1. Badge image — fetched from `tier.badgeImageUrl` via `CachedNetworkImage` with `CustomCacheManager`; if empty or fails to load, shows a gradient placeholder with a `trophy` icon
+2. Tier name — displayed using `titleLargeSemi` text style
+3. Completion copy — optional message from `tier.completionCopy`, or a default "You completed the {tierName} tier!"
+4. "Share with friends" button — primary action pill with `share2` icon; calls `onShare` (currently a no-op placeholder)
+5. "Continue" button — text-only button that dismisses the bottom sheet and pops back to the crawl detail page
+
+**Dependencies:** `cached_network_image`, `flutter_animate`
+
+### 14.11 Shared Core Widgets
 
 The following widgets extracted to `core/presentation/widgets/` for reuse across features:
 
@@ -655,7 +711,7 @@ The following widgets extracted to `core/presentation/widgets/` for reuse across
 
 Both moved/extracted from `features/map/presentation/widgets/` during the crawl map implementation.
 
-### 14.11 DI Registration
+### 14.12 DI Registration
 
 **File:** `features/crawl/presentation/injection/crawl_presentation_injection.dart`
 
@@ -670,7 +726,7 @@ registerFactory       → CrawlClaimBloc
 
 `CrawlStopsMapCubit` is **not** registered in DI — it's created inline in `CrawlStopsMapPage` via `BlocProvider(create: (_) => CrawlStopsMapCubit(sl<GetCafeCardUseCase>()))`.
 
-### 14.12 GoRouter Route
+### 14.13 GoRouter Route
 
 **File:** `lib/core/router/app_router.dart`
 
@@ -687,16 +743,16 @@ GoRoute(
 ),
 ```
 
-### 14.13 Tests
+### 14.14 Tests
 
 **~35 tests total** — all passing:
 
 | Suite | File | Tests |
-|---|---|---|
+|---|---|---|---|
 | CrawlClaimBloc | `crawl_claim_bloc_test.dart` | 11 |
 | ActiveCrawlsCubit | `active_crawls_cubit_test.dart` | 3 |
 | CrawlDetailCubit | `crawl_detail_cubit_test.dart` | 10 — covers `loadDetail` (3), `register` (4), `refresh` (3) |
-| StampClaimPage (widget) | `stamp_claim_page_test.dart` | 2 |
+| StampClaimPage (widget) | `stamp_claim_page_test.dart` | 16 — covers data loading (3), GPS states (4), claim states (5), error states (3), not registered (1) |
 | CrawlDetailCta (widget) | `crawl_detail_cta_test.dart` | 6 — covers all CTA states: unauthenticated, register, registered but no stops, registered with unclaimed stops, all claimed, and error |
 | SlideUpOverlay (widget) | `slide_up_overlay_test.dart` | 6 — covers visibility toggle, animation transitions, custom child, narrow screen rendering |
 
@@ -704,7 +760,7 @@ All cubit/bloc tests use `blocTest` for declarative emission assertions.
 Widget tests use `WidgetTester` with `pumpWidget` + `MaterialApp` wrapper, and mock cubits via `BlocProvider.value`.
 Mocks generated with `@GenerateNiceMocks` via `build_runner`.
 
-### 14.14 Deep Link Config
+### 14.15 Deep Link Config
 
 **Android** (`android/app/src/main/AndroidManifest.xml`):
 ```xml
