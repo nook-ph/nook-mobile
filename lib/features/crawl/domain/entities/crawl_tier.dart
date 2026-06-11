@@ -1,3 +1,5 @@
+enum TierState { completed, active, locked }
+
 class CrawlTier {
   final String id;
   final String crawlId;
@@ -26,4 +28,10 @@ class CrawlTier {
     this.totalClaimed = 0,
     this.isComplete = false,
   });
+
+  TierState get state {
+    if (isComplete) return TierState.completed;
+    if (totalClaimed > 0) return TierState.active;
+    return TierState.locked;
+  }
 }

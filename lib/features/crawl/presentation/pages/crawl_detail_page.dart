@@ -10,6 +10,7 @@ import 'package:nook/features/crawl/presentation/cubit/crawl_detail_state.dart';
 import 'package:nook/features/crawl/presentation/widgets/crawl_detail_cta.dart';
 import 'package:nook/features/crawl/presentation/widgets/crawl_hero_header.dart';
 import 'package:nook/features/crawl/presentation/widgets/crawl_progress_card.dart';
+import 'package:nook/features/crawl/presentation/widgets/crawl_tiers_card.dart';
 import 'package:nook/injection_container.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -120,6 +121,13 @@ class _CrawlDetailPageState extends State<CrawlDetailPage> {
                               currentTierName:
                                   detail.userProgress!.highestTier?.name ?? '',
                             ),
+                          ),
+                        ],
+                        if (detail?.tiers != null && detail!.tiers.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 22),
+                            child: CrawlTiersCard(tiers: detail.tiers),
                           ),
                         ],
                         SizedBox(
