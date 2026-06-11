@@ -73,6 +73,8 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	
+	<key>NSCameraUsageDescription</key>
+	<string>Nook uses the camera to scan QR codes at cafe stops.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 	    <dict>

@@ -206,15 +206,7 @@ class _CrawlDetailPageState extends State<CrawlDetailPage> {
                         }
                       },
                       onClaimStopTap: () {
-                        final unclaimed = detail.stops.cast<CrawlStop?>().firstWhere(
-                          (CrawlStop? s) => s != null && !s.isClaimed,
-                          orElse: () => null,
-                        );
-                        if (unclaimed != null) {
-                          context.push(
-                            '/crawl/${detail.crawl.slug}/stop/${unclaimed.id}/claim',
-                          );
-                        }
+                        context.push('/scan');
                       },
                     )
                   : null,

@@ -21,6 +21,7 @@ import 'package:nook/features/search/presentation/pages/search_results_page.dart
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/crawl/presentation/pages/crawl_detail_page.dart';
 import 'package:nook/features/crawl/presentation/pages/crawl_stops_map_page.dart';
+import 'package:nook/features/crawl/presentation/pages/qr_scanner_page.dart';
 import 'package:nook/features/crawl/presentation/pages/stamp_claim_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
@@ -176,7 +177,13 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         },
       ),
 
-      /// 4. Crawl Stops Map (Full Screen) — must come before /crawl/:slug
+      /// 4. QR Scanner — uses a generic path since the destination is embedded in the QR
+      GoRoute(
+        path: '/scan',
+        builder: (context, state) => const QrScannerPage(),
+      ),
+
+      /// 5. Crawl Stops Map (Full Screen) — must come before /crawl/:slug
       GoRoute(
         path: '/crawl/:slug/map',
         builder: (context, state) {
@@ -194,7 +201,7 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         },
       ),
 
-      /// 5. Crawl Stamp Claim (Deep Link Target)
+      /// 6. Crawl Stamp Claim (Deep Link Target)
       GoRoute(
         path: '/crawl/:crawlId/stop/:stopId/claim',
         builder: (context, state) {
