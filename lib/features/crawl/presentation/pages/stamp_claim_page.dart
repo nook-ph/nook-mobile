@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dartz/dartz.dart' hide State;
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:geolocator/geolocator.dart';
@@ -20,6 +19,8 @@ import 'package:nook/features/crawl/domain/use_cases/get_crawl_detail_usecase.da
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_bloc.dart';
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_event.dart';
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_state.dart';
+import 'package:nook/features/crawl/presentation/pages/share_cafe_stop_page.dart';
+import 'package:nook/features/crawl/presentation/widgets/stamp_awarded_overlay.dart';
 import 'package:nook/features/crawl/presentation/widgets/tier_completion_modal.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
@@ -59,6 +60,7 @@ class _StampClaimPageState extends State<StampClaimPage>
   String? _neighborhood;
   bool _showStampAnimation = false;
   int _claimedStopOrder = 0;
+  Timer? _overlayTimer;
 
   late final AnimationController _gpsSpinController;
   late final Animation<double> _gpsSpinAnimation;
@@ -83,6 +85,7 @@ class _StampClaimPageState extends State<StampClaimPage>
 
   @override
   void dispose() {
+    _overlayTimer?.cancel();
     _gpsSpinController.dispose();
     super.dispose();
   }
@@ -144,7 +147,7 @@ class _StampClaimPageState extends State<StampClaimPage>
 
           _bloc.add(
             ClaimInitialized(
-              crawlId: widget.crawlSlug,
+              crawlId: detail.crawl.id,
               stopId: widget.stopId,
               crawlTitle: detail.crawl.title,
               cafeName: stop.cafeName,
@@ -197,9 +200,6 @@ class _StampClaimPageState extends State<StampClaimPage>
             case ClaimSuccess(:final result):
               _claimedStopOrder = result.stamp.stopOrder;
               setState(() => _showStampAnimation = true);
-              Future.delayed(const Duration(seconds: 2), () {
-                if (mounted) Navigator.maybePop(context);
-              });
 
             case ClaimSuccessWithTierCompletion(
                 :final result,
@@ -207,7 +207,7 @@ class _StampClaimPageState extends State<StampClaimPage>
               ):
               _claimedStopOrder = result.stamp.stopOrder;
               setState(() => _showStampAnimation = true);
-              Future.delayed(const Duration(milliseconds: 1500), () {
+              _overlayTimer = Timer(const Duration(milliseconds: 1500), () {
                 if (mounted) _showTierCompletionSheet(context, tier);
               });
 
@@ -237,100 +237,110 @@ class _StampClaimPageState extends State<StampClaimPage>
           return Scaffold(
             backgroundColor: Colors.white,
             body: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final photoHeight = constraints.maxHeight * 0.45;
-                  return Column(
-                    children: [
-                      SizedBox(
-                        height: photoHeight,
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: _buildCafePhoto(colors),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              height: 100,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      Colors.transparent,
-                                      Colors.white,
-                                    ],
-                                  ),
+              child: Stack(
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final photoHeight = constraints.maxHeight * 0.45;
+                      return Column(
+                        children: [
+                          SizedBox(
+                            height: photoHeight,
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: _buildCafePhoto(colors),
                                 ),
-                              ),
-                            ),
-                            Positioned(
-                              top: 8,
-                              left: 22,
-                              child: AppBarCircleIconButton(
-                                icon: Icons.arrow_back,
-                                iconSize: 18,
-                                onTap: () => Navigator.pop(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _crawlStop!.cafeName,
-                                style: textTheme.titleLargeSemi.copyWith(
-                                  color: colors.primary100,
-                                ),
-                              ),
-                              const Gap(4),
-                              Text(
-                                _neighborhood ?? _crawlStop!.cafeAddress,
-                                style: textTheme.bodyMedium?.copyWith(
-                                  color: colors.gray,
-                                ),
-                              ),
-                              const Gap(12),
-                              _StopChip(
-                                stopOrder: _crawlStop!.stopOrder,
-                                tier: _crawlStop!.tier,
-                              ),
-                              const Gap(12),
-                              Row(
-                                children: [
-                                  Icon(
-                                    LucideIcons.map,
-                                    size: 16,
-                                    color: colors.primary60,
-                                  ),
-                                  const Gap(6),
-                                  Text(
-                                    'Part of ${_crawlDetail!.crawl.title}',
-                                    style: textTheme.bodyMedium?.copyWith(
-                                      color: colors.primary60,
+                                Positioned(
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  height: 100,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: [
+                                          Colors.transparent,
+                                          Colors.white,
+                                        ],
+                                      ),
                                     ),
                                   ),
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  left: 22,
+                                  child: AppBarCircleIconButton(
+                                    icon: Icons.arrow_back,
+                                    iconSize: 18,
+                                    onTap: () => Navigator.pop(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _crawlStop!.cafeName,
+                                    style: textTheme.titleLargeSemi.copyWith(
+                                      color: colors.primary100,
+                                    ),
+                                  ),
+                                  const Gap(4),
+                                  Text(
+                                    _neighborhood ?? _crawlStop!.cafeAddress,
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: colors.gray,
+                                    ),
+                                  ),
+                                  const Gap(12),
+                                  _StopChip(
+                                    stopOrder: _crawlStop!.stopOrder,
+                                    tier: _crawlStop!.tier,
+                                  ),
+                                  const Gap(12),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        LucideIcons.map,
+                                        size: 16,
+                                        color: colors.primary60,
+                                      ),
+                                      const Gap(6),
+                                      Text(
+                                        'Part of ${_crawlDetail!.crawl.title}',
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: colors.primary60,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const Gap(20),
+                                  _buildGpsRow(state, colors, textTheme),
+                                  const Gap(24),
+                                  _buildActionArea(context, state, colors, textTheme),
                                 ],
                               ),
-                              const Gap(20),
-                              _buildGpsRow(state, colors, textTheme),
-                              const Gap(24),
-                              _buildActionArea(context, state, colors, textTheme),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                        ],
+                      );
+                    },
+                  ),
+                  if (_showStampAnimation)
+                    StampAwardedOverlay(
+                      stopOrder: _claimedStopOrder,
+                      onClose: _onOverlayClose,
+                      onShare: _navigateToShare,
+                    ),
+                ],
               ),
             ),
           );
@@ -533,34 +543,6 @@ class _StampClaimPageState extends State<StampClaimPage>
     ColorScheme colors,
     TextTheme textTheme,
   ) {
-    if (_showStampAnimation) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              LucideIcons.stamp,
-              size: 80,
-              color: colors.success,
-            )
-                .animate()
-                .scale(
-                  begin: const Offset(0, 0),
-                  end: const Offset(1, 1),
-                  duration: 500.ms,
-                  curve: Curves.elasticOut,
-                )
-                .fadeIn(duration: 300.ms),
-            const Gap(16),
-            Text(
-              'Stop $_claimedStopOrder claimed!',
-              style: textTheme.titleSmall?.copyWith(color: colors.primary100),
-            ),
-          ],
-        ),
-      );
-    }
-
     return switch (state) {
       AcquiringGps() => _buildClaimButton(
           enabled: false,
@@ -612,9 +594,35 @@ class _StampClaimPageState extends State<StampClaimPage>
           textTheme: textTheme,
           onRetry: _onRetryClaim,
         ),
-      ClaimSuccess() || ClaimSuccessWithTierCompletion() => const SizedBox(),
+      ClaimSuccess() || ClaimSuccessWithTierCompletion() => _buildShareCta(colors),
       CrawlClaimInitial() => const SizedBox(),
     };
+  }
+
+  Widget _buildShareCta(ColorScheme colors) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        icon: const Icon(LucideIcons.share2, size: 18),
+        label: const Text(
+          'Share',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: colors.primary100,
+          side: BorderSide(color: colors.primary100),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: _navigateToShare,
+      ),
+    );
   }
 
   Widget _buildClaimButton({
@@ -655,6 +663,21 @@ class _StampClaimPageState extends State<StampClaimPage>
                   fontWeight: FontWeight.w500,
                 ),
               ),
+      ),
+    );
+  }
+
+  void _onOverlayClose() {
+    _overlayTimer?.cancel();
+    _overlayTimer = null;
+    setState(() => _showStampAnimation = false);
+  }
+
+  void _navigateToShare() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ShareCafeStopPage(),
       ),
     );
   }

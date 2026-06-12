@@ -159,9 +159,18 @@ class CrawlRemoteDataSourceImpl implements ICrawlRemoteDataSource {
             throw const CrawlEndedException();
           case 'stop_inactive':
             throw const StopInactiveException();
+          case 'stop_not_found':
+            throw const StopNotFoundException();
           case 'not_registered':
             throw const NotRegisteredException();
+          case 'not_authenticated':
+            throw const NotAuthenticatedException();
+          case 'crawl_not_found':
+            throw CrawlNotFoundException('Crawl not found');
         }
+        throw CrawlDataSourceException(
+          'Unknown claim error: $error',
+        );
       }
 
       return StampClaimResultModel.fromJson(json);
@@ -299,6 +308,14 @@ class StopInactiveException implements Exception {
   const StopInactiveException();
 }
 
+class StopNotFoundException implements Exception {
+  const StopNotFoundException();
+}
+
 class NotRegisteredException implements Exception {
   const NotRegisteredException();
+}
+
+class NotAuthenticatedException implements Exception {
+  const NotAuthenticatedException();
 }

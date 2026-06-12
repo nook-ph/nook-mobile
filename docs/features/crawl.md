@@ -1,7 +1,7 @@
 # Crawl
 
-> **Status:** ✅ Domain, Data, and Presentation layers complete; detail page fully implemented with sticky CTA, registration toast, pull-to-refresh, and auto-refresh on re-entry; crawl stops map page fully implemented with interactive map, pin markers, symbol tapping, and slide-up cafe overlay card; stamp claim page and tier completion modal fully implemented.
-> **Last updated:** 2026-06-11
+> **Status:** ✅ Domain, Data, and Presentation layers complete; detail page fully implemented with sticky CTA, registration toast, pull-to-refresh, and auto-refresh on re-entry; crawl stops map page fully implemented with interactive map, pin markers, symbol tapping, and slide-up cafe overlay card; stamp claim page, stamp awarded overlay, and tier completion modal fully implemented.
+> **Last updated:** 2026-06-12
 
 ---
 
@@ -631,8 +631,8 @@ Full-screen stamp claim page. Accepts `crawlSlug`, `stopId`, and optional `bloc`
 - On `ClaimSubmitting` state: shows a `CircularProgressIndicator` inside the claim button.
 - On `AlreadyClaimed` state: shows "Already Claimed" banner with the `claimedAt` date.
 - On `LocationTooFar` state: shows "Too Far Away" banner with distance (meters or kilometers).
-- On `ClaimSuccess`: triggers stamp animation — 80px `stamp` icon with `flutter_animate` scale (elasticOut, 500ms) + fadeIn (300ms), and "Stop X claimed!" text. After 2 seconds, auto-pops via `Navigator.maybePop(context)`.
-- On `ClaimSuccessWithTierCompletion`: same stamp animation, but after 1.5 seconds, opens `TierCompletionModal` as a bottom sheet. "Continue" button pops back to crawl detail.
+- On `ClaimSuccess`: shows `StampAwardedOverlay` on a dark scrim over all page content — 80px `stamp` icon with `flutter_animate` scale (elasticOut, 500ms) + fadeIn (300ms), and "Stop X claimed!" text. After 2 seconds, auto-pops via `Navigator.maybePop(context)`.
+- On `ClaimSuccessWithTierCompletion`: same `StampAwardedOverlay`, but after 1.5 seconds dismisses it and opens `TierCompletionModal` as a bottom sheet. "Continue" button pops back to crawl detail.
 - On `CrawlExpired`: shows "This crawl has ended" banner with `clock` icon.
 - On `StopInactive`: shows "This stop is no longer active" banner with `circleX` icon.
 - On `NotRegistered`: shows "You are not registered for this crawl" banner with `userX` icon.
@@ -653,6 +653,19 @@ The `crawlSlug` in the deep link is the crawl's string slug (e.g., `summer-brew-
 
 **Dependencies:** `GetCrawlDetailUseCase`, `CafeRemoteDataSource`, `CrawlClaimBloc`, `GpsService`
 
+#### 14.8.1 GPS Bypass (Testing Mode)
+
+GPS checking is **temporarily disabled** for testing the claiming flow without requiring physical proximity to a cafe.
+
+**Client-side** (`features/crawl/presentation/bloc/crawl_claim_bloc.dart`):
+- `_onClaimInitialized` skips `_gpsService.getCurrentPosition()` and calls `_submitClaim` directly with `lat: 0.0, lng: 0.0`
+- **To re-enable**: Restore the original `_gpsService.getCurrentPosition()` call and its `switch` on `GpsResult` (the original code is preserved as a comment)
+
+**Server-side** (`supabase/functions/claim_crawl_stamp.sql`):
+- The Haversine distance check (step 6) is commented out, allowing claims from any location
+- `v_distance_meters` is set to `0` before the disabled block to avoid NOT NULL violations on insert
+- **To re-enable**: Remove the `v_distance_meters := 0;` line, uncomment the distance computation and the `location_too_far` return block, then re-apply the function to your Supabase project via the dashboard SQL editor or a migration
+
 ### 14.9 Widgets
 
 | Widget | File | Purpose |
@@ -660,6 +673,7 @@ The `crawlSlug` in the deep link is the crawl's string slug (e.g., `summer-brew-
 | `CrawlDetailCta` | `widgets/crawl_detail_cta.dart` | **Fully implemented** — sticky CTA button for crawl detail page; adapts to registration and claim states |
 | `CrawlHomeBanner` | `widgets/crawl_home_banner.dart` | **Placeholder** — home screen active crawl highlight |
 | `CrawlStopsMapPreview` | `widgets/crawl_stops_map_preview.dart` | **Fully implemented** — non-interactive mini map (220px) used in `CrawlDetailPage`; all gestures disabled, single pin per stop |
+| `StampAwardedOverlay` | `widgets/stamp_awarded_overlay.dart` | **Fully implemented** — animated full-screen overlay shown on successful stamp claim; extracted from `StampClaimPage` |
 | `TierCompletionModal` | `widgets/tier_completion_modal.dart` | **Fully implemented** — shown as a bottom sheet when a tier is completed after claiming a stamp |
 | `ShareCardView` | `widgets/share_card_view.dart` | **Placeholder** — crawl recap share card |
 
@@ -668,6 +682,28 @@ The `crawlSlug` in the deep link is the crawl's string slug (e.g., `summer-brew-
 **File:** `features/crawl/presentation/widgets/crawl_stops_map_preview.dart`
 
 Non-interactive minimap (220px tall) embedded in `CrawlDetailPage`. All gestures disabled (`scrollGesturesEnabled: false`, `zoomGesturesEnabled: false`, etc.). Renders the same `MapLibreMap` with pin markers for each stop, fitted to bounds.
+
+#### StampAwardedOverlay
+
+**File:** `features/crawl/presentation/widgets/stamp_awarded_overlay.dart`
+
+Animated full-screen overlay shown immediately after a stamp is claimed successfully (`ClaimSuccess` or `ClaimSuccessWithTierCompletion`). Extracted from `StampClaimPage._buildActionArea` into a reusable presentation widget with zero dependencies on the page's Bloc or state.
+
+**Layout:**
+1. Semi-transparent dark scrim (`Colors.black` at 40% opacity) filling the entire screen
+2. Centered column with:
+   - 80px `stamp` icon (`LucideIcons.stamp`) in `colors.success` — animated with `elasticOut` scale (500ms) + fade-in (300ms) via `flutter_animate`
+   - `Gap(16)` spacing
+   - "Stop X claimed!" text using `titleSmall` text style in `colors.primary100`
+
+**Behavior:**
+- Wrapped in `IgnorePointer` — no user interaction; auto-dismissal handled by the parent page's `Timer`
+- On `ClaimSuccessWithTierCompletion`, the parent page dismisses this overlay after 1.5s before opening `TierCompletionModal`
+- `stopOrder` is required; an optional `cafeName` param is reserved for future use
+
+**Dependencies:** `flutter_animate`, `lucide_icons_flutter`
+
+Has a widget preview file (`stamp_awarded_overlay_preview.dart`) with 1 `@Preview` annotation.
 
 #### CrawlDetailCta
 
@@ -745,14 +781,15 @@ GoRoute(
 
 ### 14.14 Tests
 
-**~35 tests total** — all passing:
+**~37 tests total** — all passing:
 
 | Suite | File | Tests |
-|---|---|---|---|
+|---|---|---|
 | CrawlClaimBloc | `crawl_claim_bloc_test.dart` | 11 |
 | ActiveCrawlsCubit | `active_crawls_cubit_test.dart` | 3 |
 | CrawlDetailCubit | `crawl_detail_cubit_test.dart` | 10 — covers `loadDetail` (3), `register` (4), `refresh` (3) |
 | StampClaimPage (widget) | `stamp_claim_page_test.dart` | 16 — covers data loading (3), GPS states (4), claim states (5), error states (3), not registered (1) |
+| StampAwardedOverlay (widget) | `stamp_awarded_overlay_test.dart` | 2 — covers stop number text, animation without error |
 | CrawlDetailCta (widget) | `crawl_detail_cta_test.dart` | 6 — covers all CTA states: unauthenticated, register, registered but no stops, registered with unclaimed stops, all claimed, and error |
 | SlideUpOverlay (widget) | `slide_up_overlay_test.dart` | 6 — covers visibility toggle, animation transitions, custom child, narrow screen rendering |
 

@@ -28,10 +28,11 @@ void registerCrawlPresentation() {
   );
 
   // Blocs
+  // GPS bypass: gpsService param removed for testing. To re-enable, add
+  // gpsService: sl<GpsService>() back and restore the field in CrawlClaimBloc.
   sl.registerFactory<CrawlClaimBloc>(
     () => CrawlClaimBloc(
       claimStampUseCase: sl<ClaimStampUseCase>(),
-      gpsService: sl<GpsService>(),
     ),
   );
 }

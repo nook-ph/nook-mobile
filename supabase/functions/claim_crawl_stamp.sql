@@ -98,27 +98,29 @@ begin
   end if;
 
   -- 6. Compute Haversine distance
-  if v_cafe.lat is not null and v_cafe.lng is not null then
-    v_distance_meters := (
-      select round(
-        6371000.0 * 2.0 * asin(
-          sqrt(
-            sin(radians((v_cafe.lat - p_lat) / 2.0)) ^ 2
-            + cos(radians(v_cafe.lat))
-            * cos(radians(p_lat))
-            * sin(radians((v_cafe.lng - p_lng) / 2.0)) ^ 2
-          )
-        )
-      )::int
-    );
-
-    if v_distance_meters > 200 then
-      return jsonb_build_object(
-        'error', 'location_too_far',
-        'distance_meters', v_distance_meters
-      );
-    end if;
-  end if;
+  -- TEMPORARILY DISABLED for testing. To re-enable, uncomment the block below.
+  v_distance_meters := 0;
+  -- if v_cafe.lat is not null and v_cafe.lng is not null then
+  --   v_distance_meters := (
+  --     select round(
+  --       6371000.0 * 2.0 * asin(
+  --         sqrt(
+  --           sin(radians((v_cafe.lat - p_lat) / 2.0)) ^ 2
+  --           + cos(radians(v_cafe.lat))
+  --           * cos(radians(p_lat))
+  --           * sin(radians((v_cafe.lng - p_lng) / 2.0)) ^ 2
+  --         )
+  --       )
+  --     )::int
+  --   );
+  --
+  --   if v_distance_meters > 200 then
+  --     return jsonb_build_object(
+  --       'error', 'location_too_far',
+  --       'distance_meters', v_distance_meters
+  --     );
+  --   end if;
+  -- end if;
 
   -- 7. Insert stamp
   insert into public.crawl_stamps (

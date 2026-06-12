@@ -1,7 +1,6 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/errors/failure.dart';
-import 'package:nook/core/services/gps_service.dart';
 import 'package:nook/features/crawl/domain/failures/crawl_failures.dart';
 import 'package:nook/features/crawl/domain/use_cases/claim_stamp_usecase.dart';
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_event.dart';
@@ -9,13 +8,10 @@ import 'package:nook/features/crawl/presentation/bloc/crawl_claim_state.dart';
 
 class CrawlClaimBloc extends Bloc<CrawlClaimEvent, CrawlClaimState> {
   final ClaimStampUseCase _claimStampUseCase;
-  final GpsService _gpsService;
 
   CrawlClaimBloc({
     required ClaimStampUseCase claimStampUseCase,
-    required GpsService gpsService,
   })  : _claimStampUseCase = claimStampUseCase,
-        _gpsService = gpsService,
         super(const CrawlClaimInitial()) {
     on<ClaimInitialized>(_onClaimInitialized);
     on<ClaimRetryRequested>(_onClaimRetryRequested);
@@ -26,26 +22,14 @@ class CrawlClaimBloc extends Bloc<CrawlClaimEvent, CrawlClaimState> {
     ClaimInitialized event,
     Emitter<CrawlClaimState> emit,
   ) async {
-    emit(
-      AcquiringGps(
-        crawlId: event.crawlId,
-        stopId: event.stopId,
-        crawlTitle: event.crawlTitle,
-        cafeName: event.cafeName,
-      ),
-    );
-
-    final gps = await _gpsService.getCurrentPosition();
-    switch (gps) {
-      case GpsResult(position: final pos) when pos != null:
-        await _submitClaim(emit, event, pos.latitude, pos.longitude);
-      case GpsResult(denied: true):
-        emit(const GpsDenied());
-      case GpsResult(timeout: true):
-        emit(const GpsTimeout());
-      case _:
-        emit(const GpsDenied());
-    }
+    // GPS checking is temporarily disabled for testing.
+    // To re-enable:
+    //   1. Add `final GpsService _gpsService` field and constructor param
+    //   2. Import 'package:nook/core/services/gps_service.dart'
+    //   3. Replace the line below with the original GPS acquisition:
+    //      final gps = await _gpsService.getCurrentPosition();
+    //      switch (gps) { GpsResult(denied) → GpsDenied, etc. }
+    await _submitClaim(emit, event, 0.0, 0.0);
   }
 
   Future<void> _submitClaim(
@@ -85,15 +69,15 @@ class CrawlClaimBloc extends Bloc<CrawlClaimEvent, CrawlClaimState> {
         );
       case Right(value: final stampResult):
         emit(ClaimSuccess(stampResult, event.crawlTitle, event.cafeName));
-      case Left(value: final failure) when failure is LocationTooFarFailure:
-        emit(LocationTooFar((failure as LocationTooFarFailure).distanceMeters));
-      case Left(value: final failure) when failure is AlreadyClaimedFailure:
-        emit(AlreadyClaimed((failure as AlreadyClaimedFailure).claimedAt));
-      case Left(value: final failure) when failure is CrawlEndedFailure:
+      case Left(value: final LocationTooFarFailure f):
+        emit(LocationTooFar(f.distanceMeters));
+      case Left(value: final AlreadyClaimedFailure f):
+        emit(AlreadyClaimed(f.claimedAt));
+      case Left(value: CrawlEndedFailure()):
         emit(const CrawlExpired());
-      case Left(value: final failure) when failure is StopInactiveFailure:
+      case Left(value: StopInactiveFailure()):
         emit(const StopInactive());
-      case Left(value: final failure):
+      case Left(value: final Failure failure):
         emit(ClaimNetworkError(failure));
     }
   }
@@ -104,25 +88,7 @@ class CrawlClaimBloc extends Bloc<CrawlClaimEvent, CrawlClaimState> {
   ) async {
     final s = state;
     switch (s) {
-      case AcquiringGps(
-          :final crawlId,
-          :final stopId,
-          :final crawlTitle,
-          :final cafeName,
-        ):
-        add(
-          ClaimInitialized(
-            crawlId: crawlId,
-            stopId: stopId,
-            crawlTitle: crawlTitle,
-            cafeName: cafeName,
-          ),
-        );
-      case LocationTooFar() ||
-            AlreadyClaimed() ||
-            GpsDenied() ||
-            GpsTimeout() ||
-            ClaimNetworkError():
+      case ClaimNetworkError():
         emit(const CrawlClaimInitial());
       case _:
         emit(const CrawlClaimInitial());

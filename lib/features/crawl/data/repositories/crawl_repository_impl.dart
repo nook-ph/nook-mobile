@@ -79,6 +79,12 @@ class CrawlRepositoryImpl implements ICrawlRepository {
       return Left(CrawlEndedFailure());
     } on StopInactiveException {
       return Left(StopInactiveFailure());
+    } on StopNotFoundException {
+      return Left(StopInactiveFailure());
+    } on CrawlNotFoundException {
+      return Left(CrawlNotFoundFailure());
+    } on NotAuthenticatedException catch (e) {
+      return Left(Failure(e.toString()));
     } catch (e, st) {
       return Left(_mapToFailure(e, st));
     }

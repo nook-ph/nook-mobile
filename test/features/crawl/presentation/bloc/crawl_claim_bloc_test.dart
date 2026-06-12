@@ -1,11 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:nook/core/errors/failure.dart';
-import 'package:nook/core/services/gps_service.dart';
 import 'package:nook/features/crawl/domain/entities/stamp_claim_result.dart';
 import 'package:nook/features/crawl/domain/entities/crawl_stamp.dart';
 import 'package:nook/features/crawl/domain/failures/crawl_failures.dart';
@@ -16,7 +14,6 @@ import 'package:nook/features/crawl/presentation/bloc/crawl_claim_state.dart';
 
 @GenerateNiceMocks([
   MockSpec<ClaimStampUseCase>(),
-  MockSpec<GpsService>(),
 ])
 import 'crawl_claim_bloc_test.mocks.dart';
 
@@ -24,21 +21,6 @@ const _crawlId = 'crawl-1';
 const _stopId = 'stop-1';
 const _crawlTitle = 'Cebu City Crawl';
 const _cafeName = 'Coffee Co.';
-
-Position _fakePosition(double lat, double lng) {
-  return Position(
-    longitude: lng,
-    latitude: lat,
-    timestamp: DateTime.now(),
-    accuracy: 10,
-    altitude: 0,
-    heading: 0,
-    speed: 0,
-    speedAccuracy: 0,
-    altitudeAccuracy: 0,
-    headingAccuracy: 0,
-  );
-}
 
 CrawlStamp _fakeStamp() {
   return CrawlStamp(
@@ -54,15 +36,12 @@ CrawlStamp _fakeStamp() {
 
 void main() {
   late MockClaimStampUseCase mockClaimUseCase;
-  late MockGpsService mockGps;
   late CrawlClaimBloc bloc;
 
   setUp(() {
     mockClaimUseCase = MockClaimStampUseCase();
-    mockGps = MockGpsService();
     bloc = CrawlClaimBloc(
       claimStampUseCase: mockClaimUseCase,
-      gpsService: mockGps,
     );
   });
 
@@ -72,12 +51,9 @@ void main() {
 
   group('ClaimInitialized', () {
     blocTest<CrawlClaimBloc, CrawlClaimState>(
-      'emits [AcquiringGps, ClaimSubmitting, ClaimSuccess] on happy path',
+      'emits [ClaimSubmitting, ClaimSuccess] on happy path',
       build: () => bloc,
       setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => GpsResult(position: _fakePosition(10.3, 123.9)),
-        );
         when(mockClaimUseCase.call(
           crawlId: anyNamed('crawlId'),
           stopId: anyNamed('stopId'),
@@ -98,7 +74,6 @@ void main() {
         ),
       ),
       expect: () => [
-        isA<AcquiringGps>(),
         isA<ClaimSubmitting>(),
         isA<ClaimSuccess>(),
       ],
@@ -108,9 +83,6 @@ void main() {
       'emits ClaimSuccessWithTierCompletion when tier is completed',
       build: () => bloc,
       setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => GpsResult(position: _fakePosition(10.3, 123.9)),
-        );
         when(mockClaimUseCase.call(
           crawlId: anyNamed('crawlId'),
           stopId: anyNamed('stopId'),
@@ -141,7 +113,6 @@ void main() {
         ),
       ),
       expect: () => [
-        isA<AcquiringGps>(),
         isA<ClaimSubmitting>(),
         isA<ClaimSuccessWithTierCompletion>(),
       ],
@@ -151,9 +122,6 @@ void main() {
       'emits LocationTooFar when distance check fails',
       build: () => bloc,
       setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => GpsResult(position: _fakePosition(10.3, 123.9)),
-        );
         when(mockClaimUseCase.call(
           crawlId: anyNamed('crawlId'),
           stopId: anyNamed('stopId'),
@@ -172,7 +140,6 @@ void main() {
         ),
       ),
       expect: () => [
-        isA<AcquiringGps>(),
         isA<ClaimSubmitting>(),
         isA<LocationTooFar>(),
       ],
@@ -186,9 +153,6 @@ void main() {
       'emits AlreadyClaimed when stamp was already collected',
       build: () => bloc,
       setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => GpsResult(position: _fakePosition(10.3, 123.9)),
-        );
         when(mockClaimUseCase.call(
           crawlId: anyNamed('crawlId'),
           stopId: anyNamed('stopId'),
@@ -209,53 +173,8 @@ void main() {
         ),
       ),
       expect: () => [
-        isA<AcquiringGps>(),
         isA<ClaimSubmitting>(),
         isA<AlreadyClaimed>(),
-      ],
-    );
-
-    blocTest<CrawlClaimBloc, CrawlClaimState>(
-      'emits GpsDenied when location permission is denied',
-      build: () => bloc,
-      setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => const GpsResult(denied: true),
-        );
-      },
-      act: (bloc) => bloc.add(
-        const ClaimInitialized(
-          crawlId: _crawlId,
-          stopId: _stopId,
-          crawlTitle: _crawlTitle,
-          cafeName: _cafeName,
-        ),
-      ),
-      expect: () => [
-        isA<AcquiringGps>(),
-        isA<GpsDenied>(),
-      ],
-    );
-
-    blocTest<CrawlClaimBloc, CrawlClaimState>(
-      'emits GpsTimeout when GPS times out',
-      build: () => bloc,
-      setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => const GpsResult(timeout: true),
-        );
-      },
-      act: (bloc) => bloc.add(
-        const ClaimInitialized(
-          crawlId: _crawlId,
-          stopId: _stopId,
-          crawlTitle: _crawlTitle,
-          cafeName: _cafeName,
-        ),
-      ),
-      expect: () => [
-        isA<AcquiringGps>(),
-        isA<GpsTimeout>(),
       ],
     );
 
@@ -263,9 +182,6 @@ void main() {
       'emits CrawlExpired when the crawl has ended',
       build: () => bloc,
       setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => GpsResult(position: _fakePosition(10.3, 123.9)),
-        );
         when(mockClaimUseCase.call(
           crawlId: anyNamed('crawlId'),
           stopId: anyNamed('stopId'),
@@ -282,7 +198,6 @@ void main() {
         ),
       ),
       expect: () => [
-        isA<AcquiringGps>(),
         isA<ClaimSubmitting>(),
         isA<CrawlExpired>(),
       ],
@@ -292,9 +207,6 @@ void main() {
       'emits StopInactive when the stop is not active',
       build: () => bloc,
       setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => GpsResult(position: _fakePosition(10.3, 123.9)),
-        );
         when(mockClaimUseCase.call(
           crawlId: anyNamed('crawlId'),
           stopId: anyNamed('stopId'),
@@ -311,7 +223,6 @@ void main() {
         ),
       ),
       expect: () => [
-        isA<AcquiringGps>(),
         isA<ClaimSubmitting>(),
         isA<StopInactive>(),
       ],
@@ -321,9 +232,6 @@ void main() {
       'emits ClaimNetworkError on generic failure',
       build: () => bloc,
       setUp: () {
-        when(mockGps.getCurrentPosition()).thenAnswer(
-          (_) async => GpsResult(position: _fakePosition(10.3, 123.9)),
-        );
         when(mockClaimUseCase.call(
           crawlId: anyNamed('crawlId'),
           stopId: anyNamed('stopId'),
@@ -340,7 +248,6 @@ void main() {
         ),
       ),
       expect: () => [
-        isA<AcquiringGps>(),
         isA<ClaimSubmitting>(),
         isA<ClaimNetworkError>(),
       ],
@@ -351,7 +258,7 @@ void main() {
     blocTest<CrawlClaimBloc, CrawlClaimState>(
       're-emits CrawlClaimInitial from error states',
       build: () => bloc,
-      seed: () => const GpsDenied(),
+      seed: () => ClaimNetworkError(Failure('error')),
       act: (bloc) => bloc.add(const ClaimRetryRequested()),
       expect: () => [isA<CrawlClaimInitial>()],
     );

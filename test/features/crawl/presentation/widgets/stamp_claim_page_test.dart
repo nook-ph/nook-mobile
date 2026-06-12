@@ -6,7 +6,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:nook/core/errors/failure.dart';
-import 'package:nook/core/services/gps_service.dart';
 import 'package:nook/features/crawl/domain/entities/crawl.dart';
 import 'package:nook/features/crawl/domain/entities/crawl_detail.dart';
 import 'package:nook/features/crawl/domain/entities/crawl_stamp.dart';
@@ -17,10 +16,10 @@ import 'package:nook/features/crawl/domain/use_cases/get_crawl_detail_usecase.da
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_bloc.dart';
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_state.dart';
 import 'package:nook/features/crawl/presentation/pages/stamp_claim_page.dart';
+import 'package:nook/features/crawl/presentation/widgets/stamp_awarded_overlay.dart';
 
 @GenerateNiceMocks([
   MockSpec<ClaimStampUseCase>(),
-  MockSpec<GpsService>(),
   MockSpec<GetCrawlDetailUseCase>(),
 ])
 import 'stamp_claim_page_test.mocks.dart';
@@ -90,24 +89,18 @@ CrawlDetail _fakeCrawlDetail() {
 
 void main() {
   late MockClaimStampUseCase mockClaimUseCase;
-  late MockGpsService mockGps;
   late MockGetCrawlDetailUseCase mockGetDetail;
   late CrawlClaimBloc bloc;
 
   setUp(() {
     mockClaimUseCase = MockClaimStampUseCase();
-    mockGps = MockGpsService();
     mockGetDetail = MockGetCrawlDetailUseCase();
     bloc = CrawlClaimBloc(
       claimStampUseCase: mockClaimUseCase,
-      gpsService: mockGps,
     );
 
     when(mockGetDetail.call(any)).thenAnswer(
       (_) async => Right(_fakeCrawlDetail()),
-    );
-    when(mockGps.getCurrentPosition()).thenAnswer(
-      (_) async => const GpsResult(denied: true),
     );
     when(mockClaimUseCase.call(
       crawlId: anyNamed('crawlId'),
@@ -176,9 +169,8 @@ void main() {
     });
 
     testWidgets('shows GPS denied message', (WidgetTester tester) async {
+      bloc.emit(const GpsDenied());
       await tester.pumpWidget(_buildTestWidget());
-      // Let _loadPageData and bloc event handler complete
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pump();
 
       expect(find.text('Enable location access in Settings'), findsOneWidget);
@@ -186,8 +178,8 @@ void main() {
 
     testWidgets('shows Open Settings link when GPS denied',
         (WidgetTester tester) async {
+      bloc.emit(const GpsDenied());
       await tester.pumpWidget(_buildTestWidget());
-      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
       await tester.pump();
 
       expect(find.text('Open Settings'), findsOneWidget);
@@ -242,7 +234,7 @@ void main() {
       expect(find.textContaining('2.5 km'), findsOneWidget);
     });
 
-    testWidgets('shows stamp animation on success',
+    testWidgets('shows stamp overlay on success',
         (WidgetTester tester) async {
       final result = StampClaimResult(stamp: _fakeStamp());
       await tester.pumpWidget(_buildTestWidget());
@@ -253,6 +245,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
+      expect(find.byType(StampAwardedOverlay), findsOneWidget);
+      expect(find.byIcon(LucideIcons.stamp), findsOneWidget);
       expect(find.text('Stop 3 claimed!'), findsOneWidget);
 
       await tester.pump(const Duration(seconds: 3));
@@ -296,7 +290,6 @@ void main() {
 
       bloc = CrawlClaimBloc(
         claimStampUseCase: mockClaimUseCase,
-        gpsService: mockGps,
       );
 
       await tester.pumpWidget(_buildTestWidget());
