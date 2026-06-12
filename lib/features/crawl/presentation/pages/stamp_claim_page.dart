@@ -19,8 +19,10 @@ import 'package:nook/features/crawl/domain/use_cases/get_crawl_detail_usecase.da
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_bloc.dart';
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_event.dart';
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_state.dart';
+import 'package:nook/features/crawl/presentation/cubit/share_card_cubit.dart';
 import 'package:nook/features/crawl/presentation/pages/share_cafe_stop_page.dart';
 import 'package:nook/features/crawl/presentation/widgets/stamp_awarded_overlay.dart';
+import 'package:nook/features/crawl/presentation/widgets/share_card_view.dart';
 import 'package:nook/features/crawl/presentation/widgets/tier_completion_modal.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
@@ -49,6 +51,8 @@ class StampClaimPage extends StatefulWidget {
 class _StampClaimPageState extends State<StampClaimPage>
     with SingleTickerProviderStateMixin {
   late final CrawlClaimBloc _bloc;
+  late final ShareCardCubit _shareCardCubit;
+  final _shareCardKey = GlobalKey();
   late final GetCrawlDetailUseCase? _getCrawlDetailUseCase;
   late final CafeRemoteDataSource? _cafeRemoteDataSource;
 
@@ -69,6 +73,7 @@ class _StampClaimPageState extends State<StampClaimPage>
   void initState() {
     super.initState();
     _bloc = widget.bloc ?? sl<CrawlClaimBloc>();
+    _shareCardCubit = sl<ShareCardCubit>();
     _getCrawlDetailUseCase = widget.getCrawlDetailUseCase;
     _cafeRemoteDataSource = widget.cafeRemoteDataSource;
 
@@ -145,6 +150,9 @@ class _StampClaimPageState extends State<StampClaimPage>
             _isDataLoading = false;
           });
 
+          _shareCardCubit.setShareCardKey(_shareCardKey);
+          _shareCardCubit.loadData(detail.crawl.id);
+
           _bloc.add(
             ClaimInitialized(
               crawlId: detail.crawl.id,
@@ -192,9 +200,11 @@ class _StampClaimPageState extends State<StampClaimPage>
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<CrawlClaimBloc>.value(
-      value: _bloc,
-      child: BlocConsumer<CrawlClaimBloc, CrawlClaimState>(
+    return BlocProvider<ShareCardCubit>.value(
+      value: _shareCardCubit,
+      child: BlocProvider<CrawlClaimBloc>.value(
+        value: _bloc,
+        child: BlocConsumer<CrawlClaimBloc, CrawlClaimState>(
         listener: (context, state) {
           switch (state) {
             case ClaimSuccess(:final result):
@@ -340,12 +350,20 @@ class _StampClaimPageState extends State<StampClaimPage>
                       onClose: _onOverlayClose,
                       onShare: _navigateToShare,
                     ),
+                  Positioned(
+                    left: -9999, top: 0,
+                    child: RepaintBoundary(
+                      key: _shareCardKey,
+                      child: const ShareCardView(),
+                    ),
+                  ),
                 ],
               ),
             ),
           );
         },
       ),
+    ),
     );
   }
 
@@ -692,7 +710,7 @@ class _StampClaimPageState extends State<StampClaimPage>
       ),
       builder: (_) => TierCompletionModal(
         tier: tier,
-        onShare: () {},
+        shareCardKey: _shareCardKey,
         onContinue: () {
           Navigator.pop(context);
           context.pop();

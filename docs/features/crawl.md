@@ -1,6 +1,6 @@
 # Crawl
 
-> **Status:** ✅ Domain, Data, and Presentation layers complete; detail page fully implemented with sticky CTA, registration toast, pull-to-refresh, and auto-refresh on re-entry; crawl stops map page fully implemented with interactive map, pin markers, symbol tapping, and slide-up cafe overlay card; stamp claim page, stamp awarded overlay, and tier completion modal fully implemented.
+> **Status:** ✅ Domain, Data, and Presentation layers complete. Share card fully implemented: `CrawlShareCard` composes `ShareCardStampHero`, `ShareCardStats`, and `ShareCardFooter` into a 360×640 card; `ShareCardView` uses `BlocBuilder<ShareCardCubit>` to reactively render; `ShareCardCubit` stores a `GlobalKey` internally and offers parameterless `captureAndShare()`; both `CrawlDetailPage` and `StampClaimPage` host their own `BlocProvider<ShareCardCubit>`, off-screen `RepaintBoundary`, and `ShareCardView`; `TierCompletionModal` replaced `VoidCallback onShare` with `GlobalKey shareCardKey` prop and handles loading/spinner + error SnackBar via `BlocListener`.
 > **Last updated:** 2026-06-12
 
 ---
@@ -84,8 +84,10 @@ lib/
 │       │   ├── active_crawls_state.dart
 │       │   ├── crawl_detail_cubit.dart
 │       │   ├── crawl_detail_state.dart
-│       │   ├── crawl_stops_map_cubit.dart   # Loads CafeSummary data for stops map
-│       │   └── crawl_stops_map_state.dart   # sealed: Initial, Loading, Loaded, Error
+│       │   ├── crawl_stops_map_cubit.dart          # Loads CafeSummary data for stops map
+│       │   ├── crawl_stops_map_state.dart          # sealed: Initial, Loading, Loaded, Error
+│       │   ├── share_card_cubit.dart               # Loads data & handles capture/share
+│       │   └── share_card_state.dart               # sealed: Initial, Loading, Ready, Capturing, Shared, Error
 │       ├── pages/
 │       │   ├── stamp_claim_page.dart        # Fully implemented — GPS, animation, tier completion flow
 │       │   ├── crawl_detail_page.dart       # Fully implemented — sticky CTA, refresh, progress card, map preview
@@ -96,7 +98,13 @@ lib/
 │       │   ├── crawl_home_banner.dart       # Placeholder
 │       │   ├── crawl_stops_map_preview.dart # Non-interactive mini map for detail page
 │       │   ├── tier_completion_modal.dart   # Fully implemented — badge, share, continue buttons
-│       │   └── share_card_view.dart         # Placeholder
+│       │   ├── share_card/
+│       │   │   ├── crawl_share_card.dart              # Full 360×640 share card composition
+│       │   │   ├── share_card_stamp_hero.dart         # Stamp seal hero section of share card
+│       │   │   ├── share_card_stamp_hero_preview.dart # Preview file
+│       │   │   ├── share_card_stats.dart              # 3-column stat section (STOPS/LATEST/CRAWL or STOPS/TIER/CRAWL)
+│       │   │   └── share_card_footer.dart             # Nook wordmark + crawl title footer
+│       │   └── share_card_view.dart         # BlocBuilder bridge, renders CrawlShareCard on Ready
 │       ├── deep_link/
 │       │   └── crawl_deep_link_handler.dart
 │       └── injection/
@@ -359,6 +367,7 @@ CrawlClaimBloc
 | `flutter_bloc` | BLoC + Cubit state management |
 | `equatable` | Value equality for state/event classes |
 | `geolocator` | GPS position acquisition for stamp claiming |
+| `image_gallery_saver_plus` | Save share card PNG bytes to device camera roll |
 | `go_router` | Navigation, deep links, route params |
 | `cached_network_image` | Cafe photo caching with `CustomCacheManager` |
 | `flutter_animate` | Stamp success animation (scale + fadeIn) |
@@ -533,7 +542,38 @@ Simple fetch cubit that loads `CafeSummary` data for the crawl stops map, filter
 
 Not registered in DI — created inline in `CrawlStopsMapPage` via `BlocProvider(create: ...)`.
 
-### 14.7 Deep Link Handler
+### 14.7 ShareCardCubit
+
+**File:** `features/crawl/presentation/cubit/share_card_cubit.dart`
+
+Manages share card data loading and the capture-and-share flow (render → PNG → gallery → share sheet).
+
+**States (6, sealed):**
+
+| State | Fields | Meaning |
+|---|---|---|
+| `ShareCardInitial` | — | Not loaded |
+| `ShareCardLoading` | — | Fetching share card data |
+| `ShareCardReady` | `data` | Share card data available for rendering |
+| `ShareCardCapturing` | — | Image capture in progress |
+| `ShareCardShared` | — | Capture done, share sheet launched |
+| `ShareCardError` | `message` | Loading or capture failed |
+
+**Methods:**
+
+- `loadData(String crawlId)` — emits `Loading` → calls `GetShareCardDataUseCase` → `Ready(data)` or `Error(failure.message)`
+- `setShareCardKey(GlobalKey key)` — stores the `GlobalKey` internally in `_shareCardKey` for later capture
+- `captureAndShare()` — no parameters; emits `Capturing` → reads `_shareCardKey` (throws if null) → finds `RenderRepaintBoundary` → `toImage(pixelRatio: 3.0)` → PNG bytes via `toByteData(ImageByteFormat.png)` → saves to gallery via `ImageGallerySaver.saveImage(bytes)` → writes temp file via `path_provider` → launches OS share sheet via `SharePlus.instance.share(ShareParams(files: [...]))` → emits `Shared`. Catches any exception and emits `Error(e.toString())`
+
+**Capture dimensions:** 360×640 logical pixels at `pixelRatio: 3.0` → 1080×1920 output (Instagram Stories ratio).
+
+**Share trigger:** Called from `TierCompletionModal`'s share button via `context.read<ShareCardCubit>().captureAndShare()` — no key passing needed since the cubit stores the `GlobalKey` internally.
+
+**Note:** `ShareCardCubit` is registered as `registerFactory` in DI. Each hosting page (`CrawlDetailPage`, `StampClaimPage`) provides its own `BlocProvider<ShareCardCubit>` instance, so cubits are never shared across pages. Each page also owns its own `GlobalKey` and `RepaintBoundary`.
+
+**Dependencies:** `GetShareCardDataUseCase`, `image_gallery_saver_plus`, `share_plus`, `path_provider`
+
+### 14.8 Deep Link Handler
 
 **File:** `features/crawl/presentation/deep_link/crawl_deep_link_handler.dart`
 
@@ -549,7 +589,7 @@ Integrated in `main.dart` via `_handleIncomingLink` — rewrites URI path to GoR
 - **Android:** `AndroidManifest.xml` intent filter for `nook://` scheme
 - **iOS:** `Info.plist` `FlutterDeepLinkingEnabled` + `CFBundleURLTypes`
 
-### 14.8 Pages
+### 14.9 Pages
 
 | Page | File | State |
 |---|---|---|---|
@@ -583,6 +623,15 @@ Accepts `crawlSlug` and uses `CrawlDetailCubit`. Implemented as a `StatefulWidge
 - Uses `BlocConsumer` (instead of `BlocBuilder`) to listen for `CrawlDetailRegisterSuccess` state
 - On that state, calls `showPrimaryToast(context, 'Successfully registered for the crawl!')`
 - Renders `CrawlDetailLoaded` content normally (body and CTA unchanged)
+
+**Share card infrastructure:**
+- Owns a `_shareCardKey` (`GlobalKey`) and `_shareCardCubit` (`ShareCardCubit`) created in `initState`
+- Wraps the existing `BlocProvider<CrawlDetailCubit>.value` in a nested `BlocProvider<ShareCardCubit>.value` so both cubits are available to the page tree
+- In the `BlocConsumer<CrawlDetailCubit, CrawlDetailState>` listener branch: when `state` is `CrawlDetailLoaded`, calls `_shareCardCubit.loadData(state.detail.crawl.id)` to pre-load share card data
+- The `Scaffold` body is wrapped in a `Stack` that contains:
+  1. The normal scrollable body content
+  2. An off-screen `RepaintBoundary(key: _shareCardKey, child: ShareCardView())` — positioned with `top: 0, left: 0, width: 360, height: 640` and `Transform.scale(scale: 1, ...)` at `Offset(0, -660)` to render invisibly off-screen
+- In `build`: calls `_shareCardCubit.setShareCardKey(_shareCardKey)` so the cubit knows which `RepaintBoundary` to capture
 
 **Dependencies:** `GetCrawlDetailUseCase`, `RegisterForCrawlUseCase`, `GoRouter`
 
@@ -651,9 +700,16 @@ nook://crawl/{crawlSlug}/stop/{stopId}/claim
 ```
 The `crawlSlug` in the deep link is the crawl's string slug (e.g., `summer-brew-trail`), not a UUID. The `stopId` is a UUID. This link is what each cafe's QR code encodes.
 
+**Share card infrastructure:**
+- Owns a `_shareCardKey` (`GlobalKey`) and `_shareCardCubit` (`ShareCardCubit`) created in `initState`
+- Wraps the existing `BlocProvider<CrawlClaimBloc>.value` in a nested `BlocProvider<ShareCardCubit>.value` so both bloc/cubit are available to the page tree
+- In `_loadPageData()`: after successfully loading crawl detail, calls `_shareCardCubit.setShareCardKey(_shareCardKey)` and `_shareCardCubit.loadData(crawlDetail.crawl.id)` in a `WidgetsBinding.instance.addPostFrameCallback` (ensures the `RepaintBoundary` is mounted before the key is stored)
+- The existing `Stack` wrapping the `Scaffold` body is extended with an off-screen `RepaintBoundary(key: _shareCardKey, child: ShareCardView())` — identical positioning to `CrawlDetailPage` (`top: 0, left: 0, 360×640`, transformed off-screen)
+- `_showTierCompletionSheet` passes `shareCardKey: _shareCardKey` to `TierCompletionModal` instead of the old `onShare` callback
+
 **Dependencies:** `GetCrawlDetailUseCase`, `CafeRemoteDataSource`, `CrawlClaimBloc`, `GpsService`
 
-#### 14.8.1 GPS Bypass (Testing Mode)
+#### 14.9.1 GPS Bypass (Testing Mode)
 
 GPS checking is **temporarily disabled** for testing the claiming flow without requiring physical proximity to a cafe.
 
@@ -666,7 +722,7 @@ GPS checking is **temporarily disabled** for testing the claiming flow without r
 - `v_distance_meters` is set to `0` before the disabled block to avoid NOT NULL violations on insert
 - **To re-enable**: Remove the `v_distance_meters := 0;` line, uncomment the distance computation and the `location_too_far` return block, then re-apply the function to your Supabase project via the dashboard SQL editor or a migration
 
-### 14.9 Widgets
+### 14.10 Widgets
 
 | Widget | File | Purpose |
 |---|---|---|---|
@@ -675,7 +731,11 @@ GPS checking is **temporarily disabled** for testing the claiming flow without r
 | `CrawlStopsMapPreview` | `widgets/crawl_stops_map_preview.dart` | **Fully implemented** — non-interactive mini map (220px) used in `CrawlDetailPage`; all gestures disabled, single pin per stop |
 | `StampAwardedOverlay` | `widgets/stamp_awarded_overlay.dart` | **Fully implemented** — animated full-screen overlay shown on successful stamp claim; extracted from `StampClaimPage` |
 | `TierCompletionModal` | `widgets/tier_completion_modal.dart` | **Fully implemented** — shown as a bottom sheet when a tier is completed after claiming a stamp |
-| `ShareCardView` | `widgets/share_card_view.dart` | **Placeholder** — crawl recap share card |
+| `ShareCardView` | `widgets/share_card_view.dart` | **Fully implemented** — `BlocBuilder<ShareCardCubit, ShareCardState>` bridge; renders `CrawlShareCard` on `Ready`, `SizedBox.shrink()` otherwise |
+| `CrawlShareCard` | `widgets/share_card/crawl_share_card.dart` | **Fully implemented** — composes `ShareCardStampHero` + `ShareCardStats` + `ShareCardFooter` in a 360×640 `SizedBox` |
+| `ShareCardStampHero` | `widgets/share_card/share_card_stamp_hero.dart` | **Fully implemented** — stamp seal hero section of the share card |
+| `ShareCardStats` | `widgets/share_card/share_card_stats.dart` | **Fully implemented** — 3-column stats section (STOPS/LATEST/CRAWL or STOPS/TIER/CRAWL) |
+| `ShareCardFooter` | `widgets/share_card/share_card_footer.dart` | **Fully implemented** — Nook wordmark + crawl title footer |
 
 #### CrawlStopsMapPreview
 
@@ -727,16 +787,147 @@ Has a widget preview file (`crawl_detail_cta_preview.dart`) with 3 `@Preview` an
 
 Shown as a bottom sheet when a `ClaimSuccessWithTierCompletion` state is emitted. Displayed 1.5 seconds after the stamp animation via `showModalBottomSheet`.
 
+**Props:**
+| Prop | Type | Description |
+|---|---|---|
+| `tier` | `TierCompletionResult` | Tier data for badge, name, and copy |
+| `shareCardKey` | `GlobalKey` | Key to the off-screen `RepaintBoundary` hosting the share card (owned by the parent page, not the cubit directly) |
+
 **Layout (top to bottom):**
 1. Badge image — fetched from `tier.badgeImageUrl` via `CachedNetworkImage` with `CustomCacheManager`; if empty or fails to load, shows a gradient placeholder with a `trophy` icon
 2. Tier name — displayed using `titleLargeSemi` text style
 3. Completion copy — optional message from `tier.completionCopy`, or a default "You completed the {tierName} tier!"
-4. "Share with friends" button — primary action pill with `share2` icon; calls `onShare` (currently a no-op placeholder)
+4. "Share with friends" button — wrapped in `BlocBuilder<ShareCardCubit, ShareCardState>`; shows `CircularProgressIndicator` (20px, white) during `ShareCardCapturing` state, otherwise shows `share2` icon with "Share with friends" text
 5. "Continue" button — text-only button that dismisses the bottom sheet and pops back to the crawl detail page
+
+**Share flow (inside modal):**
+- Share button calls `context.read<ShareCardCubit>().captureAndShare()` (parameterless — cubit stores the `GlobalKey` internally via `setShareCardKey()`)
+- `BlocListener<ShareCardCubit, ShareCardState>` at the root of the modal listens for `ShareCardError` → shows `showPrimaryToast` error SnackBar
+- `BlocListener` listens for `ShareCardShared` → auto-closes the bottom sheet via `Navigator.of(context).pop()`
 
 **Dependencies:** `cached_network_image`, `flutter_animate`
 
-### 14.11 Shared Core Widgets
+#### ShareCardStampHero
+
+**File:** `features/crawl/presentation/widgets/share_card/share_card_stamp_hero.dart`
+
+Pure presentational widget — no BLoC dependency. Renders the top ~55% (352px) of the Strava-style share card. Used within the full `ShareCardView` which composes the stamp hero, stats section, and footer.
+
+**Props:**
+| Prop | Type | Description |
+|---|---|---|
+| `cafeName` | `String` | Cafe name displayed on the top arc of the stamp seal |
+| `stopNumber` | `int` | Stop number displayed on the bottom arc as "STOP {N}" |
+
+**Layout:**
+- 352px tall `Container` with `Color(0xFF0F1F0F)` background
+- `Stack` with two layers:
+  1. `Center` → `CustomPaint` (200×200) rendering `_StampSealPainter`
+  2. Grain texture overlay via `Positioned.fill` → `Opacity(0.08)` → `Image.asset` with `errorBuilder` fallback (skips gracefully if `assets/crawl/stamp_grain.png` is missing)
+
+**`_StampSealPainter` (CustomPainter):**
+
+| Layer | Details |
+|---|---|
+| Outer ring | `Paint()` stroke only, `Color(0xFF4CAF50)`, `strokeWidth: 2`, diameter 200px |
+| Inner fill | `Color(0xFF1A2E1A)`, diameter 180px |
+| Wordmark | Centered "nook" text via `TextPainter` at `fontSize: 28`, `w600` (placeholder — real brand asset TBD) |
+| Top arc | Cafe name (`toUpperCase()`) curved from 200° to 340° (clockwise through top) at `fontSize: 12`, `letterSpacing: 2`, `Colors.white` |
+| Bottom arc | "STOP {N}" curved from 160° to 20° (counterclockwise through bottom) at same style |
+
+**Arc text rendering:**
+- Per-character `canvas.save()` / `restore()` with `translate(center)` → `rotate(angle)` → `translate(arcRadius, 0)` → `rotate(-π/2)` → center character and paint
+- `rotate(-π/2)` aligns the character baseline with the clockwise tangent, with the character top facing radially outward (readable from outside the seal)
+- Characters evenly distributed along the arc sweep; single character case centered at `t = 0.5`
+- No external packages required — manual `dart:math` trigonometry
+
+**Preview:** `share_card_stamp_hero_preview.dart` with 1 `@Preview` annotation (Cafe Brindle, Stop 3).
+
+**Dependencies:** None (pure Flutter + `dart:math`)
+
+#### ShareCardStats
+
+**File:** `features/crawl/presentation/widgets/share_card/share_card_stats.dart`
+
+Pure presentational widget — no BLoC dependency. Renders the middle ~35% (240px) of the Strava-style share card, sandwiched between `ShareCardStampHero` (top) and `ShareCardFooter` (bottom).
+
+**Props:**
+| Prop | Type | Description |
+|---|---|---|
+| `data` | `CrawlShareCardData` | Share card data containing stamps, stops, tier info, and stop list |
+
+**Layout:**
+- `Container` with `Color(0xFF0F1F0F)` background, `EdgeInsets.symmetric(horizontal: 20, vertical: 16)` padding
+- Top and bottom `Divider(color: Color(0xFF2A3E2A), thickness: 1, height: 1)`
+- `Row` of 3 `Expanded` columns, each a `_Column` widget with label + value
+
+**Column logic:**
+
+| State | Col 1 | Col 2 | Col 3 |
+|---|---|---|---|
+| In-progress (`highestTier == null`) | STOPS: `totalStamps` | LATEST: last claimed `cafeName` or `—` | CRAWL: `crawlTitle · crawlPeriod` |
+| Completed (`highestTier != null`)  | STOPS: `totalStamps of totalStops` | TIER: `highestTier.name` | CRAWL: `crawlTitle · crawlPeriod` |
+
+**Label style:** `fontSize: 11`, `color: Color(0x80FFFFFF)`, `letterSpacing: 1.5`, `fontWeight: w500`, rendered uppercase
+**Value style:** `fontSize: 26`, `color: Colors.white`, `fontWeight: w700`, `overflow: TextOverflow.ellipsis`, `maxLines: 1`
+
+**Last claimed stop resolution:** Filters `data.stops` where `isClaimed && claimedAt != null`, reduces to the stop with the highest `claimedAt`. If none claimed, shows `"—"` (em dash).
+
+**Dependencies:** `gap`
+
+#### ShareCardFooter
+
+**File:** `features/crawl/presentation/widgets/share_card/share_card_footer.dart`
+
+Pure presentational widget — no BLoC dependency. Renders the bottom ~10% (48px) of the share card.
+
+**Props:**
+| Prop | Type | Description |
+|---|---|---|
+| `crawlTitle` | `String` | Crawl title displayed below the wordmark |
+
+**Layout:**
+- 48px tall `Container` with `Color(0xFF0F1F0F)` background, centered alignment
+- `Column` with `mainAxisAlignment: MainAxisAlignment.center`:
+  1. `Text('nook')` — `fontSize: 18`, `fontWeight: w800`, `color: Colors.white`, `letterSpacing: 3`
+  2. `Gap(2)`
+  3. `Text(crawlTitle)` — `fontSize: 10`, `color: Color(0x60FFFFFF)`, `letterSpacing: 1`, centered
+
+**Dependencies:** `gap`
+
+#### ShareCardView
+
+**File:** `features/crawl/presentation/widgets/share_card_view.dart`
+
+`BlocBuilder<ShareCardCubit, ShareCardState>` bridge widget that reactively renders the share card. Intended to be placed inside a `RepaintBoundary` for capture.
+
+**Behavior:**
+- On `ShareCardReady`: renders a `SizedBox(width: 360, height: 640)` containing `CrawlShareCard(data: state.data)`
+- On any other state (`Initial`, `Loading`, `Capturing`, `Shared`, `Error`): renders `SizedBox.shrink()` (zero-size, invisible)
+
+**Dependencies:** `ShareCardCubit`
+
+#### CrawlShareCard
+
+**File:** `features/crawl/presentation/widgets/share_card/crawl_share_card.dart`
+
+Full 360×640 share card composition widget. Takes `CrawlShareCardData` and renders the complete shareable recap card with stamp hero, stats, and footer.
+
+**Props:**
+| Prop | Type | Description |
+|---|---|---|
+| `data` | `CrawlShareCardData` | Share card data containing stamps, stops, tier info, and stop list |
+
+**Layout (top to bottom, 360×640 `SizedBox`):**
+1. `ShareCardStampHero(cafeName:, stopNumber:)` — top ~55% (352px); derives `cafeName` and `stopNumber` from `data.stops` — finds the last claimed stop (`isClaimed && claimedAt != null`) with the highest `claimedAt` value; defaults to "NO STOPS" / "—" if none claimed
+2. `ShareCardStats(data: data)` — middle ~35% (240px); three-column stat row
+3. `ShareCardFooter(crawlTitle: data.crawlTitle)` — bottom ~10% (48px); wordmark + title
+
+**Total height:** 352 + 240 + 48 = 640px
+
+**Dependencies:** `ShareCardStampHero`, `ShareCardStats`, `ShareCardFooter`
+
+### 14.12 Shared Core Widgets
 
 The following widgets extracted to `core/presentation/widgets/` for reuse across features:
 
@@ -747,7 +938,7 @@ The following widgets extracted to `core/presentation/widgets/` for reuse across
 
 Both moved/extracted from `features/map/presentation/widgets/` during the crawl map implementation.
 
-### 14.12 DI Registration
+### 14.13 DI Registration
 
 **File:** `features/crawl/presentation/injection/crawl_presentation_injection.dart`
 
@@ -757,12 +948,13 @@ Called from `injection_container.dart` after domain/data registrations.
 registerLazySingleton → GpsService → GpsServiceImpl
 registerFactory       → ActiveCrawlsCubit
 registerFactory       → CrawlDetailCubit
+registerFactory       → ShareCardCubit
 registerFactory       → CrawlClaimBloc
 ```
 
 `CrawlStopsMapCubit` is **not** registered in DI — it's created inline in `CrawlStopsMapPage` via `BlocProvider(create: (_) => CrawlStopsMapCubit(sl<GetCafeCardUseCase>()))`.
 
-### 14.13 GoRouter Route
+### 14.14 GoRouter Route
 
 **File:** `lib/core/router/app_router.dart`
 
@@ -779,9 +971,9 @@ GoRoute(
 ),
 ```
 
-### 14.14 Tests
+### 14.15 Tests
 
-**~37 tests total** — all passing:
+**~41 tests total** — all passing:
 
 | Suite | File | Tests |
 |---|---|---|
@@ -792,12 +984,14 @@ GoRoute(
 | StampAwardedOverlay (widget) | `stamp_awarded_overlay_test.dart` | 2 — covers stop number text, animation without error |
 | CrawlDetailCta (widget) | `crawl_detail_cta_test.dart` | 6 — covers all CTA states: unauthenticated, register, registered but no stops, registered with unclaimed stops, all claimed, and error |
 | SlideUpOverlay (widget) | `slide_up_overlay_test.dart` | 6 — covers visibility toggle, animation transitions, custom child, narrow screen rendering |
+| ShareCardStats (widget) | `share_card_stats_test.dart` | 3 — covers in-progress state, completed state, em dash when no claimed stops |
+| ShareCardFooter (widget) | `share_card_footer_test.dart` | 1 — renders wordmark and crawl title |
 
 All cubit/bloc tests use `blocTest` for declarative emission assertions.
 Widget tests use `WidgetTester` with `pumpWidget` + `MaterialApp` wrapper, and mock cubits via `BlocProvider.value`.
 Mocks generated with `@GenerateNiceMocks` via `build_runner`.
 
-### 14.15 Deep Link Config
+### 14.16 Deep Link Config
 
 **Android** (`android/app/src/main/AndroidManifest.xml`):
 ```xml
