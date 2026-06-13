@@ -25,8 +25,9 @@ class CrawlShareCardModel extends CrawlShareCardData {
                 Map<String, dynamic>.from(m),
               ),
             )
-            .toList() ??
-        const [];
+            .toList()
+            .cast<CrawlStopShareItem>() ??
+        const <CrawlStopShareItem>[];
 
     return CrawlShareCardModel(
       userName: _asString(json['user_name']),

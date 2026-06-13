@@ -6,7 +6,6 @@ import 'package:nook/features/crawl/presentation/widgets/share_card/share_card_s
 
 class CrawlShareCard extends StatelessWidget {
   final CrawlShareCardData data;
-
   const CrawlShareCard({super.key, required this.data});
 
   @override

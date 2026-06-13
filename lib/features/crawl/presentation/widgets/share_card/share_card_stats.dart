@@ -15,15 +15,17 @@ class ShareCardStats extends StatelessWidget {
       child: Column(
         children: [
           const Divider(color: Color(0xFF2A3E2A), thickness: 1, height: 1),
-          const Gap(16),
-          Row(
-            children: [
-              Expanded(child: _Column(label: 'STOPS', value: _stopsValue)),
-              Expanded(child: _Column(label: _middleLabel, value: _middleValue)),
-              Expanded(child: _Column(label: 'CRAWL', value: _crawlValue)),
-            ],
+          const Gap(8),
+          Flexible(
+            child: Row(
+              children: [
+                Expanded(child: _Column(label: 'STOPS', value: _stopsValue)),
+                Expanded(child: _Column(label: _middleLabel, value: _middleValue)),
+                Expanded(child: _Column(label: 'CRAWL', value: _crawlValue)),
+              ],
+            ),
           ),
-          const Gap(16),
+          const Gap(8),
           const Divider(color: Color(0xFF2A3E2A), thickness: 1, height: 1),
         ],
       ),
@@ -66,22 +68,28 @@ class _Column extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
             color: Color(0x80FFFFFF),
             letterSpacing: 1.5,
             fontWeight: FontWeight.w500,
           ),
         ),
-        const Gap(4),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 26,
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
+        Gap(4),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            clipBehavior: Clip.antiAlias,
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 26,
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ),
       ],

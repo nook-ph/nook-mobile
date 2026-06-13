@@ -22,6 +22,7 @@ import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.
 import 'package:nook/features/crawl/presentation/pages/crawl_detail_page.dart';
 import 'package:nook/features/crawl/presentation/pages/crawl_stops_map_page.dart';
 import 'package:nook/features/crawl/presentation/pages/qr_scanner_page.dart';
+import 'package:nook/features/crawl/presentation/pages/share_activity_page.dart';
 import 'package:nook/features/crawl/presentation/pages/stamp_claim_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
@@ -201,7 +202,19 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         },
       ),
 
-      /// 6. Crawl Stamp Claim (Deep Link Target)
+      /// 6. Share Activity (Share Card Preview &amp; Destinations)
+      GoRoute(
+        path: '/crawl/:crawlId/share',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, String>;
+          return ShareActivityPage(
+            crawlId: extra['crawlId']!,
+            crawlTitle: extra['crawlTitle']!,
+          );
+        },
+      ),
+
+      /// 7. Crawl Stamp Claim (Deep Link Target)
       GoRoute(
         path: '/crawl/:crawlId/stop/:stopId/claim',
         builder: (context, state) {

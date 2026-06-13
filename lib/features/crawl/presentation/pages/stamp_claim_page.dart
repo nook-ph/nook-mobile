@@ -20,7 +20,7 @@ import 'package:nook/features/crawl/presentation/bloc/crawl_claim_bloc.dart';
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_event.dart';
 import 'package:nook/features/crawl/presentation/bloc/crawl_claim_state.dart';
 import 'package:nook/features/crawl/presentation/cubit/share_card_cubit.dart';
-import 'package:nook/features/crawl/presentation/pages/share_cafe_stop_page.dart';
+import 'package:nook/features/crawl/presentation/cubit/share_card_state.dart';
 import 'package:nook/features/crawl/presentation/widgets/stamp_awarded_overlay.dart';
 import 'package:nook/features/crawl/presentation/widgets/share_card_view.dart';
 import 'package:nook/features/crawl/presentation/widgets/tier_completion_modal.dart';
@@ -244,12 +244,20 @@ class _StampClaimPageState extends State<StampClaimPage>
             return _buildDataError(context);
           }
 
-          return Scaffold(
-            backgroundColor: Colors.white,
-            body: SafeArea(
-              child: Stack(
-                children: [
-                  LayoutBuilder(
+          return BlocListener<ShareCardCubit, ShareCardState>(
+            listener: (context, state) {
+              if (state is ShareCardError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(state.message)),
+                );
+              }
+            },
+            child: Scaffold(
+              backgroundColor: Colors.white,
+              body: SafeArea(
+                child: Stack(
+                  children: [
+                    LayoutBuilder(
                     builder: (context, constraints) {
                       final photoHeight = constraints.maxHeight * 0.45;
                       return Column(
@@ -358,6 +366,7 @@ class _StampClaimPageState extends State<StampClaimPage>
                     ),
                   ),
                 ],
+                ),
               ),
             ),
           );
@@ -692,11 +701,12 @@ class _StampClaimPageState extends State<StampClaimPage>
   }
 
   void _navigateToShare() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const ShareCafeStopPage(),
-      ),
+    context.push(
+      '/crawl/${widget.crawlSlug}/share',
+      extra: {
+        'crawlId': _crawlDetail?.crawl.id ?? widget.crawlSlug,
+        'crawlTitle': _crawlDetail?.crawl.title ?? '',
+      },
     );
   }
 
@@ -710,7 +720,8 @@ class _StampClaimPageState extends State<StampClaimPage>
       ),
       builder: (_) => TierCompletionModal(
         tier: tier,
-        shareCardKey: _shareCardKey,
+        crawlId: _crawlDetail?.crawl.id ?? '',
+        crawlTitle: _crawlDetail?.crawl.title ?? '',
         onContinue: () {
           Navigator.pop(context);
           context.pop();
