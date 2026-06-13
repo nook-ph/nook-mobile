@@ -54,6 +54,7 @@ begin
       'stop_order', cs.stop_order,
       'tier', cs.tier,
       'cafe_name', cf.name,
+      'cafe_logo_url', cf.logo_url,
       'cafe_lat', cf.lat,
       'cafe_lng', cf.lng,
       'is_claimed', case when p_user_id is not null

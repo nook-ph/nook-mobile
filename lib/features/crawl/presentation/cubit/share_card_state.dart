@@ -25,14 +25,6 @@ class ShareCardReady extends ShareCardState {
   List<Object?> get props => [data];
 }
 
-class ShareCardCapturing extends ShareCardState {
-  const ShareCardCapturing();
-}
-
-class ShareCardShared extends ShareCardState {
-  const ShareCardShared();
-}
-
 class ShareCardError extends ShareCardState {
   final String message;
 

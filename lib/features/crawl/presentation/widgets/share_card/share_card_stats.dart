@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:nook/features/crawl/domain/entities/crawl_share_card_data.dart';
 
 class ShareCardStats extends StatelessWidget {
@@ -9,90 +8,71 @@ class ShareCardStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF0F1F0F),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: [
-          const Divider(color: Color(0xFF2A3E2A), thickness: 1, height: 1),
-          const Gap(8),
-          Flexible(
-            child: Row(
-              children: [
-                Expanded(child: _Column(label: 'STOPS', value: _stopsValue)),
-                Expanded(child: _Column(label: _middleLabel, value: _middleValue)),
-                Expanded(child: _Column(label: 'CRAWL', value: _crawlValue)),
-              ],
+          _StatRow(label: 'STOPS', value: _stopsWidget),
+          _StatRow(
+            label: 'CRAWL',
+            value: Text(
+              data.crawlTitle,
+              textAlign: TextAlign.center,
             ),
           ),
-          const Gap(8),
-          const Divider(color: Color(0xFF2A3E2A), thickness: 1, height: 1),
+
         ],
       ),
     );
   }
 
-  String get _stopsValue {
-    if (data.highestTier != null) {
-      return '${data.totalStamps} of ${data.totalStops}';
-    }
-    return '${data.totalStamps}';
-  }
-
-  String get _middleLabel => data.highestTier != null ? 'TIER' : 'LATEST';
-
-  String get _middleValue {
-    if (data.highestTier != null) return data.highestTier!.name;
-    final claimed = data.stops
-        .where((s) => s.isClaimed && s.claimedAt != null)
-        .toList();
-    if (claimed.isEmpty) return '\u2014';
-    return claimed
-        .reduce((a, b) => a.claimedAt!.isAfter(b.claimedAt!) ? a : b)
-        .cafeName;
-  }
-
-  String get _crawlValue => '${data.crawlTitle} \u00b7 ${data.crawlPeriod}';
+  Widget get _stopsWidget => Text.rich(
+        TextSpan(
+          text: '${data.totalStamps}',
+          children: [
+            TextSpan(
+              text: ' of ',
+              style: const TextStyle(color: Colors.white),
+            ),
+            TextSpan(text: '${data.totalStops}'),
+          ],
+        ),
+        textAlign: TextAlign.center,
+      );
 }
 
-class _Column extends StatelessWidget {
+class _StatRow extends StatelessWidget {
   final String label;
-  final String value;
+  final Widget value;
 
-  const _Column({required this.label, required this.value});
+  const _StatRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            fontSize: 11,
-            color: Color(0x80FFFFFF),
-            letterSpacing: 1.5,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Gap(4),
-        Flexible(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            clipBehavior: Clip.antiAlias,
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 26,
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              letterSpacing: 2.0,
+              color: Colors.white,
             ),
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          DefaultTextStyle(
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+            child: value,
+          ),
+        ],
+      ),
     );
   }
 }

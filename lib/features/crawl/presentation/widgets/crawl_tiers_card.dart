@@ -32,7 +32,7 @@ class CrawlTiersCard extends StatelessWidget {
               children: [
                 Text(
                   'Milestones',
-                  style: textTheme.bodyLargeMed?.copyWith(color: colors.black),
+                  style: textTheme.bodyLargeMed.copyWith(color: colors.black),
                 ),
                 Text(
                   '${tiers.where((t) => t.isComplete).length}/${tiers.length}',

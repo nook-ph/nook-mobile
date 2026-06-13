@@ -49,10 +49,13 @@ void main() {
       );
 
       expect(find.text('STOPS'), findsOneWidget);
-      expect(find.text('3'), findsOneWidget);
-      expect(find.text('LATEST'), findsOneWidget);
+      expect(find.text('3 of 12'), findsOneWidget);
+      expect(find.text('TIER'), findsOneWidget);
+      expect(find.text('\u2014'), findsOneWidget);
       expect(find.text('CRAWL'), findsOneWidget);
-      expect(find.text('Cebu Island · Jun 01 - Jun 30, 2026'), findsOneWidget);
+      expect(find.text('Cebu Island'), findsOneWidget);
+      expect(find.text('PERIOD'), findsOneWidget);
+      expect(find.text('Jun 01 - Jun 30, 2026'), findsOneWidget);
     });
 
     testWidgets('renders completed state (with highestTier)',
@@ -104,10 +107,12 @@ void main() {
       expect(find.text('TIER'), findsOneWidget);
       expect(find.text('City Explorer'), findsOneWidget);
       expect(find.text('CRAWL'), findsOneWidget);
-      expect(find.text('Cebu Island · Jun 01 - Jun 30, 2026'), findsOneWidget);
+      expect(find.text('Cebu Island'), findsOneWidget);
+      expect(find.text('PERIOD'), findsOneWidget);
+      expect(find.text('Jun 01 - Jun 30, 2026'), findsOneWidget);
     });
 
-    testWidgets('shows em dash when no claimed stops',
+    testWidgets('shows em dash when no highest tier',
         (WidgetTester tester) async {
       final data = CrawlShareCardData(
         userName: 'TestUser',

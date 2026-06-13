@@ -28,6 +28,7 @@ class CrawlStopShareItem {
   final double cafeLng;
   final bool isClaimed;
   final DateTime? claimedAt;
+  final String? cafeLogoUrl;
 
   const CrawlStopShareItem({
     this.stopOrder = 0,
@@ -37,5 +38,6 @@ class CrawlStopShareItem {
     this.cafeLng = 0,
     this.isClaimed = false,
     this.claimedAt,
+    this.cafeLogoUrl,
   });
 }

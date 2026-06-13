@@ -360,9 +360,12 @@ class _StampClaimPageState extends State<StampClaimPage>
                     ),
                   Positioned(
                     left: -9999, top: 0,
-                    child: RepaintBoundary(
-                      key: _shareCardKey,
-                      child: const ShareCardView(),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: RepaintBoundary(
+                        key: _shareCardKey,
+                        child: const ShareCardView(),
+                      ),
                     ),
                   ),
                 ],

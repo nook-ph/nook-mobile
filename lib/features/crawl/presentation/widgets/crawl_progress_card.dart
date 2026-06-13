@@ -42,7 +42,7 @@ class CrawlProgressCard extends StatelessWidget {
             children: [
               Text(
                 'Your progress',
-                style: textTheme.bodyLargeMed?.copyWith(color: colors.black),
+                style: textTheme.bodyLargeMed.copyWith(color: colors.black),
               ),
               // Fix: Only render the pill if there is an actual tier name string
               if (currentTierName.trim().isNotEmpty)

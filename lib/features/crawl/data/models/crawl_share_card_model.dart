@@ -57,6 +57,7 @@ class CrawlStopShareItemModel extends CrawlStopShareItem {
     super.cafeLng = 0,
     super.isClaimed = false,
     super.claimedAt,
+    super.cafeLogoUrl,
   });
 
   factory CrawlStopShareItemModel.fromJson(Map<String, dynamic> json) {
@@ -68,10 +69,13 @@ class CrawlStopShareItemModel extends CrawlStopShareItem {
       cafeLng: _asDouble(json['cafe_lng']),
       isClaimed: _asBool(json['is_claimed']),
       claimedAt: _asNullableDateTime(json['claimed_at']),
+      cafeLogoUrl: _asNullableString(json['cafe_logo_url']),
     );
   }
 
   static String _asString(dynamic value) => value?.toString() ?? '';
+
+  static String? _asNullableString(dynamic value) => value?.toString();
 
   static int _asInt(dynamic value) {
     if (value is num) return value.toInt();
@@ -100,3 +104,4 @@ class CrawlStopShareItemModel extends CrawlStopShareItem {
     return null;
   }
 }
+

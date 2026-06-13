@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:dartz/dartz.dart';
@@ -35,44 +36,67 @@ class ShareCardCubit extends Cubit<ShareCardState> {
     }
   }
 
-  Future<void> captureAndShare() async {
+  Future<RenderRepaintBoundary?> _getBoundary() async {
     final key = _shareCardKey;
-    if (key == null) {
-      emit(const ShareCardError('Share card not ready'));
-      return;
-    }
+    if (key == null) return null;
+    return key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+  }
 
-    emit(const ShareCardCapturing());
+  Future<Uint8List?> _captureFromBoundary(RenderRepaintBoundary boundary) async {
+    final image = await boundary.toImage(pixelRatio: 3.0);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData?.buffer.asUint8List();
+  }
 
+  Future<Uint8List> _compositeOverWhite(Uint8List pngBytes) async {
+    final codec = await ui.instantiateImageCodec(pngBytes);
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(
+      recorder,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+    );
+    canvas.drawColor(const Color(0xFFFFFFFF), BlendMode.src);
+    canvas.drawImage(image, Offset.zero, Paint());
+    final picture = recorder.endRecording();
+    final composited = await picture.toImage(image.width, image.height);
+    final byteData = await composited.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
+  Future<Uint8List> capturePngBytes() async {
+    final boundary = await _getBoundary();
+    if (boundary == null) throw Exception('Share card not ready');
+    final bytes = await _captureFromBoundary(boundary);
+    if (bytes == null) throw Exception('Failed to encode image');
+    return bytes;
+  }
+
+  Future<String?> captureAndShare() async {
     try {
-      final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) {
-        emit(const ShareCardError('Could not find share card renderer'));
-        return;
-      }
+      final boundary = await _getBoundary();
+      if (boundary == null) return 'Share card not ready';
 
-      final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (byteData == null) {
-        emit(const ShareCardError('Failed to encode image'));
-        return;
-      }
+      final bytes = await _captureFromBoundary(boundary);
+      if (bytes == null) return 'Failed to encode image';
 
-      final bytes = byteData.buffer.asUint8List();
+      final opaque = await _compositeOverWhite(bytes);
 
-      await ImageGallerySaverPlus.saveImage(bytes);
+      await ImageGallerySaverPlus.saveImage(opaque);
 
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/nook_share_card.png');
-      await file.writeAsBytes(bytes);
+      await file.writeAsBytes(opaque);
 
       await SharePlus.instance.share(
         ShareParams(files: [XFile(file.path, mimeType: 'image/png')]),
       );
 
-      emit(const ShareCardShared());
+      return null;
     } catch (e) {
-      emit(ShareCardError(e.toString()));
+      return e.toString();
     }
   }
 }
