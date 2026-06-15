@@ -42,8 +42,7 @@ class RatingReviewSummary extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   rating.toStringAsFixed(1),
-                  style: const TextStyle(
-                    fontSize: 36,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: Colors.black,
                     height: 1,
@@ -54,10 +53,9 @@ class RatingReviewSummary extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               '$reviewCount Reviews',
-              style: const TextStyle(
-                fontSize: 14,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w400,
-                color: Color(0xFF616161),
+                color: const Color(0xFF616161),
               ),
             ),
             const SizedBox(height: 20),
@@ -76,9 +74,9 @@ class RatingReviewSummary extends StatelessWidget {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: const Text(
+                child: Text(
                   'Write a Review',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
                 ),
               ),
             ),
@@ -86,21 +84,20 @@ class RatingReviewSummary extends StatelessWidget {
             const Divider(height: 1, thickness: 1, color: Color(0xFFE7E7E7)),
             InkWell(
               onTap: onFilterTap,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 14),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         'Sort by: Recommended',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w400,
-                          color: Color(0xFF616161),
+                          color: const Color(0xFF616161),
                         ),
                       ),
                     ),
-                    Icon(
+                    const Icon(
                       Icons.tune_rounded,
                       size: 20,
                       color: Color(0xFF616161),
@@ -151,10 +148,9 @@ class _RatingDistributionRow extends StatelessWidget {
           child: Text(
             '$star',
             textAlign: TextAlign.left,
-            style: const TextStyle(
-              fontSize: 14,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w400,
-              color: Color(0xFF616161),
+              color: const Color(0xFF616161),
             ),
           ),
         ),

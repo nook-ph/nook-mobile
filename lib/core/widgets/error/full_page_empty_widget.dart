@@ -29,7 +29,7 @@ class FullPageEmptyWidget extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: textTheme.headlineSmall?.copyWith(color: Colors.black),
+                style: textTheme.titleLarge?.copyWith(color: Colors.black),
               ),
               const SizedBox(height: 12),
               Text(

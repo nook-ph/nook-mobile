@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
@@ -91,16 +92,12 @@ class _ListDetailPageState extends State<ListDetailPage> {
               ? _exitEditMode
               : () => Navigator.of(context).pop(),
         ),
-        title: _isEditMode
-            ? Text(
-                '${_selectedIds.length} selected',
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              )
-            : null,
+            title: _isEditMode
+                ? Text(
+                    '${_selectedIds.length} selected',
+                    style: context.textTheme.bodyLargeMed.copyWith(color: Colors.black),
+                  )
+                : null,
         actions: _isEditMode
             ? [
                 IconButton(
@@ -153,21 +150,16 @@ class _ListDetailPageState extends State<ListDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
       children: [
         if (!_isEditMode) ...[
-          Text(
-            widget.title,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 24,
-              fontWeight: FontWeight.w500,
+            Text(
+              widget.title,
+              style: context.textTheme.titleLargeSemi,
             ),
-          ),
           if (description != null && description.trim().isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
               description,
-              style: const TextStyle(
-                color: Color(0xFF848586),
-                fontSize: 15,
+              style: context.textTheme.bodyLarge?.copyWith(
+                color: const Color(0xFF848586),
                 height: 1.4,
               ),
             ),
@@ -175,11 +167,11 @@ class _ListDetailPageState extends State<ListDetailPage> {
           const SizedBox(height: 20),
         ],
         if (cafes.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24.0),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24.0),
             child: Text(
               'No cafes in this list yet.',
-              style: TextStyle(fontSize: 15, color: Color(0xFF848586)),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848586)),
             ),
           )
         else
@@ -235,22 +227,18 @@ class _ListDetailPageState extends State<ListDetailPage> {
                             ),
                             alignment: Alignment.centerRight,
                             padding: const EdgeInsets.only(right: 16),
-                            child: const Column(
+                            child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
+                                const Icon(
                                   Icons.delete_outline,
                                   color: Colors.white,
                                   size: 22,
                                 ),
-                                SizedBox(height: 4),
+                                const SizedBox(height: 4),
                                 Text(
                                   'Remove',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: context.textTheme.bodySmallMed.copyWith(color: Colors.white),
                                 ),
                               ],
                             ),

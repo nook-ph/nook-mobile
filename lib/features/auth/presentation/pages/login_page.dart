@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class LoginPasswordScreen extends StatefulWidget {
@@ -79,20 +80,15 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                       children: [
                         Image.asset('assets/logos/logoT.png', width: 110),
                         const Gap(22),
-                        const Text(
+                        Text(
                           'Log in',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: context.textTheme.titleLargeSemi,
                         ),
                         const Gap(8),
                         Text(
                           'Welcome back, $email',
-                          style: const TextStyle(
-                            color: Color(0xFFA8AAAA),
-                            fontSize: 14,
+                          style: context.textTheme.bodySmall!.copyWith(
+                            color: const Color(0xFFA8AAAA),
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -107,9 +103,8 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                           obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             hintText: 'Password',
-                            hintStyle: const TextStyle(
-                              color: Color(0xFFA8AAAA),
-                              fontSize: 14,
+                            hintStyle: context.textTheme.bodySmall!.copyWith(
+                              color: const Color(0xFFA8AAAA),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -144,11 +139,10 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: const Text(
+                          child: Text(
                             'Forgot password?',
-                            style: TextStyle(
-                              color: Color(0xFF344E41),
-                              fontWeight: FontWeight.w500,
+                            style: context.textTheme.bodyLargeMed.copyWith(
+                              color: const Color(0xFF344E41),
                             ),
                           ),
                         ),
@@ -190,13 +184,12 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                                       ),
                                     ),
                                   )
-                                : const Text(
-                                    'Log In',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                              : Text(
+                                  'Log In',
+                                  style: context.textTheme.bodyLargeMed.copyWith(
+                                    color: Colors.white,
                                   ),
+                                ),
                           ),
                         ),
                       ],

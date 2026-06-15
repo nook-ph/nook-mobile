@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
@@ -269,12 +270,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
                 onPressed: isSaving ? null : () => Navigator.pop(context),
               ),
-              title: const Text(
+              title: Text(
                 'Edit Profile',
-                style: TextStyle(
+                style: context.textTheme.titleMediumSemi.copyWith(
                   color: Colors.black87,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
                 ),
               ),
@@ -331,10 +330,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   onTap: isSaving ? null : _pickAvatar,
                                   child: Text(
                                     'Change Photo',
-                                    style: TextStyle(
+                                    style: context.textTheme.bodySmallMed.copyWith(
                                       color: isSaving ? _grey : _green,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ),
@@ -345,12 +342,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           const SizedBox(height: 32),
 
                           // ── Section Header ───────────────────────────────
-                          const Text(
+                          Text(
                             'Personal Information',
-                            style: TextStyle(
+                            style: context.textTheme.bodySmallMed.copyWith(
                               color: _sectionTitleColor,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
                               letterSpacing: -0.2,
                             ),
                           ),
@@ -376,10 +371,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               padding: const EdgeInsets.only(left: 4),
                               child: Text(
                                 'You can change your username in $_daysUntilUsernameUnlock days.',
-                                style: const TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 11.5,
-                                ),
+                              style: context.textTheme.bodySmall!.copyWith(
+                                color: Colors.orange,
+                              ),
                               ),
                             ),
                           ] else ...[
@@ -433,11 +427,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text(
+                            : Text(
                                 'Save Changes',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
+                                style: context.textTheme.bodyLargeSemi.copyWith(
+                                  color: Colors.white,
                                   letterSpacing: 0.1,
                                 ),
                               ),
@@ -529,10 +522,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   children: [
                     Text(
                       label,
-                      style: const TextStyle(
-                        fontSize: 12.5,
+                      style: context.textTheme.bodySmall!.copyWith(
                         color: _labelColor,
-                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     if (suffixIcon != null) suffixIcon,
@@ -542,10 +533,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   controller: controller,
                   enabled: enabled,
                   maxLines: maxLines,
-                  style: TextStyle(
-                    fontSize: 15.5,
+                  style: context.textTheme.bodyMedium!.copyWith(
                     color: enabled ? Colors.black87 : const Color(0xFF888888),
-                    fontWeight: FontWeight.w400,
                   ),
                   decoration: const InputDecoration(
                     isDense: true,
@@ -560,7 +549,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
     );
   }
- 
+  
   /// Username field — same container pattern, with @-prefix and validation icon
   Widget _buildUsernameOutlinedField({required bool enabled}) {
     Color borderColor = _borderColor;
@@ -597,12 +586,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Username',
-                      style: TextStyle(
-                        fontSize: 12.5,
+                      style: context.textTheme.bodySmall!.copyWith(
                         color: _labelColor,
-                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     if (_buildUsernameSuffixIcon() != null)
@@ -616,8 +603,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 TextField(
                   controller: _usernameController,
                   enabled: enabled,
-                  style: TextStyle(
-                    fontSize: 15.5,
+                  style: context.textTheme.bodyMedium!.copyWith(
                     color: enabled ? Colors.black87 : const Color(0xFF888888),
                   ),
                   decoration: InputDecoration(
@@ -625,8 +611,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     contentPadding: const EdgeInsets.only(bottom: 8),
                     border: InputBorder.none,
                     prefixText: '@',
-                    prefixStyle: TextStyle(
-                      fontSize: 15.5,
+                    prefixStyle: context.textTheme.bodyMedium!.copyWith(
                       color: enabled ? Colors.black87 : _grey,
                     ),
                   ),
@@ -664,20 +649,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Bio',
-                      style: TextStyle(
-                        fontSize: 12.5,
+                      style: context.textTheme.bodySmall!.copyWith(
                         color: _labelColor,
-                        fontWeight: FontWeight.w400,
                       ),
                     ),
                     Text(
                       '$_bioCharCount/$_bioMaxLength',
-                      style: const TextStyle(
-                        fontSize: 11.5,
+                      style: context.textTheme.bodySmall!.copyWith(
                         color: _grey,
-                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
@@ -689,8 +670,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   maxLength: _bioMaxLength,
                   buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
                       const SizedBox.shrink(),
-                  style: TextStyle(
-                    fontSize: 15.5,
+                  style: context.textTheme.bodyMedium!.copyWith(
                     color: enabled ? Colors.black87 : const Color(0xFF888888),
                   ),
                   decoration: const InputDecoration(
@@ -744,25 +724,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (_validationError != null) {
       return Text(
         _validationError!,
-        style: const TextStyle(color: Colors.red, fontSize: 11.5),
+        style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
       );
     }
     if (_isChecking) {
-      return const Text(
+      return Text(
         'Checking availability...',
-        style: TextStyle(color: _grey, fontSize: 11.5),
+        style: context.textTheme.bodySmall!.copyWith(color: _grey),
       );
     }
     if (_isAvailable == true) {
       return Text(
         '@${_usernameController.text} is available!',
-        style: const TextStyle(color: _green, fontSize: 11.5),
+        style: context.textTheme.bodySmall!.copyWith(color: _green),
       );
     }
     if (_isAvailable == false) {
       return Text(
         '@${_usernameController.text} is already taken.',
-        style: const TextStyle(color: Colors.red, fontSize: 11.5),
+        style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
       );
     }
     return const SizedBox.shrink();

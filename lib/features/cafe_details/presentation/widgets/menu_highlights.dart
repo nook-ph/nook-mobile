@@ -29,10 +29,9 @@ class MenuHighlights extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Menu Highlights',
-                style: TextStyle(
-                  fontSize: 20,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: Colors.black,
                 ),
@@ -55,10 +54,9 @@ class MenuHighlights extends StatelessWidget {
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
+                child: Text(
                   'See All',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: Colors.black,
                     decoration: TextDecoration.underline,
@@ -133,15 +131,12 @@ class MenuHighlights extends StatelessWidget {
                               item.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 15),
+                              style: Theme.of(context).textTheme.bodyLarge,
                             ),
                             const Gap(2),
                             Text(
                               _formatPrice(item.price),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: Color(0xFF848685),
-                              ),
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
                             ),
                           ],
                         ),

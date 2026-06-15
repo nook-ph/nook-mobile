@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -134,7 +135,9 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                               _searchBloc.add(SearchQueryChanged(value)),
                           decoration: InputDecoration(
                             hintText: 'Search cafes...',
-                            hintStyle: const TextStyle(color: Colors.grey),
+                            hintStyle: context.textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey,
+                            ),
                             prefixIcon: Icon(
                               PhosphorIcons.magnifyingGlass(),
                               color: Colors.grey,

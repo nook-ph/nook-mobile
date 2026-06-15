@@ -5,7 +5,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class CafeOverlayCard extends StatelessWidget {
@@ -72,10 +72,7 @@ class CafeOverlayCard extends StatelessWidget {
                                         cafe.name,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w500,
-                                        ),
+                                        style: context.textTheme.titleMediumSemi,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -90,18 +87,20 @@ class CafeOverlayCard extends StatelessWidget {
                                         const SizedBox(width: 4),
                                         Text(
                                           cafe.rating.toStringAsFixed(1),
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w500,
+                                          style: context.textTheme.bodySmallMed,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '(${cafe.reviewCount})',
+                                          style: context.textTheme.bodySmallMed.copyWith(
+                                            color: const Color(0xFF848586),
                                           ),
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
                                           '(${cafe.reviewCount})',
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500,
-                                            color: Color(0xFF848586),
+                                          style: context.textTheme.bodySmallMed.copyWith(
+                                            color: const Color(0xFF848586),
                                           ),
                                         ),
                                       ],
@@ -121,10 +120,8 @@ class CafeOverlayCard extends StatelessWidget {
                                         cafe.locationLabel,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Color(0xFF848586),
-                                          fontWeight: FontWeight.w500,
+                                        style: context.textTheme.bodySmallMed.copyWith(
+                                          color: const Color(0xFF848586),
                                         ),
                                       ),
                                     ),

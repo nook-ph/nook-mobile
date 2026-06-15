@@ -97,9 +97,8 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
               ),
               child: Text(
                 '${_currentIndex + 1}/$total',
-                style: const TextStyle(
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.white,
-                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
               ),

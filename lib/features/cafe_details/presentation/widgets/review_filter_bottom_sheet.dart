@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 
 typedef ReviewFilterResult = ({String sort, int? ratingFilter});
@@ -105,12 +106,10 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
           Center(
             child: TextButton(
               onPressed: _clearFilter,
-              child: const Text(
+              child: Text(
                 'Clear filter',
-                style: TextStyle(
+                style: context.textTheme.bodyLargeMed.copyWith(
                   color: Colors.black,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -133,10 +132,9 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 18),
                 ),
-                child: const Text(
+                child: Text(
                   'Apply',
-                  style: TextStyle(
-                    fontSize: 16,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),
@@ -180,10 +178,9 @@ class _SheetHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
+          Text(
             'Sort & Filter',
-            style: TextStyle(
-              fontSize: 18,
+            style: context.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: Colors.black,
             ),
@@ -207,14 +204,13 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          color: Colors.black,
+        child: Text(
+          text,
+          style: context.textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: Colors.black,
+          ),
         ),
-      ),
     );
   }
 }
@@ -243,9 +239,7 @@ class _RadioRow extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
+                    style: context.textTheme.bodyLarge?.copyWith(
                       color: Colors.black,
                     ),
                   ),
@@ -295,8 +289,7 @@ class _RatingFilterRow extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   '($count)',
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w400,
                     color: Colors.black,
                   ),

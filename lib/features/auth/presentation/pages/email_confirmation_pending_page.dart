@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/constants/app_constants.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -110,20 +111,15 @@ class _EmailConfirmationPendingScreenState
                 const Gap(50),
                 Image.asset('assets/logos/logoT.png', width: 110),
                 const Gap(24),
-                const Text(
+                Text(
                   'Confirm your email',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: context.textTheme.titleLargeSemi,
                 ),
                 const Gap(8),
                 Text(
                   'We sent a confirmation link to $email',
-                  style: const TextStyle(
-                    color: Color(0xFFA8AAAA),
-                    fontSize: 14,
+                  style: context.textTheme.bodySmall!.copyWith(
+                    color: const Color(0xFFA8AAAA),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -162,9 +158,8 @@ class _EmailConfirmationPendingScreenState
                             _cooldownActive
                                 ? '✓ Sent! Check your inbox'
                                 : 'Resend email',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                            style: context.textTheme.bodyLargeMed.copyWith(
+                              color: Colors.white,
                             ),
                           ),
                   ),
@@ -179,11 +174,10 @@ class _EmailConfirmationPendingScreenState
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text(
+                  child: Text(
                     'Wrong email? Go back',
-                    style: TextStyle(
-                      color: Color(0xFF344E41),
-                      fontWeight: FontWeight.w600,
+                    style: context.textTheme.bodyLargeMed.copyWith(
+                      color: const Color(0xFF344E41),
                     ),
                   ),
                 ),

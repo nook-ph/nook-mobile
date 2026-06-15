@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 
 class MenuItemVariantsSheet extends StatelessWidget {
@@ -41,9 +42,7 @@ class MenuItemVariantsSheet extends StatelessWidget {
         children: [
           Text(
             item.name,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+            style: context.textTheme.titleMediumSemi.copyWith(
               color: Colors.black,
             ),
           ),
@@ -85,8 +84,7 @@ class _VariantRow extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: isDefault ? FontWeight.w600 : FontWeight.w400,
                     color: Colors.black,
                   ),
@@ -103,10 +101,9 @@ class _VariantRow extends StatelessWidget {
                     border: Border.all(color: Colors.black),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Default',
-                    style: TextStyle(
-                      fontSize: 10,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
                     ),
@@ -118,11 +115,10 @@ class _VariantRow extends StatelessWidget {
         ),
         Text(
           priceLabel,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: Colors.black,
+        ),
         ),
       ],
     );

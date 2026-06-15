@@ -179,10 +179,9 @@ class _CafeInfoHeaderState extends State<CafeInfoHeader> {
                   if (_distanceMeters != null) ...[
                     Text(
                       '${(_distanceMeters! / 1000).toStringAsFixed(1)} km',
-                      style: const TextStyle(
-                        fontSize: 15,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w400,
-                        color: Color(0xFF868584),
+                        color: const Color(0xFF868584),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -198,10 +197,9 @@ class _CafeInfoHeaderState extends State<CafeInfoHeader> {
                   ],
                   Text(
                     locationText,
-                    style: const TextStyle(
-                      fontSize: 15,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF868584),
+                      color: const Color(0xFF868584),
                     ),
                   ),
                 ],
@@ -220,29 +218,26 @@ class _CafeInfoHeaderState extends State<CafeInfoHeader> {
                   const SizedBox(width: 8),
                   Text(
                     statusText,
-                    style: TextStyle(
-                      fontSize: 15,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w500,
                       color: statusColor,
                     ),
                   ),
                   if (statusDetail != null) ...[
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       '|',
-                      style: TextStyle(
-                        fontSize: 15,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w400,
-                        color: Color(0xFF868584),
+                        color: const Color(0xFF868584),
                       ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       statusDetail,
-                      style: const TextStyle(
-                        fontSize: 15,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w400,
-                        color: Color(0xFF868584),
+                        color: const Color(0xFF868584),
                       ),
                     ),
                   ],

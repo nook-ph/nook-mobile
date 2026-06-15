@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -107,18 +108,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 28),
               Image.asset('assets/logos/logoT.png', width: 110),
               const SizedBox(height: 22),
-              const Text(
+              Text(
                 'Forgot your password?',
-                style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: context.textTheme.titleLargeSemi,
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Enter your email and we\'ll send a reset link.',
-                style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                style: context.textTheme.bodySmall!.copyWith(
+                  color: const Color(0xFF6B7280),
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 32),
@@ -127,9 +126,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
                   hintText: 'Email Address',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFFA8AAAA),
-                    fontSize: 14,
+                  hintStyle: context.textTheme.bodySmall!.copyWith(
+                    color: const Color(0xFFA8AAAA),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -147,7 +145,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     _emailError!,
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
+                    style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
                   ),
                 ),
               ],
@@ -180,11 +178,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             ),
                           ),
                         )
-                      : const Text(
+                      : Text(
                           'Send reset link',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                          style: context.textTheme.bodyLargeMed.copyWith(
+                            color: Colors.white,
                           ),
                         ),
                 ),

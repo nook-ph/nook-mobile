@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -163,18 +164,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   const SizedBox(height: 28),
                   Image.asset('assets/logos/logoT.png', width: 110),
                   const SizedBox(height: 22),
-                  const Text(
+                  Text(
                     'Change your password',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: context.textTheme.titleLargeSemi,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Enter and confirm your new password.',
-                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                    style: context.textTheme.bodySmall!.copyWith(
+                      color: const Color(0xFF6B7280),
+                    ),
                   ),
                   const SizedBox(height: 32),
                   _PasswordField(
@@ -222,11 +221,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                 ),
                               ),
                             )
-                          : const Text(
+                          : Text(
                               'Update password',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
+                              style: context.textTheme.bodyLargeMed.copyWith(
+                                color: Colors.white,
                               ),
                             ),
                     ),
@@ -266,7 +264,7 @@ class _PasswordField extends StatelessWidget {
           obscureText: obscure,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFFA8AAAA), fontSize: 14),
+            hintStyle: context.textTheme.bodySmall!.copyWith(color: const Color(0xFFA8AAAA)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
@@ -294,7 +292,7 @@ class _PasswordField extends StatelessWidget {
         ),
         if (error != null) ...[
           const SizedBox(height: 8),
-          Text(error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          Text(error!, style: context.textTheme.bodySmall!.copyWith(color: Colors.red)),
         ],
       ],
     );

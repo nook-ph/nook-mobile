@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
@@ -52,11 +53,9 @@ class SettingsPage extends StatelessWidget {
                   const SizedBox(height: 4),
 
                   // ── Title ──────────────────────────────────────────────
-                  const Text(
+                  Text(
                     'Settings',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                    style: context.textTheme.titleMediumSemi.copyWith(
                       color: _textColor,
                       letterSpacing: -0.4,
                     ),
@@ -66,6 +65,7 @@ class SettingsPage extends StatelessWidget {
 
                   // ── Items ──────────────────────────────────────────────
                   _buildItem(
+                    context: context,
                     icon: Icons.mail_outline_rounded,
                     label: 'Change Email',
                     onTap: () {
@@ -84,12 +84,14 @@ class SettingsPage extends StatelessWidget {
                   ),
                   const Divider(color: _dividerColor, height: 1),
                   _buildItem(
+                    context: context,
                     icon: Icons.vpn_key_outlined,
                     label: 'Change Password',
                     onTap: () => context.push('/change-password'),
                   ),
                   const Divider(color: _dividerColor, height: 1),
                   _buildItem(
+                    context: context,
                     icon: Icons.logout_rounded,
                     label: 'Logout',
                     onTap: () => _showLogoutDialog(context),
@@ -104,6 +106,7 @@ class SettingsPage extends StatelessWidget {
   }
 
   Widget _buildItem({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
@@ -121,9 +124,7 @@ class SettingsPage extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
-                  fontSize: 15.5,
-                  fontWeight: FontWeight.w400,
+                style: context.textTheme.bodyMedium?.copyWith(
                   color: _textColor,
                 ),
               ),
@@ -142,22 +143,31 @@ void _showLogoutDialog(BuildContext context) {
     builder: (ctx) => AlertDialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text(
+      title: Text(
         'Log out',
-        style: TextStyle(fontWeight: FontWeight.w600),
+        style: ctx.textTheme.titleMediumSemi,
       ),
-      content: const Text('Are you sure you want to log out?'),
+      content: Text(
+        'Are you sure you want to log out?',
+        style: ctx.textTheme.bodyMedium,
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          child: Text(
+            'Cancel',
+            style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+          ),
         ),
         TextButton(
           onPressed: () {
             ctx.read<AuthBloc>().add(const AuthSignOutEvent());
             Navigator.pop(ctx);
           },
-          child: const Text('Log out', style: TextStyle(color: Colors.red)),
+          child: Text(
+            'Log out',
+            style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.red),
+          ),
         ),
       ],
     ),

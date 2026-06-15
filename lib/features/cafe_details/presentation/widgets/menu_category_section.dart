@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_item_variants_sheet.dart';
@@ -23,9 +24,7 @@ class MenuCategorySection extends StatelessWidget {
       children: [
         Text(
           categoryName,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
+          style: context.textTheme.titleMediumSemi.copyWith(
             color: Colors.black,
           ),
         ),
@@ -67,8 +66,7 @@ class _MenuItemRow extends StatelessWidget {
               children: [
                 Text(
                   item.name,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: Colors.black,
                   ),
@@ -76,9 +74,7 @@ class _MenuItemRow extends StatelessWidget {
                 // Subtitle/Description (Fixed: using a lighter color for hierarchy)
                 Text(
                   item.name,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
+                  style: context.textTheme.bodySmall?.copyWith(
                     color: Colors.black54,
                   ),
                 ),
@@ -90,9 +86,7 @@ class _MenuItemRow extends StatelessWidget {
             children: [
               Text(
                 '₱${item.displayPrice}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                style: context.textTheme.bodySmallMed.copyWith(
                   color: Colors.black,
                 ),
               ),

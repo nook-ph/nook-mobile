@@ -88,10 +88,9 @@ class CafeHoursTile extends StatelessWidget {
           },
           tilePadding: EdgeInsets.zero,
           leading: Icon(PhosphorIcons.clock(), color: Colors.black, size: 20),
-          title: const Text(
+          title: Text(
             'Hours',
-            style: TextStyle(
-              fontSize: 15,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.w600,
               color: Colors.black,
             ),

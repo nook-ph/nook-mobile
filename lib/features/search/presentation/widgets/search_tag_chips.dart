@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
 class SearchTagChips extends StatelessWidget {
   final String label;
@@ -28,7 +28,7 @@ class SearchTagChips extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             label,
-            style: textTheme.labelLarge?.copyWith(
+            style: context.textTheme.bodyLargeMed.copyWith(
               fontWeight: FontWeight.w600,
               color: Colors.grey.shade600,
             ),

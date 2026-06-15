@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class SignupDetailsScreen extends StatefulWidget {
@@ -79,7 +80,7 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFFA8AAAA), fontSize: 14),
+      hintStyle: context.textTheme.bodySmall!.copyWith(color: const Color(0xFFA8AAAA)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -146,20 +147,15 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                     children: [
                       Image.asset('assets/logos/logoT.png', width: 110),
                       const Gap(22),
-                      const Text(
+                      Text(
                         'Continue your account',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: context.textTheme.titleLargeSemi,
                       ),
                       const Gap(4),
                       Text(
                         'Signing up as $email',
-                        style: const TextStyle(
+                        style: context.textTheme.bodySmall!.copyWith(
                           color: Colors.black87,
-                          fontSize: 14,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -169,13 +165,9 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'What is your full name?',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
+                        style: context.textTheme.bodyLargeSemi,
                       ),
                       const Gap(8),
                       TextFormField(
@@ -187,20 +179,15 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                         const Gap(8),
                         Text(
                           _nameError!,
-                          style: const TextStyle(
+                          style: context.textTheme.bodySmall!.copyWith(
                             color: Colors.red,
-                            fontSize: 12,
                           ),
                         ),
                       ],
                       const Gap(24),
-                      const Text(
+                      Text(
                         'Create a password',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
-                        ),
+                        style: context.textTheme.bodyLargeSemi,
                       ),
                       const Gap(8),
                       TextFormField(
@@ -224,9 +211,8 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                         const Gap(8),
                         Text(
                           _passwordError!,
-                          style: const TextStyle(
+                          style: context.textTheme.bodySmall!.copyWith(
                             color: Colors.red,
-                            fontSize: 12,
                           ),
                         ),
                       ],
@@ -263,11 +249,10 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                                     ),
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   'Continue',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
+                                  style: context.textTheme.bodyLargeMed.copyWith(
+                                    color: Colors.white,
                                   ),
                                 ),
                         ),

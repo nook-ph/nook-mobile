@@ -32,7 +32,7 @@ class FullPageErrorWidget extends StatelessWidget {
               Text(
                 error.title,
                 textAlign: TextAlign.center,
-                style: textTheme.headlineSmall?.copyWith(color: Colors.black),
+                style: textTheme.titleLarge?.copyWith(color: Colors.black),
               ),
               const SizedBox(height: 12),
               Text(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -102,13 +103,9 @@ class _ListsPageState extends State<ListsPage> {
                 vertical: 8.0,
               ),
               children: [
-                const Text(
+                Text(
                   'Your Lists',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 24,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: context.textTheme.titleLargeSemi,
                 ),
                 const SizedBox(height: 20),
                 _buildFavoritesCard(context, defaultList),
@@ -117,23 +114,21 @@ class _ListsPageState extends State<ListsPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text(
+                    Text(
                       'All Lists',
-                      style: TextStyle(
-                        color: Color(0xFF1E3A2B),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
+                      style: context.textTheme.titleMediumSemi.copyWith(
+                        color: const Color(0xFF1E3A2B),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
                 if (regularLists.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24.0),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
                     child: Text(
                       'Create a list to start organizing your saved cafes.',
-                      style: TextStyle(fontSize: 15, color: Color(0xFF848586)),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848586)),
                     ),
                   )
                 else
@@ -226,19 +221,16 @@ class _ListsPageState extends State<ListsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Favorites',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                    style: context.textTheme.bodyLargeMed.copyWith(
                       color: Colors.black87,
                     ),
                   ),
                   Text(
                     _placeCountText(favoritesList?.cafeCount ?? 0),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF848586),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF848586),
                     ),
                   ),
                 ],
@@ -309,17 +301,21 @@ class _ListsPageState extends State<ListsPage> {
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           'Delete list?',
-          style: TextStyle(fontWeight: FontWeight.w600),
+          style: context.textTheme.titleMediumSemi,
         ),
         content: Text(
           '"$listName" will be permanently deleted. Cafes won\'t be deleted.',
+          style: context.textTheme.bodyMedium,
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+            ),
           ),
           TextButton(
             onPressed: () {
@@ -327,7 +323,10 @@ class _ListsPageState extends State<ListsPage> {
               bloc.add(DeleteList(listId: listId));
               Navigator.pop(context);
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Delete',
+              style: context.textTheme.bodyMedium?.copyWith(color: Colors.red),
+            ),
           ),
         ],
       ),
@@ -407,13 +406,9 @@ class _CreateListDialogState extends State<_CreateListDialog> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16.0),
         ),
-        title: const Text(
+        title: Text(
           'Create New List',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+          style: context.textTheme.titleMediumSemi,
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -463,13 +458,13 @@ class _CreateListDialogState extends State<_CreateListDialog> {
               const SizedBox(height: 8),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text(
+                title: Text(
                   'Public list',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  style: context.textTheme.bodyLargeMed,
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Anyone can view this list',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                  style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
                 ),
                 value: _isPublic,
                 activeColor: const Color(0xFF344E41),
@@ -483,7 +478,10 @@ class _CreateListDialogState extends State<_CreateListDialog> {
         actions: [
           TextButton(
             onPressed: _isLoading ? null : () => Navigator.pop(context),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -503,11 +501,9 @@ class _CreateListDialogState extends State<_CreateListDialog> {
                       strokeWidth: 2,
                     ),
                   )
-                : const Text(
+                : Text(
                     'Create',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                    style: context.textTheme.bodySmallMed.copyWith(
                       color: Colors.white,
                     ),
                   ),
@@ -605,9 +601,9 @@ class _EditListDialogState extends State<_EditListDialog> {
     return AlertDialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text(
+      title: Text(
         'Edit list',
-        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 20),
+        style: context.textTheme.titleMediumSemi,
       ),
       content: SingleChildScrollView(
         child: Column(
@@ -650,13 +646,13 @@ class _EditListDialogState extends State<_EditListDialog> {
             const SizedBox(height: 16),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text(
+              title: Text(
                 'Public list',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: context.textTheme.bodyLargeMed,
               ),
-              subtitle: const Text(
+              subtitle: Text(
                 'Anyone can view this list',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
+                style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
               ),
               value: _isPublic,
               activeColor: _green,
@@ -672,7 +668,10 @@ class _EditListDialogState extends State<_EditListDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          child: Text(
+            'Cancel',
+            style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+          ),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -683,11 +682,9 @@ class _EditListDialogState extends State<_EditListDialog> {
             elevation: 0,
           ),
           onPressed: _canSave ? () => _saveIfValid(context) : null,
-          child: const Text(
+          child: Text(
             'Save',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            style: context.textTheme.bodySmallMed.copyWith(
               color: Colors.white,
             ),
           ),
@@ -766,8 +763,7 @@ class CollectionCard extends StatelessWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 18,
+                            style: context.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color: Colors.black87,
                             ),
@@ -793,9 +789,8 @@ class CollectionCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF6B7280),
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF6B7280),
                       ),
                     ),
                     if (footerWidget != null) ...[

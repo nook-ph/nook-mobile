@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
@@ -91,7 +92,10 @@ class _ReviewsPageState extends State<ReviewsPage> {
         shadowColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: const Text('Reviews'),
+        title: Text(
+          'Reviews',
+          style: context.textTheme.titleMediumSemi,
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.of(context).pop(),
@@ -118,10 +122,8 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   child: Text(
                     state.message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Color(0xFF848685),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF848685),
                     ),
                   ),
                 ),
@@ -169,13 +171,11 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   child: Column(
                     children: [
                       if (reviews.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 32),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32),
                           child: Text(
                             'No reviews yet',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                            style: context.textTheme.bodyLargeMed.copyWith(
                               color: Colors.black,
                             ),
                           ),

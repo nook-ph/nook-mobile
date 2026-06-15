@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 
 class MenuItemCard extends StatelessWidget {
@@ -22,18 +23,15 @@ class MenuItemCard extends StatelessWidget {
             children: [
               Text(
                 item.name,
-                style: const TextStyle(
-                  fontSize: 14,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: Colors.black,
                 ),
               ),
               Text(
                 item.name,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF848685),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF848685),
                 ),
               ),
             ],
@@ -42,9 +40,7 @@ class MenuItemCard extends StatelessWidget {
         const SizedBox(width: 16),
         Text(
           _formatPrice(item.price),
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+          style: context.textTheme.bodySmallMed.copyWith(
             color: Colors.black,
           ),
         ),

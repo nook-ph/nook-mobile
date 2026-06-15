@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
@@ -45,11 +46,14 @@ class SearchEntryButton extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         alignment: Alignment.centerLeft,
-        child: const Row(
+        child: Row(
           children: [
-            Icon(LucideIcons.search, color: Colors.grey),
-            SizedBox(width: 8),
-            Text('Search...', style: TextStyle(color: Colors.grey)),
+            const Icon(LucideIcons.search, color: Colors.grey),
+            const SizedBox(width: 8),
+            Text(
+              'Search...',
+              style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+            ),
           ],
         ),
       ),

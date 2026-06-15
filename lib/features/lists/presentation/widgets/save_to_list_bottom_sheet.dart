@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/cafe_list_display_title.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
@@ -95,13 +96,9 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
+                    Text(
                       'Save to...',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: context.textTheme.titleLargeSemi,
                     ),
                     const SizedBox(height: 16),
                     Expanded(
@@ -204,12 +201,14 @@ class _SaveToListContent extends StatelessWidget {
     if (loaded.lists.isEmpty) {
       return ListView(
         controller: scrollController,
-        children: const [
+        children: [
           Padding(
-            padding: EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               'Create a list to choose where this cafe should be saved.',
-              style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
+              style: context.textTheme.bodyLarge?.copyWith(
+                color: const Color(0xFF6B7280),
+              ),
             ),
           ),
         ],
@@ -281,18 +280,13 @@ class _SaveToListRow extends StatelessWidget {
                       cafeListDisplayTitle(list),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: context.textTheme.titleMediumSemi,
                     ),
 
                     Text(
                       list.isPublic ? 'Public' : 'Private',
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 15,
+                      style: context.textTheme.bodyLarge?.copyWith(
+                        color: const Color(0xFF6B7280),
                       ),
                     ),
                   ],
@@ -414,9 +408,9 @@ class _NewListButton extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
             : const Icon(Icons.add, size: 24),
-        label: const Text(
+        label: Text(
           'New list',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+          style: context.textTheme.titleMediumSemi,
         ),
       ),
     );
@@ -450,9 +444,9 @@ class _CreateListDialogState extends State<_CreateListDialog> {
     return AlertDialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      title: const Text(
+      title: Text(
         'Create New List',
-        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 22),
+        style: context.textTheme.titleMediumSemi,
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -496,7 +490,10 @@ class _CreateListDialogState extends State<_CreateListDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          child: Text(
+            'Cancel',
+            style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+          ),
         ),
         FilledButton(
           onPressed: _isLoading ? null : _submit,
@@ -513,7 +510,10 @@ class _CreateListDialogState extends State<_CreateListDialog> {
                     strokeWidth: 2,
                   ),
                 )
-              : const Text('Create'),
+              : Text(
+                  'Create',
+                  style: context.textTheme.bodyMedium,
+                ),
         ),
       ],
     );

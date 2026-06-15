@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class EmailEntryScreen extends StatefulWidget {
@@ -78,10 +79,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
         icon: icon,
         label: Text(
           text,
-          style: const TextStyle(
+          style: context.textTheme.bodyLargeSemi.copyWith(
             color: Colors.black87,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
           ),
         ),
         style: OutlinedButton.styleFrom(
@@ -161,13 +160,9 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                       children: [
                         Image.asset('assets/logos/logoT.png', width: 110),
                         const Gap(22),
-                        const Text(
+                        Text(
                           'Log in or Sign up',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: context.textTheme.titleLargeSemi,
                         ),
                       ],
                     ),
@@ -177,9 +172,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         hintText: 'Email Address',
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFA8AAAA),
-                          fontSize: 14,
+                        hintStyle: context.textTheme.bodySmall!.copyWith(
+                          color: const Color(0xFFA8AAAA),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -199,9 +193,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         alignment: Alignment.centerLeft,
                         child: Text(
                           _emailError!,
-                          style: const TextStyle(
+                          style: context.textTheme.bodySmall!.copyWith(
                             color: Colors.red,
-                            fontSize: 12,
                           ),
                         ),
                       ),
@@ -239,11 +232,10 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                                   ),
                                 ),
                               )
-                            : const Text(
+                            : Text(
                                 'Continue',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
+                                style: context.textTheme.bodyLargeMed.copyWith(
+                                  color: Colors.white,
                                 ),
                               ),
                       ),
@@ -261,9 +253,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Text(
                             'OR',
-                            style: TextStyle(
+                            style: context.textTheme.bodyLargeMed.copyWith(
                               color: Colors.grey.shade500,
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),

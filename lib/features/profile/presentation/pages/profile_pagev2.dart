@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
@@ -53,10 +54,8 @@ class ProfileRedesignPage extends StatelessWidget {
                     : '...';
                 return Text(
                   '@$username',
-                  style: const TextStyle(
-                    color: Color(0xFF344E41),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                  style: context.textTheme.titleMediumSemi.copyWith(
+                    color: const Color(0xFF344E41),
                   ),
                 );
               },
@@ -135,15 +134,13 @@ class ProfileRedesignPage extends StatelessWidget {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          name,
-                                          style: const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.black,
-                                            letterSpacing: -0.5,
+                                          Text(
+                                            name,
+                                            style: context.textTheme.titleMediumSemi.copyWith(
+                                              color: Colors.black,
+                                              letterSpacing: -0.5,
+                                            ),
                                           ),
-                                        ),
                                       ],
                                     ),
                                   ),
@@ -153,8 +150,7 @@ class ProfileRedesignPage extends StatelessWidget {
                                 const SizedBox(height: 14),
                                 Text(
                                   bio,
-                                  style: const TextStyle(
-                                    fontSize: 14,
+                                  style: context.textTheme.bodySmall!.copyWith(
                                     color: Colors.black87,
                                     height: 1.4,
                                   ),
@@ -197,11 +193,10 @@ class ProfileRedesignPage extends StatelessWidget {
                                     ),
                                     foregroundColor: const Color(0xFF344E41),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Edit Profile',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w400,
+                                    style: context.textTheme.bodyMedium?.copyWith(
+                                      color: const Color(0xFF344E41),
                                     ),
                                   ),
                                 ),
@@ -223,7 +218,7 @@ class ProfileRedesignPage extends StatelessWidget {
                             splashFactory: NoSplash.splashFactory,
                           ),
                         ),
-                        child: const ColoredBox(
+                        child: ColoredBox(
                           color: Colors.white,
                           child: TabBar(
                             isScrollable: true,
@@ -235,14 +230,8 @@ class ProfileRedesignPage extends StatelessWidget {
                             labelColor: Color(0xFF344E41),
                             unselectedLabelColor: Colors.grey,
                             dividerColor: Color(0xFFE0E0E0),
-                            labelStyle: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            unselectedLabelStyle: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            labelStyle: context.textTheme.bodySmallMed,
+                            unselectedLabelStyle: context.textTheme.bodySmallMed,
                             tabs: [
                               Tab(text: 'Reviews'),
                               Tab(text: 'Collections'),
@@ -410,10 +399,8 @@ class _SeeMoreLinkState extends State<_SeeMoreLink> {
         onTap: widget.onTap,
         child: Text(
           'see more >',
-          style: TextStyle(
-            fontSize: 13,
+          style: context.textTheme.bodySmall!.copyWith(
             color: const Color(0xFF4CAF50),
-            fontWeight: FontWeight.w400,
             decoration: _hovered
                 ? TextDecoration.underline
                 : TextDecoration.none,
@@ -479,59 +466,33 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                 children: [
                   const SizedBox(height: 16),
 
-                  // ── Create new collection row ──
-                  InkWell(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => BlocProvider.value(
-                          value: _listsBloc,
-                          child: const ListsPage(showBackButton: true),
+                  if (regularLists.isEmpty && !isError)
+                    InkWell(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BlocProvider.value(
+                            value: _listsBloc,
+                            child: const ListsPage(showBackButton: true),
+                          ),
                         ),
                       ),
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: 12,
-                        horizontal: 4,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.add, size: 20, color: Colors.black54),
-                          SizedBox(width: 10),
-                          Text(
-                            'Create new collection',
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w400,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 48,
+                          horizontal: 24,
+                        ),
+                        child: Center(
+                          child: Text(
+                            'Save your favourite cafes into collections. Tap + to create one.',
+                            textAlign: TextAlign.center,
+                            style: context.textTheme.bodySmall!.copyWith(
+                              color: Colors.black45,
+                              height: 1.5,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  if (isLoading)
-                    Skeletonizer(
-                      enabled: true,
-                      effect: const PulseEffect(),
-                      child: GridView.count(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: 0.95,
-                        children: const [
-                          _CollectionPlaceholderTile(label: 'Loading...'),
-                          _CollectionPlaceholderTile(label: 'Loading...'),
-                          _CollectionPlaceholderTile(label: 'Loading...'),
-                          _CollectionPlaceholderTile(label: 'Loading...'),
-                        ],
+                        ),
                       ),
                     )
                   else if (isError)
@@ -546,34 +507,21 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                               color: Colors.black26,
                             ),
                             const SizedBox(height: 12),
-                            const Text(
+                            Text(
                               'Could not load collections.',
-                              style: TextStyle(color: Colors.black54),
+                              style: context.textTheme.bodySmall!.copyWith(
+                                color: Colors.black54,
+                              ),
                             ),
                             const SizedBox(height: 12),
                             TextButton(
                               onPressed: () => _listsBloc.add(LoadUserLists()),
-                              child: const Text('Retry'),
+                              child: Text(
+                                'Retry',
+                                style: context.textTheme.bodyMedium,
+                              ),
                             ),
                           ],
-                        ),
-                      ),
-                    )
-                  else if (regularLists.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(
-                        vertical: 48,
-                        horizontal: 24,
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Save your favourite cafes into collections. Tap + to create one.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.black45,
-                            height: 1.5,
-                          ),
                         ),
                       ),
                     )
@@ -674,18 +622,15 @@ class _CollectionGridTile extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: context.textTheme.bodySmallMed.copyWith(
                         color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '$cafeCount ${cafeCount == 1 ? 'place' : 'places'}',
-                      style: const TextStyle(
+                      style: context.textTheme.bodySmall!.copyWith(
                         color: Colors.white70,
-                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -754,10 +699,8 @@ class _CollectionPlaceholderTile extends StatelessWidget {
               ),
               child: Text(
                 label,
-                style: const TextStyle(
+                style: context.textTheme.bodySmallMed.copyWith(
                   color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),

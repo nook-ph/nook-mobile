@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/extensions/extensions.dart';
 
 class ListOptionsBottomSheet extends StatelessWidget {
   final String listId;
@@ -43,7 +44,7 @@ class ListOptionsBottomSheet extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey, fontSize: 14),
+                style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
               ),
             ),
             const SizedBox(height: 8),
@@ -52,7 +53,10 @@ class ListOptionsBottomSheet extends StatelessWidget {
                 Icons.edit_outlined,
                 color: Color(0xFF344E41),
               ),
-              title: const Text('Edit', style: TextStyle(color: Colors.black)),
+              title: Text(
+                'Edit',
+                style: context.textTheme.bodyMedium?.copyWith(color: Colors.black),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 onEdit();
@@ -61,7 +65,10 @@ class ListOptionsBottomSheet extends StatelessWidget {
             const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete', style: TextStyle(color: Colors.red)),
+              title: Text(
+                'Delete',
+                style: context.textTheme.bodyMedium?.copyWith(color: Colors.red),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 onDelete();

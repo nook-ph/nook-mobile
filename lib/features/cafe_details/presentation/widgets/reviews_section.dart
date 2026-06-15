@@ -44,10 +44,9 @@ class ReviewsSection extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Reviews',
-                style: TextStyle(
-                  fontSize: 20,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: Colors.black,
                 ),
@@ -67,8 +66,7 @@ class ReviewsSection extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         resolvedRating.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 24,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: Colors.black,
                           height: 1,
@@ -78,10 +76,9 @@ class ReviewsSection extends StatelessWidget {
                   ),
                   Text(
                     '$resolvedReviewCount Reviews',
-                    style: const TextStyle(
-                      fontSize: 14,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF616161),
+                      color: const Color(0xFF616161),
                     ),
                   ),
                 ],
@@ -113,11 +110,10 @@ class ReviewsSection extends StatelessWidget {
                     size: 18,
                     color: Colors.black,
                   ),
-                  label: const Text(
+                  label: Text(
                     'See more',
-                    style: TextStyle(
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Colors.black,
-                      fontSize: 15,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -144,27 +140,26 @@ class _LoadingReviewsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 22),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Reviews',
-            style: TextStyle(
-              fontSize: 20,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w500,
               color: Colors.black,
             ),
           ),
-          SizedBox(height: 16),
-          Center(
+          const SizedBox(height: 16),
+          const Center(
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 28),
               child: CircularProgressIndicator(color: Color(0xFF344E41)),
             ),
           ),
-          SizedBox(height: 40),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -183,10 +178,9 @@ class _ErrorReviewsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Reviews',
-            style: TextStyle(
-              fontSize: 20,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w500,
               color: Colors.black,
             ),
@@ -194,10 +188,9 @@ class _ErrorReviewsSection extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: const TextStyle(
-              fontSize: 13,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w400,
-              color: Color(0xFF848685),
+              color: const Color(0xFF848685),
             ),
           ),
           const SizedBox(height: 40),
@@ -219,42 +212,39 @@ class _EmptyReviewsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Reviews',
-            style: TextStyle(
-              fontSize: 20,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w500,
               color: Colors.black,
             ),
           ),
           const SizedBox(height: 16),
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 40),
+              padding: const EdgeInsets.symmetric(vertical: 40),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.rate_review_outlined,
                     size: 64,
                     color: Color(0xFFBDBDBD),
                   ),
-                  SizedBox(height: 12),
+                  const SizedBox(height: 12),
                   Text(
                     'No reviews yet',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text(
                     'Be the first to leave a review!',
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF848685),
+                      color: const Color(0xFF848685),
                     ),
                   ),
                 ],
@@ -274,9 +264,9 @@ class _EmptyReviewsSection extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text(
+              child: Text(
                 'Write a Review',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
               ),
             ),
           ),
@@ -338,8 +328,7 @@ class _ReviewCardState extends State<ReviewCard> {
             children: [
               Text(
                 widget.review.name ?? 'Anonymous',
-                style: const TextStyle(
-                  fontSize: 20,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: Colors.black,
                 ),
@@ -349,16 +338,14 @@ class _ReviewCardState extends State<ReviewCard> {
                   children: [
                     TextSpan(
                       text: '${widget.review.rating}',
-                      style: const TextStyle(
-                        fontSize: 20,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                       ),
                     ),
-                    const TextSpan(
+                    TextSpan(
                       text: '/5',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w400,
                         color: Colors.black54,
                       ),
@@ -374,10 +361,9 @@ class _ReviewCardState extends State<ReviewCard> {
             children: [
               Text(
                 _formatDate(widget.review.createdAt),
-                style: const TextStyle(
-                  fontSize: 12,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF588157),
+                  color: const Color(0xFF588157),
                 ),
               ),
               _StarRow(rating: widget.review.rating),
@@ -388,10 +374,9 @@ class _ReviewCardState extends State<ReviewCard> {
           const SizedBox(height: 12),
           Text(
             _isExpanded ? reviewContent : reviewPreview,
-            style: const TextStyle(
-              fontSize: 13,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w400,
-              color: Color(0xFF848685),
+              color: const Color(0xFF848685),
             ),
           ),
           if (resolvedImageUrls.isNotEmpty) ...[
@@ -408,9 +393,8 @@ class _ReviewCardState extends State<ReviewCard> {
               },
               child: Text(
                 _isExpanded ? 'See less' : 'See more',
-                style: const TextStyle(
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Colors.black,
-                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -442,8 +426,7 @@ class _ReviewCardState extends State<ReviewCard> {
                 ),
                 countBuilder: (count, isLiked, text) => Text(
                   text,
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w400,
                     color: isLiked ? const Color(0xFF588157) : Colors.black,
                   ),

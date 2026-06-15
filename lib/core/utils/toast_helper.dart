@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:toastification/toastification.dart';
 
@@ -137,9 +138,9 @@ void showSavedToListToast(
                   ),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text(
+                child: Text(
                   'Change',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  style: context.textTheme.bodyLargeMed,
                 ),
               ),
           ],

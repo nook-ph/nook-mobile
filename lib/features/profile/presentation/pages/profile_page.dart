@@ -11,6 +11,7 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -154,12 +155,9 @@ class ProfilePage extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Reviews',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: context.textTheme.titleMediumSemi,
                             ),
                             _SeeMoreLink(
                               onTap: () async {
@@ -248,12 +246,9 @@ class ProfilePage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Settings',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: context.textTheme.titleMediumSemi,
                             ),
                             const SizedBox(height: 12),
                             _SettingsTile(
@@ -345,16 +340,12 @@ class ProfileHeroSection extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: context.textTheme.titleMediumSemi,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   email,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: context.textTheme.bodySmall!.copyWith(
                     color: Colors.grey[600],
                     height: 1.4,
                   ),
@@ -534,10 +525,8 @@ class _SeeMoreLinkState extends State<_SeeMoreLink> {
         onTap: widget.onTap,
         child: Text(
           'see more >',
-          style: TextStyle(
-            fontSize: 13,
+          style: context.textTheme.bodySmall!.copyWith(
             color: const Color(0xFF4CAF50),
-            fontWeight: FontWeight.w400,
             decoration: _hovered
                 ? TextDecoration.underline
                 : TextDecoration.none,
@@ -573,7 +562,7 @@ class _SettingsTile extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: TextStyle(fontSize: 15, color: labelColor)),
+            Text(label, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: labelColor)),
             Icon(iconData, color: iconColor, size: 20),
           ],
         ),
@@ -594,22 +583,31 @@ void _showLogoutDialog(BuildContext context) {
     context: context,
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text(
+      title: Text(
         'Log out',
-        style: TextStyle(fontWeight: FontWeight.w600),
+        style: ctx.textTheme.titleMediumSemi,
       ),
-      content: const Text('Are you sure you want to log out?'),
+      content: Text(
+        'Are you sure you want to log out?',
+        style: ctx.textTheme.bodyMedium,
+      ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(ctx),
-          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          child: Text(
+            'Cancel',
+            style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+          ),
         ),
         TextButton(
           onPressed: () {
             context.read<AuthBloc>().add(const AuthSignOutEvent());
             Navigator.pop(ctx);
           },
-          child: const Text('Log out', style: TextStyle(color: Colors.red)),
+          child: Text(
+            'Log out',
+            style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.red),
+          ),
         ),
       ],
     ),

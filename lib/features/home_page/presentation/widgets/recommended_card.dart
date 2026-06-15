@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
+import 'package:nook/core/extensions/extensions.dart';
 
 class RecommendedCard extends StatelessWidget {
   final CafeSummary cafe;
@@ -66,20 +67,14 @@ class RecommendedCard extends StatelessWidget {
                                 cafe.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: Theme.of(context).textTheme.titleMediumSemi,
                               ),
                             ),
                             Row(
                               children: [
                                 Text(
                                   ratingText,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: context.textTheme.bodySmallMed,
                                 ),
                                 const SizedBox(width: 4),
                                 const Icon(
@@ -105,10 +100,8 @@ class RecommendedCard extends StatelessWidget {
                                 cafe.address,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF848586),
-                                  fontWeight: FontWeight.w500,
+                                style: context.textTheme.bodySmallMed.copyWith(
+                                  color: const Color(0xFF848586),
                                 ),
                               ),
                             ),
@@ -133,20 +126,17 @@ class RecommendedCard extends StatelessWidget {
                             ),
                             child: Text(
                               primaryTag,
-                              style: const TextStyle(
-                                fontSize: 12,
+                              style: context.textTheme.bodySmall?.copyWith(
                                 color: Colors.black54,
                               ),
                             ),
                           )
                         else
                           const SizedBox.shrink(),
-                        const Text(
+                        Text(
                           '5.0 km',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF848685),
+                          style: context.textTheme.bodySmallMed.copyWith(
+                            color: const Color(0xFF848685),
                           ),
                         ),
                       ],

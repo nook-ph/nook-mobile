@@ -327,11 +327,10 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                 ),
               ),
               const SizedBox(height: 28),
-              const Text(
+              Text(
                 'How was your visit?',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 22,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: Colors.black,
                 ),
@@ -368,8 +367,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                       ? const SizedBox.shrink()
                       : Text(
                           _ratingLabel(_selectedRating),
-                          style: const TextStyle(
-                            fontSize: 15,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w400,
                             color: Colors.black,
                           ),
@@ -377,10 +375,9 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'Share your experience...',
-                style: TextStyle(
-                  fontSize: 16,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: Colors.black,
                 ),
@@ -394,9 +391,8 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                 decoration: InputDecoration(
                   hintText:
                       'Tell us about the atmosphere, the coffee, and the service...',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFFBDBDBD),
-                    fontSize: 14,
+                  hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFBDBDBD),
                   ),
                   filled: true,
                   fillColor: const Color(0xFFF2F2F2),
@@ -408,13 +404,12 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                 ),
               ),
               const SizedBox(height: 24),
-              const Row(
+              Row(
                 children: [
                   Expanded(
                     child: Text(
                       'Add photos (Max 3)',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                       ),
@@ -422,10 +417,9 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                   ),
                   Text(
                     'Optional',
-                    style: TextStyle(
-                      fontSize: 13,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w400,
-                      color: Color(0xFF9E9E9E),
+                      color: const Color(0xFF9E9E9E),
                     ),
                   ),
                 ],
@@ -453,20 +447,19 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                             color: Colors.white,
                           ),
                         )
-                      : const Row(
+                      : Row(
                           mainAxisSize: MainAxisSize.min,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               'Submit Review',
-                              style: TextStyle(
-                                fontSize: 16,
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
                               ),
                             ),
-                            SizedBox(width: 8),
-                            Icon(
+                            const SizedBox(width: 8),
+                            const Icon(
                               Icons.arrow_forward,
                               color: Colors.white,
                               size: 18,
@@ -538,19 +531,18 @@ class _AddPhotoButton extends StatelessWidget {
         height: 100,
         child: CustomPaint(
           painter: const _DashedBorderPainter(),
-          child: const Column(
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.add, size: 22, color: Color(0xFF9E9E9E)),
-              SizedBox(height: 6),
-              Text(
-                'Add photo',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF9E9E9E),
+              const Icon(Icons.add, size: 22, color: Color(0xFF9E9E9E)),
+              const SizedBox(height: 6),
+                Text(
+                  'Add photo',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF9E9E9E),
+                  ),
                 ),
-              ),
             ],
           ),
         ),
