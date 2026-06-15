@@ -52,9 +52,8 @@ class MenuFullPage extends StatelessWidget {
             ),
             child: Text(
               cafeName != null ? '$cafeName Menu' : 'Menu',
-              style: const TextStyle(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: Colors.black,
-                fontSize: 28,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -122,15 +121,12 @@ class MenuFullPage extends StatelessWidget {
                                   item.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 15),
+                                  style: Theme.of(context).textTheme.bodyLarge,
                                 ),
                                 const Gap(2),
                                 Text(
                                   '₱${item.displayPrice}',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    color: Colors.black,
-                                  ),
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.black),
                                 ),
                               ],
                             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -79,10 +80,7 @@ class ReviewCard extends StatelessWidget {
                     children: [
                       RichText(
                         text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.black,
-                          ),
+                          style: context.textTheme.bodyMedium,
                           children: [
                             TextSpan(
                               text: username,
@@ -107,14 +105,6 @@ class ReviewCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        date,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.black45,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -126,8 +116,7 @@ class ReviewCard extends StatelessWidget {
             // Review text
             Text(
               reviewText,
-              style: const TextStyle(
-                fontSize: 14,
+              style: context.textTheme.bodyMedium?.copyWith(
                 color: Colors.black87,
                 height: 1.45,
               ),
@@ -202,10 +191,8 @@ class ReviewCard extends StatelessWidget {
                                 alignment: Alignment.center,
                                 child: Text(
                                   '+$extraCount',
-                                  style: const TextStyle(
+                                  style: context.textTheme.titleMediumSemi.copyWith(
                                     color: Colors.white,
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -237,10 +224,8 @@ class ReviewCard extends StatelessWidget {
                           helpfulCount > 0
                               ? 'helpful ($helpfulCount)'
                               : 'helpful',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF588157),
-                            fontWeight: FontWeight.w500,
+                          style: context.textTheme.bodySmallMed.copyWith(
+                            color: const Color(0xFF588157),
                           ),
                         ),
                       ],

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
@@ -270,9 +271,8 @@ class _ReviewPhotoViewerState extends State<ReviewPhotoViewer>
                   ),
                   child: Text(
                     '${_currentIndex + 1} / $total',
-                    style: const TextStyle(
+                    style: context.textTheme.bodySmallMed.copyWith(
                       color: Colors.white,
-                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

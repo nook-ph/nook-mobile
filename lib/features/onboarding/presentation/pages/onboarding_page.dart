@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../bloc/onboarding_bloc.dart';
@@ -83,10 +84,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     Text(
                                       currentData.title,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.w600,
-                                        color: Color(0xFF344E41),
+                                      style: context.textTheme.titleLargeSemi.copyWith(
+                                        color: const Color(0xFF344E41),
                                         height: 1.3,
                                       ),
                                     ),
@@ -95,9 +94,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     Text(
                                       currentData.description,
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        color: Color(0xFF0A0F0D),
+                                      style: context.textTheme.bodyMedium?.copyWith(
+                                        color: const Color(0xFF0A0F0D),
                                         height: 1.5,
                                       ),
                                     ),
@@ -148,10 +146,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                 state.isLastPage
                                     ? "Enable Location & Start"
                                     : "Next",
-                                style: const TextStyle(
+                                style: context.textTheme.bodyLargeMed.copyWith(
                                   color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),

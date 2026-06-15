@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
@@ -64,13 +65,9 @@ class _ReviewsPageState extends State<ReviewsPage> {
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        title: const Text(
+        title: Text(
           'Reviews',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: context.textTheme.titleMediumSemi,
         ),
       ),
       body: BlocBuilder<ProfileCubit, ProfileState>(
@@ -111,9 +108,9 @@ class _ReviewsPageState extends State<ReviewsPage> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Text(
+                        Text(
                           'Sort by:',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                          style: context.textTheme.bodySmall!.copyWith(color: Colors.grey),
                         ),
                         const SizedBox(width: 8),
                         Container(
@@ -132,9 +129,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                               isDense: true,
                               dropdownColor: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
+                              style: context.textTheme.bodySmallMed.copyWith(
                                 color: Colors.black87,
                               ),
                               icon: const Icon(
@@ -145,7 +140,12 @@ class _ReviewsPageState extends State<ReviewsPage> {
                               items: _sortOptions.map((option) {
                                 return DropdownMenuItem(
                                   value: option,
-                                  child: Text(option),
+                                  child: Text(
+                                    option,
+                                    style: context.textTheme.bodySmallMed.copyWith(
+                                      color: Colors.black87,
+                                    ),
+                                  ),
                                 );
                               }).toList(),
                               onChanged: (val) {
@@ -189,13 +189,16 @@ class _ReviewsPageState extends State<ReviewsPage> {
               const SizedBox(height: 12),
               Text(
                 'Could not load reviews.',
-                style: TextStyle(color: Colors.grey[800], fontSize: 14),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[800]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => context.read<ProfileCubit>().loadProfile(),
-                child: const Text('Retry'),
+                child: Text(
+                  'Retry',
+                  style: context.textTheme.bodyMedium,
+                ),
               ),
             ],
           ),
@@ -211,15 +214,15 @@ class _ReviewsPageState extends State<ReviewsPage> {
     final reviews = _getFiltered(profileState.reviews);
 
     if (reviews.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.rate_review_outlined, size: 48, color: Colors.grey),
-            SizedBox(height: 12),
+            const Icon(Icons.rate_review_outlined, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
             Text(
               'No reviews found.',
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
             ),
           ],
         ),
@@ -278,9 +281,7 @@ class _StarChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+          style: context.textTheme.bodySmallMed.copyWith(
             color: selected ? Colors.white : Colors.black87,
           ),
         ),

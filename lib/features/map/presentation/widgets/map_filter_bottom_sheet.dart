@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
@@ -14,12 +15,11 @@ class MapFilterBottomSheet extends StatefulWidget {
 
   final CafeFilter initialFilter;
 
-  /// Matches [CafeInfo] section headers.
-  static const TextStyle sectionTitleStyle = TextStyle(
-    fontSize: 15,
-    fontWeight: FontWeight.w500,
-    color: Color(0xFF848685),
-  );
+  /// Matches [CafeInfo] section headers. Uses the app's text theme.
+  static TextStyle sectionTitleStyle(BuildContext context) =>
+      context.textTheme.bodyLargeMed.copyWith(
+        color: const Color(0xFF848685),
+      );
 
   static Future<void> show(BuildContext context) {
     final mapBloc = context.read<MapBloc>();
@@ -103,13 +103,9 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Filters',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
+                  style: context.textTheme.titleMediumSemi,
                 ),
                 IconButton(
                   onPressed: () => Navigator.of(context).maybePop(),
@@ -124,7 +120,10 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(kMapFilterSectionSortBy, style: MapFilterBottomSheet.sectionTitleStyle),
+                  Text(
+                    kMapFilterSectionSortBy,
+                    style: MapFilterBottomSheet.sectionTitleStyle(context),
+                  ),
                   const Gap(12),
                   MapFilterSortGrid(
                     options: mapFilterSortOptions(),
@@ -138,7 +137,10 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
                     color: Color(0xFFE0E0E0),
                   ),
                   const Gap(28),
-                  const Text(kMapFilterSectionBestFor, style: MapFilterBottomSheet.sectionTitleStyle),
+                  Text(
+                    kMapFilterSectionBestFor,
+                    style: MapFilterBottomSheet.sectionTitleStyle(context),
+                  ),
                   const Gap(12),
                   MapFilterTagWrap(
                     labels: kMapFilterBestForLabels,
@@ -158,7 +160,10 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
                     color: Color(0xFFE0E0E0),
                   ),
                   const Gap(28),
-                  const Text(kMapFilterSectionAmenities, style: MapFilterBottomSheet.sectionTitleStyle),
+                  Text(
+                    kMapFilterSectionAmenities,
+                    style: MapFilterBottomSheet.sectionTitleStyle(context),
+                  ),
                   const Gap(12),
                   MapFilterTagWrap(
                     labels: kMapFilterAmenityLabels,
@@ -178,9 +183,9 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
                     color: Color(0xFFE0E0E0),
                   ),
                   const Gap(28),
-                  const Text(
+                  Text(
                     kMapFilterSectionPaymentAccepted,
-                    style: MapFilterBottomSheet.sectionTitleStyle,
+                    style: MapFilterBottomSheet.sectionTitleStyle(context),
                   ),
                   const Gap(12),
                   MapFilterTagWrap(
@@ -219,10 +224,9 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Clear all',
-                      style: TextStyle(
-                        fontSize: 15,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -241,10 +245,9 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Apply',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
@@ -300,9 +303,7 @@ class MapFilterTagChip extends StatelessWidget {
           ],
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+            style: context.textTheme.bodySmallMed.copyWith(
               color: contentColor,
             ),
           ),
@@ -482,8 +483,7 @@ class MapFilterSortSquareCard extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: context.textTheme.bodySmallMed.copyWith(
                       fontWeight: FontWeight.w600,
                       height: 1.15,
                       color: selected ? _selectedBorder : Colors.black87,

@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class UsernameSetupScreen extends StatefulWidget {
@@ -167,20 +168,16 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                     children: [
                       Image.asset('assets/logos/logoT.png', width: 110),
                       const Gap(22),
-                      const Text(
+                      Text(
                         'Pick a username',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: context.textTheme.titleLargeSemi,
                       ),
                       const Gap(8),
                       Text(
                         widget.fullName != null
                             ? 'Welcome, ${widget.fullName!.split(' ').first}! Choose a unique handle.'
                             : 'This is how other people will find you.',
-                        style: const TextStyle(color: _grey, fontSize: 14),
+                        style: context.textTheme.bodySmall!.copyWith(color: _grey),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -202,15 +199,12 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                         },
                         decoration: InputDecoration(
                           hintText: 'username',
-                          hintStyle: const TextStyle(
+                          hintStyle: context.textTheme.bodySmall!.copyWith(
                             color: _grey,
-                            fontSize: 14,
                           ),
                           prefixText: '@',
-                          prefixStyle: const TextStyle(
+                          prefixStyle: context.textTheme.bodySmallMed.copyWith(
                             color: Colors.black87,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
                           ),
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -234,9 +228,9 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                       const Gap(8),
                       _buildStatusText(),
                       const Gap(12),
-                      const Text(
-                        'Letters, numbers, and underscores only. 3–20 characters.',
-                        style: TextStyle(color: _grey, fontSize: 12),
+                      Text(
+                        'Letters, numbers, and underscores only. 3\u201320 characters.',
+                        style: context.textTheme.bodySmall!.copyWith(color: _grey),
                       ),
                       const Gap(32),
                       SizedBox(
@@ -269,11 +263,10 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                                     ),
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   'Confirm Username',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
+                                  style: context.textTheme.bodyLargeMed.copyWith(
+                                    color: Colors.white,
                                   ),
                                 ),
                         ),
@@ -345,25 +338,25 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
     if (_validationError != null) {
       return Text(
         _validationError!,
-        style: const TextStyle(color: Colors.red, fontSize: 12),
+        style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
       );
     }
     if (_isChecking) {
-      return const Text(
+      return Text(
         'Checking availability...',
-        style: TextStyle(color: _grey, fontSize: 12),
+        style: context.textTheme.bodySmall!.copyWith(color: _grey),
       );
     }
     if (_isAvailable == true) {
       return Text(
         '@${_usernameController.text} is available!',
-        style: const TextStyle(color: _green, fontSize: 12),
+        style: context.textTheme.bodySmall!.copyWith(color: _green),
       );
     }
     if (_isAvailable == false) {
       return Text(
         '@${_usernameController.text} is already taken.',
-        style: const TextStyle(color: Colors.red, fontSize: 12),
+        style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
       );
     }
     return const SizedBox.shrink();

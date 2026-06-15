@@ -175,8 +175,7 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 18,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: Colors.black,
                   ),
@@ -219,10 +218,9 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Clear all',
-                      style: TextStyle(
-                        fontSize: 15,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -241,10 +239,9 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 18),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Apply',
-                      style: TextStyle(
-                        fontSize: 16,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),

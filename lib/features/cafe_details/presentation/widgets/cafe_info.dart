@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
@@ -20,10 +21,10 @@ class CafeInfo extends StatelessWidget {
 
   final CafeDetailsResult? cafe;
 
-  static const TextStyle _sectionTitleStyle = TextStyle(
-    fontSize: 15,
-    color: Color(0xFF848685),
-  );
+  TextStyle? _sectionTitleStyle(BuildContext context) =>
+      context.textTheme.bodyLarge?.copyWith(
+        color: const Color(0xFF848685),
+      );
 
   String _normalizeCategory(String value) {
     return value
@@ -154,11 +155,10 @@ class CafeInfo extends StatelessWidget {
                 Stack(
                   alignment: Alignment.center,
                   children: [
-                    const Center(
+                    Center(
                       child: Text(
                         'Open Directions With',
-                        style: TextStyle(
-                          fontSize: 17,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.2,
                         ),
@@ -190,11 +190,10 @@ class CafeInfo extends StatelessWidget {
                         CupertinoIcons.map,
                         color: Color(0xFF1C1C1E),
                       ),
-                      title: const Text(
+                      title: Text(
                         'Google Maps',
-                        style: TextStyle(
-                          fontSize: 17,
-                          color: Color(0xFF1C1C1E),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: const Color(0xFF1C1C1E),
                         ),
                       ),
                       trailing: const Icon(
@@ -215,11 +214,10 @@ class CafeInfo extends StatelessWidget {
                         CupertinoIcons.location_solid,
                         color: Color(0xFF1C1C1E),
                       ),
-                      title: const Text(
+                      title: Text(
                         'Apple Maps',
-                        style: TextStyle(
-                          fontSize: 17,
-                          color: Color(0xFF1C1C1E),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: const Color(0xFF1C1C1E),
                         ),
                       ),
                       trailing: const Icon(
@@ -386,10 +384,9 @@ class CafeInfo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Details',
-            style: TextStyle(
-              fontSize: 20,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w500,
               color: Colors.black,
             ),
@@ -400,12 +397,12 @@ class CafeInfo extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('AMENITIES', style: _sectionTitleStyle),
+              Text('AMENITIES', style: _sectionTitleStyle(context)),
               const Gap(12),
               if (amenities.isEmpty)
-                const Text(
+                Text(
                   'No amenities listed',
-                  style: TextStyle(fontSize: 15, color: Color(0xFF848685)),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
                 )
               else
                 Column(
@@ -425,9 +422,8 @@ class CafeInfo extends StatelessWidget {
                           Expanded(
                             child: Text(
                               tag.name,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: Color(0xFF848685),
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: const Color(0xFF848685),
                               ),
                             ),
                           ),
@@ -446,7 +442,7 @@ class CafeInfo extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('BEST FOR', style: _sectionTitleStyle),
+              Text('BEST FOR', style: _sectionTitleStyle(context)),
               const Gap(12),
               Wrap(
                 spacing: 10,
@@ -472,12 +468,12 @@ class CafeInfo extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('ACCEPTED PAYMENTS', style: _sectionTitleStyle),
+              Text('ACCEPTED PAYMENTS', style: _sectionTitleStyle(context)),
               const Gap(18),
               if (paymentOptions.isEmpty)
-                const Text(
+                Text(
                   'No payment options listed',
-                  style: TextStyle(fontSize: 15, color: Color(0xFF848685)),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
                 )
               else
                 Wrap(
@@ -504,7 +500,7 @@ class CafeInfo extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('LOCATION & CONTACTS', style: _sectionTitleStyle),
+              Text('LOCATION & CONTACTS', style: _sectionTitleStyle(context)),
               const Gap(16),
               Builder(
                 builder: (context) {
@@ -533,7 +529,7 @@ class CafeInfo extends StatelessWidget {
               const Gap(16),
               Text(
                 address,
-                style: const TextStyle(fontSize: 16, color: Colors.black),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.black),
               ),
               const Gap(10),
               SizedBox(
@@ -553,11 +549,10 @@ class CafeInfo extends StatelessWidget {
                     color: Colors.black,
                     size: 18,
                   ),
-                  label: const Text(
+                  label: Text(
                     'Get Directions',
-                    style: TextStyle(
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Colors.black,
-                      fontSize: 15,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -661,10 +656,9 @@ class _BestForTag extends StatelessWidget {
           ],
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w500,
-              color: Color(0xFF868584),
+              color: const Color(0xFF868584),
             ),
           ),
         ],
@@ -687,7 +681,7 @@ class _PaymentType extends StatelessWidget {
         const Gap(4),
         Text(
           label,
-          style: const TextStyle(fontSize: 15, color: Color(0xFF848685)),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
         ),
       ],
     );

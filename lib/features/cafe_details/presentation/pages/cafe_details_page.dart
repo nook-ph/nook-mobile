@@ -219,9 +219,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                 color: Colors.black,
-                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -302,8 +301,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                 state is CafeDetailsLoaded
                                     ? state.data.cafeDetails.description
                                     : '',
-                                style: const TextStyle(
-                                  fontSize: 15,
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                   color: Colors.black54,
                                 ),
                               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 
@@ -64,10 +65,7 @@ class ListCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 cafe.name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                                style: context.textTheme.titleMediumSemi,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -78,10 +76,7 @@ class ListCard extends StatelessWidget {
                               children: [
                                 Text(
                                   cafe.rating.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                  style: context.textTheme.bodySmallMed,
                                 ),
                                 const SizedBox(width: 6),
                                 const Icon(
@@ -106,10 +101,8 @@ class ListCard extends StatelessWidget {
                                 cafe.address.isEmpty
                                     ? 'Address unavailable'
                                     : cafe.address,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF848586),
-                                  fontWeight: FontWeight.w500,
+                                style: context.textTheme.bodySmallMed.copyWith(
+                                  color: const Color(0xFF848586),
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -139,8 +132,7 @@ class ListCard extends StatelessWidget {
                                 cafe.tags.isNotEmpty
                                     ? cafe.tags.first
                                     : 'Student Friendly',
-                                style: const TextStyle(
-                                  fontSize: 12,
+                                style: context.textTheme.bodySmall?.copyWith(
                                   color: Colors.black54,
                                 ),
                               ),
@@ -148,12 +140,10 @@ class ListCard extends StatelessWidget {
                             const SizedBox(width: 6),
                           ],
                         ),
-                        const Text(
+                        Text(
                           '5.0 km',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF848685),
+                          style: context.textTheme.bodySmallMed.copyWith(
+                            color: const Color(0xFF848685),
                           ),
                         ),
                       ],
