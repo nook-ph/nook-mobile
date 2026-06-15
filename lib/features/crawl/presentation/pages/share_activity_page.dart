@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -16,7 +17,6 @@ import 'package:nook/features/crawl/presentation/cubit/share_card_cubit.dart';
 import 'package:nook/features/crawl/presentation/cubit/share_card_state.dart';
 import 'package:nook/features/crawl/presentation/widgets/share_card/crawl_share_card.dart';
 import 'package:nook/features/crawl/presentation/widgets/share_card/transparency_grid.dart';
-import 'package:nook/features/crawl/presentation/widgets/share_card_view.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/injection_container.dart';
 
@@ -38,16 +38,18 @@ class ShareActivityPage extends StatefulWidget {
 
 class _ShareActivityPageState extends State<ShareActivityPage> {
   late final ShareCardCubit _shareCardCubit;
-  final _shareCardKey = GlobalKey();
   bool _ownsCubit = false;
-  bool _isCapturing = false;
+  bool _instagramLoading = false;
+  bool _downloadLoading = false;
+  bool _moreLoading = false;
+
+  bool get _anyLoading => _instagramLoading || _downloadLoading || _moreLoading;
 
   @override
   void initState() {
     super.initState();
     _shareCardCubit = widget.cubit ?? sl<ShareCardCubit>();
     _ownsCubit = widget.cubit == null;
-    _shareCardCubit.setShareCardKey(_shareCardKey);
     if (_shareCardCubit.state is! ShareCardReady) {
       _shareCardCubit.loadData(widget.crawlId);
     }
@@ -55,48 +57,96 @@ class _ShareActivityPageState extends State<ShareActivityPage> {
 
   @override
   void dispose() {
-    if (_ownsCubit) {
-      _shareCardCubit.close();
-    }
+    if (_ownsCubit) _shareCardCubit.close();
     super.dispose();
   }
 
-  Future<Uint8List?> _capturePngBytes() async {
-    final boundary =
-        _shareCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null) return null;
+  /// Captures [CrawlShareCard] as a transparent PNG by rendering it into a
+  /// standalone [RenderRepaintBoundary] that is fully detached from the
+  /// Scaffold's widget tree — no implicit Material surface, no compositor
+  /// background bleed.
+  Future<Uint8List?> _captureTransparentPng(CrawlShareCardData data) async {
+    const cardWidth = 360.0;
+    const cardHeight = 640.0;
+    const pixelRatio = 3.0;
 
-    final image = await boundary.toImage(pixelRatio: 3.0);
+    // Build a widget into a standalone render tree, completely detached
+    // from the Scaffold so there is no background injection.
+    final repaintBoundary = RenderRepaintBoundary();
+
+    final renderView = RenderView(
+      view: ui.PlatformDispatcher.instance.views.first,
+      child: RenderPositionedBox(
+        alignment: Alignment.topLeft,
+        child: repaintBoundary,
+      ),
+      configuration: ViewConfiguration(
+        logicalConstraints: BoxConstraints.tight(
+          const Size(cardWidth, cardHeight),
+        ),
+        devicePixelRatio: pixelRatio,
+      ),
+    );
+
+    final pipelineOwner = PipelineOwner();
+    final buildOwner = BuildOwner(focusManager: FocusManager());
+
+    pipelineOwner.rootNode = renderView;
+    renderView.prepareInitialFrame();
+
+    // Build the widget into the detached render tree.
+    final rootElement = RenderObjectToWidgetAdapter<RenderBox>(
+      container: repaintBoundary,
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(cardWidth, cardHeight),
+            devicePixelRatio: pixelRatio,
+          ),
+          child: CrawlShareCard(data: data),
+        ),
+      ),
+    ).attachToRenderTree(buildOwner);
+
+    buildOwner.buildScope(rootElement);
+    buildOwner.finalizeTree();
+
+    pipelineOwner.flushLayout();
+    pipelineOwner.flushCompositingBits();
+    pipelineOwner.flushPaint();
+
+    // toImage on a detached RenderRepaintBoundary starts with a transparent
+    // canvas — no Scaffold, no Material, nothing to bleed through.
+    final image = await repaintBoundary.toImage(pixelRatio: pixelRatio);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
     return byteData?.buffer.asUint8List();
   }
 
-  Future<Uint8List> _compositeOverWhite(Uint8List pngBytes) async {
-    final codec = await ui.instantiateImageCodec(pngBytes);
-    final frame = await codec.getNextFrame();
-    final image = frame.image;
-
-    final recorder = ui.PictureRecorder();
-    final canvas = Canvas(
-      recorder,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-    );
-    canvas.drawColor(const Color(0xFFFFFFFF), BlendMode.src);
-    canvas.drawImage(image, Offset.zero, Paint());
-    final picture = recorder.endRecording();
-    final composited = await picture.toImage(image.width, image.height);
-    final byteData = await composited.toByteData(format: ui.ImageByteFormat.png);
-    return byteData!.buffer.asUint8List();
+  Future<Uint8List?> _getBytes() async {
+    final state = _shareCardCubit.state;
+    if (state is! ShareCardReady) {
+      if (mounted) showPrimaryToast(context, 'Card not ready');
+      return null;
+    }
+    try {
+      final bytes = await _captureTransparentPng(state.data);
+      if (bytes == null && mounted) {
+        showPrimaryToast(context, 'Failed to capture image');
+      }
+      return bytes;
+    } catch (e) {
+      if (mounted) showPrimaryToast(context, 'Failed to capture image');
+      return null;
+    }
   }
 
   Future<void> _shareToInstagramStories() async {
     try {
-      setState(() => _isCapturing = true);
-      final bytes = await _capturePngBytes();
-      if (bytes == null) {
-        if (mounted) showPrimaryToast(context, 'Failed to capture image');
-        return;
-      }
+      setState(() => _instagramLoading = true);
+      final bytes = await _getBytes();
+      if (bytes == null) return;
 
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/nook_share.png');
@@ -125,32 +175,41 @@ class _ShareActivityPageState extends State<ShareActivityPage> {
     } catch (e) {
       if (mounted) showPrimaryToast(context, 'Failed to share to Instagram');
     } finally {
-      if (mounted) setState(() => _isCapturing = false);
+      if (mounted) setState(() => _instagramLoading = false);
     }
   }
 
   Future<void> _downloadToGallery() async {
     try {
-      final bytes = await _capturePngBytes();
-      if (bytes == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to capture image')),
-          );
-        }
-        return;
-      }
+      setState(() => _downloadLoading = true);
+      final bytes = await _getBytes();
+      if (bytes == null) return;
 
-      final opaque = await _compositeOverWhite(bytes);
-      await ImageGallerySaverPlus.saveImage(opaque, name: 'nook_crawl');
+      final dir = await getTemporaryDirectory();
+      final tmpFile = File(
+        '${dir.path}/nook_crawl_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await tmpFile.writeAsBytes(bytes);
 
-      if (mounted) {
-        showPrimaryToast(context, 'Saved to gallery');
-      }
+      await ImageGallerySaverPlus.saveFile(tmpFile.path, name: 'nook_crawl');
+
+      if (mounted) showPrimaryToast(context, 'Saved to gallery');
     } catch (e) {
-      if (mounted) {
-        showPrimaryToast(context, 'Failed to save');
-      }
+      if (mounted) showPrimaryToast(context, 'Failed to save');
+    } finally {
+      if (mounted) setState(() => _downloadLoading = false);
+    }
+  }
+
+  Future<void> _shareMore() async {
+    try {
+      setState(() => _moreLoading = true);
+      final error = await _shareCardCubit.captureAndShare();
+      if (error != null && mounted) showPrimaryToast(context, error);
+    } catch (e) {
+      if (mounted) showPrimaryToast(context, 'Failed to share');
+    } finally {
+      if (mounted) setState(() => _moreLoading = false);
     }
   }
 
@@ -163,9 +222,9 @@ class _ShareActivityPageState extends State<ShareActivityPage> {
             previous.runtimeType != current.runtimeType,
         listener: (context, state) {
           if (state case ShareCardError(:final message)) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(message)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(message)));
           }
         },
         child: Scaffold(
@@ -179,102 +238,71 @@ class _ShareActivityPageState extends State<ShareActivityPage> {
             elevation: 0,
             backgroundColor: Colors.white,
           ),
-          body: Stack(
+          body: Column(
             children: [
-              Column(
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: BlocBuilder<ShareCardCubit, ShareCardState>(
-                      builder: (context, state) {
-                        return switch (state) {
-                          ShareCardInitial() || ShareCardLoading() =>
-                            _buildLoadingPreview(),
-                          ShareCardReady(:final data) =>
-                            _buildCardPreview(data),
-                          ShareCardError(:final message) =>
-                            _buildErrorPreview(message),
-                        };
-                      },
-                    ),
-                  ),
-                  const Divider(height: 1, thickness: 1),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Share to',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
+              Expanded(
+                child: BlocBuilder<ShareCardCubit, ShareCardState>(
+                  builder: (context, state) {
+                    return switch (state) {
+                      ShareCardInitial() ||
+                      ShareCardLoading() => _buildLoadingPreview(),
+                      ShareCardReady(:final data) => _buildCardPreview(data),
+                      ShareCardError(:final message) => _buildErrorPreview(
+                        message,
                       ),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 100,
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          _ShareDestinationButton(
-                            icon: const Icon(LucideIcons.camera, size: 22),
-                            label: 'Instagram\nStories',
-                            enabled: !_isCapturing,
-                            onTap: _isCapturing ? null : _shareToInstagramStories,
-                          ),
-                          const Gap(8),
-                          _ShareDestinationButton(
-                            icon: const Icon(LucideIcons.download, size: 22),
-                            label: 'Download',
-                            enabled: !_isCapturing,
-                            onTap: _isCapturing ? null : _downloadToGallery,
-                          ),
-                          const Gap(8),
-                          _ShareDestinationButton(
-                            icon: _isCapturing
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(LucideIcons.share2, size: 22),
-                            label: 'More',
-                            enabled: !_isCapturing,
-                            onTap: _isCapturing
-                                ? null
-                                : () async {
-                                    setState(() => _isCapturing = true);
-                                    final error =
-                                        await _shareCardCubit.captureAndShare();
-                                    if (!context.mounted) return;
-                                    setState(() => _isCapturing = false);
-                                    if (error != null) {
-                                      showPrimaryToast(context, error);
-                                    }
-                                  },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SizedBox(
-                    height: MediaQuery.of(context).padding.bottom + 16,
-                  ),
-                ],
-              ),
-              Positioned(
-                left: -9999,
-                top: 0,
-                child: RepaintBoundary(
-                  key: _shareCardKey,
-                  child: const ShareCardView(),
+                    };
+                  },
                 ),
               ),
+              const Divider(height: 1, thickness: 1),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Share to',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 100,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      _ShareDestinationButton(
+                        icon: _instagramLoading
+                            ? const _LoadingIndicator()
+                            : const Icon(LucideIcons.camera, size: 22),
+                        label: 'Instagram\nStories',
+                        enabled: !_anyLoading,
+                        onTap: _anyLoading ? null : _shareToInstagramStories,
+                      ),
+                      const Gap(8),
+                      _ShareDestinationButton(
+                        icon: _downloadLoading
+                            ? const _LoadingIndicator()
+                            : const Icon(LucideIcons.download, size: 22),
+                        label: 'Download',
+                        enabled: !_anyLoading,
+                        onTap: _anyLoading ? null : _downloadToGallery,
+                      ),
+                      const Gap(8),
+                      _ShareDestinationButton(
+                        icon: _moreLoading
+                            ? const _LoadingIndicator()
+                            : const Icon(LucideIcons.share2, size: 22),
+                        label: 'More',
+                        enabled: !_anyLoading,
+                        onTap: _anyLoading ? null : _shareMore,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
             ],
           ),
         ),
@@ -290,12 +318,7 @@ class _ShareActivityPageState extends State<ShareActivityPage> {
           aspectRatio: 360 / 640,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Stack(
-              children: [
-                const Positioned.fill(child: TransparencyGrid()),
-                const SizedBox(),
-              ],
-            ),
+            child: const TransparencyGrid(),
           ),
         ),
       ),
@@ -342,7 +365,8 @@ class _ShareActivityPageState extends State<ShareActivityPage> {
                         Text(message, textAlign: TextAlign.center),
                         const SizedBox(height: 12),
                         TextButton(
-                          onPressed: () => _shareCardCubit.loadData(widget.crawlId),
+                          onPressed: () =>
+                              _shareCardCubit.loadData(widget.crawlId),
                           child: const Text('Retry'),
                         ),
                       ],
@@ -354,6 +378,19 @@ class _ShareActivityPageState extends State<ShareActivityPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LoadingIndicator extends StatelessWidget {
+  const _LoadingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(strokeWidth: 2),
     );
   }
 }
@@ -390,10 +427,7 @@ class _ShareDestinationButton extends StatelessWidget {
           const Gap(6),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.black87,
-            ),
+            style: const TextStyle(fontSize: 11, color: Colors.black87),
             textAlign: TextAlign.center,
             maxLines: 2,
           ),

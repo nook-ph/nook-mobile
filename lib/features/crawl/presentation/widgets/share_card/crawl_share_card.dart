@@ -7,6 +7,7 @@ import 'package:nook/features/crawl/presentation/widgets/share_card/share_card_s
 
 class CrawlShareCard extends StatelessWidget {
   final CrawlShareCardData data;
+
   const CrawlShareCard({super.key, required this.data});
 
   @override
@@ -17,29 +18,26 @@ class CrawlShareCard extends StatelessWidget {
     claimed.sort((a, b) => b.claimedAt!.compareTo(a.claimedAt!));
     final lastClaimed = claimed.isNotEmpty ? claimed.first : null;
 
-    return ColoredBox(
-      color: Colors.transparent,
-      child: SizedBox(
-        width: 360,
-        height: 640,
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ShareCardStampHero(cafeLogoUrl: lastClaimed?.cafeLogoUrl),
-              const SizedBox(height: 16),
-              ShareCardStats(data: data),
-              const SizedBox(height: 0),
-              CachedNetworkImage(
-                imageUrl:
-                    'https://lucerocris.sgp1.cdn.digitaloceanspaces.com/nookLogo.png',
-                cacheManager: CustomCacheManager.instance,
-                width: 64,
-                height: 64,
-                fit: BoxFit.contain,
-              ),
-            ],
-          ),
+    return SizedBox(
+      width: 360,
+      height: 640,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ShareCardStampHero(cafeLogoUrl: lastClaimed?.cafeLogoUrl),
+            const SizedBox(height: 16),
+            ShareCardStats(data: data),
+            const SizedBox(height: 0),
+            CachedNetworkImage(
+              imageUrl:
+                  'https://lucerocris.sgp1.cdn.digitaloceanspaces.com/nookLogo.png',
+              cacheManager: CustomCacheManager.instance,
+              width: 64,
+              height: 64,
+              fit: BoxFit.contain,
+            ),
+          ],
         ),
       ),
     );
