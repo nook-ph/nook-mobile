@@ -6,16 +6,16 @@ class ResponsiveCardSizes {
   /// Image-area height for the home page Featured card, in logical pixels.
   ///
   /// Scales with the device's available viewport height:
-  ///   < 640  -> 200  (compact phones, e.g. iPhone SE)
-  ///   640-779 -> 230 (standard phones)
-  ///   780-899 -> 270 (large phones / phablets)
-  ///   >= 900  -> 320 (tablets, foldables, desktop) — capped
+  ///   < 640  -> 160  (compact phones, e.g. iPhone SE)
+  ///   640-779 -> 185 (standard phones)
+  ///   780-899 -> 215 (large phones / phablets)
+  ///   >= 900  -> 255 (tablets, foldables, desktop) — capped
   static double featuredImageHeight(BuildContext context) {
     final h = MediaQuery.sizeOf(context).height;
-    if (h < 640) return 200;
-    if (h < 780) return 230;
-    if (h < 900) return 270;
-    return 320;
+    if (h < 640) return 160;
+    if (h < 780) return 185;
+    if (h < 900) return 215;
+    return 255;
   }
 
   /// Image-area height for the home page New / Trending / Top Rated

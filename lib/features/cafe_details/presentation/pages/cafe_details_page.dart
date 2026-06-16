@@ -51,7 +51,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
   bool _hasTrackedViewDetails = false;
 
-  static const double _expandedHeight = 320;
+  static const double _expandedHeight = 272;
   static const double _collapsedHeight = kToolbarHeight;
   static const double _fadeRange = _expandedHeight - _collapsedHeight - 60;
 
