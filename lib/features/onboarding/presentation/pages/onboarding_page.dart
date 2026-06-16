@@ -138,6 +138,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF344E41),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),

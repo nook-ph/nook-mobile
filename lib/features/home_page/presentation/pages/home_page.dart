@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nook/core/cache/custom_cache_manager.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/utils/responsive_card_sizes.dart';
 import 'package:nook/core/widgets/error/full_page_empty_widget.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
@@ -169,6 +170,7 @@ class _HomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final featuredWidth = FeaturedCard.cardWidth;
+    final featuredImageHeight = ResponsiveCardSizes.featuredImageHeight(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,6 +182,7 @@ class _HomeContent extends StatelessWidget {
           PrototypeHeight(
             prototype: FeaturedCard(
               width: featuredWidth,
+              height: featuredImageHeight,
               cafe: _prototypeCafe,
             ),
             listView: ListView.separated(
@@ -189,6 +192,7 @@ class _HomeContent extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, i) => FeaturedCard(
                 width: featuredWidth,
+                height: featuredImageHeight,
                 cafe: state.featuredCafes[i],
               ),
             ),
@@ -234,6 +238,7 @@ class _HomeSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final featuredWidth = FeaturedCard.cardWidth;
+    final featuredImageHeight = ResponsiveCardSizes.featuredImageHeight(context);
 
     return Skeletonizer(
       enabled: true,
@@ -248,6 +253,7 @@ class _HomeSkeleton extends StatelessWidget {
             PrototypeHeight(
               prototype: FeaturedCard(
                 width: featuredWidth,
+                height: featuredImageHeight,
                 cafe: _skeletonCafe,
                 isSkeleton: true,
               ),
@@ -258,6 +264,7 @@ class _HomeSkeleton extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(width: 12),
                 itemBuilder: (_, i) => FeaturedCard(
                   width: featuredWidth,
+                  height: featuredImageHeight,
                   cafe: _skeletonCafe,
                   isSkeleton: true,
                 ),

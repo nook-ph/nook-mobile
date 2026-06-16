@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/responsive_card_sizes.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
 import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:nook/core/extensions/extensions.dart';
@@ -31,6 +32,8 @@ class HomeCafeSection extends StatelessWidget {
       tags: ['Specialty'],
     );
 
+    final double imageHeight = ResponsiveCardSizes.cafeImageHeight(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -50,7 +53,7 @@ class HomeCafeSection extends StatelessWidget {
           )
         else
           PrototypeHeight(
-            prototype: HomeCafeCard(cafe: prototypeCafe),
+            prototype: HomeCafeCard(cafe: prototypeCafe, height: imageHeight),
             listView: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -58,6 +61,7 @@ class HomeCafeSection extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (_, index) => HomeCafeCard(
                 cafe: cafes[index],
+                height: imageHeight,
                 isSkeleton: isSkeleton,
               ),
             ),

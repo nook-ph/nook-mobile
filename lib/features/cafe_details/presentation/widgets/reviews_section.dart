@@ -67,17 +67,17 @@ class ReviewsSection extends StatelessWidget {
                       Text(
                         resolvedRating.toStringAsFixed(1),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                          height: 1,
-                        ),
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
+                        height: 1,
                       ),
-                    ],
-                  ),
-                  Text(
-                    '$resolvedReviewCount Reviews',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w400,
+                    ),
+                  ],
+                ),
+                Text(
+                  '$resolvedReviewCount Reviews',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w400,
                       color: const Color(0xFF616161),
                     ),
                   ),
@@ -235,7 +235,7 @@ class _EmptyReviewsSection extends StatelessWidget {
                   Text(
                     'No reviews yet',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       color: Colors.black,
                     ),
                   ),
@@ -266,7 +266,7 @@ class _EmptyReviewsSection extends StatelessWidget {
               ),
               child: Text(
                 'Write a Review',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500, color: Colors.white),
               ),
             ),
           ),
@@ -278,9 +278,10 @@ class _EmptyReviewsSection extends StatelessWidget {
 }
 
 class ReviewCard extends StatefulWidget {
-  const ReviewCard({super.key, required this.review});
+  const ReviewCard({super.key, required this.review, this.isInReviewsPage = false});
 
   final ReviewEntity review;
+  final bool isInReviewsPage;
 
   @override
   State<ReviewCard> createState() => _ReviewCardState();
@@ -329,7 +330,7 @@ class _ReviewCardState extends State<ReviewCard> {
               Text(
                 widget.review.name ?? 'Anonymous',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   color: Colors.black,
                 ),
               ),
@@ -339,7 +340,7 @@ class _ReviewCardState extends State<ReviewCard> {
                     TextSpan(
                       text: '${widget.review.rating}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w500,
                         color: Colors.black,
                       ),
                     ),
@@ -525,10 +526,14 @@ class _ReviewCardState extends State<ReviewCard> {
             context,
             imageUrls: imageUrls,
             initialIndex: index,
-            heroTagPrefix: 'review-${widget.review.id}',
+            heroTagPrefix: widget.isInReviewsPage
+                ? 'reviews-page-review-${widget.review.id}'
+                : 'review-${widget.review.id}',
           ),
           child: Hero(
-            tag: 'review-${widget.review.id}-$index',
+            tag: widget.isInReviewsPage
+                ? 'reviews-page-review-${widget.review.id}-$index'
+                : 'review-${widget.review.id}-$index',
             child: Image.network(
               url,
               fit: BoxFit.cover,

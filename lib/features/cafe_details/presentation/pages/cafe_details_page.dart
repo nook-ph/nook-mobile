@@ -291,22 +291,20 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   : const [],
                             ),
 
-                            const SizedBox(height: 24),
-
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 22,
-                              ),
-                              child: Text(
-                                state is CafeDetailsLoaded
-                                    ? state.data.cafeDetails.description
-                                    : '',
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: Colors.black54,
+                            if (state is CafeDetailsLoaded && state.data.cafeDetails.description.isNotEmpty) ...[
+                              const SizedBox(height: 24),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 22,
+                                ),
+                                child: Text(
+                                  state.data.cafeDetails.description,
+                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: Colors.black54,
+                                  ),
                                 ),
                               ),
-                            ),
-
+                            ],
                             const SizedBox(height: 24),
 
                             CafeHoursTile(

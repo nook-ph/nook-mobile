@@ -184,7 +184,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                         ...reviews.map(
                           (review) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: ReviewCard(review: review),
+                            child: ReviewCard(review: review, isInReviewsPage: true),
                           ),
                         ),
                       const SizedBox(height: 30),

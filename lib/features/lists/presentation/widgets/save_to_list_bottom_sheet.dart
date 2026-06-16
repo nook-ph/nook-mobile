@@ -280,7 +280,7 @@ class _SaveToListRow extends StatelessWidget {
                       cafeListDisplayTitle(list),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.titleMediumSemi,
+          style: context.textTheme.titleMediumSemi.copyWith(color: Colors.white),
                     ),
 
                     Text(
@@ -512,7 +512,7 @@ class _CreateListDialogState extends State<_CreateListDialog> {
                 )
               : Text(
                   'Create',
-                  style: context.textTheme.bodyMedium,
+                  style: context.textTheme.bodyMedium?.copyWith(color: Colors.white),
                 ),
         ),
       ],
