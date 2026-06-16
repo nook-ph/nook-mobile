@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/pages/menu_full_page.dart';
 
@@ -36,7 +37,7 @@ class MenuHighlights extends StatelessWidget {
                   color: Colors.black,
                 ),
               ),
-              TextButton(
+              AdaptiveTextButton(
                 onPressed: () {
                   Navigator.push(
                     context,

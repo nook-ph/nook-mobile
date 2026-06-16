@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 
 typedef ReviewFilterResult = ({String sort, int? ratingFilter});
@@ -104,7 +105,7 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
           ),
           const SizedBox(height: 4),
           Center(
-            child: TextButton(
+            child: AdaptiveTextButton(
               onPressed: _clearFilter,
               child: Text(
                 'Clear filter',
@@ -119,7 +120,7 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: AdaptiveElevatedButton(
                 onPressed: () => Navigator.of(context).pop<ReviewFilterResult>(
                   (sort: _selectedSort, ratingFilter: _selectedRatingFilter),
                 ),

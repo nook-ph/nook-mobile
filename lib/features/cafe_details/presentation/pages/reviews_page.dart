@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
@@ -96,9 +97,12 @@ class _ReviewsPageState extends State<ReviewsPage> {
           'Reviews',
           style: context.textTheme.titleMediumSemi,
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => Navigator.of(context).pop(),
+        leading: AdaptiveTap(
+          onTap: () => Navigator.of(context).pop(),
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Icon(Icons.arrow_back_ios_new_rounded),
+          ),
         ),
       ),
       body: BlocListener<ReviewSubmitBloc, ReviewSubmitState>(

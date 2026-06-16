@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/error_info.dart';
 
 /// Compact error block for a subsection (e.g. failed reviews list).
@@ -41,7 +42,7 @@ class SectionErrorWidget extends StatelessWidget {
           ),
           if (onRetry != null) ...[
             const SizedBox(height: 12),
-            TextButton(
+            AdaptiveTextButton(
               onPressed: onRetry,
               style: TextButton.styleFrom(
                 foregroundColor: Colors.black,

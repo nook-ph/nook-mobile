@@ -5,6 +5,7 @@ import 'package:nook/core/extensions/extensions.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/cafe_list_display_title.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -391,7 +392,7 @@ class _NewListButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 56,
-      child: FilledButton.icon(
+      child: AdaptiveFilledButton(
         onPressed: isEnabled ? onPressed : null,
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFF344E41),
@@ -401,16 +402,23 @@ class _NewListButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        icon: isLoading
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.add, size: 24),
-        label: Text(
-          'New list',
-          style: context.textTheme.titleMediumSemi,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add, size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'New list',
+              style: context.textTheme.titleMediumSemi,
+            ),
+          ],
         ),
       ),
     );
@@ -488,14 +496,14 @@ class _CreateListDialogState extends State<_CreateListDialog> {
         ],
       ),
       actions: [
-        TextButton(
+        AdaptiveTextButton(
           onPressed: _isLoading ? null : () => Navigator.pop(context),
           child: Text(
             'Cancel',
             style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
           ),
         ),
-        FilledButton(
+        AdaptiveFilledButton(
           onPressed: _isLoading ? null : _submit,
           style: FilledButton.styleFrom(
             backgroundColor: _green,

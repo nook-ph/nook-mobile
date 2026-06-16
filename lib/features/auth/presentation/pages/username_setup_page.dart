@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class UsernameSetupScreen extends StatefulWidget {
@@ -235,7 +236,7 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                       const Gap(32),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
+                        child: AdaptiveElevatedButton(
                           onPressed: _canSubmit && !isSubmitting
                               ? () => _onConfirmPressed(context)
                               : null,

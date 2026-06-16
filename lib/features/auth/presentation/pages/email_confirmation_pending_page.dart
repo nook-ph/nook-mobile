@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -126,7 +127,7 @@ class _EmailConfirmationPendingScreenState
                 const Gap(28),
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton(
+                  child: AdaptiveElevatedButton(
                     onPressed: canResend
                         ? () => _resendConfirmationEmail(email)
                         : null,
@@ -165,7 +166,7 @@ class _EmailConfirmationPendingScreenState
                   ),
                 ),
                 const Gap(16),
-                TextButton(
+                AdaptiveTextButton(
                   onPressed: email.isEmpty
                       ? null
                       : () => _goBackToSignup(email),

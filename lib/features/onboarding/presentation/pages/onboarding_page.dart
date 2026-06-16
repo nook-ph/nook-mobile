@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../bloc/onboarding_bloc.dart';
@@ -125,7 +126,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           SizedBox(
                             width: double.infinity,
                             height: 46,
-                            child: ElevatedButton(
+                            child: AdaptiveElevatedButton(
                               onPressed: () {
                                 if (state.isLastPage) {
                                   _requestLocationAndFinish(context);

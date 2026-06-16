@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:like_button/like_button.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
@@ -95,27 +96,35 @@ class ReviewsSection extends StatelessWidget {
               const SizedBox(height: 4),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: AdaptiveOutlinedButton(
                   onPressed: onSeeMoreTap,
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                     side: const BorderSide(color: Color(0xFFE0E0E0), width: 1),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  icon: const Icon(
-                    Icons.rate_review_outlined,
-                    size: 18,
-                    color: Colors.black,
-                  ),
-                  label: Text(
-                    'See more',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.rate_review_outlined,
+                        size: 18,
+                        color: Colors.black,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'See more',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -253,22 +262,22 @@ class _EmptyReviewsSection extends StatelessWidget {
           ),
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onWriteReviewTap,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF344E41),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+          child: AdaptiveElevatedButton(
+            onPressed: onWriteReviewTap,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF344E41),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                'Write a Review',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500, color: Colors.white),
-              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
             ),
+            child: Text(
+              'Write a Review',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500, color: Colors.white),
+            ),
+          ),
           ),
           const SizedBox(height: 40),
         ],

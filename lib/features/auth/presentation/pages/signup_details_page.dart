@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class SignupDetailsScreen extends StatefulWidget {
@@ -132,9 +134,12 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
             surfaceTintColor: Colors.white,
             elevation: 0,
             scrolledUnderElevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => context.go('/login', extra: email),
+            leading: AdaptiveTap(
+              onTap: () => context.go('/login', extra: email),
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.arrow_back, color: Colors.black),
+              ),
             ),
           ),
           body: SingleChildScrollView(
@@ -194,15 +199,18 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         decoration: _inputDecoration('Password').copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: const Color(0xFFA8AAAA),
-                            ),
-                            onPressed: () => setState(
+                          suffixIcon: AdaptiveTap(
+                            onTap: () => setState(
                               () => _obscurePassword = !_obscurePassword,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                                color: const Color(0xFFA8AAAA),
+                              ),
                             ),
                           ),
                         ),
@@ -219,7 +227,7 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                       const Gap(32),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton(
+                        child: AdaptiveElevatedButton(
                           onPressed: canSubmit
                               ? () => _onContinuePressed(context, email)
                               : null,

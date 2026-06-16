@@ -7,6 +7,7 @@ import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
@@ -153,9 +154,12 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                     appBar: AppBar(
                       backgroundColor: Colors.white,
                       elevation: 0,
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.black),
-                        onPressed: () => Navigator.pop(context),
+                      leading: AdaptiveTap(
+                        onTap: () => Navigator.pop(context),
+                        child: const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(Icons.arrow_back, color: Colors.black),
+                        ),
                       ),
                     ),
                     body: FullPageErrorWidget(

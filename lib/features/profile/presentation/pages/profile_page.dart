@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -592,14 +593,14 @@ void _showLogoutDialog(BuildContext context) {
         style: ctx.textTheme.bodyMedium,
       ),
       actions: [
-        TextButton(
+        AdaptiveTextButton(
           onPressed: () => Navigator.pop(ctx),
           child: Text(
             'Cancel',
             style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.grey),
           ),
         ),
-        TextButton(
+        AdaptiveTextButton(
           onPressed: () {
             context.read<AuthBloc>().add(const AuthSignOutEvent());
             Navigator.pop(ctx);

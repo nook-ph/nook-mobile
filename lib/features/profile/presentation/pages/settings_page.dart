@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
@@ -35,13 +37,16 @@ class SettingsPage extends StatelessWidget {
             backgroundColor: Colors.white,
             elevation: 0,
             surfaceTintColor: Colors.white,
-            leading: IconButton(
-              icon: const Icon(
-                Icons.arrow_back,
-                color: Colors.black87,
-                size: 22,
+            leading: AdaptiveTap(
+              onTap: () => Navigator.pop(context),
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(
+                  Icons.arrow_back,
+                  color: Colors.black87,
+                  size: 22,
+                ),
               ),
-              onPressed: () => Navigator.pop(context),
             ),
           ),
           body: SafeArea(
@@ -152,14 +157,14 @@ void _showLogoutDialog(BuildContext context) {
         style: ctx.textTheme.bodyMedium,
       ),
       actions: [
-        TextButton(
+        AdaptiveTextButton(
           onPressed: () => Navigator.pop(ctx),
           child: Text(
             'Cancel',
             style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.grey),
           ),
         ),
-        TextButton(
+        AdaptiveTextButton(
           onPressed: () {
             ctx.read<AuthBloc>().add(const AuthSignOutEvent());
             Navigator.pop(ctx);

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 
 /// Dismissible banner when location permission blocks nearby sorting.
 ///
@@ -53,7 +55,7 @@ class LocationDeniedBanner extends StatelessWidget {
                         color: Colors.black,
                       ),
                     ),
-                    TextButton(
+                    AdaptiveTextButton(
                       onPressed: () {
                         final open = onOpenSettings ?? Geolocator.openAppSettings;
                         unawaited(open());
@@ -77,10 +79,12 @@ class LocationDeniedBanner extends StatelessWidget {
                 ),
               ),
               if (onDismiss != null)
-                IconButton(
-                  icon: Icon(Icons.close, color: Colors.grey.shade800),
-                  onPressed: onDismiss,
-                  visualDensity: VisualDensity.compact,
+                AdaptiveTap(
+                  onTap: onDismiss,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(Icons.close, color: Colors.grey.shade800),
+                  ),
                 ),
             ],
           ),

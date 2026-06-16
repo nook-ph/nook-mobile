@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 
@@ -343,9 +344,10 @@ class _CircleIconButton extends StatelessWidget {
     return Material(
       color: Colors.black.withValues(alpha: 0.45),
       shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: AdaptiveTap(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
         child: SizedBox(
           width: 40,
           height: 40,

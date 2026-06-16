@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -66,9 +67,12 @@ class _ListsPageState extends State<ListsPage> {
           surfaceTintColor: Colors.white,
           automaticallyImplyLeading: widget.showBackButton,
           leading: widget.showBackButton
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.black),
-                  onPressed: () => Navigator.of(context).pop(),
+              ? AdaptiveTap(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.arrow_back, color: Colors.black),
+                  ),
                 )
               : null,
         ),
@@ -310,14 +314,14 @@ class _ListsPageState extends State<ListsPage> {
           style: context.textTheme.bodyMedium,
         ),
         actions: [
-          TextButton(
+          AdaptiveTextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Cancel',
               style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
             ),
           ),
-          TextButton(
+          AdaptiveTextButton(
             onPressed: () {
               _pendingDeleteName = listName;
               bloc.add(DeleteList(listId: listId));
@@ -476,16 +480,17 @@ class _CreateListDialogState extends State<_CreateListDialog> {
           ),
         ),
         actions: [
-          TextButton(
+          AdaptiveTextButton(
             onPressed: _isLoading ? null : () => Navigator.pop(context),
             child: Text(
               'Cancel',
               style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
             ),
           ),
-          ElevatedButton(
+          AdaptiveElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF33523F),
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
@@ -666,16 +671,17 @@ class _EditListDialogState extends State<_EditListDialog> {
         ),
       ),
       actions: [
-        TextButton(
+        AdaptiveTextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(
             'Cancel',
             style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
           ),
         ),
-        ElevatedButton(
+        AdaptiveElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF33523F),
+            foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8.0),
             ),
