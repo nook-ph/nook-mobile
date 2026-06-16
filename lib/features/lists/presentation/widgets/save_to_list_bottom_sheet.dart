@@ -467,6 +467,12 @@ class _CreateListDialogState extends State<_CreateListDialog> {
             decoration: InputDecoration(
               labelText: 'List Name',
               hintText: 'e.g., Cebu Specialty Spots',
+              labelStyle: TextStyle(
+                color: context.colorScheme.primary100,
+              ),
+              floatingLabelStyle: TextStyle(
+                color: context.colorScheme.primary100,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -484,6 +490,12 @@ class _CreateListDialogState extends State<_CreateListDialog> {
             decoration: InputDecoration(
               labelText: 'Description (Optional)',
               hintText: 'What is this list for?',
+              labelStyle: TextStyle(
+                color: context.colorScheme.primary100,
+              ),
+              floatingLabelStyle: TextStyle(
+                color: context.colorScheme.primary100,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -498,6 +510,9 @@ class _CreateListDialogState extends State<_CreateListDialog> {
       actions: [
         AdaptiveTextButton(
           onPressed: _isLoading ? null : () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+            foregroundColor: context.colorScheme.onSurface,
+          ),
           child: Text(
             'Cancel',
             style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),

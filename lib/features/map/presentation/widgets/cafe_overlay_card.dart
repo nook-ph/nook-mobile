@@ -96,13 +96,6 @@ class CafeOverlayCard extends StatelessWidget {
                                             color: const Color(0xFF848586),
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '(${cafe.reviewCount})',
-                                          style: context.textTheme.bodySmallMed.copyWith(
-                                            color: const Color(0xFF848586),
-                                          ),
-                                        ),
                                       ],
                                     ),
                                   ],
