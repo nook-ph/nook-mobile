@@ -5,6 +5,8 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class EmailEntryScreen extends StatefulWidget {
@@ -74,22 +76,30 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   }) {
     return SizedBox(
       width: double.infinity,
-      child: OutlinedButton.icon(
+      child: AdaptiveOutlinedButton(
         onPressed: onPressed,
-        icon: icon,
-        label: Text(
-          text,
-          style: context.textTheme.bodyLargeSemi.copyWith(
-            color: Colors.black87,
-          ),
-        ),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
+          foregroundColor: Colors.black87,
           side: const BorderSide(color: Color(0xFFE0E0E0)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           alignment: Alignment.center,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            icon,
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: context.textTheme.bodyLargeSemi.copyWith(
+                color: Colors.black87,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -138,15 +148,18 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
             surfaceTintColor: Colors.white,
             elevation: 0,
             scrolledUnderElevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () {
+            leading: AdaptiveTap(
+              onTap: () {
                 if (context.canPop()) {
                   context.pop();
                 } else {
                   context.go('/');
                 }
               },
+              child: const Padding(
+                padding: EdgeInsets.all(8),
+                child: Icon(Icons.arrow_back),
+              ),
             ),
           ),
           body: SingleChildScrollView(
@@ -202,7 +215,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                     const Gap(16),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton(
+                      child: AdaptiveElevatedButton(
                         onPressed: canSubmit
                             ? () => _onContinuePressed(context)
                             : null,

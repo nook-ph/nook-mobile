@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
@@ -56,13 +57,16 @@ class _ReviewsPageState extends State<ReviewsPage> {
         elevation: 0,
         leading: Transform.scale(
           scaleX: -1,
-          child: IconButton(
-            icon: const Icon(
-              Icons.chevron_right,
-              color: Colors.black,
-              size: 28,
+          child: AdaptiveTap(
+            onTap: () => Navigator.pop(context),
+            child: const Padding(
+              padding: EdgeInsets.all(8),
+              child: Icon(
+                Icons.chevron_right,
+                color: Colors.black,
+                size: 28,
+              ),
             ),
-            onPressed: () => Navigator.pop(context),
           ),
         ),
         title: Text(
@@ -193,7 +197,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
-              TextButton(
+              AdaptiveTextButton(
                 onPressed: () => context.read<ProfileCubit>().loadProfile(),
                 child: Text(
                   'Retry',

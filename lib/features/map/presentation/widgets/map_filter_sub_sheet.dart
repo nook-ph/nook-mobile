@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_bottom_sheet.dart';
@@ -180,9 +182,12 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
                     color: Colors.black,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  icon: const Icon(Icons.close, color: Colors.black, size: 24),
+                AdaptiveTap(
+                  onTap: () => Navigator.of(context).maybePop(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.close, color: Colors.black, size: 24),
+                  ),
                 ),
               ],
             ),
@@ -204,7 +209,7 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
             child: Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: AdaptiveOutlinedButton(
                     onPressed: () => _clearForSection(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
@@ -228,7 +233,7 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: AdaptiveElevatedButton(
                     onPressed: () => _apply(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF344E41),

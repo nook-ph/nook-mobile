@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_event.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
@@ -319,11 +320,12 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerLeft,
-                child: IconButton(
-                  onPressed: () => Navigator.of(context).maybePop(),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: const Icon(Icons.close, color: Colors.black, size: 24),
+                child: AdaptiveTap(
+                  onTap: () => Navigator.of(context).maybePop(),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.close, color: Colors.black, size: 24),
+                  ),
                 ),
               ),
               const SizedBox(height: 28),
@@ -340,21 +342,23 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (index) {
                   final bool isFilled = index < _selectedRating;
-                  return IconButton(
-                    onPressed: isSubmitting
+                  return AdaptiveTap(
+                    onTap: isSubmitting
                         ? null
                         : () {
                             setState(() {
                               _selectedRating = index + 1;
                             });
                           },
-                    iconSize: 48,
-                    splashRadius: 28,
-                    icon: Icon(
-                      Icons.star_rounded,
-                      color: isFilled
-                          ? const Color(0xFF344E41)
-                          : const Color(0xFFCCCCCC),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.star_rounded,
+                        size: 48,
+                        color: isFilled
+                            ? const Color(0xFF344E41)
+                            : const Color(0xFFCCCCCC),
+                      ),
                     ),
                   );
                 }),
@@ -429,10 +433,12 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: AdaptiveElevatedButton(
                   onPressed: isSubmitting ? null : () => _submitReview(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF344E41),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

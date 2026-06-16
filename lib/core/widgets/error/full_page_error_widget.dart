@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/error_info.dart';
 
 /// Full-screen error shell: icon, title, subtitle, optional primary action.
@@ -42,7 +43,7 @@ class FullPageErrorWidget extends StatelessWidget {
               ),
               if (onRetry != null) ...[
                 const SizedBox(height: 32),
-                TextButton(
+                AdaptiveTextButton(
                   onPressed: onRetry,
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.black,

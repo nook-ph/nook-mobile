@@ -12,16 +12,21 @@ import 'package:nook/core/extensions/extensions.dart';
 class HomeCafeCard extends StatelessWidget {
   final CafeSummary cafe;
   final bool isSkeleton;
+  final double height;
 
-  const HomeCafeCard({super.key, required this.cafe, this.isSkeleton = false});
+  const HomeCafeCard({
+    super.key,
+    required this.cafe,
+    required this.height,
+    this.isSkeleton = false,
+  });
 
   static double cardWidth = 280.0;
-  static const double _imageAspectRatio = 16 / 10;
 
   @override
   Widget build(BuildContext context) {
     final double width = cardWidth;
-    final double imgHeight = width / _imageAspectRatio;
+    final double imgHeight = height;
 
     final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
         ? cafe.coverImage!.trim()

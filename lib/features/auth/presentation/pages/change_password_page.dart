@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -151,9 +153,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             automaticallyImplyLeading: !isRecoveryFlow,
             leading: isRecoveryFlow
                 ? null
-                : IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: _onBackPressed,
+                : AdaptiveTap(
+                    onTap: _onBackPressed,
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.arrow_back),
+                    ),
                   ),
           ),
           body: SafeArea(
@@ -195,7 +200,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: AdaptiveElevatedButton(
                       onPressed: canSubmit ? _submit : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF344E41),
@@ -281,12 +286,15 @@ class _PasswordField extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Colors.red),
             ),
-            suffixIcon: IconButton(
-              icon: Icon(
-                obscure ? Icons.visibility_off : Icons.visibility,
-                color: const Color(0xFFA8AAAA),
+            suffixIcon: AdaptiveTap(
+              onTap: onToggle,
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Icon(
+                  obscure ? Icons.visibility_off : Icons.visibility,
+                  color: const Color(0xFFA8AAAA),
+                ),
               ),
-              onPressed: onToggle,
             ),
           ),
         ),

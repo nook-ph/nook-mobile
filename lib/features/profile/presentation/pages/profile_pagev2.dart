@@ -5,6 +5,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
@@ -61,14 +62,17 @@ class ProfileRedesignPage extends StatelessWidget {
               },
             ),
             actions: [
-              IconButton(
-                icon: Icon(PhosphorIcons.gearSix(), color: Colors.black87),
-                onPressed: () {
+              AdaptiveTap(
+                onTap: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const SettingsPage()),
                   );
                 },
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(PhosphorIcons.gearSix(), color: Colors.black87),
+                ),
               ),
             ],
           ),
@@ -159,7 +163,7 @@ class ProfileRedesignPage extends StatelessWidget {
                               const SizedBox(height: 14),
                               SizedBox(
                                 width: double.infinity,
-                                child: OutlinedButton(
+                                child: AdaptiveOutlinedButton(
                                   onPressed: () {
                                     Navigator.push(
                                       context,
@@ -514,7 +518,7 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            TextButton(
+                            AdaptiveTextButton(
                               onPressed: () => _listsBloc.add(LoadUserLists()),
                               child: Text(
                                 'Retry',

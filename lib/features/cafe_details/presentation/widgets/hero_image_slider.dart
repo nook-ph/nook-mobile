@@ -15,6 +15,8 @@ class HeroImageSlider extends StatefulWidget {
 }
 
 class _HeroImageSliderState extends State<HeroImageSlider> {
+  static const double _height = 298;
+
   late final PageController _pageController;
   int _currentIndex = 0;
 
@@ -34,7 +36,7 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
   Widget build(BuildContext context) {
     if (widget.isLoading) {
       return Container(
-        height: 350,
+        height: _height,
         width: double.infinity,
         color: Colors.grey[300],
       );
@@ -45,7 +47,7 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
     final total = hasImages ? displayImages.length : 1;
 
     return SizedBox(
-      height: 350,
+      height: _height,
       width: double.infinity,
       child: Stack(
         children: [
@@ -79,7 +81,7 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
             )
           else
             Container(
-              height: 350,
+              height: _height,
               width: double.infinity,
               color: Colors.grey[300],
               alignment: Alignment.center,

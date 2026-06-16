@@ -4,6 +4,10 @@ class TColorScheme {
   TColorScheme._();
 
   static ColorScheme lightColorScheme = ColorScheme.light(
+    primary: const Color(0xFF344E41),
+    onPrimary: const Color(0xFFFFFFFF),
+    primaryContainer: const Color(0xFF344E41),
+    onPrimaryContainer: const Color(0xFFFFFFFF),
     surface: const Color(0x00000000),
     error: const Color(0xFFD11A17),
   );

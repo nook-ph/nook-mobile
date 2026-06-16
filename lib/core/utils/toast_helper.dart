@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:toastification/toastification.dart';
 
@@ -123,7 +124,7 @@ void showSavedToListToast(
             if (onChange == null)
               const Icon(Icons.bookmark, color: Colors.amber, size: 22)
             else
-              TextButton(
+              AdaptiveTextButton(
                 onPressed: () {
                   toastification.dismiss(holder);
                   onChange();

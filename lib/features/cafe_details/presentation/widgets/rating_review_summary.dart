@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 
 class RatingReviewSummary extends StatelessWidget {
   const RatingReviewSummary({
@@ -43,7 +44,7 @@ class RatingReviewSummary extends StatelessWidget {
                 Text(
                   rating.toStringAsFixed(1),
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: Colors.black,
                     height: 1,
                   ),
@@ -63,7 +64,7 @@ class RatingReviewSummary extends StatelessWidget {
             const SizedBox(height: 22),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: AdaptiveElevatedButton(
                 onPressed: onWriteReviewTap,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF344E41),
@@ -76,7 +77,7 @@ class RatingReviewSummary extends StatelessWidget {
                 ),
                 child: Text(
                   'Write a Review',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500, color: Colors.white),
                 ),
               ),
             ),

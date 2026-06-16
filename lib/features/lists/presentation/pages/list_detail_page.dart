@@ -4,6 +4,7 @@ import 'package:nook/core/extensions/extensions.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
@@ -83,14 +84,17 @@ class _ListDetailPageState extends State<ListDetailPage> {
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.white,
-        leading: IconButton(
-          icon: Icon(
-            _isEditMode ? Icons.close : Icons.arrow_back,
-            color: Colors.black,
-          ),
-          onPressed: _isEditMode
+        leading: AdaptiveTap(
+          onTap: _isEditMode
               ? _exitEditMode
               : () => Navigator.of(context).pop(),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              _isEditMode ? Icons.close : Icons.arrow_back,
+              color: Colors.black,
+            ),
+          ),
         ),
             title: _isEditMode
                 ? Text(
@@ -100,12 +104,15 @@ class _ListDetailPageState extends State<ListDetailPage> {
                 : null,
         actions: _isEditMode
             ? [
-                IconButton(
-                  icon: Icon(
-                    Icons.delete_outline,
-                    color: _selectedIds.isEmpty ? Colors.grey : Colors.red,
+                AdaptiveTap(
+                  onTap: _selectedIds.isEmpty ? null : _deleteSelected,
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: _selectedIds.isEmpty ? Colors.grey : Colors.red,
+                    ),
                   ),
-                  onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
                 ),
               ]
             : null,

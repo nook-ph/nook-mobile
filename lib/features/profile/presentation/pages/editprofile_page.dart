@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
@@ -262,13 +263,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
               backgroundColor: Colors.white,
               elevation: 0,
               surfaceTintColor: Colors.white,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: Colors.black87,
-                  size: 22,
+              leading: AdaptiveTap(
+                onTap: isSaving ? null : () => Navigator.pop(context),
+                child: const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Icon(
+                    Icons.arrow_back,
+                    color: Colors.black87,
+                    size: 22,
+                  ),
                 ),
-                onPressed: isSaving ? null : () => Navigator.pop(context),
               ),
               title: Text(
                 'Edit Profile',
@@ -402,7 +406,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     child: SizedBox(
                       width: double.infinity,
                       height: 52,
-                      child: ElevatedButton(
+                      child: AdaptiveElevatedButton(
                         onPressed: (isSaving || !_canSubmit)
                             ? null
                             : _onSaveChanges,

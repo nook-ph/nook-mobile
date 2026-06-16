@@ -13,20 +13,21 @@ class FeaturedCard extends StatelessWidget {
   final CafeSummary cafe;
   final bool isSkeleton;
   final double width;
+  final double height;
 
   const FeaturedCard({
     super.key,
     required this.width,
+    required this.height,
     required this.cafe,
     this.isSkeleton = false,
   });
 
   static double cardWidth = 410.0;
-  static const double _imageAspectRatio = 3 / 2;
 
   @override
   Widget build(BuildContext context) {
-    final double imgHeight = width / _imageAspectRatio;
+    final double imgHeight = height;
 
     final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
         ? cafe.coverImage!.trim()
@@ -57,11 +58,17 @@ class FeaturedCard extends StatelessWidget {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
                 ),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
                 child: CafeCardImage(
                   imageUrl: imageUrl,
                   height: imgHeight,

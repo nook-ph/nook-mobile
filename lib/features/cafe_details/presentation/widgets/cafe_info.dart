@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:nook/injection_container.dart';
@@ -166,14 +167,16 @@ class CafeInfo extends StatelessWidget {
                     ),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        minSize: 32,
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        child: const Icon(
-                          CupertinoIcons.xmark_circle_fill,
-                          color: Color(0xFFAEAEB2),
-                          size: 24,
+                      child: AdaptiveTap(
+                        onTap: () => Navigator.of(sheetContext).pop(),
+                        borderRadius: BorderRadius.circular(16),
+                        child: const Padding(
+                          padding: EdgeInsets.all(4),
+                          child: Icon(
+                            CupertinoIcons.xmark_circle_fill,
+                            color: Color(0xFFAEAEB2),
+                            size: 24,
+                          ),
                         ),
                       ),
                     ),
@@ -534,27 +537,35 @@ class CafeInfo extends StatelessWidget {
               const Gap(10),
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
+                child: AdaptiveOutlinedButton(
                   onPressed: () => _onGetDirectionsTap(context),
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                     side: const BorderSide(color: Color(0xFFE0E0E0), width: 1),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  icon: const Icon(
-                    Icons.location_on_outlined,
-                    color: Colors.black,
-                    size: 18,
-                  ),
-                  label: Text(
-                    'Get Directions',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.black,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.location_on_outlined,
+                        color: Colors.black,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Get Directions',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: Colors.black,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
