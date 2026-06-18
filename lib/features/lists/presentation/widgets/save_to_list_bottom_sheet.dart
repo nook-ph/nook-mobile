@@ -281,7 +281,9 @@ class _SaveToListRow extends StatelessWidget {
                       cafeListDisplayTitle(list),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-          style: context.textTheme.titleMediumSemi.copyWith(color: Colors.white),
+          style: context.textTheme.titleMediumSemi.copyWith(
+            color: context.colorScheme.black,
+          ),
                     ),
 
                     Text(
@@ -416,7 +418,9 @@ class _NewListButton extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               'New list',
-              style: context.textTheme.titleMediumSemi,
+              style: context.textTheme.titleMediumSemi.copyWith(
+                color: Colors.white,
+              ),
             ),
           ],
         ),
