@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher.dart';
-
-enum MapsAppChoice { googleMaps, appleMaps }
+import 'package:flutter/services.dart';
+import 'package:map_launcher/map_launcher.dart';
 
 class MapsDirectionsLauncher {
   const MapsDirectionsLauncher._();
@@ -28,83 +27,49 @@ class MapsDirectionsLauncher {
     required double lng,
     required String label,
     required TargetPlatform platform,
-    MapsAppChoice? preferredApp,
   }) async {
+    final resolvedLabel = label.trim().isEmpty ? 'Destination' : label.trim();
+    final destination = Coords(lat, lng);
+
     debugPrint(
       '[DirectionsLauncher] launchDirections called | lat=$lat lng=$lng | '
-      'label="$label" platform=$platform preferredApp=$preferredApp',
+      'label="$resolvedLabel" platform=$platform',
     );
-    final uris = buildLaunchUris(
-      lat: lat,
-      lng: lng,
-      label: label,
-      platform: platform,
-      preferredApp: preferredApp,
-    );
-    debugPrint('[DirectionsLauncher] URI candidates: $uris');
 
-    for (final uri in uris) {
-      final canLaunch = await canLaunchUrl(uri);
+    final mapType = platform == TargetPlatform.iOS
+        ? MapType.apple
+        : MapType.google;
+
+    try {
+      final isAvailable = await MapLauncher.isMapAvailable(mapType);
       debugPrint(
-        '[DirectionsLauncher] Checking URI | uri=$uri canLaunch=$canLaunch',
+        '[DirectionsLauncher] isMapAvailable | mapType=$mapType '
+        'available=$isAvailable',
       );
-      if (canLaunch) {
-        final launched = await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        );
-        debugPrint(
-          '[DirectionsLauncher] launchUrl result | uri=$uri launched=$launched',
-        );
-        if (launched) {
-          debugPrint('[DirectionsLauncher] Success with URI: $uri');
-          return true;
-        }
+      if (!isAvailable) {
+        debugPrint('[DirectionsLauncher] Selected map not available');
+        return false;
       }
+
+      await MapLauncher.showDirections(
+        mapType: mapType,
+        destination: destination,
+        destinationTitle: resolvedLabel,
+        directionsMode: DirectionsMode.driving,
+      );
+      debugPrint('[DirectionsLauncher] showDirections succeeded');
+      return true;
+    } on PlatformException catch (e) {
+      debugPrint(
+        '[DirectionsLauncher] PlatformException | code=${e.code} '
+        'message=${e.message}',
+      );
+      return false;
+    } on MissingPluginException catch (e) {
+      debugPrint(
+        '[DirectionsLauncher] MissingPluginException | message=${e.message}',
+      );
+      return false;
     }
-
-    debugPrint('[DirectionsLauncher] Failed to launch any directions URI');
-    return false;
-  }
-
-  static List<Uri> buildLaunchUris({
-    required double lat,
-    required double lng,
-    required String label,
-    required TargetPlatform platform,
-    MapsAppChoice? preferredApp,
-  }) {
-    final resolvedLabel = label.trim().isEmpty ? 'Destination' : label.trim();
-    final encodedLabel = Uri.encodeComponent(resolvedLabel);
-
-    final googleMapsAppUri = Uri.parse(
-      'comgooglemaps://?daddr=$lat,$lng&directionsmode=driving&q=$encodedLabel',
-    );
-
-    final appleMapsUri = Uri.parse(
-      'http://maps.apple.com/?daddr=$lat,$lng&q=$encodedLabel&dirflg=d',
-    );
-
-    final googleMapsWebUri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
-    );
-
-    final List<Uri> uris;
-    if (platform == TargetPlatform.iOS) {
-      if (preferredApp == MapsAppChoice.googleMaps) {
-        uris = [googleMapsAppUri, googleMapsWebUri];
-      } else {
-        uris = [appleMapsUri, googleMapsAppUri, googleMapsWebUri];
-      }
-    } else {
-      uris = [googleMapsAppUri, googleMapsWebUri];
-    }
-
-    debugPrint(
-      '[DirectionsLauncher] buildLaunchUris | platform=$platform '
-      'preferredApp=$preferredApp resolvedLabel="$resolvedLabel" uris=$uris',
-    );
-
-    return uris;
   }
 }
