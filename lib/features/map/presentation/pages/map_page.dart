@@ -70,7 +70,10 @@ class _MapPageState extends State<MapPage> {
 
   
   void _onSheetMetricsChanged(BottomSheetMetrics metrics) {
-    _sheetMetrics.value = metrics;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _sheetMetrics.value = metrics;
+    });
   }
 
   bool get _isSheetExpanded {
@@ -107,25 +110,26 @@ class _MapPageState extends State<MapPage> {
           builder: (context, state) {
             return Stack(
               children: [
-                MapLibreMap(
-                  initialCameraPosition: _initial,
-                  compassEnabled: false,
-                  myLocationEnabled: true,
-                  myLocationRenderMode: MyLocationRenderMode.compass,
-                  myLocationTrackingMode: MyLocationTrackingMode.none,
-                  styleString:
-                      _styleJson ??
-                      'https://tiles.openfreemap.org/styles/bright',
-                  onMapCreated: (c) {
-                    _mapController = c;
-                    _controllerCompleter.complete(c);
-                    c.onSymbolTapped.add(_onSymbolTapped);
-                  },
-                  onStyleLoadedCallback: () async {
-                    await _addCustomIcon();
-                    if (mounted) setState(() => _styleLoaded = true);
-                  },
-                ),
+                if (_styleJson != null)
+                  MapLibreMap(
+                    initialCameraPosition: _initial,
+                    compassEnabled: false,
+                    myLocationEnabled: true,
+                    myLocationRenderMode: MyLocationRenderMode.normal,
+                    myLocationTrackingMode: MyLocationTrackingMode.none,
+                    styleString: _styleJson!,
+                    onMapCreated: (c) {
+                      _mapController = c;
+                      _controllerCompleter.complete(c);
+                      c.onSymbolTapped.add(_onSymbolTapped);
+                    },
+                    onStyleLoadedCallback: () async {
+                      await _addCustomIcon();
+                      if (mounted) setState(() => _styleLoaded = true);
+                    },
+                  )
+                else
+                  const Center(child: CircularProgressIndicator()),
 
                 if (_styleLoaded)
                   Positioned(
