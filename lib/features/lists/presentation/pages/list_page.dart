@@ -13,6 +13,7 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
+import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
 import 'package:nook/features/lists/presentation/widgets/list_options_bottom_sheet.dart';
 
 class ListsPage extends StatefulWidget {
@@ -178,9 +179,9 @@ class _ListsPageState extends State<ListsPage> {
   Future<void> _showCreateListDialog(BuildContext context) async {
     final listsBloc = context.read<ListsBloc>();
 
-    final input = await showDialog<_CreateListInput>(
+    final input = await showDialog<CreateListInput>(
       context: context,
-      builder: (_) => const _CreateListDialog(),
+      builder: (_) => const CreateListDialog(),
     );
 
     if (input == null || !mounted) return;
@@ -191,7 +192,7 @@ class _ListsPageState extends State<ListsPage> {
       CreateList(
         name: input.name,
         description: input.description,
-        isPublic: input.isPublic,
+        isPublic: false,
       ),
     );
   }
@@ -388,196 +389,6 @@ class _ListsPageState extends State<ListsPage> {
   }
 
   static String _imageUrl(String? imageUrl) => imageUrl?.trim() ?? '';
-}
-
-class _CreateListDialog extends StatefulWidget {
-  const _CreateListDialog();
-
-  @override
-  State<_CreateListDialog> createState() => _CreateListDialogState();
-}
-
-class _CreateListDialogState extends State<_CreateListDialog> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _descController = TextEditingController();
-
-  bool _isPublic = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Create New List',
-              style: context.textTheme.titleMediumSemi,
-            ),
-            const SizedBox(height: 16),
-            SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    autofocus: true,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'List Name',
-                      hintText: 'e.g., Cebu Specialty Spots',
-                      labelStyle: TextStyle(
-                        color: context.colorScheme.primary100,
-                      ),
-                      floatingLabelStyle: TextStyle(
-                        color: context.colorScheme.primary100,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF33523F),
-                          width: 2.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _descController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      labelText: 'Description (Optional)',
-                      hintText: 'What is this list for?',
-                      labelStyle: TextStyle(
-                        color: context.colorScheme.primary100,
-                      ),
-                      floatingLabelStyle: TextStyle(
-                        color: context.colorScheme.primary100,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF33523F),
-                          width: 2.0,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Public list',
-                      style: context.textTheme.bodyLargeMed,
-                    ),
-                    subtitle: Text(
-                      'Anyone can view this list',
-                      style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
-                    ),
-                    value: _isPublic,
-                    activeColor: const Color(0xFF344E41),
-                    onChanged: (val) => setState(() => _isPublic = val),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AdaptiveTextButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    foregroundColor: context.colorScheme.onSurface,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  ),
-                  child: Text(
-                    'Cancel',
-                    style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AdaptiveElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF33523F),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: _submit,
-                  child: Text(
-                    'Create',
-                    style: context.textTheme.bodySmallMed.copyWith(
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _submit() {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      showPrimaryToast(context, 'List name is required.');
-      return;
-    }
-
-    final desc = _descController.text.trim();
-    debugPrint(
-      '[ListsPage] Dispatch CreateList '
-      'nameLength=${name.length} '
-      'hasDescription=${desc.isNotEmpty}',
-    );
-
-    Navigator.pop(
-      context,
-      _CreateListInput(
-        name: name,
-        description: desc.isNotEmpty ? desc : null,
-        isPublic: _isPublic,
-      ),
-    );
-  }
-}
-
-class _CreateListInput {
-  const _CreateListInput({
-    required this.name,
-    this.description,
-    required this.isPublic,
-  });
-
-  final String name;
-  final String? description;
-  final bool isPublic;
 }
 
 class _EditListDialog extends StatefulWidget {

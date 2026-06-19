@@ -14,6 +14,7 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
+import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class SaveToListBottomSheet extends StatefulWidget {
@@ -155,14 +156,14 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
   }
 
   Future<void> _showCreateListDialog() async {
-    final input = await showGeneralDialog<_CreateListInput>(
+    final input = await showGeneralDialog<CreateListInput>(
       context: context,
       barrierDismissible: true,
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (context, animation, secondaryAnimation) {
-        return const _CreateListDialog();
+        return const Center(child: CreateListDialog());
       },
     );
 
@@ -452,151 +453,3 @@ class _NewListButton extends StatelessWidget {
   }
 }
 
-class _CreateListDialog extends StatefulWidget {
-  const _CreateListDialog();
-
-  @override
-  State<_CreateListDialog> createState() => _CreateListDialogState();
-}
-
-class _CreateListDialogState extends State<_CreateListDialog> {
-  static const _green = Color(0xFF33523F);
-
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _descController = TextEditingController();
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Material(
-        color: Colors.white,
-        elevation: 24,
-        borderRadius: BorderRadius.circular(18),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 420,
-            maxHeight: 520,
-          ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-              Text(
-                'Create New List',
-                style: context.textTheme.titleMediumSemi,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _nameController,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: 'List Name',
-                  hintText: 'e.g., Cebu Specialty Spots',
-                  labelStyle: TextStyle(
-                    color: context.colorScheme.primary100,
-                  ),
-                  floatingLabelStyle: TextStyle(
-                    color: context.colorScheme.primary100,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _green, width: 2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _descController,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Description (Optional)',
-                  hintText: 'What is this list for?',
-                  labelStyle: TextStyle(
-                    color: context.colorScheme.primary100,
-                  ),
-                  floatingLabelStyle: TextStyle(
-                    color: context.colorScheme.primary100,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _green, width: 2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  AdaptiveTextButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      foregroundColor: context.colorScheme.onSurface,
-                    ),
-                    child: Text(
-                      'Cancel',
-                      style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AdaptiveFilledButton(
-                    onPressed: _submit,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    child: Text(
-                      'Create',
-                      style: context.textTheme.bodyMedium?.copyWith(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _submit() {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      showPrimaryToast(context, 'List name is required.');
-      return;
-    }
-
-    final description = _descController.text.trim();
-
-    Navigator.pop(
-      context,
-      _CreateListInput(
-        name: name,
-        description: description.isEmpty ? null : description,
-      ),
-    );
-  }
-}
-
-class _CreateListInput {
-  const _CreateListInput({required this.name, this.description});
-
-  final String name;
-  final String? description;
-}
