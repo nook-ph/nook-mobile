@@ -21,14 +21,21 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     try {
       final out = await getHomeFeedUseCase.call();
 
+      final featured = _buildFeatured(out.feed);
+      final allEmpty = featured.isEmpty &&
+          out.feed.newest.isEmpty &&
+          out.feed.trending.isEmpty &&
+          out.feed.topRated.isEmpty;
+
       emit(
         HomeLoadedState(
-          featuredCafes: _buildFeatured(out.feed),
+          featuredCafes: featured,
           newestCafes: out.feed.newest,
           trendingCafes: out.feed.trending,
           topRatedCafes: out.feed.topRated,
           locationDenied: out.locationDenied,
           locationBannerDismissed: false,
+          allEmpty: allEmpty,
         ),
       );
     } catch (e) {

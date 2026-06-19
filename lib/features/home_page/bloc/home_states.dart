@@ -18,6 +18,11 @@ class HomeLoadedState extends HomeState {
   /// User dismissed the location banner for this loaded session.
   final bool locationBannerDismissed;
 
+  /// True when all sections (featured, newest, trending, topRated) came back
+  /// empty. Used by the UI to distinguish "no cafes in DB" from
+  /// "everything failed silently".
+  final bool allEmpty;
+
   HomeLoadedState({
     required this.featuredCafes,
     required this.newestCafes,
@@ -25,6 +30,7 @@ class HomeLoadedState extends HomeState {
     required this.topRatedCafes,
     this.locationDenied = false,
     this.locationBannerDismissed = false,
+    this.allEmpty = false,
   });
 
   HomeLoadedState copyWith({
@@ -34,6 +40,7 @@ class HomeLoadedState extends HomeState {
     List<CafeSummary>? topRatedCafes,
     bool? locationDenied,
     bool? locationBannerDismissed,
+    bool? allEmpty,
   }) {
     return HomeLoadedState(
       featuredCafes: featuredCafes ?? this.featuredCafes,
@@ -43,6 +50,7 @@ class HomeLoadedState extends HomeState {
       locationDenied: locationDenied ?? this.locationDenied,
       locationBannerDismissed:
           locationBannerDismissed ?? this.locationBannerDismissed,
+      allEmpty: allEmpty ?? this.allEmpty,
     );
   }
 }
