@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:nook/core/extensions/extensions.dart';
 
-class ListOptionsBottomSheet extends StatelessWidget {
-  final String listId;
-  final String listName;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
-  const ListOptionsBottomSheet({
+class CafeActionsBottomSheet extends StatelessWidget {
+  const CafeActionsBottomSheet({
     super.key,
-    required this.listId,
-    required this.listName,
-    required this.onEdit,
-    required this.onDelete,
+    required this.cafeName,
+    required this.onViewDetails,
+    required this.onRemove,
   });
+
+  final String cafeName;
+  final VoidCallback onViewDetails;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +38,7 @@ class ListOptionsBottomSheet extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Text(
-                listName,
+                cafeName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -50,30 +48,31 @@ class ListOptionsBottomSheet extends StatelessWidget {
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(
-                Icons.edit_outlined,
+                Icons.info_outline,
                 color: Color(0xFF344E41),
               ),
               title: Text(
-                'Edit',
+                'View details',
                 style: context.textTheme.bodyMedium?.copyWith(color: Colors.black),
               ),
               onTap: () {
                 Navigator.pop(context);
-                onEdit();
+                onViewDetails();
               },
             ),
             Divider(height: 1, color: Theme.of(context).colorScheme.border),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: Text(
-                'Delete',
+                'Remove from list',
                 style: context.textTheme.bodyMedium?.copyWith(color: Colors.red),
               ),
               onTap: () {
                 Navigator.pop(context);
-                onDelete();
+                onRemove();
               },
             ),
+            const SizedBox(height: 8),
           ],
         ),
       ),

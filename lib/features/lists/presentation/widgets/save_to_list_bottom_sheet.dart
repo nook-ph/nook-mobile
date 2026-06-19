@@ -14,6 +14,7 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
+import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class SaveToListBottomSheet extends StatefulWidget {
@@ -26,13 +27,22 @@ class SaveToListBottomSheet extends StatefulWidget {
 }
 
 class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
+  late final DraggableScrollableController _sheetController;
   int _lastRefreshNonce = 0;
   bool _pendingCreateToast = false;
+  int _lastAnimatedListCount = -1;
 
   @override
   void initState() {
     super.initState();
+    _sheetController = DraggableScrollableController();
     context.read<SaveToListCubit>().load(widget.cafeId);
+  }
+
+  @override
+  void dispose() {
+    _sheetController.dispose();
+    super.dispose();
   }
 
   @override
@@ -47,6 +57,21 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
       },
       listener: (context, state) {
         if (state is SaveToListLoaded) {
+          if (state.lists.length != _lastAnimatedListCount) {
+            _lastAnimatedListCount = state.lists.length;
+            if (_sheetController.isAttached) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted || !_sheetController.isAttached) return;
+                final target = _targetChildSize(context, state.lists.length);
+                _sheetController.animateTo(
+                  target,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeInOut,
+                );
+              });
+            }
+          }
+
           if (state.refreshNonce != _lastRefreshNonce) {
             _lastRefreshNonce = state.refreshNonce;
             context.read<ListsBloc>().add(LoadUserLists());
@@ -69,14 +94,12 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
         }
       },
       builder: (context, state) {
-        final initialSize = _initialChildSize(context, state);
-
         return DraggableScrollableSheet(
-          key: ValueKey(_sheetSizeKey(state)),
+          controller: _sheetController,
           expand: false,
           snap: true,
           minChildSize: 0.28,
-          initialChildSize: initialSize,
+          initialChildSize: 0.45,
           maxChildSize: 0.75,
           builder: (context, scrollController) {
             return SafeArea(
@@ -125,22 +148,23 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
     );
   }
 
-  double _initialChildSize(BuildContext context, SaveToListState state) {
+  double _targetChildSize(BuildContext context, int rowCount) {
     final screenHeight = MediaQuery.sizeOf(context).height;
-    final rowCount = state is SaveToListLoaded ? state.lists.length : 4;
     final contentHeight = 192 + (rowCount * 80) + 96;
     final targetSize = contentHeight / screenHeight;
     return targetSize.clamp(0.32, 0.75).toDouble();
   }
 
-  int _sheetSizeKey(SaveToListState state) {
-    return state is SaveToListLoaded ? state.lists.length : -1;
-  }
-
   Future<void> _showCreateListDialog() async {
-    final input = await showDialog<_CreateListInput>(
+    final input = await showGeneralDialog<CreateListInput>(
       context: context,
-      builder: (_) => const _CreateListDialog(),
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const Center(child: CreateListDialog());
+      },
     );
 
     if (!mounted || input == null) return;
@@ -281,7 +305,9 @@ class _SaveToListRow extends StatelessWidget {
                       cafeListDisplayTitle(list),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-          style: context.textTheme.titleMediumSemi.copyWith(color: Colors.white),
+          style: context.textTheme.titleMediumSemi.copyWith(
+            color: context.colorScheme.black,
+          ),
                     ),
 
                     Text(
@@ -416,7 +442,9 @@ class _NewListButton extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               'New list',
-              style: context.textTheme.titleMediumSemi,
+              style: context.textTheme.titleMediumSemi.copyWith(
+                color: Colors.white,
+              ),
             ),
           ],
         ),
@@ -425,146 +453,3 @@ class _NewListButton extends StatelessWidget {
   }
 }
 
-class _CreateListDialog extends StatefulWidget {
-  const _CreateListDialog();
-
-  @override
-  State<_CreateListDialog> createState() => _CreateListDialogState();
-}
-
-class _CreateListDialogState extends State<_CreateListDialog> {
-  static const _green = Color(0xFF33523F);
-
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _descController = TextEditingController();
-
-  bool _isLoading = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      title: Text(
-        'Create New List',
-        style: context.textTheme.titleMediumSemi,
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _nameController,
-            autofocus: true,
-            enabled: !_isLoading,
-            textInputAction: TextInputAction.next,
-            decoration: InputDecoration(
-              labelText: 'List Name',
-              hintText: 'e.g., Cebu Specialty Spots',
-              labelStyle: TextStyle(
-                color: context.colorScheme.primary100,
-              ),
-              floatingLabelStyle: TextStyle(
-                color: context.colorScheme.primary100,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _green, width: 2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _descController,
-            enabled: !_isLoading,
-            maxLines: 2,
-            decoration: InputDecoration(
-              labelText: 'Description (Optional)',
-              hintText: 'What is this list for?',
-              labelStyle: TextStyle(
-                color: context.colorScheme.primary100,
-              ),
-              floatingLabelStyle: TextStyle(
-                color: context.colorScheme.primary100,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: _green, width: 2),
-              ),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        AdaptiveTextButton(
-          onPressed: _isLoading ? null : () => Navigator.pop(context),
-          style: TextButton.styleFrom(
-            foregroundColor: context.colorScheme.onSurface,
-          ),
-          child: Text(
-            'Cancel',
-            style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-          ),
-        ),
-        AdaptiveFilledButton(
-          onPressed: _isLoading ? null : _submit,
-          style: FilledButton.styleFrom(
-            backgroundColor: _green,
-            foregroundColor: Colors.white,
-          ),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
-                )
-              : Text(
-                  'Create',
-                  style: context.textTheme.bodyMedium?.copyWith(color: Colors.white),
-                ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _submit() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      showPrimaryToast(context, 'List name is required.');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    final description = _descController.text.trim();
-
-    Navigator.pop(
-      context,
-      _CreateListInput(
-        name: name,
-        description: description.isEmpty ? null : description,
-      ),
-    );
-  }
-}
-
-class _CreateListInput {
-  const _CreateListInput({required this.name, this.description});
-
-  final String name;
-  final String? description;
-}

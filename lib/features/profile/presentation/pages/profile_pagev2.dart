@@ -11,7 +11,8 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
-import 'package:nook/features/lists/presentation/pages/list_page.dart';
+import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
@@ -434,6 +435,8 @@ class _CollectionsTab extends StatefulWidget {
 
 class _CollectionsTabState extends State<_CollectionsTab> {
   late final ListsBloc _listsBloc;
+  bool _isCreating = false;
+  String? _pendingCreateName;
 
   @override
   void initState() {
@@ -450,46 +453,69 @@ class _CollectionsTabState extends State<_CollectionsTab> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _listsBloc,
-      child: BlocBuilder<ListsBloc, ListsState>(
-        builder: (context, state) {
-          final lists = state is ListsLoaded
-              ? state.lists
-              : _listsBloc.userLists;
-          final regularLists = lists
-              .where((l) => !l.isDefault)
-              .toList(growable: false);
-          final isLoading = state is ListsLoading && lists.isEmpty;
-          final isError = state is ListsError && lists.isEmpty;
+      child: BlocListener<ListsBloc, ListsState>(
+        listenWhen: (previous, current) => current is ListsLoaded,
+        listener: (context, state) {
+          if (state is ListsLoaded && _pendingCreateName != null) {
+            showPrimaryToast(context, 'List created.');
+            _pendingCreateName = null;
+          }
+        },
+        child: BlocBuilder<ListsBloc, ListsState>(
+          builder: (context, state) {
+            final lists = state is ListsLoaded
+                ? state.lists
+                : _listsBloc.userLists;
+            final regularLists = lists
+                .where((l) => !l.isDefault)
+                .toList(growable: false);
+            final isLoading = state is ListsLoading && lists.isEmpty;
+            final isError = state is ListsError && lists.isEmpty;
 
-          return SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 16),
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
 
-                  if (regularLists.isEmpty && !isError)
+                    // TikTok-style Create Collection Row
                     InkWell(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BlocProvider.value(
-                            value: _listsBloc,
-                            child: const ListsPage(showBackButton: true),
-                          ),
-                        ),
-                      ),
+                      onTap: _isCreating ? null : () => _showCreateListDialog(context),
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 4.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add, size: 22, color: Colors.black87),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Create new collection',
+                                style: context.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right, size: 22, color: Colors.black54),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    if (regularLists.isEmpty && !isError)
+                      Padding(
                         padding: const EdgeInsets.symmetric(
                           vertical: 48,
                           horizontal: 24,
                         ),
                         child: Center(
                           child: Text(
-                            'Save your favourite cafes into collections. Tap + to create one.',
+                            'Save your favourite cafes into collections.',
                             textAlign: TextAlign.center,
                             style: context.textTheme.bodySmall!.copyWith(
                               color: Colors.black45,
@@ -497,75 +523,94 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                             ),
                           ),
                         ),
-                      ),
-                    )
-                  else if (isError)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            const Icon(
-                              Icons.wifi_off_outlined,
-                              size: 36,
-                              color: Colors.black26,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Could not load collections.',
-                              style: context.textTheme.bodySmall!.copyWith(
-                                color: Colors.black54,
+                      )
+                    else if (isError)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.wifi_off_outlined,
+                                size: 36,
+                                color: Colors.black26,
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            AdaptiveTextButton(
-                              onPressed: () => _listsBloc.add(LoadUserLists()),
-                              child: Text(
-                                'Retry',
-                                style: context.textTheme.bodyMedium,
+                              const SizedBox(height: 12),
+                              Text(
+                                'Could not load collections.',
+                                style: context.textTheme.bodySmall!.copyWith(
+                                  color: Colors.black54,
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                              AdaptiveTextButton(
+                                onPressed: () => _listsBloc.add(LoadUserLists()),
+                                child: Text(
+                                  'Retry',
+                                  style: context.textTheme.bodyMedium,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    )
-                  else
-                    GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
-                            childAspectRatio: 0.95,
-                          ),
-                      itemCount: regularLists.length,
-                      itemBuilder: (context, index) {
-                        final list = regularLists[index];
-                        return _CollectionGridTile(
-                          title: list.name,
-                          imageUrl: list.coverImageUrl,
-                          cafeCount: list.cafeCount,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => ListDetailPage(
-                                listId: list.id,
-                                title: list.name,
+                      )
+                    else
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              childAspectRatio: 0.95,
+                            ),
+                        itemCount: regularLists.length,
+                        itemBuilder: (context, index) {
+                          final list = regularLists[index];
+                          return _CollectionGridTile(
+                            title: list.name,
+                            imageUrl: list.coverImageUrl,
+                            cafeCount: list.cafeCount,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ListDetailPage(
+                                  listId: list.id,
+                                  title: list.name,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
 
-                  const SizedBox(height: 24),
-                ],
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCreateListDialog(BuildContext context) async {
+    final input = await showDialog<CreateListInput>(
+      context: context,
+      builder: (_) => const CreateListDialog(),
+    );
+
+    if (input == null || !mounted) return;
+
+    setState(() => _isCreating = true);
+    _pendingCreateName = input.name;
+    _listsBloc.add(
+      CreateList(
+        name: input.name,
+        description: input.description,
+        isPublic: false,
       ),
     );
   }

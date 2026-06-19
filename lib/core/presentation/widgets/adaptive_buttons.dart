@@ -188,6 +188,7 @@ class _AdaptiveCupertinoButton extends StatelessWidget {
     final constraints = _buildConstraints(minSize, fixedSize);
 
     final container = Container(
+      alignment: Alignment.center,
       padding: resolvedPadding,
       constraints: constraints,
       decoration: BoxDecoration(
@@ -214,16 +215,26 @@ class _AdaptiveCupertinoButton extends StatelessWidget {
       data: CupertinoTheme.of(context).copyWith(
         primaryColor: resolvedForeground,
       ),
-      child: CupertinoButton(
-        padding: EdgeInsets.zero,
-        minimumSize: Size.zero,
-        borderRadius: resolvedBorderRadius,
-        onPressed: onPressed,
-        child: Semantics(
-          button: true,
-          enabled: isEnabled,
-          child: container,
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final shouldExpand = constraints.maxWidth < double.infinity &&
+              constraints.minWidth == constraints.maxWidth &&
+              constraints.maxWidth > 0;
+          final content = shouldExpand
+              ? SizedBox(width: double.infinity, child: container)
+              : container;
+          return CupertinoButton(
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            borderRadius: resolvedBorderRadius,
+            onPressed: onPressed,
+            child: Semantics(
+              button: true,
+              enabled: isEnabled,
+              child: content,
+            ),
+          );
+        },
       ),
     );
   }

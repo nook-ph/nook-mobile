@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/core/extensions/extensions.dart';
@@ -55,12 +54,8 @@ class CafeInfo extends StatelessWidget {
         text.contains('maya');
   }
 
-  String _mapAppMetadata(MapsAppChoice? preferredApp, TargetPlatform platform) {
-    if (platform == TargetPlatform.iOS) {
-      if (preferredApp == MapsAppChoice.googleMaps) return 'google_maps';
-      return 'apple_maps';
-    }
-    return 'google_maps_fallback_chain';
+  String _mapAppMetadata(TargetPlatform platform) {
+    return platform == TargetPlatform.iOS ? 'apple_maps' : 'google_maps';
   }
 
   Future<void> _onGetDirectionsTap(BuildContext context) async {
@@ -85,13 +80,7 @@ class CafeInfo extends StatelessWidget {
       return;
     }
 
-    MapsAppChoice? preferredApp;
-    if (platform == TargetPlatform.iOS) {
-      preferredApp = await _showIosMapsChooser(context);
-      if (preferredApp == null) return;
-    }
-
-    final mapAppMeta = _mapAppMetadata(preferredApp, platform);
+    final mapAppMeta = _mapAppMetadata(platform);
     unawaited(
       analytics.track(
         cafeId,
@@ -113,133 +102,12 @@ class CafeInfo extends StatelessWidget {
       lng: lng,
       label: label,
       platform: platform,
-      preferredApp: preferredApp,
     );
 
     if (!context.mounted) return;
     if (!launched) {
       _showDirectionsError(context, 'Unable to open map directions.');
     }
-  }
-
-  Future<MapsAppChoice?> _showIosMapsChooser(BuildContext context) {
-    return showModalBottomSheet<MapsAppChoice>(
-      context: context,
-      barrierColor: Colors.black.withValues(alpha: 0.28),
-      backgroundColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        final bottomInset = MediaQuery.viewPaddingOf(sheetContext).bottom;
-        return SafeArea(
-          top: false,
-          bottom: false,
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF868686),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Center(
-                      child: Text(
-                        'Open Directions With',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: AdaptiveTap(
-                        onTap: () => Navigator.of(sheetContext).pop(),
-                        borderRadius: BorderRadius.circular(16),
-                        child: const Padding(
-                          padding: EdgeInsets.all(4),
-                          child: Icon(
-                            CupertinoIcons.xmark_circle_fill,
-                            color: Color(0xFFAEAEB2),
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Column(
-                  children: [
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                      ),
-                      leading: const Icon(
-                        CupertinoIcons.map,
-                        color: Color(0xFF1C1C1E),
-                      ),
-                      title: Text(
-                        'Google Maps',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF1C1C1E),
-                        ),
-                      ),
-                      trailing: const Icon(
-                        CupertinoIcons.chevron_right,
-                        size: 16,
-                        color: Color(0xFF8E8E93),
-                      ),
-                      onTap: () => Navigator.of(
-                        sheetContext,
-                      ).pop(MapsAppChoice.googleMaps),
-                    ),
-                    const Divider(height: 1, indent: 12),
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                      ),
-                      leading: const Icon(
-                        CupertinoIcons.location_solid,
-                        color: Color(0xFF1C1C1E),
-                      ),
-                      title: Text(
-                        'Apple Maps',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: const Color(0xFF1C1C1E),
-                        ),
-                      ),
-                      trailing: const Icon(
-                        CupertinoIcons.chevron_right,
-                        size: 16,
-                        color: Color(0xFF8E8E93),
-                      ),
-                      onTap: () => Navigator.of(
-                        sheetContext,
-                      ).pop(MapsAppChoice.appleMaps),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   void _showDirectionsError(BuildContext context, String message) {

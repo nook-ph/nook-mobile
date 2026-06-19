@@ -13,6 +13,7 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
+import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
 import 'package:nook/features/lists/presentation/widgets/list_options_bottom_sheet.dart';
 
 class ListsPage extends StatefulWidget {
@@ -27,6 +28,8 @@ class ListsPage extends StatefulWidget {
 class _ListsPageState extends State<ListsPage> {
   String? _pendingEditName;
   String? _pendingDeleteName;
+  String? _pendingCreateName;
+  bool _isCreating = false;
 
   @override
   void initState() {
@@ -43,6 +46,8 @@ class _ListsPageState extends State<ListsPage> {
           showPrimaryToast(context, '${info.title} · ${info.subtitle}');
           _pendingEditName = null;
           _pendingDeleteName = null;
+          _pendingCreateName = null;
+          if (mounted) setState(() => _isCreating = false);
           return;
         }
 
@@ -55,6 +60,12 @@ class _ListsPageState extends State<ListsPage> {
           if (_pendingDeleteName != null) {
             showPrimaryToast(context, 'List deleted.');
             _pendingDeleteName = null;
+          }
+
+          if (_pendingCreateName != null) {
+            showPrimaryToast(context, 'List created.');
+            _pendingCreateName = null;
+            if (mounted) setState(() => _isCreating = false);
           }
         }
       },
@@ -153,7 +164,7 @@ class _ListsPageState extends State<ListsPage> {
           },
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () => _showCreateListDialog(context),
+          onPressed: _isCreating ? null : () => _showCreateListDialog(context),
           backgroundColor: const Color(0xFF33523F),
           elevation: 4,
           shape: RoundedRectangleBorder(
@@ -165,17 +176,24 @@ class _ListsPageState extends State<ListsPage> {
     );
   }
 
-  void _showCreateListDialog(BuildContext context) {
+  Future<void> _showCreateListDialog(BuildContext context) async {
     final listsBloc = context.read<ListsBloc>();
 
-    showDialog(
+    final input = await showDialog<CreateListInput>(
       context: context,
-      builder: (dialogContext) {
-        return BlocProvider.value(
-          value: listsBloc,
-          child: _CreateListDialog(listsBloc: listsBloc),
-        );
-      },
+      builder: (_) => const CreateListDialog(),
+    );
+
+    if (input == null || !mounted) return;
+
+    setState(() => _isCreating = true);
+    _pendingCreateName = input.name;
+    listsBloc.add(
+      CreateList(
+        name: input.name,
+        description: input.description,
+        isPublic: false,
+      ),
     );
   }
 
@@ -302,37 +320,55 @@ class _ListsPageState extends State<ListsPage> {
   ) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (_) => Dialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Delete list?',
-          style: context.textTheme.titleMediumSemi,
-        ),
-        content: Text(
-          '"$listName" will be permanently deleted. Cafes won\'t be deleted.',
-          style: context.textTheme.bodyMedium,
-        ),
-        actions: [
-          AdaptiveTextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-            ),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Delete list?',
+                style: context.textTheme.titleMediumSemi,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '"$listName" will be permanently deleted. Cafes won\'t be deleted.',
+                style: context.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+                Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  AdaptiveTextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  AdaptiveTextButton(
+                    onPressed: () {
+                      _pendingDeleteName = listName;
+                      bloc.add(DeleteList(listId: listId));
+                      Navigator.pop(context);
+                    },
+                    child: Text(
+                      'Delete',
+                      style: context.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          AdaptiveTextButton(
-            onPressed: () {
-              _pendingDeleteName = listName;
-              bloc.add(DeleteList(listId: listId));
-              Navigator.pop(context);
-            },
-            child: Text(
-              'Delete',
-              style: context.textTheme.bodyMedium?.copyWith(color: Colors.red),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -353,208 +389,6 @@ class _ListsPageState extends State<ListsPage> {
   }
 
   static String _imageUrl(String? imageUrl) => imageUrl?.trim() ?? '';
-}
-
-class _CreateListDialog extends StatefulWidget {
-  final ListsBloc listsBloc;
-
-  const _CreateListDialog({required this.listsBloc});
-
-  @override
-  State<_CreateListDialog> createState() => _CreateListDialogState();
-}
-
-class _CreateListDialogState extends State<_CreateListDialog> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _descController = TextEditingController();
-
-  bool _isLoading = false;
-  bool _isPublic = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocListener<ListsBloc, ListsState>(
-      listener: (context, state) {
-        if (!_isLoading) return;
-
-        if (state is ListsLoaded) {
-          debugPrint(
-            '[ListsPage] CreateList completed; '
-            'loadedLists=${state.lists.length}',
-          );
-          Navigator.pop(context);
-          showPrimaryToast(context, 'List created.');
-          return;
-        }
-
-        if (state is ListsError) {
-          debugPrint(
-            '[ListsPage] CreateList emitted ListsError error=${state.error}',
-          );
-          if (mounted) {
-            setState(() => _isLoading = false);
-          }
-          final info = AppErrorCopy.fromException(state.error);
-          showPrimaryToast(context, '${info.title} · ${info.subtitle}');
-        }
-      },
-      child: AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16.0),
-        ),
-        title: Text(
-          'Create New List',
-          style: context.textTheme.titleMediumSemi,
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _nameController,
-                autofocus: true,
-                enabled: !_isLoading,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: 'List Name',
-                  hintText: 'e.g., Cebu Specialty Spots',
-                  labelStyle: TextStyle(
-                    color: context.colorScheme.primary100,
-                  ),
-                  floatingLabelStyle: TextStyle(
-                    color: context.colorScheme.primary100,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF33523F),
-                      width: 2.0,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _descController,
-                enabled: !_isLoading,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: 'Description (Optional)',
-                  hintText: 'What is this list for?',
-                  labelStyle: TextStyle(
-                    color: context.colorScheme.primary100,
-                  ),
-                  floatingLabelStyle: TextStyle(
-                    color: context.colorScheme.primary100,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.0),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF33523F),
-                      width: 2.0,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  'Public list',
-                  style: context.textTheme.bodyLargeMed,
-                ),
-                subtitle: Text(
-                  'Anyone can view this list',
-                  style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
-                ),
-                value: _isPublic,
-                activeColor: const Color(0xFF344E41),
-                onChanged: _isLoading
-                    ? null
-                    : (val) => setState(() => _isPublic = val),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          AdaptiveTextButton(
-            onPressed: _isLoading ? null : () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: context.colorScheme.onSurface,
-            ),
-            child: Text(
-              'Cancel',
-              style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-            ),
-          ),
-          AdaptiveElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF33523F),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
-              ),
-              elevation: 0,
-            ),
-            onPressed: _isLoading ? null : _submit,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : Text(
-                    'Create',
-                    style: context.textTheme.bodySmallMed.copyWith(
-                      color: Colors.white,
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _submit() {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      showPrimaryToast(context, 'List name is required.');
-      return;
-    }
-
-    final desc = _descController.text.trim();
-    debugPrint(
-      '[ListsPage] Dispatch CreateList '
-      'nameLength=${name.length} '
-      'hasDescription=${desc.isNotEmpty}',
-    );
-    setState(() => _isLoading = true);
-    widget.listsBloc.add(
-      CreateList(
-        name: name,
-        description: desc.isNotEmpty ? desc : null,
-        isPublic: _isPublic,
-      ),
-    );
-  }
 }
 
 class _EditListDialog extends StatefulWidget {
@@ -618,99 +452,118 @@ class _EditListDialogState extends State<_EditListDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
+    return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        'Edit list',
-        style: context.textTheme.titleMediumSemi,
-      ),
-      content: SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _nameController,
-              autofocus: true,
-              maxLength: 50,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: 'List name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _green, width: 2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _descController,
-              maxLines: 2,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _saveIfValid(context),
-              decoration: InputDecoration(
-                labelText: 'Description (Optional)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _green, width: 2),
-                ),
-              ),
+            Text(
+              'Edit list',
+              style: context.textTheme.titleMediumSemi,
             ),
             const SizedBox(height: 16),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                'Public list',
-                style: context.textTheme.bodyLargeMed,
+            SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _nameController,
+                    autofocus: true,
+                    maxLength: 50,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: 'List name',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _green, width: 2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _descController,
+                    maxLines: 2,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _saveIfValid(context),
+                    decoration: InputDecoration(
+                      labelText: 'Description (Optional)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: _green, width: 2),
+                      ),
+                    ),
+                  ),
+                  // const SizedBox(height: 16),
+                  // SwitchListTile(
+                  //   contentPadding: EdgeInsets.zero,
+                  //   title: Text(
+                  //     'Public list',
+                  //     style: context.textTheme.bodyLargeMed,
+                  //   ),
+                  //   subtitle: Text(
+                  //     'Anyone can view this list',
+                  //     style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                  //   ),
+                  //   value: _isPublic,
+                  //   activeColor: _green,
+                  //   onChanged: (bool value) {
+                  //     setState(() {
+                  //       _isPublic = value;
+                  //     });
+                  //   },
+                  // ),
+                ],
               ),
-              subtitle: Text(
-                'Anyone can view this list',
-                style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
-              ),
-              value: _isPublic,
-              activeColor: _green,
-              onChanged: (bool value) {
-                setState(() {
-                  _isPublic = value;
-                });
-              },
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AdaptiveTextButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AdaptiveElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF33523F),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _canSave ? () => _saveIfValid(context) : null,
+                  child: Text(
+                    'Save',
+                    style: context.textTheme.bodySmallMed.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
-      actions: [
-        AdaptiveTextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(
-            'Cancel',
-            style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-          ),
-        ),
-        AdaptiveElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF33523F),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8.0),
-            ),
-            elevation: 0,
-          ),
-          onPressed: _canSave ? () => _saveIfValid(context) : null,
-          child: Text(
-            'Save',
-            style: context.textTheme.bodySmallMed.copyWith(
-              color: Colors.white,
-            ),
-          ),
-        ),
-      ],
     );
   }
 

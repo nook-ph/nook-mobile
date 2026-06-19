@@ -103,16 +103,26 @@ class HomePage extends StatelessWidget {
                   return _HomeScrollView(
                     onRefresh: () => _onRefresh(context),
                     children: [
-                      if (locationBanner != null) locationBanner,
+                      ?locationBanner,
                       if (!hasData)
-                        const SizedBox(
-                          height: 360,
-                          child: FullPageEmptyWidget(
-                            title: 'No cafes yet',
-                            subtitle:
-                                'Pull to refresh — new spots appear here soon.',
-                          ),
-                        )
+                        state.allEmpty && !state.locationDenied
+                            ? FullPageErrorWidget(
+                                error: const ErrorInfo(
+                                  type: ErrorType.serverError,
+                                  title: "We couldn't load cafes",
+                                  subtitle:
+                                      'Something went wrong on our side. Try again.',
+                                ),
+                                onRetry: () => _onRetry(context),
+                              )
+                            : const SizedBox(
+                                height: 360,
+                                child: FullPageEmptyWidget(
+                                  title: 'No cafes yet',
+                                  subtitle:
+                                      'Pull to refresh — new spots appear here soon.',
+                                ),
+                              )
                       else
                         _HomeContent(state: state),
                       const SizedBox(height: 36),

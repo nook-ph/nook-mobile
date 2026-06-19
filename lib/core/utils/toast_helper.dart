@@ -139,9 +139,13 @@ void showSavedToListToast(
                   ),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: Text(
-                  'Change',
-                  style: context.textTheme.bodyLargeMed,
+                child: Center(
+                  child: Text(
+                    'Change',
+                    style: context.textTheme.bodyLargeMed.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
           ],

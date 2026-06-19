@@ -582,35 +582,54 @@ String _formatReviewDate(DateTime date) {
 void _showLogoutDialog(BuildContext context) {
   showDialog(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text(
-        'Log out',
-        style: ctx.textTheme.titleMediumSemi,
-      ),
-      content: Text(
-        'Are you sure you want to log out?',
-        style: ctx.textTheme.bodyMedium,
-      ),
-      actions: [
-        AdaptiveTextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: Text(
-            'Cancel',
-            style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.grey),
-          ),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Log out',
+              style: ctx.textTheme.titleMediumSemi,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Are you sure you want to log out?',
+              style: ctx.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AdaptiveTextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AdaptiveTextButton(
+                  onPressed: () {
+                    context.read<AuthBloc>().add(const AuthSignOutEvent());
+                    Navigator.pop(ctx);
+                  },
+                  child: Text(
+                    'Log out',
+                    style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        AdaptiveTextButton(
-          onPressed: () {
-            context.read<AuthBloc>().add(const AuthSignOutEvent());
-            Navigator.pop(ctx);
-          },
-          child: Text(
-            'Log out',
-            style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.red),
-          ),
-        ),
-      ],
+      ),
     ),
   );
 }
