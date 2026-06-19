@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nook/core/extensions/extensions.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
-import 'package:nook/features/home_page/presentation/widgets/recommended_card.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
+import 'package:nook/features/lists/presentation/widgets/list_detail_cafe_card.dart';
 
 class ListDetailPage extends StatefulWidget {
   final String listId;
@@ -24,12 +24,10 @@ class ListDetailPage extends StatefulWidget {
 }
 
 class _ListDetailPageState extends State<ListDetailPage> {
-  bool _isEditMode = false;
-  final Set<String> _selectedIds = {};
-
   // Cache to survive bloc state changes during navigation
   List<CafeSummary>? _cachedCafes;
   String? _cachedDescription;
+  String? _lastRemovedCafeName;
 
   @override
   void initState() {
@@ -43,35 +41,10 @@ class _ListDetailPageState extends State<ListDetailPage> {
     }
   }
 
-  void _enterEditMode() => setState(() => _isEditMode = true);
-
-  void _exitEditMode() => setState(() {
-    _isEditMode = false;
-    _selectedIds.clear();
-  });
-
-  void _toggleSelection(String cafeId) {
-    setState(() {
-      if (_selectedIds.contains(cafeId)) {
-        _selectedIds.remove(cafeId);
-      } else {
-        _selectedIds.add(cafeId);
-      }
-    });
-  }
-
-  void _deleteSelected() {
-    for (final id in _selectedIds) {
-      context.read<ListsBloc>().add(
-        RemoveCafeFromList(listId: widget.listId, cafeId: id),
-      );
-    }
-    _exitEditMode();
-  }
-
-  void _deleteSingle(String cafeId) {
+  void _removeCafe(CafeSummary cafe) {
+    _lastRemovedCafeName = cafe.name;
     context.read<ListsBloc>().add(
-      RemoveCafeFromList(listId: widget.listId, cafeId: cafeId),
+      RemoveCafeFromList(listId: widget.listId, cafeId: cafe.id),
     );
   }
 
@@ -85,46 +58,28 @@ class _ListDetailPageState extends State<ListDetailPage> {
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.white,
         leading: AdaptiveTap(
-          onTap: _isEditMode
-              ? _exitEditMode
-              : () => Navigator.of(context).pop(),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Icon(
-              _isEditMode ? Icons.close : Icons.arrow_back,
-              color: Colors.black,
-            ),
+          onTap: () => Navigator.of(context).pop(),
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Icon(Icons.arrow_back, color: Colors.black),
           ),
         ),
-            title: _isEditMode
-                ? Text(
-                    '${_selectedIds.length} selected',
-                    style: context.textTheme.bodyLargeMed.copyWith(color: Colors.black),
-                  )
-                : null,
-        actions: _isEditMode
-            ? [
-                AdaptiveTap(
-                  onTap: _selectedIds.isEmpty ? null : _deleteSelected,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Icon(
-                      Icons.delete_outline,
-                      color: _selectedIds.isEmpty ? Colors.grey : Colors.red,
-                    ),
-                  ),
-                ),
-              ]
-            : null,
       ),
       body: BlocConsumer<ListsBloc, ListsState>(
+        listenWhen: (previous, current) =>
+            previous is ListCafesLoaded || current is ListCafesLoaded,
         listener: (context, state) {
-          // Keep cache up to date whenever fresh data arrives
           if (state is ListCafesLoaded && state.list.id == widget.listId) {
+            final hadRemoval = _lastRemovedCafeName != null &&
+                state.cafes.length < (_cachedCafes?.length ?? 0);
             setState(() {
               _cachedCafes = state.cafes;
               _cachedDescription = state.list.description;
             });
+            if (hadRemoval) {
+              showPrimaryToast(context, 'Removed "${_lastRemovedCafeName!}".');
+              _lastRemovedCafeName = null;
+            }
           }
         },
         builder: (context, state) {
@@ -153,126 +108,67 @@ class _ListDetailPageState extends State<ListDetailPage> {
   }
 
   Widget _buildList(List<CafeSummary> cafes, String? description) {
-    return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-      children: [
-        if (!_isEditMode) ...[
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final columns = width >= 600 ? 3 : 2;
+        final horizontalPadding = columns == 3 ? 32.0 : 16.0;
+
+        return ListView(
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: 8.0,
+          ),
+          children: [
             Text(
               widget.title,
               style: context.textTheme.titleLargeSemi,
             ),
-          if (description != null && description.trim().isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              description,
-              style: context.textTheme.bodyLarge?.copyWith(
-                color: const Color(0xFF848586),
-                height: 1.4,
+            if (description != null && description.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                description,
+                style: context.textTheme.bodyLarge?.copyWith(
+                  color: const Color(0xFF848586),
+                  height: 1.4,
+                ),
               ),
-            ),
+            ],
+            const SizedBox(height: 20),
+            if (cafes.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24.0),
+                child: Text(
+                  'No cafes in this list yet.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(color: const Color(0xFF848586)),
+                ),
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.85,
+                ),
+                itemCount: cafes.length,
+                itemBuilder: (_, index) {
+                  final cafe = cafes[index];
+                  return ListDetailCafeCard(
+                    cafe: cafe,
+                    onRemove: () => _removeCafe(cafe),
+                  );
+                },
+              ),
+            const SizedBox(height: 80),
           ],
-          const SizedBox(height: 20),
-        ],
-        if (cafes.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24.0),
-            child: Text(
-              'No cafes in this list yet.',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848586)),
-            ),
-          )
-        else
-          for (final cafe in cafes) ...[
-            _buildCafeItem(cafe),
-            const SizedBox(height: 16),
-          ],
-        const SizedBox(height: 80),
-      ],
-    );
-  }
-
-  Widget _buildCafeItem(CafeSummary cafe) {
-    final isSelected = _selectedIds.contains(cafe.id);
-
-    return GestureDetector(
-      onLongPress: _isEditMode ? null : _enterEditMode,
-      onTap: _isEditMode ? () => _toggleSelection(cafe.id) : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: isSelected ? const Color(0xFFF0F0F0) : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              child: _isEditMode
-                  ? Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: Checkbox(
-                        value: isSelected,
-                        onChanged: (_) => _toggleSelection(cafe.id),
-                        activeColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            Expanded(
-              child: _isEditMode
-                  ? RecommendedCard(cafe: cafe)
-                  : Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(right: 16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.white,
-                                  size: 22,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Remove',
-                                  style: context.textTheme.bodySmallMed.copyWith(color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Slidable(
-                          key: Key(cafe.id),
-                          endActionPane: ActionPane(
-                            motion: const DrawerMotion(),
-                            extentRatio: 0.22,
-                            children: [
-                              CustomSlidableAction(
-                                onPressed: (_) => _deleteSingle(cafe.id),
-                                backgroundColor: Colors.transparent,
-                                borderRadius: BorderRadius.zero,
-                                child: const SizedBox.shrink(),
-                              ),
-                            ],
-                          ),
-                          child: RecommendedCard(cafe: cafe),
-                        ),
-                      ],
-                    ),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 }

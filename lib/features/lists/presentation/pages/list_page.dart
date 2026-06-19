@@ -504,25 +504,25 @@ class _EditListDialogState extends State<_EditListDialog> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Public list',
-                      style: context.textTheme.bodyLargeMed,
-                    ),
-                    subtitle: Text(
-                      'Anyone can view this list',
-                      style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
-                    ),
-                    value: _isPublic,
-                    activeColor: _green,
-                    onChanged: (bool value) {
-                      setState(() {
-                        _isPublic = value;
-                      });
-                    },
-                  ),
+                  // const SizedBox(height: 16),
+                  // SwitchListTile(
+                  //   contentPadding: EdgeInsets.zero,
+                  //   title: Text(
+                  //     'Public list',
+                  //     style: context.textTheme.bodyLargeMed,
+                  //   ),
+                  //   subtitle: Text(
+                  //     'Anyone can view this list',
+                  //     style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                  //   ),
+                  //   value: _isPublic,
+                  //   activeColor: _green,
+                  //   onChanged: (bool value) {
+                  //     setState(() {
+                  //       _isPublic = value;
+                  //     });
+                  //   },
+                  // ),
                 ],
               ),
             ),

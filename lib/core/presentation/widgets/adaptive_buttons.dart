@@ -188,6 +188,7 @@ class _AdaptiveCupertinoButton extends StatelessWidget {
     final constraints = _buildConstraints(minSize, fixedSize);
 
     final container = Container(
+      alignment: Alignment.center,
       padding: resolvedPadding,
       constraints: constraints,
       decoration: BoxDecoration(
