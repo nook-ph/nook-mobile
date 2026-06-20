@@ -73,12 +73,17 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	
+	<key>GIDClientID</key>
+	<string>190651012817-7q9len8jilrgo2a52t4aops5i43kva0f.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>190651012817-4l9qejfb0uhpr6jstk1hl2b6ish2gjfo.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 	    <dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
 			    <string>ph.nook.app</string>
+			    <string>com.googleusercontent.apps.190651012817-7q9len8jilrgo2a52t4aops5i43kva0f</string>
 			</array>
 		</dict>
 	</array>

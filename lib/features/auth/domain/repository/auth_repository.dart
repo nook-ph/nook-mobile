@@ -23,7 +23,7 @@ abstract class AuthRepository {
 
   Future<void> signOut();
 
-  Future<Either<Failure, void>> signInWithGoogle(String webClientId);
+  Future<Either<Failure, bool>> signInWithGoogle();
 
   Future<Either<Failure, void>> signInWithApple();
 
