@@ -210,13 +210,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(AuthLoading());
     final result = await _signInWithGoogleUseCase();
     await result.fold((failure) async {
-      emit(AuthError(failure.message));
-    }, (redirected) async {
-      if (!redirected) {
+      if (failure.message == 'CANCELED') {
         emit(const AuthUnauthenticated());
         return;
       }
-      emit(const AuthAwaitingOAuthCallback());
+      emit(AuthError(failure.message));
+    }, (_) async {
+      final user = _getCurrentSessionUseCase()?.user;
+      if (user != null) {
+        await _identifyPosthogUser(user);
+        _initListsSession();
+        await _emitAuthSuccess(user, emit);
+        return;
+      }
+      emit(const AuthUnauthenticated());
     });
   }
 

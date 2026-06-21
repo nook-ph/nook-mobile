@@ -1,13 +1,20 @@
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:nook/utils/theme/theme.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/app_state.dart';
+import 'package:nook/core/auth/google_auth_state.dart';
+import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
@@ -29,6 +36,11 @@ void main() async {
     authOptions: FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce),
   );
 
+  await GoogleSignIn.instance.initialize(
+    serverClientId: AppConstants.googleServerClientId,
+    nonce: _googleSignInNonce(),
+  );
+
   final posthogToken = dotenv.env['POSTHOG_PROJECT_TOKEN']?.trim() ?? '';
   if (posthogToken.isNotEmpty) {
     final config = PostHogConfig(posthogToken)
@@ -42,6 +54,20 @@ void main() async {
 
   await initDependencies();
   runApp(const MyApp());
+}
+
+String _googleSignInNonce() {
+  final random = Random.secure();
+  final rawNonceBytes = List<int>.generate(32, (_) => random.nextInt(256));
+  final rawNonce = base64Url.encode(rawNonceBytes).replaceAll('=', '');
+  final nonceDigest = sha256.convert(utf8.encode(rawNonce)).toString();
+
+  GoogleAuthState.nonce = rawNonce;
+  debugPrint(
+    'GoogleAuth: rawNonce[0..8]=${rawNonce.substring(0, rawNonce.length.clamp(0, 8))}… '
+    'nonceDigest[0..8]=${nonceDigest.substring(0, nonceDigest.length.clamp(0, 8))}…',
+  );
+  return nonceDigest;
 }
 
 class MyApp extends StatefulWidget {
