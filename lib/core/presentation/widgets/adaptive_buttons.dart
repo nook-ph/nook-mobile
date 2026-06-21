@@ -196,7 +196,7 @@ class _AdaptiveCupertinoButton extends StatelessWidget {
         borderRadius: resolvedBorderRadius,
         border: side == null || side == BorderSide.none
             ? null
-            : Border.fromBorderSide(side.copyWith(color: resolvedForeground)),
+            : Border.fromBorderSide(side),
       ),
       child: DefaultTextStyle(
         style: (theme.textTheme.bodyLarge ?? const TextStyle()).copyWith(

@@ -33,9 +33,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ListsBloc listsBloc;
   late final StreamSubscription<supabase.AuthState> _authStateSubscription;
 
-  static const String _googleWebClientId =
-      '190651012817-4l9qejfb0uhpr6jstk1hl2b6ish2gjfo.apps.googleusercontent.com';
-
   AuthBloc({
     required CheckEmailExistsUseCase checkEmailExistsUseCase,
     required SignUpWithEmailUseCase signUpWithEmailUseCase,
@@ -53,6 +50,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
        _signOutUseCase = signOutUseCase,
        _getCurrentSessionUseCase = getCurrentSessionUseCase,
        super(AuthInitial()) {
+
     on<AuthCheckEmailEvent>(_onCheckEmail);
     on<AuthSignUpEvent>(_onSignUp);
     on<AuthSignInEvent>(_onSignIn);
@@ -187,9 +185,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     final result = await _signInWithAppleUsecase();
-    await result.fold((failure) async => emit(AuthError(failure.message)), (
-      _,
-    ) async {
+    await result.fold((failure) async {
+      if (failure.message == 'CANCELED') {
+        emit(const AuthUnauthenticated());
+        return;
+      }
+      emit(AuthError(failure.message));
+    }, (_) async {
       final user = _getCurrentSessionUseCase()?.user;
       if (user != null) {
         await _identifyPosthogUser(user);
@@ -206,18 +208,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
-    final result = await _signInWithGoogleUseCase(_googleWebClientId);
-    await result.fold((failure) async => emit(AuthError(failure.message)), (
-      _,
-    ) async {
-      final user = _getCurrentSessionUseCase()?.user;
-      if (user != null) {
-        await _identifyPosthogUser(user);
-        _initListsSession();
-        await _emitAuthSuccess(user, emit);
+    final result = await _signInWithGoogleUseCase();
+    await result.fold((failure) async {
+      emit(AuthError(failure.message));
+    }, (redirected) async {
+      if (!redirected) {
+        emit(const AuthUnauthenticated());
         return;
       }
-      emit(const AuthUnauthenticated());
+      emit(const AuthAwaitingOAuthCallback());
     });
   }
 

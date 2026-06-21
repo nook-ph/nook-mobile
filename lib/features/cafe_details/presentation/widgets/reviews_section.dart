@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:like_button/like_button.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -101,7 +102,7 @@ class ReviewsSection extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
-                    side: const BorderSide(color: Color(0xFFE0E0E0), width: 1),
+                    side: BorderSide(color: context.colorScheme.border, width: 1),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),

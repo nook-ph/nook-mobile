@@ -39,6 +39,10 @@ class AuthAwaitingEmailConfirmation extends AuthState {
   List<Object?> get props => [email];
 }
 
+class AuthAwaitingOAuthCallback extends AuthState {
+  const AuthAwaitingOAuthCallback();
+}
+
 class AuthAuthenticated extends AuthState {
   final User user;
   const AuthAuthenticated(this.user);

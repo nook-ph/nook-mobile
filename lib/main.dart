@@ -1,10 +1,7 @@
-import 'dart:async';
-import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/utils/theme/theme.dart';
@@ -29,7 +26,7 @@ void main() async {
   await Supabase.initialize(
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_KEY']!,
-    authOptions: FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
+    authOptions: FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce),
   );
 
   final posthogToken = dotenv.env['POSTHOG_PROJECT_TOKEN']?.trim() ?? '';
@@ -55,62 +52,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final AppLinks _appLinks = AppLinks();
-  StreamSubscription<Uri>? _linkSubscription;
   GoRouter? _router;
-
-  @override
-  void initState() {
-    super.initState();
-    _initAppLinks();
-  }
-
-  Future<void> _initAppLinks() async {
-    _linkSubscription = _appLinks.uriLinkStream.listen(
-      _handleIncomingLink,
-      onError: (Object error, StackTrace stackTrace) {
-        if (kDebugMode) {
-          debugPrint('App link error: $error');
-        }
-      },
-    );
-
-    try {
-      final initialUri = await _appLinks.getInitialLink();
-      if (initialUri != null) {
-        _handleIncomingLink(initialUri);
-      }
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Failed to read initial app link: $error');
-      }
-    }
-  }
-
-  Future<void> _handleIncomingLink(Uri uri) async {
-    final isLoginCallback =
-        uri.scheme == 'ph.nook.app' && uri.host == 'login-callback';
-
-    if (!isLoginCallback) return;
-
-    try {
-      await Supabase.instance.client.auth.getSessionFromUrl(uri);
-    } on AuthException catch (error) {
-      if (kDebugMode) {
-        debugPrint('Login callback failed: ${error.message}');
-      }
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('Login callback failed: $error');
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _linkSubscription?.cancel();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

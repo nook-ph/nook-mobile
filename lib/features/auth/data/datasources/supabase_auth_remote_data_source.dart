@@ -1,13 +1,11 @@
 import 'dart:developer' as developer;
 
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:nook/core/constants/app_constants.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseAuthRemoteDataSource {
   final SupabaseClient _client;
-  bool _isGoogleInitialized = false;
-  String? _googleServerClientId;
 
   SupabaseAuthRemoteDataSource({SupabaseClient? client})
     : _client = client ?? Supabase.instance.client;
@@ -51,60 +49,42 @@ class SupabaseAuthRemoteDataSource {
   }
 
   Future<void> signInWithApple() async {
-    await _client.auth.signInWithOAuth(
-      OAuthProvider.apple,
-      redirectTo: 'ph.nook.app://login-callback',
+    final AuthorizationCredentialAppleID credential;
+    try {
+      credential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        throw const AuthException('CANCELED');
+      }
+      throw AuthException('Apple Sign-In failed: ${e.message}');
+    } on SignInWithAppleNotSupportedException catch (_) {
+      throw const AuthException(
+        'Apple Sign-In is not supported on this device.',
+      );
+    }
+
+    final idToken = credential.identityToken;
+    if (idToken == null || idToken.isEmpty) {
+      throw const AuthException(
+        'Apple Sign-In did not return an identity token.',
+      );
+    }
+
+    await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: idToken,
     );
   }
 
-  Future<AuthResponse> signInWithGoogle(String webClientId) async {
-    if (webClientId.isEmpty || webClientId.contains('YOUR_WEB_CLIENT_ID')) {
-      throw const AuthException(
-        'Google Sign-In is not configured. Set a real web client ID.',
-      );
-    }
-
-    final googleSignIn = GoogleSignIn.instance;
-    if (!_isGoogleInitialized || _googleServerClientId != webClientId) {
-      await googleSignIn.initialize(serverClientId: webClientId);
-      _isGoogleInitialized = true;
-      _googleServerClientId = webClientId;
-    }
-
-    GoogleSignInAccount googleUser;
-    try {
-      googleUser = await googleSignIn.authenticate();
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        throw const AuthException('Google sign-in was canceled by the user.');
-      }
-
-      if (e.code == GoogleSignInExceptionCode.clientConfigurationError ||
-          e.code == GoogleSignInExceptionCode.providerConfigurationError) {
-        throw AuthException(
-          'Google Sign-In configuration error. Verify web client ID, Android package name, and SHA-1/SHA-256 fingerprints. ${e.description ?? ''}'
-              .trim(),
-        );
-      }
-
-      throw AuthException(
-        'Google Sign-In failed (${e.code.name}). ${e.description ?? ''}'.trim(),
-      );
-    }
-
-    final googleAuth = googleUser.authentication;
-    final idToken = googleAuth.idToken;
-    if (idToken == null || idToken.isEmpty) {
-      throw const AuthException('Missing Google ID token.');
-    }
-
-    final authorization = await googleUser.authorizationClient
-        .authorizationForScopes(const <String>['email', 'profile']);
-
-    return _client.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: authorization?.accessToken,
+  Future<bool> signInWithGoogle() async {
+    return _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'ph.nook.app://login-callback',
     );
   }
 

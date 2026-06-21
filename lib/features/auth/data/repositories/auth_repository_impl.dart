@@ -53,10 +53,10 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<Either<Failure, void>> signInWithGoogle(String webClientId) async {
+  Future<Either<Failure, bool>> signInWithGoogle() async {
     try {
-      await _remoteDataSource.signInWithGoogle(webClientId);
-      return const Right<Failure, void>(null);
+      final result = await _remoteDataSource.signInWithGoogle();
+      return Right<Failure, bool>(result);
     } catch (e) {
       return Left(Failure(e.toString()));
     }
