@@ -164,6 +164,7 @@ class _ListsPageState extends State<ListsPage> {
           },
         ),
         floatingActionButton: FloatingActionButton(
+          heroTag: 'fab-list-create',
           onPressed: _isCreating ? null : () => _showCreateListDialog(context),
           backgroundColor: const Color(0xFF33523F),
           elevation: 4,

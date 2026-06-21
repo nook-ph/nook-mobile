@@ -136,6 +136,7 @@ class _MapPageState extends State<MapPage> {
                     right: 16,
                     bottom: 90,
                     child: FloatingActionButton(
+                      heroTag: 'fab-map-recenter',
                       backgroundColor: Colors.white,
                       foregroundColor: Theme.of(context).colorScheme.primary100,
                       elevation: 0,

@@ -89,8 +89,8 @@
 	</array>
 
 	<!-- post hog -->
-	<key>com.posthog.posthog.PROJECT_TOKEN</key>
-  	<string>phc_tKKxEbBvCnHwTFDoBFLay6THemQimvttWtaRprh4f62u</string>
+  	<key>com.posthog.posthog.PROJECT_TOKEN</key>
+  	<string>phc_oCivSbJrTGNZrAewbvByXvyAdM4e5Wkdehqyzav2fQoH</string>
   	<key>com.posthog.posthog.POSTHOG_HOST</key>
   	<string>https://us.i.posthog.com</string>
   	<key>com.posthog.posthog.CAPTURE_APPLICATION_LIFECYCLE_EVENTS</key>

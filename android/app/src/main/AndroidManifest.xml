@@ -59,7 +59,7 @@
 
         <!-- post hog -->
 
-        <meta-data android:name="com.posthog.posthog.PROJECT_TOKEN" android:value="phc_tKKxEbBvCnHwTFDoBFLay6THemQimvttWtaRprh4f62u" />
+        <meta-data android:name="com.posthog.posthog.PROJECT_TOKEN" android:value="phc_oCivSbJrTGNZrAewbvByXvyAdM4e5Wkdehqyzav2fQoH" />
         <meta-data android:name="com.posthog.posthog.POSTHOG_HOST" android:value="https://us.i.posthog.com" />
         <meta-data android:name="com.posthog.posthog.TRACK_APPLICATION_LIFECYCLE_EVENTS" android:value="true" />
         <meta-data android:name="com.posthog.posthog.DEBUG" android:value="true" />
