@@ -139,6 +139,7 @@ class CafeRemoteDataSource {
           image_urls,
           created_at,
           updated_at,
+          moderation_status,
           profile:profiles!reviews_user_id_fkey (
             username,
             full_name,
@@ -239,6 +240,7 @@ class CafeRemoteDataSource {
             )
           ''')
           .eq('user_id', userId)
+          .eq('moderation_status', 'visible')
           .order('created_at', ascending: false);
 
       final list = response as List;
@@ -753,7 +755,10 @@ class CafeBundleModel {
     final reviews = includeReviews
         ? _asList(
             json['reviews'],
-          ).map((item) => ReviewModel.fromJson(item)).toList()
+          )
+            .where((item) => item['moderation_status'] == 'visible')
+            .map((item) => ReviewModel.fromJson(item))
+            .toList()
         : null;
 
     return CafeBundleModel(details: details, menu: menu, reviews: reviews);
