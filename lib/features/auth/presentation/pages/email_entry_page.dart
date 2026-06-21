@@ -70,6 +70,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   }
 
   Widget _buildSocialButton({
+    required BuildContext context,
     required String text,
     required Widget icon,
     required VoidCallback onPressed,
@@ -81,7 +82,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
           foregroundColor: Colors.black87,
-          side: const BorderSide(color: Color(0xFFE0E0E0)),
+          side: BorderSide(color: context.colorScheme.border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -281,6 +282,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                     ),
                     const Gap(24),
                     _buildSocialButton(
+                      context: context,
                       text: 'Continue with Google',
                       icon: Image.asset(
                         'assets/logos/googleLogo.png',
@@ -296,6 +298,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                     if (Platform.isIOS) ...[
                       const SizedBox(height: 12),
                       _buildSocialButton(
+                        context: context,
                         text: 'Continue with Apple',
                         icon: const Icon(
                           Icons.apple,

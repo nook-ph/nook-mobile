@@ -219,8 +219,8 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
                     onPressed: () => _clearAll(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
-                      side: const BorderSide(
-                        color: Color(0xFFE0E0E0),
+                      side: BorderSide(
+                        color: context.colorScheme.border,
                         width: 1.5,
                       ),
                       elevation: 0,

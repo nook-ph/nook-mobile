@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
@@ -213,8 +214,8 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
                     onPressed: () => _clearForSection(context),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.black,
-                      side: const BorderSide(
-                        color: Color(0xFFE0E0E0),
+                      side: BorderSide(
+                        color: context.colorScheme.border,
                         width: 1.5,
                       ),
                       elevation: 0,
