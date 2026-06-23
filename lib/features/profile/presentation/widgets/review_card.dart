@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 class ReviewCard extends StatelessWidget {
@@ -19,6 +20,7 @@ class ReviewCard extends StatelessWidget {
     this.helpfulCount = 0,
     this.onHelpfulTap,
     this.onMoreTap,
+    this.onDelete,
   });
 
   final String username;
@@ -32,6 +34,7 @@ class ReviewCard extends StatelessWidget {
   final int helpfulCount;
   final VoidCallback? onHelpfulTap;
   final VoidCallback? onMoreTap;
+  final Future<void> Function()? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -241,12 +244,159 @@ class ReviewCard extends StatelessWidget {
                   ),
                 ],
               ),
+            ] else if (onDelete != null) ...[
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  AdaptiveTap(
+                    onTap: () => _openOptionsSheet(context),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.more_horiz,
+                        color: Colors.black54,
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ],
         ),
       ),
     );
   }
+
+  Future<void> _openOptionsSheet(BuildContext context) async {
+    final deleteAction = onDelete;
+    if (deleteAction == null) return;
+
+    final shouldDelete = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0E0E0),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                AdaptiveTap(
+                  onTap: () => Navigator.of(sheetContext).pop(true),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 16,
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 14),
+                        Text(
+                          'Delete review',
+                          style: context.textTheme.bodyMedium?.copyWith(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (shouldDelete != true) return;
+    if (!context.mounted) return;
+
+    final confirmed = await _showDeleteConfirmDialog(context);
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    await deleteAction();
+  }
+}
+
+Future<bool?> _showDeleteConfirmDialog(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Delete this review?',
+              style: dialogContext.textTheme.titleMediumSemi,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'This cannot be undone.',
+              style: dialogContext.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                AdaptiveTextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: dialogContext.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AdaptiveTextButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: Text(
+                    'Delete',
+                    style: dialogContext.textTheme.bodyMedium?.copyWith(
+                      color: Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _StarRow extends StatelessWidget {

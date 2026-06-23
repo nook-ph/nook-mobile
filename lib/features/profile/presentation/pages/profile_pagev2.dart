@@ -36,6 +36,7 @@ class ProfileRedesignPage extends StatelessWidget {
             client: Supabase.instance.client,
             getReviewsWrittenByUser: sl<GetReviewsWrittenByUserUseCase>(),
             updateProfileUseCase: sl(),
+            deleteReviewUseCase: sl(),
           )..loadProfile(),
         ),
         BlocProvider(create: (_) => sl<AvatarUploadBloc>()),
@@ -338,6 +339,7 @@ class _ReviewsTab extends StatelessWidget {
               itemBuilder: (context, index) {
                 final review = visibleReviews[index];
                 return ReviewCard(
+                  isOwner: true,
                   username: username,
                   avatarUrl: avatarUrl,
                   cafeReviewed: review.cafeName,
@@ -345,6 +347,12 @@ class _ReviewsTab extends StatelessWidget {
                   rating: review.rating.toDouble(),
                   reviewText: review.content,
                   photos: review.imageUrls,
+                  onDelete: () async {
+                    final cubit = context.read<ProfileCubit>();
+                    await cubit.deleteReview(review.id);
+                    if (!context.mounted) return;
+                    showPrimaryToast(context, 'Review deleted');
+                  },
                 );
               },
             ),
