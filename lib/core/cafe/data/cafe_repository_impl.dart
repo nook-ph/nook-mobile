@@ -246,6 +246,11 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
+  Future<void> deleteReview(String reviewId) {
+    return remoteDataSource.deleteReview(reviewId);
+  }
+
+  @override
   Future<String> getDefaultListId() {
     return remoteDataSource.fetchDefaultListId();
   }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/features/profile/presentation/widgets/review_card.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
@@ -248,6 +249,12 @@ class _ReviewsPageState extends State<ReviewsPage> {
           rating: review.rating.toDouble(),
           reviewText: review.content,
           photos: review.imageUrls,
+          onDelete: () async {
+            final cubit = context.read<ProfileCubit>();
+            await cubit.deleteReview(review.id);
+            if (!context.mounted) return;
+            showPrimaryToast(context, 'Review deleted');
+          },
         );
       },
     );

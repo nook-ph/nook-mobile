@@ -676,6 +676,18 @@ class CafeRemoteDataSource {
     }
   }
 
+  Future<void> deleteReview(String reviewId) async {
+    try {
+      await supabase.from('reviews').delete().eq('id', reviewId);
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to delete review "$reviewId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   // Replaced renameList with updateList
   Future<void> updateList(
     String listId, {

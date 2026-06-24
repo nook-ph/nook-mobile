@@ -39,6 +39,8 @@ abstract class ICafeRepository {
     List<String> imageUrls = const [],
   });
 
+  Future<void> deleteReview(String reviewId);
+
   // lists
   Future<String> getDefaultListId();
   Future<List<CafeList>> getUserLists();

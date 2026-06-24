@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
+import 'package:nook/core/cafe/domain/use_cases/delete_review_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/features/profile/use_cases/update_profile_usecase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,14 +10,17 @@ class ProfileCubit extends Cubit<ProfileState> {
   final SupabaseClient _client;
   final GetReviewsWrittenByUserUseCase _getReviewsWrittenByUser;
   final UpdateProfileUseCase _updateProfileUseCase;
+  final DeleteReviewUseCase _deleteReviewUseCase;
 
   ProfileCubit({
     SupabaseClient? client,
     required GetReviewsWrittenByUserUseCase getReviewsWrittenByUser,
     required UpdateProfileUseCase updateProfileUseCase,
+    required DeleteReviewUseCase deleteReviewUseCase,
   }) : _client = client ?? Supabase.instance.client,
        _getReviewsWrittenByUser = getReviewsWrittenByUser,
        _updateProfileUseCase = updateProfileUseCase,
+       _deleteReviewUseCase = deleteReviewUseCase,
        super(const ProfileInitial());
 
   Future<void> loadProfile() async {
@@ -134,6 +138,36 @@ class ProfileCubit extends Cubit<ProfileState> {
 
   void clear() {
     emit(const ProfileUnauthenticated());
+  }
+
+  Future<void> deleteReview(String reviewId) async {
+    final currentState = state;
+    if (currentState is! ProfileLoaded) return;
+
+    try {
+      await _deleteReviewUseCase.call(reviewId);
+    } catch (e) {
+      rethrow;
+    }
+
+    final updatedReviews = currentState.reviews
+        .where((r) => r.id != reviewId)
+        .toList(growable: false);
+
+    if (updatedReviews.length == currentState.reviews.length) return;
+
+    emit(
+      ProfileLoaded(
+        name: currentState.name,
+        username: currentState.username,
+        email: currentState.email,
+        bio: currentState.bio,
+        userId: currentState.userId,
+        avatarUrl: currentState.avatarUrl,
+        lastUsernameChange: currentState.lastUsernameChange,
+        reviews: updatedReviews,
+      ),
+    );
   }
 }
 
