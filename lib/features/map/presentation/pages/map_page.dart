@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
@@ -38,6 +39,7 @@ class _MapPageState extends State<MapPage> {
   bool _overlayDismissed = false;
   bool _suppressOverlayAnimation = false;
   bool _animateOverlayDismiss = false;
+  bool _myLocationEnabled = false;
 
 
   final _sheetMetrics = ValueNotifier<BottomSheetMetrics?>(null);
@@ -58,6 +60,22 @@ class _MapPageState extends State<MapPage> {
     rootBundle.loadString('assets/mapstyle.json').then((s) {
       if (mounted) setState(() => _styleJson = s);
     });
+    _syncLocationEnabledFromPermission();
+  }
+
+  Future<void> _syncLocationEnabledFromPermission() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      final granted =
+          permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always;
+      if (!mounted) return;
+      if (granted != _myLocationEnabled) {
+        setState(() => _myLocationEnabled = granted);
+      }
+    } catch (_) {
+      // Best-effort: leave myLocationEnabled at its default (false).
+    }
   }
 
   @override
@@ -114,7 +132,7 @@ class _MapPageState extends State<MapPage> {
                   MapLibreMap(
                     initialCameraPosition: _initial,
                     compassEnabled: false,
-                    myLocationEnabled: true,
+                    myLocationEnabled: _myLocationEnabled,
                     myLocationRenderMode: MyLocationRenderMode.normal,
                     myLocationTrackingMode: MyLocationTrackingMode.none,
                     styleString: _styleJson!,
@@ -381,6 +399,107 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _defaultView() async {
+    final permission = await Geolocator.checkPermission();
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
+      if (!serviceEnabled) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Turn on Location Services to center the map on you.',
+            ),
+          ),
+        );
+        return;
+      }
+      await _enterTrackingMode();
+      return;
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      final openSettings = await _showLocationRationale(
+        title: 'Location is turned off',
+        body:
+            'Nook uses your location to show your position on the map and find cafes near you. You can change this anytime in Settings.',
+        primaryLabel: 'Open Settings',
+        secondaryLabel: 'Not now',
+      );
+      if (openSettings) {
+        await Geolocator.openAppSettings();
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    final proceed = await _showLocationRationale(
+      title: 'Use your location?',
+      body:
+          'Nook uses your location to show your position on the map and find cafes near you. You can change this anytime in Settings.',
+      primaryLabel: 'Continue',
+      secondaryLabel: 'Not now',
+    );
+    if (!proceed) return;
+    if (!mounted) return;
+    final updated = await Geolocator.requestPermission();
+    if (!mounted) return;
+    if (updated == LocationPermission.whileInUse ||
+        updated == LocationPermission.always) {
+      setState(() => _myLocationEnabled = true);
+      if (await Geolocator.isLocationServiceEnabled()) {
+        await _enterTrackingMode();
+        if (!mounted) return;
+        context.read<MapBloc>().add(LoadMapDataEvent(filter: _initialFilter));
+      }
+    }
+  }
+
+  Future<bool> _showLocationRationale({
+    required String title,
+    required String body,
+    required String primaryLabel,
+    required String secondaryLabel,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(title, style: const TextStyle(color: Color(0xFF344E41))),
+          content: Text(
+            body,
+            style: const TextStyle(color: Colors.black87, height: 1.4),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                secondaryLabel,
+                style: const TextStyle(color: Colors.black54),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF344E41),
+              ),
+              child: Text(primaryLabel),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
+  }
+
+  Future<void> _enterTrackingMode() async {
     final c = await _controllerCompleter.future;
     await c.updateMyLocationTrackingMode(MyLocationTrackingMode.tracking);
   }

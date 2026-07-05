@@ -55,6 +55,10 @@ class AuthLoggedOut extends AuthState {
   const AuthLoggedOut();
 }
 
+class AuthAccountDeleted extends AuthState {
+  const AuthAccountDeleted();
+}
+
 class AuthError extends AuthState {
   final String message;
   const AuthError(this.message);

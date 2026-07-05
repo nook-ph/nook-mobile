@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
 // Use Cases
 import 'package:nook/features/auth/domain/use_cases/check_email_exists_usecase.dart';
+import 'package:nook/features/auth/domain/use_cases/delete_account_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/get_current_session_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_apple_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.dart';
@@ -29,6 +30,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final SignInWithAppleUsecase _signInWithAppleUsecase;
   final SignInWithGoogleUseCase _signInWithGoogleUseCase;
   final SignOutUseCase _signOutUseCase;
+  final DeleteAccountUseCase _deleteAccountUseCase;
   final GetCurrentSessionUseCase _getCurrentSessionUseCase;
   final ListsBloc listsBloc;
   late final StreamSubscription<supabase.AuthState> _authStateSubscription;
@@ -40,6 +42,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required SignInWithAppleUsecase signInWithAppleUseCase,
     required SignInWithGoogleUseCase signInWithGoogleUseCase,
     required SignOutUseCase signOutUseCase,
+    required DeleteAccountUseCase deleteAccountUseCase,
     required GetCurrentSessionUseCase getCurrentSessionUseCase,
     required this.listsBloc,
   }) : _checkEmailExistsUseCase = checkEmailExistsUseCase,
@@ -48,6 +51,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
        _signInWithAppleUsecase = signInWithAppleUseCase,
        _signInWithGoogleUseCase = signInWithGoogleUseCase,
        _signOutUseCase = signOutUseCase,
+       _deleteAccountUseCase = deleteAccountUseCase,
        _getCurrentSessionUseCase = getCurrentSessionUseCase,
        super(AuthInitial()) {
 
@@ -57,6 +61,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSignInWithAppleEvent>(_onSignInWithApple);
     on<AuthSignInWithGoogleEvent>(_onSignInWithGoogle);
     on<AuthSignOutEvent>(_onSignOut);
+    on<AuthDeleteAccountEvent>(_onDeleteAccount);
     on<AuthUsernameSetEvent>(_onUsernameSet);
     on<AuthPasswordRecoveryEvent>(_onPasswordRecovery);
     on<AuthSessionCheckEvent>(_onSessionCheck);
@@ -244,6 +249,46 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthError(_mapDatabaseError(e)));
     } catch (_) {
       emit(const AuthError('Connection failed. Check your internet.'));
+    }
+  }
+
+  Future<void> _onDeleteAccount(
+    AuthDeleteAccountEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    try {
+      emit(AuthLoading());
+      await _deleteAccountUseCase(password: event.password);
+      try {
+        await _signOutUseCase();
+      } on AuthException catch (e) {
+        debugPrint('AuthBloc: post-delete signOut AuthException: ${e.message}');
+      } catch (e) {
+        debugPrint('AuthBloc: post-delete signOut error: $e');
+      }
+      await _resetPosthogUser();
+      _clearListsSession();
+      emit(const AuthAccountDeleted());
+      emit(const AuthUnauthenticated());
+    } on AuthException catch (e) {
+      final mapped = _mapAuthError(e);
+      final isInvalidPassword = e.code == 'invalid_credentials' ||
+          e.code == 'invalid_grant' ||
+          e.message.toLowerCase().contains('invalid login credentials') ||
+          e.message.toLowerCase().contains('invalid password');
+      emit(
+        AuthError(
+          isInvalidPassword ? 'Incorrect password. Please try again.' : mapped,
+        ),
+      );
+    } on PostgrestException catch (e) {
+      emit(AuthError(_mapDatabaseError(e)));
+    } on FunctionException catch (e) {
+      debugPrint('AuthBloc: delete-user function error status=${e.status}');
+      emit(const AuthError('Account deletion failed. Please try again later.'));
+    } catch (e) {
+      debugPrint('AuthBloc: delete account error: $e');
+      emit(const AuthError('Account deletion failed. Please try again later.'));
     }
   }
 

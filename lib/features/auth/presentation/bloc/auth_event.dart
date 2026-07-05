@@ -56,6 +56,15 @@ class AuthSignOutEvent extends AuthEvent {
   const AuthSignOutEvent();
 }
 
+class AuthDeleteAccountEvent extends AuthEvent {
+  final String? password;
+
+  const AuthDeleteAccountEvent({this.password});
+
+  @override
+  List<Object?> get props => [password];
+}
+
 class AuthSessionCheckEvent extends AuthEvent {
   const AuthSessionCheckEvent();
 }

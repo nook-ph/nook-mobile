@@ -13,6 +13,7 @@ import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
 import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
@@ -22,7 +23,7 @@ import 'package:nook/features/profile/presentation/widgets/review_card.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 class ProfileRedesignPage extends StatelessWidget {
   const ProfileRedesignPage({super.key});
@@ -41,9 +42,17 @@ class ProfileRedesignPage extends StatelessWidget {
         ),
         BlocProvider(create: (_) => sl<AvatarUploadBloc>()),
       ],
-      child: DefaultTabController(
-        length: 2,
-        child: Scaffold(
+      child: BlocListener<AuthBloc, AuthState>(
+        listenWhen: (previous, current) =>
+            current is AuthUnauthenticated ||
+            current is AuthLoggedOut ||
+            current is AuthAccountDeleted,
+        listener: (context, state) {
+          context.read<ProfileCubit>().clear();
+        },
+        child: DefaultTabController(
+          length: 2,
+          child: Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
             backgroundColor: Colors.white,
@@ -265,6 +274,7 @@ class ProfileRedesignPage extends StatelessWidget {
             },
           ),
         ),
+      ),
       ),
     );
   }

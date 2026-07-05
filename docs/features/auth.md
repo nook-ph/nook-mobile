@@ -331,6 +331,7 @@ User on UsernameSetupScreen types username
 | `signUp({email, name, password})` | `Future<AuthResponse>` | `supabase.auth.signUp(...)` with `data: {full_name}` and `emailRedirectTo: AppConstants.emailRedirectUri` | Returns full `AuthResponse` (session may be null) |
 | `signIn({email, password})` | `Future<AuthResponse>` | `supabase.auth.signInWithPassword(...)` | Direct (no remote data source indirection) |
 | `signOut()` | `Future<void>` | `supabase.auth.signOut(scope: SignOutScope.global)` | Global scope clears all sessions across devices |
+| `deleteAccount({String? password})` | `Future<void>` | If `password` is provided, `supabase.auth.signInWithPassword(email, password)` to verify; then data source calls the `delete-user` Edge Function. | Hard-deletes user + all related rows server-side |
 | `signInWithGoogle(String webClientId)` | `Future<Either<Failure, void>>` | `signInWithGoogle(webClientId)` in data source | Catches exceptions, wraps in `Failure(message)` |
 | `signInWithApple()` | `Future<Either<Failure, void>>` | `signInWithApple()` in data source | Catches exceptions, wraps in `Failure(message)` |
 | `getCurrentSession()` | `Session?` | `supabase.auth.currentSession` | Synchronous lookup; cached |
@@ -359,6 +360,7 @@ Listed for reference — agents should not add logic here; keep them pass-throug
 | `SignInWithAppleUsecase` | `domain/use_cases/sign_in_with_apple_usecase.dart` | `Future<Either<Failure, void>> call()` (note: missing "se" — **typo in class name**, not a doc issue) |
 | `SignInWithGoogleUseCase` | `domain/use_cases/sign_in_with_google_usecase.dart` | `Future<Either<Failure, void>> call(String webClientId)` |
 | `SignOutUseCase` | `domain/use_cases/sign_out_usecase.dart` | `Future<void> call()` |
+| `DeleteAccountUseCase` | `domain/use_cases/delete_account_usecase.dart` | `Future<void> call({String? password})` |
 | `GetCurrentSessionUseCase` | `domain/use_cases/get_current_session_usecase.dart` | `Session? call()` |
 
 > The `Auth` feature is **not** registered with `get_it`. It uses a manual
@@ -695,3 +697,51 @@ Google Sign-In specific (`SupabaseAuthRemoteDataSource.signInWithGoogle`):
 
 - [ ] Confirm `handle_new_user` trigger definition in Supabase. (carried over)
 - [ ] Document session refresh / expiry behavior. (carried over)
+
+---
+
+## 20. Account Deletion (App Store 5.1.1(v) compliance)
+
+`Settings → Delete Account` lets a user permanently delete their account and
+all associated data.
+
+**Flow:**
+
+1. **Settings page** (`lib/features/profile/presentation/pages/settings_page.dart`)
+   - Red `"Delete Account"` tile below `"Logout"`.
+2. **Confirmation dialog** (`_DeleteAccountDialog` in the same file)
+   - Detects provider from `currentUser.identities` (any identity with
+     `provider == 'email'` ⇒ email/password user).
+   - **Email/password user:** password `TextField` (obscured) → submit
+     `AuthDeleteAccountEvent(password: input)`.
+   - **OAuth-only user (Google/Apple):** confirmation `TextField` requiring
+     literal `DELETE` (auto-uppercased, alpha-only formatter) → submit
+     `AuthDeleteAccountEvent(password: null)`.
+   - Submit disabled until input is valid; spinner shown while in flight.
+   - Hard-block dismissal via `barrierDismissible: false`; closes itself when
+     `AuthBloc` emits `AuthAccountDeleted`, `AuthUnauthenticated`, or `AuthError`.
+3. **BLoC** (`AuthBloc._onDeleteAccount`)
+   - Emits `AuthLoading`.
+   - For email users, `AuthRepositoryImpl.deleteAccount` first calls
+     `supabase.auth.signInWithPassword` to verify the password. Invalid
+     credentials map to `"Incorrect password. Please try again."`.
+   - Calls the Supabase Edge Function `delete-user` via
+     `_client.functions.invoke('delete-user', method: HttpMethod.post)`.
+   - On success: `Posthog().reset()`, clear `ListsBloc` session, emit
+     `AuthAccountDeleted` then `AuthUnauthenticated`.
+   - On `FunctionException` (non-2xx from Edge Function), emits
+     `"Account deletion failed. Please try again later."`.
+4. **Backend — Supabase Edge Function `delete-user`** (lives outside this
+   repo in the Supabase project's `supabase/functions`):
+   - Validates the caller's JWT.
+   - Hard-deletes every row linked to the user across `crawl_stamps`,
+     `crawl_registrations`, `user_achievements`, `review_helpful_votes`,
+     `reviews`, `list_members`, `list_cafes`, `cafe_claims`,
+     `cafe_owner_cafe`, `owner_invites`, `review_reports`,
+     `review_moderation_actions`, `menu_categories`, `crawls`, `audit_logs`,
+     and the `profiles` row, then calls `supabase.auth.admin.deleteUser(userId)`.
+5. **Router:** no new branch required — the bloc immediately emits
+   `AuthUnauthenticated` after `AuthAccountDeleted`, and the existing
+   unauthenticated redirect routes the user back to `/login`.
+   `SettingsPage`'s `BlocListener` shows the success toast and calls
+   `context.go('/login')` on `AuthAccountDeleted`.

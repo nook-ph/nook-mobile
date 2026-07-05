@@ -200,14 +200,14 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return (position: null, locationDenied: false);
 
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
+      final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return (position: null, locationDenied: true);
+          permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.unableToDetermine) {
+        return (
+          position: null,
+          locationDenied: permission == LocationPermission.deniedForever,
+        );
       }
 
       final position = await Geolocator.getCurrentPosition(
