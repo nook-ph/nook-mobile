@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 
@@ -34,56 +35,73 @@ class LocationDeniedBanner extends StatelessWidget {
 
     final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: Colors.grey.shade200,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Material(
+        color: context.colorScheme.primary60,
+        borderRadius: BorderRadius.circular(8),
+        child: SafeArea(
+          bottom: false,
+          child: Stack(
             children: [
-              Expanded(
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 4,
-                  runSpacing: 0,
-                  children: [
-                    Text(
-                      'Nearby sorting unavailable',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.black,
-                      ),
-                    ),
-                    AdaptiveTextButton(
-                      onPressed: () {
-                        final open = onOpenSettings ?? Geolocator.openAppSettings;
-                        unawaited(open());
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.black,
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        'Open Settings',
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                child: Center(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 4,
+                    children: [
+                      Text(
+                        'See cafes near you',
                         style: textTheme.bodyMedium?.copyWith(
-                          color: Colors.black,
-                          decoration: TextDecoration.underline,
-                          decorationColor: Colors.grey.shade800,
+                          color: context.colorScheme.white,
                         ),
                       ),
-                    ),
-                  ],
+                      Text(
+                        '·',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: context.colorScheme.white,
+                        ),
+                      ),
+                      AdaptiveTextButton(
+                        onPressed: () {
+                          final open =
+                              onOpenSettings ?? Geolocator.openAppSettings;
+                          unawaited(open());
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: context.colorScheme.white,
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Turn on location',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: context.colorScheme.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (onDismiss != null)
-                AdaptiveTap(
-                  onTap: onDismiss,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Icon(Icons.close, color: Colors.grey.shade800),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: AdaptiveTap(
+                    onTap: onDismiss,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close,
+                        size: 18,
+                        color: context.colorScheme.white,
+                      ),
+                    ),
                   ),
                 ),
             ],

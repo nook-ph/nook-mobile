@@ -156,7 +156,11 @@ class _HomeScrollView extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [const HomeTopBar(), ...children],
+          children: [
+            const HomeTopBar(),
+            const SizedBox(height: 12),
+            ...children,
+          ],
         ),
       ),
     );
