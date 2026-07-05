@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
@@ -9,14 +10,88 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
-class SettingsPage extends StatelessWidget {
+enum _LocationStatus { on, off, denied, unknown }
+
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
 
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage>
+    with WidgetsBindingObserver {
   static const _textColor = Color(0xFF1A1A1A);
   static const _iconColor = Color(0xFF1A1A1A);
   static const _chevronColor = Color(0xFFBBBBBB);
   static const _dividerColor = Color(0xFFF0F0F0);
   static const _dangerColor = Color(0xFFD9342B);
+
+  _LocationStatus _locationStatus = _LocationStatus.unknown;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshLocationStatus();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshLocationStatus();
+    }
+  }
+
+  Future<void> _refreshLocationStatus() async {
+    final next = await _readLocationStatus();
+    if (!mounted) return;
+    if (next != _locationStatus) {
+      setState(() => _locationStatus = next);
+    }
+  }
+
+  Future<_LocationStatus> _readLocationStatus() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final permission = await Geolocator.checkPermission();
+      final granted =
+          permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always;
+      if (granted && serviceEnabled) return _LocationStatus.on;
+      if (granted && !serviceEnabled) return _LocationStatus.off;
+      if (permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.denied) {
+        return _LocationStatus.denied;
+      }
+      return _LocationStatus.unknown;
+    } catch (_) {
+      return _LocationStatus.unknown;
+    }
+  }
+
+  String get _locationStatusLabel {
+    switch (_locationStatus) {
+      case _LocationStatus.on:
+        return 'On';
+      case _LocationStatus.off:
+        return 'Off';
+      case _LocationStatus.denied:
+        return 'Denied';
+      case _LocationStatus.unknown:
+        return 'Not set';
+    }
+  }
+
+  Future<void> _openLocationSettings() async {
+    await Geolocator.openAppSettings();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,6 +151,19 @@ class SettingsPage extends StatelessWidget {
                   // ── Items ──────────────────────────────────────────────
                   _buildItem(
                     context: context,
+                    icon: Icons.location_on_outlined,
+                    label: 'Location',
+                    trailing: Text(
+                      _locationStatusLabel,
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF8A8A8A),
+                      ),
+                    ),
+                    onTap: _openLocationSettings,
+                  ),
+                  const Divider(color: _dividerColor, height: 1),
+                  _buildItem(
+                    context: context,
                     icon: Icons.mail_outline_rounded,
                     label: 'Change Email',
                     onTap: () {
@@ -131,6 +219,7 @@ class SettingsPage extends StatelessWidget {
     required VoidCallback onTap,
     Color? labelColor,
     Color? iconColor,
+    Widget? trailing,
   }) {
     final effectiveLabelColor = labelColor ?? _textColor;
     final effectiveIconColor = iconColor ?? _iconColor;
@@ -152,6 +241,10 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
             ),
+            if (trailing != null) ...[
+              trailing,
+              const SizedBox(width: 8),
+            ],
             const Icon(Icons.chevron_right, size: 20, color: _chevronColor),
           ],
         ),
