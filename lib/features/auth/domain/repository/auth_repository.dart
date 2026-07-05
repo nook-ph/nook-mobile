@@ -23,6 +23,8 @@ abstract class AuthRepository {
 
   Future<void> signOut();
 
+  Future<void> deleteAccount({String? password});
+
   Future<Either<Failure, void>> signInWithGoogle();
 
   Future<Either<Failure, void>> signInWithApple();

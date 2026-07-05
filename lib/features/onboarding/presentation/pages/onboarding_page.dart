@@ -5,7 +5,6 @@ import 'package:nook/core/app_event.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import '../../bloc/onboarding_bloc.dart';
 import '../../data/onboarding_data.dart';
 import '../widgets/onboarding_image.dart';
@@ -25,11 +24,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  Future<void> _requestLocationAndFinish(BuildContext context) async {
-    await Permission.location.request();
-
-    if (!mounted) return;
-
+  void _finish(BuildContext context) {
     context.read<AppBloc>().add(OnboardingCompleted());
   }
 
@@ -129,7 +124,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                             child: AdaptiveElevatedButton(
                               onPressed: () {
                                 if (state.isLastPage) {
-                                  _requestLocationAndFinish(context);
+                                  _finish(context);
                                 } else {
                                   _pageController.nextPage(
                                     duration: const Duration(milliseconds: 300),
@@ -146,9 +141,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                 ),
                               ),
                               child: Text(
-                                state.isLastPage
-                                    ? "Enable Location & Start"
-                                    : "Next",
+                                state.isLastPage ? "Continue" : "Next",
                                 style: context.textTheme.bodyLargeMed.copyWith(
                                   color: Colors.white,
                                 ),

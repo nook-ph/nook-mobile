@@ -59,14 +59,15 @@ class GetCafeCardUseCase {
         return (lat: null, lng: null, locationDenied: false);
       }
 
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-
+      final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        return (lat: null, lng: null, locationDenied: true);
+          permission == LocationPermission.deniedForever ||
+          permission == LocationPermission.unableToDetermine) {
+        return (
+          lat: null,
+          lng: null,
+          locationDenied: permission == LocationPermission.deniedForever,
+        );
       }
 
       final location = await Geolocator.getCurrentPosition(

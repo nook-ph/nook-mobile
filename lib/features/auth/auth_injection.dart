@@ -2,6 +2,7 @@ import 'package:nook/features/auth/data/datasources/supabase_auth_remote_data_so
 import 'package:nook/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:nook/features/auth/domain/repository/auth_repository.dart';
 import 'package:nook/features/auth/domain/use_cases/check_email_exists_usecase.dart';
+import 'package:nook/features/auth/domain/use_cases/delete_account_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/get_current_session_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_apple_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.dart';
@@ -38,6 +39,9 @@ class AuthInjection {
 
   static final SignOutUseCase _signOutUseCase = SignOutUseCase(_authRepository);
 
+  static final DeleteAccountUseCase _deleteAccountUseCase =
+      DeleteAccountUseCase(_authRepository);
+
   static final GetCurrentSessionUseCase _getCurrentSessionUseCase =
       GetCurrentSessionUseCase(_authRepository);
 
@@ -51,6 +55,7 @@ class AuthInjection {
       signInWithAppleUseCase: _signInWithAppleUsecase,
       signInWithGoogleUseCase: _signInWithGoogleUseCase,
       signOutUseCase: _signOutUseCase,
+      deleteAccountUseCase: _deleteAccountUseCase,
       getCurrentSessionUseCase: _getCurrentSessionUseCase,
       listsBloc: listsBloc,
     );

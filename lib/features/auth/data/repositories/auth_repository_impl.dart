@@ -43,6 +43,28 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<void> deleteAccount({String? password}) async {
+    if (password != null && password.isNotEmpty) {
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      final email = currentUser?.email;
+      if (email == null || email.isEmpty) {
+        throw const AuthException('No email associated with the current user.');
+      }
+      try {
+        await Supabase.instance.client.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+      } on AuthException {
+        rethrow;
+      } catch (_) {
+        throw const AuthException('Invalid password.');
+      }
+    }
+    await _remoteDataSource.deleteAccount();
+  }
+
+  @override
   Future<Either<Failure, void>> signInWithApple() async {
     try {
       await _remoteDataSource.signInWithApple();

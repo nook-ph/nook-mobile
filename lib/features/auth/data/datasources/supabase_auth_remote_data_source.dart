@@ -153,4 +153,16 @@ class SupabaseAuthRemoteDataSource {
       // GoogleSignIn may not be initialized if the user never signed in with Google.
     }
   }
+
+  Future<void> deleteAccount() async {
+    final response = await _client.functions.invoke(
+      'delete-user',
+      method: HttpMethod.post,
+    );
+    if (response.status != 200) {
+      throw AuthException(
+        'Account deletion failed. Please try again later.',
+      );
+    }
+  }
 }
