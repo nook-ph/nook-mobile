@@ -20,6 +20,8 @@ import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
+import 'package:nook/core/preferences/location_prompt_store.dart';
+import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -61,6 +63,43 @@ class _MapPageState extends State<MapPage> {
       if (mounted) setState(() => _styleJson = s);
     });
     _syncLocationEnabledFromPermission();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybePromptForLocation();
+    });
+  }
+
+  Future<void> _maybePromptForLocation() async {
+    final nav = _navigationBloc;
+    if (nav == null || nav.state.tabIndex != 1) return;
+
+    final store = sl<LocationPromptStore>();
+    if (await store.hasRequested()) return;
+
+    LocationPermission permission;
+    try {
+      permission = await Geolocator.checkPermission();
+    } catch (_) {
+      await store.markRequested();
+      return;
+    }
+
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always ||
+        permission == LocationPermission.deniedForever) {
+      await store.markRequested();
+      return;
+    }
+
+    await store.markRequested();
+    await _requestLocationAccess();
+  }
+
+  NavigationBloc? get _navigationBloc {
+    try {
+      return context.read<NavigationBloc>();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<void> _syncLocationEnabledFromPermission() async {
@@ -399,6 +438,10 @@ class _MapPageState extends State<MapPage> {
   }
 
   Future<void> _defaultView() async {
+    await _requestLocationAccess();
+  }
+
+  Future<void> _requestLocationAccess() async {
     final permission = await Geolocator.checkPermission();
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
