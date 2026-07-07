@@ -26,12 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Nook requires access to your location to show you the best cafes nearby, even when the app is running in the background.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Nook needs your location to find the best cafes and study spots near you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Nook needs your location to find the best cafes and study spots near you.</string>
+	<string>Nook uses your location to show your position on the map and find cafes near you.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

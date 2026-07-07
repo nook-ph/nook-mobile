@@ -12,6 +12,7 @@ import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
@@ -19,8 +20,6 @@ import 'package:nook/features/search/presentation/widgets/search_entry_button.da
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
-import 'package:nook/core/widgets/error/location_denied_banner.dart';
-import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 
 class MapPage extends StatefulWidget {
@@ -43,6 +42,7 @@ class _MapPageState extends State<MapPage> {
   bool _animateOverlayDismiss = false;
   bool _myLocationEnabled = false;
 
+  static bool _hasRequestedPermission = false;
 
   final _sheetMetrics = ValueNotifier<BottomSheetMetrics?>(null);
 
@@ -64,41 +64,38 @@ class _MapPageState extends State<MapPage> {
     });
     _syncLocationEnabledFromPermission();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybePromptForLocation();
+      if (!mounted) return;
+      try {
+        final navBloc = context.read<NavigationBloc>();
+        if (navBloc.state.tabIndex == 1) {
+          _maybeRequestPermissionOnce();
+        }
+      } catch (_) {
+        // NavigationBloc not available in this context; nothing to do.
+      }
     });
   }
 
-  Future<void> _maybePromptForLocation() async {
-    final nav = _navigationBloc;
-    if (nav == null || nav.state.tabIndex != 1) return;
+  Future<void> _maybeRequestPermissionOnce() async {
+    if (_hasRequestedPermission) return;
+    _hasRequestedPermission = true;
 
     final store = sl<LocationPromptStore>();
     if (await store.hasRequested()) return;
-
-    LocationPermission permission;
-    try {
-      permission = await Geolocator.checkPermission();
-    } catch (_) {
-      await store.markRequested();
-      return;
-    }
-
-    if (permission == LocationPermission.whileInUse ||
-        permission == LocationPermission.always ||
-        permission == LocationPermission.deniedForever) {
-      await store.markRequested();
-      return;
-    }
-
     await store.markRequested();
-    await _requestLocationAccess();
-  }
 
-  NavigationBloc? get _navigationBloc {
     try {
-      return context.read<NavigationBloc>();
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
+        return;
+      }
+      if (permission == LocationPermission.deniedForever) {
+        return;
+      }
+      await Geolocator.requestPermission();
     } catch (_) {
-      return null;
+      // Best-effort: the user can re-enable via Settings.
     }
   }
 
@@ -320,25 +317,16 @@ class _MapPageState extends State<MapPage> {
                   right: 0,
                   child: SafeArea(
                     bottom: false,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (state is MapLoadedState &&
-                            state.locationDenied &&
-                            !state.locationBannerDismissed)
-                          LocationDeniedBanner(
-                            visible: true,
-                            onDismiss: () => context.read<MapBloc>().add(
-                              MapDismissLocationBannerEvent(),
-                            ),
-                          ),
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(22, 8, 22, 0),
-                          child: SearchEntryButton(),
-                        ),
-                      ],
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(22, 8, 22, 0),
+                        child: SearchEntryButton(),
+                      ),
+                    ],
+                  ),
                   ),
                 ),
               ],
@@ -463,30 +451,10 @@ class _MapPageState extends State<MapPage> {
     }
 
     if (permission == LocationPermission.deniedForever) {
-      if (!mounted) return;
-      final openSettings = await _showLocationRationale(
-        title: 'Location is turned off',
-        body:
-            'Nook uses your location to show your position on the map and find cafes near you. You can change this anytime in Settings.',
-        primaryLabel: 'Open Settings',
-        secondaryLabel: 'Not now',
-      );
-      if (openSettings) {
-        await Geolocator.openAppSettings();
-      }
+      await Geolocator.openAppSettings();
       return;
     }
 
-    if (!mounted) return;
-    final proceed = await _showLocationRationale(
-      title: 'Use your location?',
-      body:
-          'Nook uses your location to show your position on the map and find cafes near you. You can change this anytime in Settings.',
-      primaryLabel: 'Continue',
-      secondaryLabel: 'Not now',
-    );
-    if (!proceed) return;
-    if (!mounted) return;
     final updated = await Geolocator.requestPermission();
     if (!mounted) return;
     if (updated == LocationPermission.whileInUse ||
@@ -498,48 +466,6 @@ class _MapPageState extends State<MapPage> {
         context.read<MapBloc>().add(LoadMapDataEvent(filter: _initialFilter));
       }
     }
-  }
-
-  Future<bool> _showLocationRationale({
-    required String title,
-    required String body,
-    required String primaryLabel,
-    required String secondaryLabel,
-  }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(title, style: const TextStyle(color: Color(0xFF344E41))),
-          content: Text(
-            body,
-            style: const TextStyle(color: Colors.black87, height: 1.4),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(
-                secondaryLabel,
-                style: const TextStyle(color: Colors.black54),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF344E41),
-              ),
-              child: Text(primaryLabel),
-            ),
-          ],
-        );
-      },
-    );
-    return result ?? false;
   }
 
   Future<void> _enterTrackingMode() async {
