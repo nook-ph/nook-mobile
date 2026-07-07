@@ -99,7 +99,9 @@ See `docs/features/auth.md` for the full breakdown.
 - **Map** — MapLibre GL (`maplibre_gl`) with a sliding panel of nearby
   cafes. Tapping a pin opens a sheet with a cafe summary card; tapping
   the card opens the full detail page.
-- Permission handling for device location (`geolocator`, `permission_handler`).
+- Permission handling for device location (`geolocator`); the iOS
+  system prompt is triggered directly from `MapPage` with no custom
+  pre-prompt (Apple App Store Guideline 5.1.1(iv) compliance).
 
 ### 4.3 Cafe Details (`lib/features/cafe_details/`)
 
