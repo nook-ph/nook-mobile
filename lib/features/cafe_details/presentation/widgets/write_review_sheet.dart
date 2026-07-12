@@ -16,6 +16,7 @@ import 'package:nook/injection_container.dart';
 import 'package:nook/core/preferences/review_draft_store.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/core/utils/content_filter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WriteReviewSheet extends StatefulWidget {
@@ -230,6 +231,11 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
         context,
         'Please select a rating before submitting.',
       );
+      return;
+    }
+
+    if (ContentFilter.containsObjectionable(_reviewController.text)) {
+      showPrimaryToast(context, ContentFilter.rejectionMessage);
       return;
     }
 

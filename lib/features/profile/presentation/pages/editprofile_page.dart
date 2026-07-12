@@ -10,6 +10,7 @@ import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/core/utils/content_filter.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_event.dart';
@@ -167,6 +168,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
       return 'Only letters, numbers, and underscores';
     }
+    if (ContentFilter.containsObjectionable(value)) {
+      return 'This username is not allowed';
+    }
     return null;
   }
 
@@ -206,6 +210,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // --- Save Action ---
   void _onSaveChanges() async {
     if (!_canSubmit) return;
+
+    if (ContentFilter.containsObjectionable(_bioController.text)) {
+      showPrimaryToast(context, ContentFilter.rejectionMessage);
+      return;
+    }
 
     final profileCubit = context.read<ProfileCubit>();
     final avatarBloc = context.read<AvatarUploadBloc>();

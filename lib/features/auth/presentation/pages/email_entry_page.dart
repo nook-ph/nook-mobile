@@ -1,13 +1,18 @@
 import 'dart:io' show Platform;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:nook/core/constants/app_constants.dart';
+import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/injection_container.dart';
 
 class EmailEntryScreen extends StatefulWidget {
   const EmailEntryScreen({super.key});
@@ -18,12 +23,21 @@ class EmailEntryScreen extends StatefulWidget {
 
 class _EmailEntryScreenState extends State<EmailEntryScreen> {
   final TextEditingController _emailController = TextEditingController();
+  final TermsAcceptanceStore _termsStore = sl<TermsAcceptanceStore>();
   String? _emailError;
   bool _didPrefillFromExtra = false;
+  bool _agreedToTerms = false;
+  late final TapGestureRecognizer _eulaTap;
+  late final TapGestureRecognizer _privacyTap;
 
   @override
   void initState() {
     super.initState();
+    _eulaTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal(AppConstants.eulaUrl);
+    _privacyTap = TapGestureRecognizer()
+      ..onTap = () => _openLegal(AppConstants.privacyPolicyUrl);
+    _loadTermsAcceptance();
     _emailController.addListener(() {
       if (_emailError != null) {
         final text = _emailController.text.trim();
@@ -51,7 +65,30 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   @override
   void dispose() {
     _emailController.dispose();
+    _eulaTap.dispose();
+    _privacyTap.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTermsAcceptance() async {
+    final accepted = await _termsStore.hasAccepted(AppConstants.termsVersion);
+    if (mounted && accepted) {
+      setState(() => _agreedToTerms = true);
+    }
+  }
+
+  /// Records terms acceptance the first time a user proceeds past this screen.
+  void _persistTermsAcceptance() {
+    _termsStore.markAccepted(AppConstants.termsVersion);
+  }
+
+  Future<void> _openLegal(String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        showPrimaryToast(context, 'Could not open the page. Please try again.');
+      }
+    }
   }
 
   void _onContinuePressed(BuildContext context) {
@@ -61,6 +98,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       return;
     }
     setState(() => _emailError = null);
+    _persistTermsAcceptance();
     context.read<AuthBloc>().add(AuthCheckEmailEvent(email));
   }
 
@@ -73,7 +111,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
     required BuildContext context,
     required String text,
     required Widget icon,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return SizedBox(
       width: double.infinity,
@@ -103,6 +141,68 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Required agreement gate: users must accept the Terms of Use (EULA) and
+  /// Privacy Policy — which state Nook's zero-tolerance policy for objectionable
+  /// content and abusive users — before logging in or signing up.
+  Widget _buildTermsAgreement(BuildContext context) {
+    final linkStyle = context.textTheme.bodySmall!.copyWith(
+      color: const Color(0xFF344E41),
+      fontWeight: FontWeight.w600,
+      decoration: TextDecoration.underline,
+    );
+    final baseStyle = context.textTheme.bodySmall!.copyWith(
+      color: const Color(0xFF848685),
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 24,
+          width: 24,
+          child: Checkbox(
+            value: _agreedToTerms,
+            activeColor: const Color(0xFF344E41),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+            onChanged: (value) =>
+                setState(() => _agreedToTerms = value ?? false),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: GestureDetector(
+            onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
+            child: Text.rich(
+              TextSpan(
+                style: baseStyle,
+                children: [
+                  const TextSpan(text: 'I agree to the '),
+                  TextSpan(
+                    text: 'Terms of Use (EULA)',
+                    style: linkStyle,
+                    recognizer: _eulaTap,
+                  ),
+                  const TextSpan(text: ' and '),
+                  TextSpan(
+                    text: 'Privacy Policy',
+                    style: linkStyle,
+                    recognizer: _privacyTap,
+                  ),
+                  const TextSpan(
+                    text:
+                        '. Nook has zero tolerance for objectionable content '
+                        'and abusive behavior.',
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -140,7 +240,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       builder: (context, state) {
         final isLoading = state is AuthLoading;
         final email = _emailController.text.trim();
-        final canSubmit = email.isNotEmpty && !isLoading;
+        final canSubmit = email.isNotEmpty && !isLoading && _agreedToTerms;
 
         return Scaffold(
           backgroundColor: Colors.white,
@@ -289,11 +389,14 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         height: 20,
                         width: 20,
                       ),
-                      onPressed: isLoading
-                          ? () {}
-                          : () => context.read<AuthBloc>().add(
-                              const AuthSignInWithGoogleEvent(),
-                            ),
+                      onPressed: (isLoading || !_agreedToTerms)
+                          ? null
+                          : () {
+                              _persistTermsAcceptance();
+                              context.read<AuthBloc>().add(
+                                const AuthSignInWithGoogleEvent(),
+                              );
+                            },
                     ),
                     if (Platform.isIOS) ...[
                       const SizedBox(height: 12),
@@ -305,13 +408,18 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                           color: Colors.black,
                           size: 28,
                         ),
-                        onPressed: isLoading
-                            ? () {}
-                            : () => context.read<AuthBloc>().add(
-                                const AuthSignInWithAppleEvent(),
-                              ),
+                        onPressed: (isLoading || !_agreedToTerms)
+                            ? null
+                            : () {
+                                _persistTermsAcceptance();
+                                context.read<AuthBloc>().add(
+                                  const AuthSignInWithAppleEvent(),
+                                );
+                              },
                       ),
                     ],
+                    const Gap(20),
+                    _buildTermsAgreement(context),
                   ],
                 ),
               ),

@@ -6,6 +6,7 @@ plugins {
 
 import java.util.Properties
 import java.io.FileInputStream
+import org.gradle.api.GradleException
 
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
@@ -27,13 +28,17 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    val hasKeystore = keystoreProperties.isNotEmpty() &&
+        keystoreProperties.getProperty("storeFile") != null
+
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            val storeFilePath = keystoreProperties["storeFile"] as String?
-            storeFile = if (storeFilePath != null) file(storeFilePath) else null
-            storePassword = keystoreProperties["storePassword"] as String?
+        if (hasKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile")!!)
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
         }
     }
 
@@ -47,7 +52,14 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            if (hasKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                throw GradleException(
+                    "Release build requested but android/key.properties is missing or invalid. " +
+                        "Create it (see README) or build a debug variant."
+                )
+            }
         }
     }
 }
