@@ -688,6 +688,36 @@ class CafeRemoteDataSource {
     }
   }
 
+  /// Inserts a user report into `review_reports` (status defaults to `pending`).
+  /// The RLS `review_reports_insert_own` policy requires `reporter_id` to be the
+  /// authenticated user and `reporter_type` to be `'user'`.
+  Future<void> insertReviewReport({
+    required String reviewId,
+    required String cafeId,
+    required String reporterId,
+    required String reasonCode,
+    String? description,
+  }) async {
+    final trimmedDescription = description?.trim();
+    try {
+      await supabase.from('review_reports').insert({
+        'review_id': reviewId,
+        'cafe_id': cafeId,
+        'reporter_id': reporterId,
+        'reporter_type': 'user',
+        'reason_code': reasonCode,
+        if (trimmedDescription != null && trimmedDescription.isNotEmpty)
+          'description': trimmedDescription,
+      });
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to report review "$reviewId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   // Replaced renameList with updateList
   Future<void> updateList(
     String listId, {

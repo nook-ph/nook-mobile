@@ -251,6 +251,23 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
+  Future<void> reportReview({
+    required String reviewId,
+    required String cafeId,
+    required String reporterId,
+    required String reasonCode,
+    String? description,
+  }) {
+    return remoteDataSource.insertReviewReport(
+      reviewId: reviewId,
+      cafeId: cafeId,
+      reporterId: reporterId,
+      reasonCode: reasonCode,
+      description: description,
+    );
+  }
+
+  @override
   Future<String> getDefaultListId() {
     return remoteDataSource.fetchDefaultListId();
   }

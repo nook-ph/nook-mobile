@@ -3,7 +3,16 @@ import 'package:get_it/get_it.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/preferences/review_draft_store.dart';
+import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/block/block_cubit.dart';
+import 'package:nook/core/block/data/block_remote_data_source.dart';
+import 'package:nook/core/block/data/block_repository_impl.dart';
+import 'package:nook/core/block/domain/repositories/i_block_repository.dart';
+import 'package:nook/core/block/domain/use_cases/block_user_usecase.dart';
+import 'package:nook/core/block/domain/use_cases/get_blocked_user_ids_usecase.dart';
+import 'package:nook/core/block/domain/use_cases/get_blocked_users_usecase.dart';
+import 'package:nook/core/block/domain/use_cases/unblock_user_usecase.dart';
 import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/data/cafe_repository_impl.dart';
 import 'package:nook/core/cafe/data/cafe_store.dart';
@@ -12,6 +21,7 @@ import 'package:nook/core/cafe/domain/use_cases/add_cafe_to_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_review_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/create_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/delete_review_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/report_review_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_list_memberships_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_reviews_usecase.dart';
@@ -59,6 +69,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<LastSavedListStore>(() => LastSavedListStore());
   sl.registerLazySingleton<LocationPromptStore>(() => LocationPromptStore());
   sl.registerLazySingleton<ReviewDraftStore>(() => ReviewDraftStore());
+  sl.registerLazySingleton<TermsAcceptanceStore>(() => TermsAcceptanceStore());
 
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
@@ -93,6 +104,10 @@ Future<void> initDependencies() async {
     () => CafeTagsRemoteDataSourceImpl(sl<SupabaseClient>()),
   );
 
+  sl.registerLazySingleton<BlockRemoteDataSource>(
+    () => BlockRemoteDataSource(sl<SupabaseClient>()),
+  );
+
   // 3) Repositories
   sl.registerLazySingleton<ICafeRepository>(
     () => CafeRepositoryImpl(sl<CafeRemoteDataSource>(), sl<CafeStore>()),
@@ -108,6 +123,10 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<ICafeTagsRepository>(
     () => CafeTagsRepositoryImpl(sl<CafeTagsRemoteDataSource>()),
+  );
+
+  sl.registerLazySingleton<IBlockRepository>(
+    () => BlockRepositoryImpl(sl<BlockRemoteDataSource>()),
   );
 
   // 4) Use cases
@@ -134,6 +153,23 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<DeleteReviewUseCase>(
     () => DeleteReviewUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<ReportReviewUseCase>(
+    () => ReportReviewUseCase(sl<ICafeRepository>()),
+  );
+
+  // Blocking use cases
+  sl.registerLazySingleton<BlockUserUseCase>(
+    () => BlockUserUseCase(sl<IBlockRepository>()),
+  );
+  sl.registerLazySingleton<UnblockUserUseCase>(
+    () => UnblockUserUseCase(sl<IBlockRepository>()),
+  );
+  sl.registerLazySingleton<GetBlockedUserIdsUseCase>(
+    () => GetBlockedUserIdsUseCase(sl<IBlockRepository>()),
+  );
+  sl.registerLazySingleton<GetBlockedUsersUseCase>(
+    () => GetBlockedUsersUseCase(sl<IBlockRepository>()),
   );
 
   sl.registerLazySingleton<UploadReviewImagesUseCase>(
@@ -233,6 +269,15 @@ Future<void> initDependencies() async {
   );
 
   sl.registerLazySingleton<FilterCubit>(() => FilterCubit());
+
+  // App-wide blocked-users cache (drives instant feed filtering)
+  sl.registerLazySingleton<BlockCubit>(
+    () => BlockCubit(
+      blockUser: sl<BlockUserUseCase>(),
+      unblockUser: sl<UnblockUserUseCase>(),
+      getBlockedIds: sl<GetBlockedUserIdsUseCase>(),
+    ),
+  );
 
   sl.registerFactory<SearchBloc>(
     () => SearchBloc(

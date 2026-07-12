@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:like_button/like_button.dart';
+import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
@@ -32,7 +34,10 @@ class ReviewsSection extends StatelessWidget {
           return const _LoadingReviewsSection();
         }
 
-        final reviews = state.reviews;
+        final blockedIds = context.watch<BlockCubit>().state;
+        final reviews = state.reviews
+            .where((review) => !blockedIds.contains(review.userId))
+            .toList();
         if (reviews.isEmpty) {
           return _EmptyReviewsSection(onWriteReviewTap: onWriteReviewTap);
         }
@@ -303,6 +308,12 @@ class _ReviewCardState extends State<ReviewCard> {
   late int _helpfulCount;
   static const int _collapsedCharLimit = 90;
 
+  /// Report/block are only offered on OTHER signed-in users' reviews.
+  bool get _canModerateReview {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    return currentUserId != null && currentUserId != widget.review.userId;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -413,8 +424,28 @@ class _ReviewCardState extends State<ReviewCard> {
           ],
           const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              if (_canModerateReview)
+                AdaptiveTap(
+                  onTap: () => showReviewActionsSheet(
+                    context,
+                    reviewId: widget.review.id,
+                    cafeId: widget.review.cafeId,
+                    authorId: widget.review.userId,
+                    authorName: widget.review.name,
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.only(right: 8, top: 4, bottom: 4),
+                    child: Icon(
+                      Icons.more_horiz,
+                      size: 20,
+                      color: Colors.black54,
+                    ),
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
               LikeButton(
                 isLiked: _isHelpful,
                 likeCount: _helpfulCount,

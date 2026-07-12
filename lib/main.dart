@@ -12,8 +12,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:nook/utils/theme/theme.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
-import 'package:nook/core/app_state.dart';
 import 'package:nook/core/auth/google_auth_state.dart';
+import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
@@ -89,6 +89,7 @@ class _MyAppState extends State<MyApp> {
         ),
         BlocProvider<ListsBloc>(create: (_) => sl<ListsBloc>()),
         BlocProvider<FilterCubit>(create: (_) => sl<FilterCubit>()),
+        BlocProvider<BlockCubit>(create: (_) => sl<BlockCubit>()),
         BlocProvider<AuthBloc>(
           create: (context) =>
               AuthInjection.createAuthBloc(listsBloc: context.read<ListsBloc>())
@@ -99,12 +100,29 @@ class _MyAppState extends State<MyApp> {
         builder: (context) {
           _router ??= createAppRouter(context.read<AuthBloc>());
 
-          return MaterialApp.router(
-            debugShowCheckedModeBanner: false,
-            title: 'Nook',
-            theme: TAppTheme.lightTheme,
-            routerConfig: _router,
-            builder: (context, child) => child ?? const SizedBox.shrink(),
+          // Keep the app-wide blocked-users cache in sync with the session so
+          // blocked authors are filtered out of feeds immediately.
+          return BlocListener<AuthBloc, AuthState>(
+            listenWhen: (previous, current) =>
+                current is AuthAuthenticated ||
+                current is AuthLoggedOut ||
+                current is AuthUnauthenticated ||
+                current is AuthAccountDeleted,
+            listener: (context, state) {
+              final blockCubit = context.read<BlockCubit>();
+              if (state is AuthAuthenticated) {
+                blockCubit.load();
+              } else {
+                blockCubit.clear();
+              }
+            },
+            child: MaterialApp.router(
+              debugShowCheckedModeBanner: false,
+              title: 'Nook',
+              theme: TAppTheme.lightTheme,
+              routerConfig: _router,
+              builder: (context, child) => child ?? const SizedBox.shrink(),
+            ),
           );
         },
       ),

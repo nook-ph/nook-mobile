@@ -41,6 +41,15 @@ abstract class ICafeRepository {
 
   Future<void> deleteReview(String reviewId);
 
+  /// Files a user report against a review (lands in the moderation queue).
+  Future<void> reportReview({
+    required String reviewId,
+    required String cafeId,
+    required String reporterId,
+    required String reasonCode,
+    String? description,
+  });
+
   // lists
   Future<String> getDefaultListId();
   Future<List<CafeList>> getUserLists();

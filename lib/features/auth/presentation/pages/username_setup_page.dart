@@ -9,6 +9,7 @@ import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/core/utils/content_filter.dart';
 
 class UsernameSetupScreen extends StatefulWidget {
   final String? fullName;
@@ -111,6 +112,9 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
     if (value.length > 20) return 'Max 20 characters';
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
       return 'Only letters, numbers, and underscores';
+    }
+    if (ContentFilter.containsObjectionable(value)) {
+      return 'This username is not allowed';
     }
     return null;
   }

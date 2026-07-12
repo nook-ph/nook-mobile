@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/profile/presentation/pages/blocked_users_page.dart';
+import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -91,6 +94,15 @@ class _SettingsPageState extends State<SettingsPage>
 
   Future<void> _openLocationSettings() async {
     await Geolocator.openAppSettings();
+  }
+
+  Future<void> _openUrl(BuildContext context, String url) async {
+    final uri = Uri.parse(url);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (context.mounted) {
+        showPrimaryToast(context, 'Could not open the page. Please try again.');
+      }
+    }
   }
 
   @override
@@ -186,6 +198,31 @@ class _SettingsPageState extends State<SettingsPage>
                     icon: Icons.vpn_key_outlined,
                     label: 'Change Password',
                     onTap: () => context.push('/change-password'),
+                  ),
+                  const Divider(color: _dividerColor, height: 1),
+                  _buildItem(
+                    context: context,
+                    icon: Icons.block,
+                    label: 'Blocked Users',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const BlockedUsersPage(),
+                      ),
+                    ),
+                  ),
+                  const Divider(color: _dividerColor, height: 1),
+                  _buildItem(
+                    context: context,
+                    icon: Icons.description_outlined,
+                    label: 'Terms of Use (EULA)',
+                    onTap: () => _openUrl(context, AppConstants.eulaUrl),
+                  ),
+                  const Divider(color: _dividerColor, height: 1),
+                  _buildItem(
+                    context: context,
+                    icon: Icons.privacy_tip_outlined,
+                    label: 'Privacy Policy',
+                    onTap: () => _openUrl(context, AppConstants.privacyPolicyUrl),
                   ),
                   const Divider(color: _dividerColor, height: 1),
                   _buildItem(

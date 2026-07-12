@@ -369,4 +369,30 @@ class _FakeCafeRepository implements ICafeRepository {
   Future<void> warmCache(List<CafeSummary> summaries) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> deleteReview(String reviewId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> reportReview({
+    required String reviewId,
+    required String cafeId,
+    required String reporterId,
+    required String reasonCode,
+    String? description,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> updateList(
+    String listId, {
+    required String name,
+    String? description,
+    required bool isPublic,
+  }) {
+    throw UnimplementedError();
+  }
 }

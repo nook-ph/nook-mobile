@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
@@ -140,7 +141,10 @@ class _ReviewsPageState extends State<ReviewsPage> {
               );
             }
 
-            final reviews = state.reviews;
+            final blockedIds = context.watch<BlockCubit>().state;
+            final reviews = state.reviews
+                .where((review) => !blockedIds.contains(review.userId))
+                .toList();
             final computedReviewCount = reviews.length;
             final computedRating = _averageRating(reviews);
 

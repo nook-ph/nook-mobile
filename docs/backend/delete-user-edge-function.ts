@@ -80,6 +80,8 @@ serve(async (req) => {
   await supabaseAdmin.from('owner_invites').delete().eq('resent_by', userId)
   await supabaseAdmin.from('review_reports').delete().eq('reporter_id', userId)
   await supabaseAdmin.from('review_moderation_actions').delete().eq('moderator_id', userId)
+  await supabaseAdmin.from('blocked_users').delete().eq('blocker_id', userId)
+  await supabaseAdmin.from('blocked_users').delete().eq('blocked_id', userId)
   await supabaseAdmin.from('menu_categories').delete().eq('created_by', userId)
   await supabaseAdmin.from('crawls').delete().eq('created_by', userId)
   await supabaseAdmin.from('audit_logs').delete().eq('actor_id', userId)
