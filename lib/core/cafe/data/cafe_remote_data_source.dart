@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 import 'package:nook/core/cafe/data/cafe_summary_model.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
@@ -710,6 +711,19 @@ class CafeRemoteDataSource {
           'description': trimmedDescription,
       });
     } on PostgrestException catch (e, st) {
+      // Already reported (review_reports_unique) — not a real failure; let the
+      // UI show an informational "you've already reported this" message.
+      if (e.code == '23505') {
+        throw const DuplicateReportException();
+      }
+      // Surface the underlying Postgres failure (RLS denial, CHECK/unique
+      // constraint, null reporter_id, …) — the UI otherwise swallows it and
+      // only shows a generic "could not submit report" toast.
+      debugPrint(
+        'insertReviewReport failed for review "$reviewId": '
+        'message=${e.message}, code=${e.code}, details=${e.details}, '
+        'hint=${e.hint}',
+      );
       throw CafeFetchException(
         'Failed to report review "$reviewId".',
         cause: e,
@@ -825,4 +839,14 @@ class CafeFetchException implements Exception {
 
   @override
   String toString() => 'CafeFetchException(message: $message, cause: $cause)';
+}
+
+/// Thrown when a user tries to report a review they've already reported —
+/// the `review_reports_unique` constraint (Postgres error 23505) rejects the
+/// insert. Not a real failure; the UI treats it as an informational outcome.
+class DuplicateReportException implements Exception {
+  const DuplicateReportException();
+
+  @override
+  String toString() => 'DuplicateReportException';
 }

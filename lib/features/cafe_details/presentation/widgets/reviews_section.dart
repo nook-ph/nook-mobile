@@ -95,7 +95,7 @@ class ReviewsSection extends StatelessWidget {
                   .map(
                     (review) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: ReviewCard(review: review),
+                      child: ReviewCard(review: review, cafeId: state.cafeId),
                     ),
                   )
                   .toList(),
@@ -293,10 +293,20 @@ class _EmptyReviewsSection extends StatelessWidget {
 }
 
 class ReviewCard extends StatefulWidget {
-  const ReviewCard({super.key, required this.review, this.isInReviewsPage = false});
+  const ReviewCard({
+    super.key,
+    required this.review,
+    this.isInReviewsPage = false,
+    this.cafeId,
+  });
 
   final ReviewEntity review;
   final bool isInReviewsPage;
+
+  /// Cafe id for moderation actions (report/block). The RPC that loads reviews
+  /// does not return `cafe_id`, so `review.cafeId` is empty here — callers pass
+  /// the cafe id they already have from the page/loaded state.
+  final String? cafeId;
 
   @override
   State<ReviewCard> createState() => _ReviewCardState();
@@ -431,7 +441,9 @@ class _ReviewCardState extends State<ReviewCard> {
                   onTap: () => showReviewActionsSheet(
                     context,
                     reviewId: widget.review.id,
-                    cafeId: widget.review.cafeId,
+                    cafeId: widget.cafeId?.isNotEmpty == true
+                        ? widget.cafeId!
+                        : widget.review.cafeId,
                     authorId: widget.review.userId,
                     authorName: widget.review.name,
                   ),

@@ -20,9 +20,12 @@ void showPrimaryToast(
     backgroundColor: colorScheme.primary80,
     foregroundColor: Colors.white,
     borderRadius: BorderRadius.circular(999),
-    // 1. ADDED PADDING HERE: Adjust 'vertical' to make the toast taller or shorter
-    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-    title: Text(message, maxLines: 1, overflow: TextOverflow.ellipsis),
+    // Slightly taller padding reads better once the text wraps to 2–3 lines.
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    // Let longer messages wrap instead of getting truncated — ellipsis only
+    // kicks in as a last resort for extreme lengths. App-authored copy (e.g.
+    // confirmations) should always be fully readable.
+    title: Text(message, maxLines: 3, overflow: TextOverflow.ellipsis),
     closeButton: const ToastCloseButton(showType: CloseButtonShowType.always),
   );
 }

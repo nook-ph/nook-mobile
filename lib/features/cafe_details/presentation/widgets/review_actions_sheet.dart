@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/block/block_cubit.dart';
+import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/domain/entities/report_reason.dart';
 import 'package:nook/core/cafe/domain/use_cases/report_review_usecase.dart';
 import 'package:nook/core/utils/toast_helper.dart';
@@ -144,7 +145,16 @@ class _ReportReasonSheetState extends State<_ReportReasonSheet> {
         context,
         'Thanks for reporting. Our team reviews reports within 24 hours.',
       );
-    } catch (_) {
+    } on DuplicateReportException {
+      // Already reported — treat as a benign, informational outcome.
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      showPrimaryToast(
+        context,
+        "You've already reported this review. Our team is on it.",
+      );
+    } catch (e, st) {
+      debugPrint('Report submission failed: $e\n$st');
       if (!mounted) return;
       setState(() => _submitting = false);
       showPrimaryToast(context, 'Could not submit the report. Please retry.');
@@ -264,6 +274,7 @@ Future<void> _confirmAndBlock(
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog(
+      backgroundColor: Colors.white,
       title: Text('Block ${authorName ?? 'this user'}?'),
       content: const Text(
         'You will no longer see their reviews, and their content will be '

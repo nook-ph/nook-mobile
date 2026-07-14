@@ -27,6 +27,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   String? _emailError;
   bool _didPrefillFromExtra = false;
   bool _agreedToTerms = false;
+  bool _showTermsError = false;
   late final TapGestureRecognizer _eulaTap;
   late final TapGestureRecognizer _privacyTap;
 
@@ -82,6 +83,20 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
     _termsStore.markAccepted(AppConstants.termsVersion);
   }
 
+  /// Gate every sign-in path behind terms acceptance. Instead of silently
+  /// disabling the buttons (which leaves users guessing why nothing happens),
+  /// the buttons stay tappable and this surfaces a toast + highlights the
+  /// checkbox when the box is still unchecked.
+  bool _ensureTermsAgreed() {
+    if (_agreedToTerms) return true;
+    setState(() => _showTermsError = true);
+    showPrimaryToast(
+      context,
+      'Please agree to the Terms of Use and Privacy Policy to continue.',
+    );
+    return false;
+  }
+
   Future<void> _openLegal(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
@@ -98,6 +113,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       return;
     }
     setState(() => _emailError = null);
+    if (!_ensureTermsAgreed()) return;
     _persistTermsAcceptance();
     context.read<AuthBloc>().add(AuthCheckEmailEvent(email));
   }
@@ -145,8 +161,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   }
 
   /// Required agreement gate: users must accept the Terms of Use (EULA) and
-  /// Privacy Policy — which state Nook's zero-tolerance policy for objectionable
-  /// content and abusive users — before logging in or signing up.
+  /// Privacy Policy — which state nook - Cafe Finder's zero-tolerance policy for
+  /// objectionable content and abusive users — before logging in or signing up.
   Widget _buildTermsAgreement(BuildContext context) {
     final linkStyle = context.textTheme.bodySmall!.copyWith(
       color: const Color(0xFF344E41),
@@ -157,51 +173,73 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       color: const Color(0xFF848685),
     );
 
-    return Row(
+    void toggle(bool value) => setState(() {
+      _agreedToTerms = value;
+      if (value) _showTermsError = false;
+    });
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 24,
-          width: 24,
-          child: Checkbox(
-            value: _agreedToTerms,
-            activeColor: const Color(0xFF344E41),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.compact,
-            onChanged: (value) =>
-                setState(() => _agreedToTerms = value ?? false),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: GestureDetector(
-            onTap: () => setState(() => _agreedToTerms = !_agreedToTerms),
-            child: Text.rich(
-              TextSpan(
-                style: baseStyle,
-                children: [
-                  const TextSpan(text: 'I agree to the '),
-                  TextSpan(
-                    text: 'Terms of Use (EULA)',
-                    style: linkStyle,
-                    recognizer: _eulaTap,
-                  ),
-                  const TextSpan(text: ' and '),
-                  TextSpan(
-                    text: 'Privacy Policy',
-                    style: linkStyle,
-                    recognizer: _privacyTap,
-                  ),
-                  const TextSpan(
-                    text:
-                        '. Nook has zero tolerance for objectionable content '
-                        'and abusive behavior.',
-                  ),
-                ],
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              height: 24,
+              width: 24,
+              child: Checkbox(
+                value: _agreedToTerms,
+                activeColor: const Color(0xFF344E41),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                side: _showTermsError
+                    ? const BorderSide(color: Colors.red, width: 2)
+                    : null,
+                onChanged: (value) => toggle(value ?? false),
               ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: () => toggle(!_agreedToTerms),
+                child: Text.rich(
+                  TextSpan(
+                    style: baseStyle,
+                    children: [
+                      const TextSpan(text: 'I agree to the '),
+                      TextSpan(
+                        text: 'Terms of Use (EULA)',
+                        style: linkStyle,
+                        recognizer: _eulaTap,
+                      ),
+                      const TextSpan(text: ' and '),
+                      TextSpan(
+                        text: 'Privacy Policy',
+                        style: linkStyle,
+                        recognizer: _privacyTap,
+                      ),
+                      const TextSpan(
+                        text:
+                            '. nook - Cafe Finder has zero tolerance for '
+                            'objectionable content and abusive behavior.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
+        if (_showTermsError) ...[
+          const Gap(6),
+          Padding(
+            padding: const EdgeInsets.only(left: 34),
+            child: Text(
+              'Please check this box to continue.',
+              style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -240,7 +278,9 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       builder: (context, state) {
         final isLoading = state is AuthLoading;
         final email = _emailController.text.trim();
-        final canSubmit = email.isNotEmpty && !isLoading && _agreedToTerms;
+        // Terms acceptance is enforced at tap time (via _ensureTermsAgreed)
+        // rather than by disabling the button, so users get clear feedback.
+        final canSubmit = email.isNotEmpty && !isLoading;
 
         return Scaffold(
           backgroundColor: Colors.white,
@@ -389,9 +429,10 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                         height: 20,
                         width: 20,
                       ),
-                      onPressed: (isLoading || !_agreedToTerms)
+                      onPressed: isLoading
                           ? null
                           : () {
+                              if (!_ensureTermsAgreed()) return;
                               _persistTermsAcceptance();
                               context.read<AuthBloc>().add(
                                 const AuthSignInWithGoogleEvent(),
@@ -408,9 +449,10 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                           color: Colors.black,
                           size: 28,
                         ),
-                        onPressed: (isLoading || !_agreedToTerms)
+                        onPressed: isLoading
                             ? null
                             : () {
+                                if (!_ensureTermsAgreed()) return;
                                 _persistTermsAcceptance();
                                 context.read<AuthBloc>().add(
                                   const AuthSignInWithAppleEvent(),
