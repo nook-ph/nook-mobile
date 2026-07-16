@@ -7,6 +7,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/utils/geo.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_cafe_to_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/create_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_list_memberships_usecase.dart';
@@ -367,6 +368,30 @@ class _FakeCafeRepository implements ICafeRepository {
 
   @override
   Future<void> warmCache(List<CafeSummary> summaries) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<CafeSummary>> getCafesNearPoint({
+    required double lat,
+    required double lng,
+    required double radiusMeters,
+    String? query,
+    List<String> tags = const [],
+    String? sort,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<CafeSummary>> getCafesInViewport({
+    required MapBounds bounds,
+    String? query,
+    List<String> tags = const [],
+    String? sort,
+    double? lat,
+    double? lng,
+  }) {
     throw UnimplementedError();
   }
 

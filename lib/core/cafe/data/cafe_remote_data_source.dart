@@ -1,12 +1,16 @@
 import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 import 'package:nook/core/cafe/data/cafe_summary_model.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
+import 'package:nook/core/utils/geo.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class CafeRemoteDataSource {
   final SupabaseClient supabase;
 
   CafeRemoteDataSource(this.supabase);
+
+  /// The map wants every pin in the area, not a ranked page.
+  static const int _mapFetchLimit = 1000;
 
   Future<List<CafeSummaryModel>> fetchCafes({required CafeQuery query}) async {
     final params = query.toRpcParams();
@@ -34,6 +38,93 @@ class CafeRemoteDataSource {
         stackTrace: st,
       );
     }
+  }
+
+  /// Cafes within [radiusMeters] of a point — used when the map is zoomed in
+  /// enough that the whole viewport fits inside the radius.
+  Future<List<CafeSummaryModel>> fetchCafesNearPoint({
+    required double lat,
+    required double lng,
+    required double radiusMeters,
+    String? query,
+    List<String> tags = const [],
+    String? sort,
+  }) async {
+    try {
+      final rpcResponse = await supabase.rpc(
+        'get_cafes_near_point',
+        params: {
+          'p_lat': lat,
+          'p_lng': lng,
+          'p_radius_meters': radiusMeters,
+          'p_user_id': supabase.auth.currentUser?.id,
+          'p_sort': sort,
+          'p_tag_names': tags.isEmpty ? null : tags,
+          'p_query': (query != null && query.trim().isNotEmpty)
+              ? query.trim()
+              : null,
+          'p_limit': _mapFetchLimit,
+          'p_offset': 0,
+        },
+      );
+      return _parseSummaryRows(rpcResponse);
+    } catch (e, st) {
+      if (e is CafeFetchException) rethrow;
+      throw CafeFetchException(
+        'Failed to fetch cafes near point ($lat, $lng).',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Every cafe whose location falls inside the visible bounds — used when
+  /// the map is zoomed out beyond the fixed radius.
+  Future<List<CafeSummaryModel>> fetchCafesInViewport({
+    required MapBounds bounds,
+    String? query,
+    List<String> tags = const [],
+    String? sort,
+    double? lat,
+    double? lng,
+  }) async {
+    try {
+      final rpcResponse = await supabase.rpc(
+        'get_cafes_in_viewport',
+        params: {
+          'p_min_lat': bounds.south,
+          'p_min_lng': bounds.west,
+          'p_max_lat': bounds.north,
+          'p_max_lng': bounds.east,
+          'p_user_id': supabase.auth.currentUser?.id,
+          'p_lat': lat,
+          'p_lng': lng,
+          'p_sort': sort,
+          'p_tag_names': tags.isEmpty ? null : tags,
+          'p_query': (query != null && query.trim().isNotEmpty)
+              ? query.trim()
+              : null,
+          'p_limit': _mapFetchLimit,
+          'p_offset': 0,
+        },
+      );
+      return _parseSummaryRows(rpcResponse);
+    } catch (e, st) {
+      if (e is CafeFetchException) rethrow;
+      throw CafeFetchException(
+        'Failed to fetch cafes in viewport.',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  List<CafeSummaryModel> _parseSummaryRows(dynamic rpcResponse) {
+    final response = (rpcResponse as List)
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+    return response.map((json) => CafeSummaryModel.fromJson(json)).toList();
   }
 
   Future<CafeDetailsModel> fetchDetailsById(String cafeId) async {
@@ -795,12 +886,10 @@ class CafeBundleModel {
         : null;
 
     final reviews = includeReviews
-        ? _asList(
-            json['reviews'],
-          )
-            .where((item) => item['moderation_status'] == 'visible')
-            .map((item) => ReviewModel.fromJson(item))
-            .toList()
+        ? _asList(json['reviews'])
+              .where((item) => item['moderation_status'] == 'visible')
+              .map((item) => ReviewModel.fromJson(item))
+              .toList()
         : null;
 
     return CafeBundleModel(details: details, menu: menu, reviews: reviews);

@@ -3,12 +3,35 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/utils/geo.dart';
 
 @Deprecated('Use CafeQuery with getCafes for home/feed flows.')
 enum CafeQueryType { featured, recommended, nearby }
 
 abstract class ICafeRepository {
   Future<List<CafeSummary>> getCafes(CafeQuery query);
+
+  /// Cafes within [radiusMeters] of a point (map, zoomed in).
+  Future<List<CafeSummary>> getCafesNearPoint({
+    required double lat,
+    required double lng,
+    required double radiusMeters,
+    String? query,
+    List<String> tags,
+    String? sort,
+  });
+
+  /// Cafes inside the visible [bounds] (map, zoomed out). [lat]/[lng] feed
+  /// distance-based sorting when [sort] needs a reference point.
+  Future<List<CafeSummary>> getCafesInViewport({
+    required MapBounds bounds,
+    String? query,
+    List<String> tags,
+    String? sort,
+    double? lat,
+    double? lng,
+  });
+
   Future<CafeDetails> getCafeDetailsById(String cafeId);
 
   Future<CafeBundle> getCafeBundleById(

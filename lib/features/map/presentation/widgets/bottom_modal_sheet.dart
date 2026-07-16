@@ -183,6 +183,20 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
 
                   const SizedBox(height: _tagsBottomGap),
 
+                  if (!widget.isLoadingCafes)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${widget.cafes.length} '
+                          '${widget.cafes.length == 1 ? 'cafe' : 'cafes'} in view',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.grey.shade600),
+                        ),
+                      ),
+                    ),
+
                   // [OPT-3] Replaced inner LayoutBuilder with Flexible + direct
                   // use of cardWidth/cardHeight derived above.
                   Flexible(

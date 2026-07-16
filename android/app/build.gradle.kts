@@ -14,6 +14,9 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+val hasKeystore = keystoreProperties.isNotEmpty() &&
+    keystoreProperties.getProperty("storeFile") != null
+
 android {
     namespace = "app.nookph"
     compileSdk = flutter.compileSdkVersion
@@ -27,9 +30,6 @@ android {
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
-
-    val hasKeystore = keystoreProperties.isNotEmpty() &&
-        keystoreProperties.getProperty("storeFile") != null
 
     signingConfigs {
         if (hasKeystore) {
@@ -54,12 +54,27 @@ android {
         release {
             if (hasKeystore) {
                 signingConfig = signingConfigs.getByName("release")
-            } else {
-                throw GradleException(
-                    "Release build requested but android/key.properties is missing or invalid. " +
-                        "Create it (see README) or build a debug variant."
-                )
             }
+        }
+    }
+}
+
+// Only fail when a release build is actually requested. This runs after the
+// task graph is computed, so debug builds (assembleDebug / flutter run) are
+// unaffected even when key.properties is absent.
+if (!hasKeystore) {
+    gradle.taskGraph.whenReady {
+        val buildingRelease = allTasks.any { task ->
+            task.name.contains("Release") &&
+                (task.name.startsWith("assemble") ||
+                    task.name.startsWith("bundle") ||
+                    task.name.startsWith("package"))
+        }
+        if (buildingRelease) {
+            throw GradleException(
+                "Release build requested but android/key.properties is missing or invalid. " +
+                    "Create it (see README) or build a debug variant."
+            )
         }
     }
 }

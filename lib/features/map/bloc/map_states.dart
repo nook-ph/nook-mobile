@@ -13,11 +13,16 @@ class MapLoadedState extends MapState {
   final bool locationDenied;
   final bool locationBannerDismissed;
 
+  /// True while a viewport/filter refetch is in flight. The previous [cafes]
+  /// stay visible; the UI shows a small "Updating" chip instead of a skeleton.
+  final bool isRefreshing;
+
   MapLoadedState({
     required this.cafes,
     required this.tags,
     this.locationDenied = false,
     this.locationBannerDismissed = false,
+    this.isRefreshing = false,
   });
 
   MapLoadedState copyWith({
@@ -25,6 +30,7 @@ class MapLoadedState extends MapState {
     List<CafeTagsEntity>? tags,
     bool? locationDenied,
     bool? locationBannerDismissed,
+    bool? isRefreshing,
   }) {
     return MapLoadedState(
       cafes: cafes ?? this.cafes,
@@ -32,6 +38,7 @@ class MapLoadedState extends MapState {
       locationDenied: locationDenied ?? this.locationDenied,
       locationBannerDismissed:
           locationBannerDismissed ?? this.locationBannerDismissed,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
     );
   }
 }
