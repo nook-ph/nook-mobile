@@ -389,3 +389,18 @@ CREATE TABLE public.user_achievements (
   CONSTRAINT user_achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT user_achievements_achievement_id_fkey FOREIGN KEY (achievement_id) REFERENCES public.achievement_definitions(id)
 );
+-- ---------------------------------------------------------------------------
+-- Map RPCs (PostGIS-backed; same return shape as get_cafes). Verified live
+-- 2026-07-15. Both are consumed by the mobile map's viewport-driven fetching
+-- and by nook-webapp's /api/map/cafes route.
+--
+-- get_cafes_near_point(p_lat, p_lng, p_radius_meters, p_user_id, p_sort,
+--                      p_tag_names, p_query, p_limit, p_offset)
+--   -> cafes within p_radius_meters of the point.
+--
+-- get_cafes_in_viewport(p_min_lat, p_min_lng, p_max_lat, p_max_lng,
+--                       p_user_id, p_lat, p_lng, p_sort, p_tag_names,
+--                       p_query, p_limit, p_offset)
+--   -> cafes inside the bounding box. Note: p_sort defaults to 'nearby',
+--      which requires p_lat/p_lng — pass the map center (or p_sort null).
+-- ---------------------------------------------------------------------------

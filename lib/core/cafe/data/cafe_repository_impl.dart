@@ -6,6 +6,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/utils/geo.dart';
 
 class CafeRepositoryImpl implements ICafeRepository {
   final CafeRemoteDataSource remoteDataSource;
@@ -16,6 +17,44 @@ class CafeRepositoryImpl implements ICafeRepository {
   @override
   Future<List<CafeSummary>> getCafes(CafeQuery query) async {
     return remoteDataSource.fetchCafes(query: query);
+  }
+
+  @override
+  Future<List<CafeSummary>> getCafesNearPoint({
+    required double lat,
+    required double lng,
+    required double radiusMeters,
+    String? query,
+    List<String> tags = const [],
+    String? sort,
+  }) async {
+    return remoteDataSource.fetchCafesNearPoint(
+      lat: lat,
+      lng: lng,
+      radiusMeters: radiusMeters,
+      query: query,
+      tags: tags,
+      sort: sort,
+    );
+  }
+
+  @override
+  Future<List<CafeSummary>> getCafesInViewport({
+    required MapBounds bounds,
+    String? query,
+    List<String> tags = const [],
+    String? sort,
+    double? lat,
+    double? lng,
+  }) async {
+    return remoteDataSource.fetchCafesInViewport(
+      bounds: bounds,
+      query: query,
+      tags: tags,
+      sort: sort,
+      lat: lat,
+      lng: lng,
+    );
   }
 
   @Deprecated('Use getCafes(CafeQuery) for home/feed flows.')
@@ -342,8 +381,16 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
-  Future<String> createList({required String name, String? description, required bool isPublic}) {
-    return remoteDataSource.createList(name: name, description: description, isPublic: isPublic);
+  Future<String> createList({
+    required String name,
+    String? description,
+    required bool isPublic,
+  }) {
+    return remoteDataSource.createList(
+      name: name,
+      description: description,
+      isPublic: isPublic,
+    );
   }
 
   @override

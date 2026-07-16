@@ -54,6 +54,7 @@ import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/data/datasources/cafe_tags_remote_data_source.dart';
 import 'package:nook/features/map/data/repositories/cafe_tags_repository_impl.dart';
 import 'package:nook/features/map/domain/use_cases/get_cafe_cards_usecase.dart';
+import 'package:nook/features/map/domain/use_cases/get_cafes_for_viewport_usecase.dart';
 import 'package:nook/features/map/domain/use_cases/get_filter_tags_usecase.dart';
 import 'package:nook/features/map/domain/repositories/i_cafe_tags_repository.dart';
 import 'package:http/http.dart' as http;
@@ -132,6 +133,9 @@ Future<void> initDependencies() async {
   // 4) Use cases
   sl.registerLazySingleton<GetCafeCardUseCase>(
     () => GetCafeCardUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<GetCafesForViewportUseCase>(
+    () => GetCafesForViewportUseCase(sl<ICafeRepository>()),
   );
   sl.registerLazySingleton<GetHomeFeedUseCase>(
     () => GetHomeFeedUseCase(sl<ICafeRepository>()),
@@ -213,6 +217,7 @@ Future<void> initDependencies() async {
     () => MapBloc(
       getCafeCardUseCase: sl<GetCafeCardUseCase>(),
       getFilterTagsUseCase: sl<GetFilterTagsUseCase>(),
+      getCafesForViewportUseCase: sl<GetCafesForViewportUseCase>(),
     ),
   );
 
