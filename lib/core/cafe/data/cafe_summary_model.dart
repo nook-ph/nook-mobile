@@ -18,6 +18,7 @@ class CafeSummaryModel extends CafeSummary {
     super.isFeatured = false,
     super.isNew = false,
     super.isFavorited = false,
+    super.operatingHours,
   });
 
   factory CafeSummaryModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +39,7 @@ class CafeSummaryModel extends CafeSummary {
       distanceMeters: _asNullableDouble(json['distance_meters']),
       lat: _asNullableDouble(json['lat']),
       lng: _asNullableDouble(json['lng']),
+      operatingHours: _asNullableMap(json['operating_hours']),
     );
   }
 
@@ -111,6 +113,12 @@ class CafeSummaryModel extends CafeSummary {
     if (value is num) return value.toDouble();
     if (value is String) return double.tryParse(value);
     return null;
+  }
+
+  static Map<String, dynamic>? _asNullableMap(dynamic value) {
+    if (value is! Map) return null;
+    final map = value.map((key, value) => MapEntry('$key', value));
+    return map.isEmpty ? null : map;
   }
 
   static bool _asBool(dynamic value) {

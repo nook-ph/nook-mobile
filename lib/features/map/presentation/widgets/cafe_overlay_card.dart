@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
+import 'package:nook/core/presentation/widgets/cafe_open_badge.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -22,6 +24,7 @@ class CafeOverlayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final openStatus = CafeOpenStatus.resolve(cafe.operatingHours);
     final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
         ? cafe.coverImage!.trim()
         : _fallbackImageUrl;
@@ -118,6 +121,13 @@ class CafeOverlayCard extends StatelessWidget {
                                         ),
                                       ),
                                     ),
+                                    // Outside the Expanded so the status always
+                                    // fits and the address truncates instead.
+                                    if (openStatus.state !=
+                                        CafeOpenState.unknown) ...[
+                                      const SizedBox(width: 8),
+                                      CafeOpenBadge(status: openStatus),
+                                    ],
                                   ],
                                 ),
                               ],

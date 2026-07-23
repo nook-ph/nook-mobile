@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/presentation/widgets/cafe_open_badge.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -42,6 +44,11 @@ class MapSheetCafeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final imageUrl = _imageUrl(cafe);
+    // Skeleton rows carry a placeholder cafe, so suppress the badge rather than
+    // flash a real status onto a shimmering card.
+    final openStatus = isSkeleton
+        ? CafeOpenStatus.unknown
+        : CafeOpenStatus.resolve(cafe.operatingHours);
 
     return SizedBox(
       width: width,
@@ -151,6 +158,13 @@ class MapSheetCafeCard extends StatelessWidget {
                                   ),
                             ),
                           ),
+                          // Kept out of the Expanded so the status always fits
+                          // and the address truncates instead — "Open" is the
+                          // more decision-relevant of the two.
+                          if (openStatus.state != CafeOpenState.unknown) ...[
+                            const SizedBox(width: 8),
+                            CafeOpenBadge(status: openStatus),
+                          ],
                         ],
                       ),
                     ],

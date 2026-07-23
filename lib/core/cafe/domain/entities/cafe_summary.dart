@@ -16,6 +16,11 @@ class CafeSummary {
   final bool isNew;
   final bool isFavorited;
 
+  /// Raw `cafes.operating_hours` JSON, used to derive the open/closed badge.
+  /// Null when the read path doesn't select it — the badge is then omitted
+  /// rather than guessed at (see `CafeOpenStatus`).
+  final Map<String, dynamic>? operatingHours;
+
   const CafeSummary({
     required this.id,
     required this.name,
@@ -33,6 +38,7 @@ class CafeSummary {
     this.isFeatured = false,
     this.isNew = false,
     this.isFavorited = false,
+    this.operatingHours,
   });
 
   String get locationLabel {
