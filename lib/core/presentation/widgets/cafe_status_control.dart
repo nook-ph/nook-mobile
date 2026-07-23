@@ -14,6 +14,7 @@ class CafeStatusControl extends StatelessWidget {
     required this.onTapWantToTry,
     this.onLongPressBeen,
     this.isBusy = false,
+    this.showWantToTry = true,
   });
 
   final CafeStatus status;
@@ -23,6 +24,11 @@ class CafeStatusControl extends StatelessWidget {
   /// Opens the private note when the cafe is already logged as Been.
   final VoidCallback? onLongPressBeen;
   final bool isBusy;
+
+  /// Hidden when the cafe is ranked: post-visit, the backlog toggle is noise
+  /// and its space goes to the score chip. Demoting is still possible by
+  /// unsetting Been first (the pill reappears).
+  final bool showWantToTry;
 
   static const _selectedBg = Color(0xFF3A5A40);
 
@@ -37,13 +43,15 @@ class CafeStatusControl extends StatelessWidget {
           onTap: isBusy ? null : onTapBeen,
           onLongPress: status == CafeStatus.been ? onLongPressBeen : null,
         ),
-        const SizedBox(width: 8),
-        _StatusPill(
-          label: 'Want to Try',
-          icon: PhosphorIcons.bookmarkSimple,
-          isSelected: status == CafeStatus.wantToTry,
-          onTap: isBusy ? null : onTapWantToTry,
-        ),
+        if (showWantToTry) ...[
+          const SizedBox(width: 8),
+          _StatusPill(
+            label: 'Want to Try',
+            icon: PhosphorIcons.bookmarkSimple,
+            isSelected: status == CafeStatus.wantToTry,
+            onTap: isBusy ? null : onTapWantToTry,
+          ),
+        ],
       ],
     );
   }

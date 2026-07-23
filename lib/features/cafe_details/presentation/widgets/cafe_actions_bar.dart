@@ -8,6 +8,7 @@ import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/presentation/widgets/cafe_score_chip.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_control.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
@@ -171,6 +172,17 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
     }, bottomOffset: _toastOffset);
   }
 
+  void _openRerankFlow() {
+    final details = widget.cafe.cafeDetails;
+    showCafeRankingFlow(
+      context,
+      cubit: context.read<CafeRankingCubit>(),
+      cafeId: _cafeId,
+      cafeName: details.name,
+      cafeImageUrl: details.featuredImageUrl,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -189,16 +201,36 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
                     previous.statusFor(_cafeId) != current.statusFor(_cafeId) ||
                     previous.isPending(_cafeId) != current.isPending(_cafeId),
                 builder: (context, state) {
-                  return CafeStatusControl(
-                    status: state.statusFor(_cafeId),
-                    isBusy: state.isPending(_cafeId),
-                    onTapBeen: () => _onStatusTap(CafeStatus.been),
-                    onTapWantToTry: () => _onStatusTap(CafeStatus.wantToTry),
-                    onLongPressBeen: () => showCafeNoteSheet(
-                      context,
-                      cafeId: _cafeId,
-                      cafeName: widget.cafe.cafeDetails.name,
-                    ),
+                  return BlocBuilder<CafeRankingCubit, CafeRankingState>(
+                    builder: (context, rankingState) {
+                      final ranking = rankingState.rankingFor(_cafeId);
+                      return Row(
+                        children: [
+                          CafeStatusControl(
+                            status: state.statusFor(_cafeId),
+                            isBusy: state.isPending(_cafeId),
+                            // Ranked: the score chip takes the backlog pill's
+                            // slot — the row doesn't fit all four controls.
+                            showWantToTry: ranking == null,
+                            onTapBeen: () => _onStatusTap(CafeStatus.been),
+                            onTapWantToTry: () =>
+                                _onStatusTap(CafeStatus.wantToTry),
+                            onLongPressBeen: () => showCafeNoteSheet(
+                              context,
+                              cafeId: _cafeId,
+                              cafeName: widget.cafe.cafeDetails.name,
+                            ),
+                          ),
+                          if (ranking != null) ...[
+                            const SizedBox(width: 8),
+                            CafeScoreChip(
+                              score: ranking.displayScore,
+                              onTap: _openRerankFlow,
+                            ),
+                          ],
+                        ],
+                      );
+                    },
                   );
                 },
               ),

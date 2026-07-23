@@ -4,6 +4,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
+import 'package:nook/core/presentation/widgets/cafe_score_chip.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
@@ -203,23 +204,9 @@ class _RankedRow extends StatelessWidget {
             ),
       // Tapping your score re-opens the flow — that IS the re-rank tool
       // (drag-to-reorder stays in the v2 parking lot).
-      trailing: AdaptiveTap(
+      trailing: CafeScoreChip(
+        score: ranking.displayScore,
         onTap: () => _rerank(context),
-        borderRadius: BorderRadius.circular(999),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF3A5A40).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: Text(
-            ranking.displayScore,
-            style: context.textTheme.bodyMediumMed.copyWith(
-              color: RankedBeenList._green,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
       ),
     );
   }
