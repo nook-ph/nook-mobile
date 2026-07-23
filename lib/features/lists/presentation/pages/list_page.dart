@@ -94,9 +94,20 @@ class _ListsPageState extends State<ListsPage> {
                 ? state.lists
                 : listsBloc.userLists;
             final defaultList = _defaultList(lists);
-            final regularLists = lists
-                .where((list) => !list.isDefault)
-                .toList(growable: false);
+            // Pinned system lists, Want to Try first — it is the actionable
+            // one ("where should I go?"); Been (the ranked archive) second.
+            // Spec: docs/BEEN_WANT_TO_TRY.md §3.3 #3.
+            final systemLists = lists.where((list) => list.isSystem).toList()
+              ..sort((a, b) {
+                int rank(CafeList l) => l.listType == 'want_to_try' ? 0 : 1;
+                return rank(a).compareTo(rank(b));
+              });
+            // Favorites is demoted into the grid: it is just another list now
+            // that Been / Want to Try carry the primary save semantics.
+            final regularLists = [
+              if (defaultList != null) defaultList,
+              ...lists.where((list) => !list.isDefault && !list.isSystem),
+            ];
 
             if (state is ListsLoading && lists.isEmpty) {
               return const Center(child: CircularProgressIndicator());
@@ -118,13 +129,13 @@ class _ListsPageState extends State<ListsPage> {
                 vertical: 8.0,
               ),
               children: [
-                Text(
-                  'Your Lists',
-                  style: context.textTheme.titleLargeSemi,
-                ),
+                Text('Your Lists', style: context.textTheme.titleLargeSemi),
                 const SizedBox(height: 20),
-                _buildFavoritesCard(context, defaultList),
-                const SizedBox(height: 32),
+                for (final list in systemLists) ...[
+                  _buildSystemListCard(context, list),
+                  const SizedBox(height: 12),
+                ],
+                const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -143,7 +154,9 @@ class _ListsPageState extends State<ListsPage> {
                     padding: const EdgeInsets.symmetric(vertical: 24.0),
                     child: Text(
                       'Create a list to start organizing your saved cafes.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848586)),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: const Color(0xFF848586),
+                      ),
                     ),
                   )
                 else
@@ -154,7 +167,9 @@ class _ListsPageState extends State<ListsPage> {
                           '${_placeCountText(list.cafeCount)} • ${_visibilityText(list)}',
                       imageUrl: _imageUrl(list.coverImageUrl),
                       onTap: () => _openList(context, list),
-                      onOptionsTap: () => _showListOptions(context, list),
+                      onOptionsTap: list.isSystem || list.isDefault
+                          ? null
+                          : () => _showListOptions(context, list),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -198,25 +213,15 @@ class _ListsPageState extends State<ListsPage> {
     );
   }
 
-  Widget _buildFavoritesCard(BuildContext context, CafeList? favoritesList) {
-    final listId =
-        favoritesList?.id ?? context.read<ListsBloc>().defaultListId?.trim();
+  Widget _buildSystemListCard(BuildContext context, CafeList list) {
+    final isWantToTry = list.listType == 'want_to_try';
 
     return InkWell(
       onTap: () {
-        if (listId == null || listId.isEmpty) {
-          context.read<ListsBloc>().add(LoadUserLists());
-          showPrimaryToast(context, 'Favorites are still loading.');
-          return;
-        }
-
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ListDetailPage(
-              listId: listId,
-              title: favoritesList?.name ?? 'Favorites',
-            ),
+            builder: (_) => ListDetailPage(listId: list.id, title: list.name),
           ),
         );
       },
@@ -237,7 +242,11 @@ class _ListsPageState extends State<ListsPage> {
                 color: Color(0xFF33523F),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.favorite, color: Colors.white, size: 22),
+              child: Icon(
+                isWantToTry ? Icons.bookmark_outline : Icons.check,
+                color: Colors.white,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -245,13 +254,13 @@ class _ListsPageState extends State<ListsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Favorites',
+                    list.name,
                     style: context.textTheme.bodyLargeMed.copyWith(
                       color: Colors.black87,
                     ),
                   ),
                   Text(
-                    _placeCountText(favoritesList?.cafeCount ?? 0),
+                    _placeCountText(list.cafeCount),
                     style: context.textTheme.bodySmall?.copyWith(
                       color: const Color(0xFF848586),
                     ),
@@ -334,27 +343,29 @@ class _ListsPageState extends State<ListsPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Delete list?',
-                style: context.textTheme.titleMediumSemi,
-              ),
+              Text('Delete list?', style: context.textTheme.titleMediumSemi),
               const SizedBox(height: 16),
               Text(
                 '"$listName" will be permanently deleted. Cafes won\'t be deleted.',
                 style: context.textTheme.bodyMedium,
               ),
               const SizedBox(height: 24),
-                Row(
+              Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   AdaptiveTextButton(
                     onPressed: () => Navigator.pop(context),
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     child: Text(
                       'Cancel',
-                      style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -366,7 +377,9 @@ class _ListsPageState extends State<ListsPage> {
                     },
                     child: Text(
                       'Delete',
-                      style: context.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                      style: context.textTheme.bodyMedium?.copyWith(
+                        color: Colors.red,
+                      ),
                     ),
                   ),
                 ],
@@ -466,10 +479,7 @@ class _EditListDialogState extends State<_EditListDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Edit list',
-              style: context.textTheme.titleMediumSemi,
-            ),
+            Text('Edit list', style: context.textTheme.titleMediumSemi),
             const SizedBox(height: 16),
             SingleChildScrollView(
               child: Column(
@@ -538,11 +548,16 @@ class _EditListDialogState extends State<_EditListDialog> {
                 AdaptiveTextButton(
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   child: Text(
                     'Cancel',
-                    style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -550,7 +565,10 @@ class _EditListDialogState extends State<_EditListDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF33523F),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
@@ -648,21 +666,26 @@ class CollectionCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        AdaptiveTap(
-                          onTap: isSkeleton ? null : onOptionsTap,
-                          child: const SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Icon(
-                                Icons.more_vert,
-                                size: 20,
-                                color: Color(0xFF848586),
+                        // No affordance for lists with no options: rename /
+                        // delete is refused for system lists server-side and
+                        // would orphan bookmark saves for Favorites. A dead ⋮
+                        // reads as a broken button.
+                        if (onOptionsTap != null)
+                          AdaptiveTap(
+                            onTap: isSkeleton ? null : onOptionsTap,
+                            child: const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: Icon(
+                                  Icons.more_vert,
+                                  size: 20,
+                                  color: Color(0xFF848586),
+                                ),
                               ),
                             ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
