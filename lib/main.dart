@@ -19,6 +19,7 @@ import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
@@ -88,6 +89,7 @@ class _MyAppState extends State<MyApp> {
           create: (context) => AppBloc()..add(AppStarted()),
         ),
         BlocProvider<ListsBloc>(create: (_) => sl<ListsBloc>()),
+        BlocProvider<CafeStatusCubit>(create: (_) => sl<CafeStatusCubit>()),
         BlocProvider<FilterCubit>(create: (_) => sl<FilterCubit>()),
         BlocProvider<BlockCubit>(create: (_) => sl<BlockCubit>()),
         BlocProvider<AuthBloc>(
@@ -114,6 +116,8 @@ class _MyAppState extends State<MyApp> {
                 blockCubit.load();
               } else {
                 blockCubit.clear();
+                // Been / Want to Try statuses are per-user.
+                context.read<CafeStatusCubit>().reset();
               }
             },
             child: MaterialApp.router(

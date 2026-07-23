@@ -3,14 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/core/extensions/extensions.dart';
-import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
-import 'package:nook/injection_container.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:nook/features/cafe_details/presentation/utils/launch_cafe_directions.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_location_map_preview.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -22,9 +21,7 @@ class CafeInfo extends StatelessWidget {
   final CafeDetailsResult? cafe;
 
   TextStyle? _sectionTitleStyle(BuildContext context) =>
-      context.textTheme.bodyLarge?.copyWith(
-        color: const Color(0xFF848685),
-      );
+      context.textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685));
 
   String _normalizeCategory(String value) {
     return value
@@ -54,64 +51,8 @@ class CafeInfo extends StatelessWidget {
         text.contains('maya');
   }
 
-  String _mapAppMetadata(TargetPlatform platform) {
-    return platform == TargetPlatform.iOS ? 'apple_maps' : 'google_maps';
-  }
-
-  Future<void> _onGetDirectionsTap(BuildContext context) async {
-    final details = cafe?.cafeDetails;
-    final platform = Theme.of(context).platform;
-    final analytics = sl<AnalyticsService>();
-    final cafeId = details?.id;
-
-    if (details == null || cafeId == null || cafeId.isEmpty) {
-      _showDirectionsError(context, 'Cafe details are not available yet.');
-      return;
-    }
-
-    final lat = details.lat;
-    final lng = details.lng;
-
-    if (!MapsDirectionsLauncher.hasValidCoordinates(lat, lng)) {
-      _showDirectionsError(
-        context,
-        'Directions are unavailable for this cafe right now.',
-      );
-      return;
-    }
-
-    final mapAppMeta = _mapAppMetadata(platform);
-    unawaited(
-      analytics.track(
-        cafeId,
-        AnalyticsService.getDirections,
-        metadata: {
-          AnalyticsMetadataKeys.latitude: lat,
-          AnalyticsMetadataKeys.longitude: lng,
-          AnalyticsMetadataKeys.mapApp: mapAppMeta,
-          AnalyticsMetadataKeys.screen: 'cafe_details',
-        },
-      ),
-    );
-
-    final label = details.name.isNotEmpty
-        ? details.name
-        : details.locationLabel;
-    final launched = await MapsDirectionsLauncher.launchDirections(
-      lat: lat,
-      lng: lng,
-      label: label,
-      platform: platform,
-    );
-
-    if (!context.mounted) return;
-    if (!launched) {
-      _showDirectionsError(context, 'Unable to open map directions.');
-    }
-  }
-
-  void _showDirectionsError(BuildContext context, String message) {
-    showPrimaryToast(context, message);
+  Future<void> _onGetDirectionsTap(BuildContext context) {
+    return launchCafeDirections(context, cafe);
   }
 
   String? _extractHandle(String rawValue) {
@@ -273,7 +214,9 @@ class CafeInfo extends StatelessWidget {
               if (amenities.isEmpty)
                 Text(
                   'No amenities listed',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: const Color(0xFF848685),
+                  ),
                 )
               else
                 Column(
@@ -293,9 +236,8 @@ class CafeInfo extends StatelessWidget {
                           Expanded(
                             child: Text(
                               tag.name,
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: const Color(0xFF848685),
-                              ),
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(color: const Color(0xFF848685)),
                             ),
                           ),
                         ],
@@ -344,7 +286,9 @@ class CafeInfo extends StatelessWidget {
               if (paymentOptions.isEmpty)
                 Text(
                   'No payment options listed',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: const Color(0xFF848685),
+                  ),
                 )
               else
                 Wrap(
@@ -384,6 +328,7 @@ class CafeInfo extends StatelessWidget {
                     return CafeLocationMapPreview(
                       lat: details.lat,
                       lng: details.lng,
+                      rating: details.rating,
                     );
                   }
                   return ClipRRect(
@@ -400,7 +345,9 @@ class CafeInfo extends StatelessWidget {
               const Gap(16),
               Text(
                 address,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.black),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: Colors.black),
               ),
               const Gap(10),
               SizedBox(
@@ -410,7 +357,10 @@ class CafeInfo extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
-                    side: BorderSide(color: context.colorScheme.border, width: 1),
+                    side: BorderSide(
+                      color: context.colorScheme.border,
+                      width: 1,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -560,7 +510,9 @@ class _PaymentType extends StatelessWidget {
         const Gap(4),
         Text(
           label,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
         ),
       ],
     );

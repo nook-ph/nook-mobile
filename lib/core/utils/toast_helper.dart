@@ -5,18 +5,29 @@ import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:toastification/toastification.dart';
 
+/// [bottomOffset] lifts the toast above a sticky bottom bar (see
+/// [CafeActionsBar]) so it never covers the controls it is reporting on.
+///
+/// Callers pass the bar's measured height. On top of that, toastification's
+/// defaultMarginBuilder already adds 12 to every bottom-aligned toast, so when
+/// an offset is given the helper adds only 4 of its own — a ~16pt visual gap —
+/// instead of the standalone 16 used when the toast sits on the bare screen
+/// edge.
 void showPrimaryToast(
   BuildContext context,
   String message, {
   Duration duration = const Duration(seconds: 3),
+  double bottomOffset = 0,
 }) {
   final colorScheme = Theme.of(context).colorScheme;
+  final bottomMargin = bottomOffset > 0 ? 4 + bottomOffset : 16.0;
 
   toastification.show(
     context: context,
     alignment: Alignment.bottomCenter,
     autoCloseDuration: duration,
     style: ToastificationStyle.simple,
+    margin: EdgeInsets.fromLTRB(12, 16, 12, bottomMargin),
     backgroundColor: colorScheme.primary80,
     foregroundColor: Colors.white,
     borderRadius: BorderRadius.circular(999),
@@ -24,6 +35,86 @@ void showPrimaryToast(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
     title: Text(message, maxLines: 1, overflow: TextOverflow.ellipsis),
     closeButton: const ToastCloseButton(showType: CloseButtonShowType.always),
+  );
+}
+
+/// Primary toast with a trailing action (e.g. "Added to Been · Add a note").
+/// Tapping the action dismisses the toast first.
+void showPrimaryToastWithAction(
+  BuildContext context,
+  String message, {
+  required String actionLabel,
+  required VoidCallback onAction,
+  Duration duration = const Duration(seconds: 5),
+  double bottomOffset = 0,
+}) {
+  final colorScheme = Theme.of(context).colorScheme;
+
+  toastification.showCustom(
+    context: context,
+    alignment: Alignment.bottomCenter,
+    autoCloseDuration: duration,
+    animationDuration: const Duration(milliseconds: 300),
+    animationBuilder: (context, animation, alignment, child) {
+      return FadeTransition(opacity: animation, child: child);
+    },
+    builder: (context, holder) {
+      // toastification pins every toast to AlignmentDirectional(-1.0, 0) —
+      // hard left — inside its fixed 400pt column, and passes loose
+      // constraints (toast_builder.dart:56/88). The `alignment` argument above
+      // only picks which screen edge the column sits on, not how a toast sits
+      // within it. Because this pill uses MainAxisSize.min it hugs its content
+      // and that left pin is visible, so re-centre it here. The other toasts
+      // in this file fill the full width, which is why only this one drifted.
+      final bottomMargin = bottomOffset > 0 ? 4 + bottomOffset : 16.0;
+      return Center(
+        child: Container(
+          margin: EdgeInsets.fromLTRB(12, 16, 12, bottomMargin),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: colorScheme.primary80,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  message,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              AdaptiveTextButton(
+                onPressed: () {
+                  toastification.dismiss(holder);
+                  onAction();
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  actionLabel,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                    decorationColor: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
   );
 }
 

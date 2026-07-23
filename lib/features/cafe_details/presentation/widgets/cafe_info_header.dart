@@ -195,11 +195,15 @@ class _CafeInfoHeaderState extends State<CafeInfoHeader> {
                     ),
                     const SizedBox(width: 8),
                   ],
-                  Text(
-                    locationText,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF868584),
+                  Flexible(
+                    child: Text(
+                      locationText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF868584),
+                      ),
                     ),
                   ),
                 ],

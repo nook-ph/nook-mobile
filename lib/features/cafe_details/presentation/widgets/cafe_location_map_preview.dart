@@ -1,19 +1,25 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:nook/features/map/presentation/utils/map_pin_images.dart';
 
-/// Non-interactive MapLibre preview centered on [lat]/[lng] with the standard cafe pin.
+/// Non-interactive MapLibre preview centered on [lat]/[lng] with the same pin
+/// the map page uses: a rating pill when the cafe has reviews, otherwise the
+/// static coffee badge.
 class CafeLocationMapPreview extends StatefulWidget {
   const CafeLocationMapPreview({
     super.key,
     required this.lat,
     required this.lng,
+    this.rating = 0,
   });
 
   final double lat;
   final double lng;
+  final double rating;
 
   @override
   State<CafeLocationMapPreview> createState() => _CafeLocationMapPreviewState();
@@ -24,6 +30,11 @@ class _CafeLocationMapPreviewState extends State<CafeLocationMapPreview> {
   static const double _previewZoom = 15.5;
   static const String _fallbackStyle =
       'https://tiles.openfreemap.org/styles/bright';
+
+  // Match the map page's pin rasterization so the badge renders at an
+  // identical size and weight (see `map_page.dart`).
+  static const double _pinRasterScale = 3.0;
+  static const double _pinSizeBoost = 2.2;
 
   bool _styleResolved = false;
   String? _styleJson;
@@ -52,6 +63,13 @@ class _CafeLocationMapPreviewState extends State<CafeLocationMapPreview> {
   }
 
   Future<void> _onStyleLoaded() async {
+    // Capture the platform-dependent icon size before any awaits so we don't
+    // touch `context` after the widget may have been disposed.
+    final base = defaultTargetPlatform == TargetPlatform.iOS
+        ? MediaQuery.of(context).devicePixelRatio / _pinRasterScale
+        : 1 / _pinRasterScale;
+    final iconSize = base * _pinSizeBoost;
+
     try {
       final controller = await _controllerCompleter.future;
       if (!mounted) return;
@@ -59,17 +77,16 @@ class _CafeLocationMapPreviewState extends State<CafeLocationMapPreview> {
       await controller.clearSymbols();
       if (!mounted) return;
 
-      final ByteData bytes = await rootBundle.load('assets/images/MapPin.png');
-      if (!mounted) return;
-      final imageData = bytes.buffer.asUint8List();
-      await controller.addImage('map_pin', imageData);
+      final pinImages = MapPinImages(scale: _pinRasterScale);
+      final imageId = await pinImages.registerSingle(controller, widget.rating);
       if (!mounted) return;
 
       await controller.addSymbol(
         SymbolOptions(
           geometry: LatLng(widget.lat, widget.lng),
-          iconImage: 'map_pin',
-          iconSize: 0.17,
+          iconImage: imageId,
+          iconAnchor: 'bottom',
+          iconSize: iconSize,
         ),
       );
     } catch (_) {
@@ -101,8 +118,10 @@ class _CafeLocationMapPreviewState extends State<CafeLocationMapPreview> {
             height: _previewHeight,
             width: double.infinity,
             child: MapLibreMap(
-              initialCameraPosition:
-                  CameraPosition(target: target, zoom: _previewZoom),
+              initialCameraPosition: CameraPosition(
+                target: target,
+                zoom: _previewZoom,
+              ),
               styleString: _styleJson ?? _fallbackStyle,
               translucentTextureSurface: true,
               scrollGesturesEnabled: false,

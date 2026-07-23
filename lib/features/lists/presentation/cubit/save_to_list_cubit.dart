@@ -176,10 +176,14 @@ class SaveToListCubit extends Cubit<SaveToListState> {
   }
 
   /// Includes the default (Favorites) list so it matches the details-page bookmark.
-  /// Order: see [sortListsForSaveSheet].
+  /// Excludes Been / Want to Try system lists — adding to those directly would
+  /// bypass the mutual exclusion in `set_cafe_status`; they have their own
+  /// control on the details page. Order: see [sortListsForSaveSheet].
   Future<List<CafeList>> _loadListsForPicker() async {
     final lists = await getUserListsUseCase();
-    return sortListsForSaveSheet(List<CafeList>.from(lists));
+    return sortListsForSaveSheet(
+      lists.where((list) => !list.isSystem).toList(),
+    );
   }
 
   Future<void> _persistLastSavedList(String listId) async {

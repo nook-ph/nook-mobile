@@ -71,6 +71,31 @@ class MapPinImages {
     }
   }
 
+  /// Registers the badge for a single cafe with the given [rating] on
+  /// [controller] and returns the style-image id to reference from a symbol.
+  /// A [rating] of 0 or less registers the coffee badge; otherwise a rating
+  /// pill. Used by one-off previews (e.g. the cafe details location map).
+  Future<String> registerSingle(
+    MapLibreMapController controller,
+    double rating,
+  ) async {
+    if (rating <= 0) {
+      if (!_registered.contains(coffeeImageId)) {
+        await controller.addImage(coffeeImageId, await rasterizeCoffeePin());
+        _registered.add(coffeeImageId);
+      }
+      return coffeeImageId;
+    }
+
+    final ratingLabel = rating.toStringAsFixed(1);
+    final id = pillImageId(ratingLabel);
+    if (!_registered.contains(id)) {
+      await controller.addImage(id, await rasterizePill(ratingLabel));
+      _registered.add(id);
+    }
+    return id;
+  }
+
   /// Stadium pill with star, rating text, and a pointer tail. The tail tip
   /// lines up with `icon-anchor: bottom` (minus the shadow pad).
   @visibleForTesting

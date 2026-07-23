@@ -276,6 +276,10 @@ class _ListsPageState extends State<ListsPage> {
   }
 
   void _showListOptions(BuildContext context, CafeList list) {
+    // System lists (Been / Want to Try) can't be renamed or deleted —
+    // the server rejects both (trg_protect_system_lists).
+    if (list.isSystem) return;
+
     final bloc = context.read<ListsBloc>();
 
     showModalBottomSheet(

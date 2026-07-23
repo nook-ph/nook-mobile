@@ -25,10 +25,12 @@ import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_hours_title.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_tags_list.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/expandable_description.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/hero_image_slider.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
 import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart';
@@ -122,6 +124,14 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           child: Scaffold(
             backgroundColor: Colors.white,
             extendBodyBehindAppBar: true,
+            bottomNavigationBar: BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
+              builder: (context, state) {
+                if (state is! CafeDetailsLoaded) {
+                  return const SizedBox.shrink();
+                }
+                return CafeActionsBar(cafe: state.data);
+              },
+            ),
             body: BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
               buildWhen: (previous, current) {
                 if (previous is CafeDetailsLoaded &&
@@ -223,10 +233,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: Colors.black,
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
                           ),
                           actions: [
@@ -295,17 +306,21 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   : const [],
                             ),
 
-                            if (state is CafeDetailsLoaded && state.data.cafeDetails.description.isNotEmpty) ...[
+                            if (state is CafeDetailsLoaded &&
+                                state
+                                    .data
+                                    .cafeDetails
+                                    .description
+                                    .isNotEmpty) ...[
                               const SizedBox(height: 24),
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 22,
                                 ),
-                                child: Text(
-                                  state.data.cafeDetails.description,
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                    color: Colors.black54,
-                                  ),
+                                child: ExpandableDescription(
+                                  text: state.data.cafeDetails.description,
+                                  style: Theme.of(context).textTheme.bodyLarge
+                                      ?.copyWith(color: Colors.black54),
                                 ),
                               ),
                             ],

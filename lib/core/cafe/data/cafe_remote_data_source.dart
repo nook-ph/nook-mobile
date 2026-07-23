@@ -474,6 +474,7 @@ class CafeRemoteDataSource {
                 description,
                 cover_image_url,
                 is_public,
+                list_type,
                 cafe_count,
                 created_at,
                 updated_at
@@ -719,6 +720,86 @@ class CafeRemoteDataSource {
     } on PostgrestException catch (e, st) {
       throw CafeFetchException(
         'Failed to remove cafe "$cafeId" from all user lists.',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Sets the caller's Been / Want to Try status for a cafe via the
+  /// `set_cafe_status` RPC (atomic mutual exclusion, lazily creates the
+  /// user's system lists).
+  Future<String> setCafeStatus(String cafeId, String status) async {
+    try {
+      final response = await supabase.rpc(
+        'set_cafe_status',
+        params: {'p_cafe_id': cafeId, 'p_status': status},
+      );
+      return response as String;
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to set status "$status" for cafe "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Batch Been / Want to Try lookup; cafes with no status are absent.
+  Future<Map<String, String>> fetchCafeStatuses(List<String> cafeIds) async {
+    if (cafeIds.isEmpty) return const {};
+    try {
+      final response = await supabase.rpc(
+        'get_cafe_statuses',
+        params: {'p_cafe_ids': cafeIds},
+      );
+      final statuses = <String, String>{};
+      for (final row in (response as List)) {
+        if (row is! Map) continue;
+        final cafeId = row['cafe_id']?.toString();
+        final status = row['status']?.toString();
+        if (cafeId != null && status != null) {
+          statuses[cafeId] = status;
+        }
+      }
+      return statuses;
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch statuses for ${cafeIds.length} cafe(s).',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Writes the caller's private note on the system list holding [cafeId].
+  /// A blank note clears it. Returns the stored value.
+  Future<String?> setCafeNote(String cafeId, String? note) async {
+    try {
+      final response = await supabase.rpc(
+        'set_cafe_note',
+        params: {'p_cafe_id': cafeId, 'p_note': note},
+      );
+      return response as String?;
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to save note for cafe "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  Future<String?> fetchCafeNote(String cafeId) async {
+    try {
+      final response = await supabase.rpc(
+        'get_cafe_note',
+        params: {'p_cafe_id': cafeId},
+      );
+      return response as String?;
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch note for cafe "$cafeId".',
         cause: e,
         stackTrace: st,
       );

@@ -5,6 +5,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/utils/geo.dart';
@@ -245,6 +246,24 @@ class _FakeCafeRepository implements ICafeRepository {
   @override
   Future<void> removeCafeFromAllUserLists(String cafeId) async {
     memberships.clear();
+  }
+
+  @override
+  Future<CafeStatus> setCafeStatus(String cafeId, CafeStatus status) async {
+    return status;
+  }
+
+  @override
+  Future<String?> setCafeNote(String cafeId, String? note) async => note;
+
+  @override
+  Future<String?> getCafeNote(String cafeId) async => null;
+
+  @override
+  Future<Map<String, CafeStatus>> getCafeStatuses(
+    List<String> cafeIds,
+  ) async {
+    return const {};
   }
 
   @override

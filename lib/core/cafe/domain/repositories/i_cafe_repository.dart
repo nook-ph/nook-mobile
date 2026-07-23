@@ -3,6 +3,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/utils/geo.dart';
 
 @Deprecated('Use CafeQuery with getCafes for home/feed flows.')
@@ -106,6 +107,21 @@ abstract class ICafeRepository {
     String? description,
     required bool isPublic,
   });
+
+  // been / want to try (system lists — see docs/BEEN_WANT_TO_TRY.md)
+
+  /// Sets the caller's status for [cafeId]; Been and Want to Try are
+  /// mutually exclusive (server-enforced). Returns the resulting status.
+  Future<CafeStatus> setCafeStatus(String cafeId, CafeStatus status);
+
+  /// Batch status lookup; cafes with [CafeStatus.none] are absent.
+  Future<Map<String, CafeStatus>> getCafeStatuses(List<String> cafeIds);
+
+  /// Saves the user's private note for a logged cafe (blank clears it).
+  /// The cafe must already be in Been or Want to Try.
+  Future<String?> setCafeNote(String cafeId, String? note);
+
+  Future<String?> getCafeNote(String cafeId);
 
   Future<void> warmCache(List<CafeSummary> summaries);
 }

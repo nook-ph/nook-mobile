@@ -10,6 +10,10 @@ class CafeList {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// `custom` for user lists; `been` / `want_to_try` for system lists
+  /// (see `lists.list_type`).
+  final String listType;
+
   /// When the user last added a café to this list (from API when present).
   /// For ordering in Save to…, [sortListsForSaveSheet] falls back to [updatedAt]
   /// when this is null (e.g. before `lists.last_saved_at` exists in the database).
@@ -26,5 +30,10 @@ class CafeList {
     required this.createdAt,
     required this.updatedAt,
     this.lastSavedAt,
+    this.listType = 'custom',
   });
+
+  /// System lists (Been / Want to Try) are undeletable, unrenamable, and
+  /// managed via `set_cafe_status` — not the regular list CRUD.
+  bool get isSystem => listType != 'custom';
 }

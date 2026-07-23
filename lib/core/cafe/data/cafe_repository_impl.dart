@@ -6,6 +6,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/utils/geo.dart';
 
 class CafeRepositoryImpl implements ICafeRepository {
@@ -332,6 +333,7 @@ class CafeRepositoryImpl implements ICafeRepository {
         createdAt: DateTime.parse(list['created_at'] as String),
         updatedAt: DateTime.parse(list['updated_at'] as String),
         lastSavedAt: lastSavedAt,
+        listType: (list['list_type'] as String?) ?? 'custom',
       );
     }).toList();
   }
@@ -356,13 +358,37 @@ class CafeRepositoryImpl implements ICafeRepository {
 
   @override
   Future<bool> isCafeSavedToAnyUserList(String cafeId) async {
-    final lists = await getUserLists();
+    // Custom lists only: the bookmark means "saved to a list", while Been /
+    // Want to Try system lists have their own control on the details page.
+    final lists = (await getUserLists()).where((l) => !l.isSystem).toList();
     if (lists.isEmpty) return false;
     final memberships = await getCafeListMemberships(
       cafeId,
       lists.map((l) => l.id).toList(growable: false),
     );
     return memberships.isNotEmpty;
+  }
+
+  @override
+  Future<CafeStatus> setCafeStatus(String cafeId, CafeStatus status) async {
+    final result = await remoteDataSource.setCafeStatus(cafeId, status.wire);
+    return CafeStatus.fromWire(result);
+  }
+
+  @override
+  Future<Map<String, CafeStatus>> getCafeStatuses(List<String> cafeIds) async {
+    final raw = await remoteDataSource.fetchCafeStatuses(cafeIds);
+    return raw.map((cafeId, wire) => MapEntry(cafeId, CafeStatus.fromWire(wire)));
+  }
+
+  @override
+  Future<String?> setCafeNote(String cafeId, String? note) {
+    return remoteDataSource.setCafeNote(cafeId, note);
+  }
+
+  @override
+  Future<String?> getCafeNote(String cafeId) {
+    return remoteDataSource.fetchCafeNote(cafeId);
   }
 
   @override

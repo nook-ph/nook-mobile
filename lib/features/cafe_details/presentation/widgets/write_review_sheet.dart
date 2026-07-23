@@ -227,10 +227,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     FocusManager.instance.primaryFocus?.unfocus();
 
     if (_selectedRating == 0) {
-      showPrimaryToast(
-        context,
-        'Please select a rating before submitting.',
-      );
+      showPrimaryToast(context, 'Please select a rating before submitting.');
       return;
     }
 
@@ -269,7 +266,8 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     final selectedPhotos = _photos.whereType<File>().toList(growable: false);
     final submitBloc = context.read<ReviewSubmitBloc>();
 
-    String? accessToken = Supabase.instance.client.auth.currentSession?.accessToken;
+    String? accessToken =
+        Supabase.instance.client.auth.currentSession?.accessToken;
     if (accessToken == null || accessToken.isEmpty) {
       try {
         final refreshed = await Supabase.instance.client.auth.refreshSession();
@@ -315,175 +313,179 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
             unawaited(_saveDraft());
           },
           child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: AdaptiveTap(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Icon(Icons.close, color: Colors.black, size: 24),
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AdaptiveTap(
+                    onTap: () => Navigator.of(context).maybePop(),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.close, color: Colors.black, size: 24),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                'How was your visit?',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                const SizedBox(height: 28),
+                Text(
+                  'How was your visit?',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  final bool isFilled = index < _selectedRating;
-                  return AdaptiveTap(
-                    onTap: isSubmitting
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    final bool isFilled = index < _selectedRating;
+                    return AdaptiveTap(
+                      onTap: isSubmitting
+                          ? null
+                          : () {
+                              setState(() {
+                                _selectedRating = index + 1;
+                              });
+                            },
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Icon(
+                          Icons.star_rounded,
+                          size: 48,
+                          color: isFilled
+                              ? const Color(0xFF344E41)
+                              : const Color(0xFFCCCCCC),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 22,
+                  child: Center(
+                    child: _selectedRating == 0
+                        ? const SizedBox.shrink()
+                        : Text(
+                            _ratingLabel(_selectedRating),
+                            style: Theme.of(context).textTheme.bodyLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.black,
+                                ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Share your experience...',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _reviewController,
+                  maxLines: 6,
+                  minLines: 6,
+                  enabled: !isSubmitting,
+                  decoration: InputDecoration(
+                    hintText:
+                        'Tell us about the atmosphere, the coffee, and the service...',
+                    hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFFBDBDBD),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF2F2F2),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Add photos (Max 3)',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Optional',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w400,
+                        color: const Color(0xFF9E9E9E),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildPhotosRow(isSubmitting),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: AdaptiveElevatedButton(
+                    onPressed: isSubmitting
                         ? null
-                        : () {
-                            setState(() {
-                              _selectedRating = index + 1;
-                            });
-                          },
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        Icons.star_rounded,
-                        size: 48,
-                        color: isFilled
-                            ? const Color(0xFF344E41)
-                            : const Color(0xFFCCCCCC),
+                        : () => _submitReview(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF344E41),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      padding: const EdgeInsets.symmetric(vertical: 18),
                     ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 22,
-                child: Center(
-                  child: _selectedRating == 0
-                      ? const SizedBox.shrink()
-                      : Text(
-                          _ratingLabel(_selectedRating),
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            fontWeight: FontWeight.w400,
-                            color: Colors.black,
-                          ),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Share your experience...',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _reviewController,
-                maxLines: 6,
-                minLines: 6,
-                enabled: !isSubmitting,
-                decoration: InputDecoration(
-                  hintText:
-                      'Tell us about the atmosphere, the coffee, and the service...',
-                  hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFFBDBDBD),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF2F2F2),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.all(16),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Add photos (Max 3)',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Optional',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w400,
-                      color: const Color(0xFF9E9E9E),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildPhotosRow(isSubmitting),
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                child: AdaptiveElevatedButton(
-                  onPressed: isSubmitting ? null : () => _submitReview(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF344E41),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                  ),
-                  child: isSubmitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Submit Review',
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.arrow_forward,
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
                               color: Colors.white,
-                              size: 18,
                             ),
-                          ],
-                        ),
+                          )
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Submit Review',
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.arrow_forward,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 32),
-            ],
+                const SizedBox(height: 32),
+              ],
+            ),
           ),
-        ),
         );
       },
     );
@@ -540,6 +542,10 @@ class _AddPhotoButton extends StatelessWidget {
     return AdaptiveTap(
       onTap: onTap,
       child: SizedBox(
+        // iOS wraps taps in a CupertinoButton whose Align gives the child loose
+        // width constraints, so an unconstrained-width child shrink-wraps to its
+        // contents. Pin the width to fill the Expanded slot on both platforms.
+        width: double.infinity,
         height: 100,
         child: CustomPaint(
           painter: const _DashedBorderPainter(),
@@ -548,13 +554,13 @@ class _AddPhotoButton extends StatelessWidget {
             children: [
               const Icon(Icons.add, size: 22, color: Color(0xFF9E9E9E)),
               const SizedBox(height: 6),
-                Text(
-                  'Add photo',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w400,
-                    color: const Color(0xFF9E9E9E),
-                  ),
+              Text(
+                'Add photo',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w400,
+                  color: const Color(0xFF9E9E9E),
                 ),
+              ),
             ],
           ),
         ),

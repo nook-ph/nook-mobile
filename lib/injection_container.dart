@@ -30,6 +30,11 @@ import 'package:nook/core/cafe/domain/use_cases/get_cafes_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_user_lists_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/remove_cafe_from_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/set_cafe_status_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_cafe_statuses_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/set_cafe_note_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_cafe_note_usecase.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/upload/data/upload_remove_data_source.dart';
@@ -207,6 +212,18 @@ Future<void> initDependencies() async {
       createListUseCase: sl<CreateListUseCase>(),
     ),
   );
+  sl.registerLazySingleton<SetCafeStatusUseCase>(
+    () => SetCafeStatusUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<GetCafeStatusesUseCase>(
+    () => GetCafeStatusesUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<SetCafeNoteUseCase>(
+    () => SetCafeNoteUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<GetCafeNoteUseCase>(
+    () => GetCafeNoteUseCase(sl<ICafeRepository>()),
+  );
 
   sl.registerLazySingleton<UpdateProfileUseCase>(
     () => UpdateProfileUseCase(sl<IProfileRepository>()),
@@ -250,6 +267,14 @@ Future<void> initDependencies() async {
       createListUseCase: sl<CreateListUseCase>(),
       repository: sl<ICafeRepository>(),
       analytics: sl<AnalyticsService>(),
+    ),
+  );
+  // App-wide Been / Want to Try status cache (singleton like ListsBloc, so a
+  // status set on details is instantly visible on any surface).
+  sl.registerLazySingleton<CafeStatusCubit>(
+    () => CafeStatusCubit(
+      getCafeStatusesUseCase: sl<GetCafeStatusesUseCase>(),
+      setCafeStatusUseCase: sl<SetCafeStatusUseCase>(),
     ),
   );
   sl.registerFactory<SaveToListCubit>(
