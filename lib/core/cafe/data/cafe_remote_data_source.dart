@@ -790,6 +790,92 @@ class CafeRemoteDataSource {
     }
   }
 
+  /// Places a cafe in the caller's ranking. The server owns positions and
+  /// scores; the client only proposes where the binary search landed. Returns
+  /// the caller's full refreshed ranking so state can't drift from truth.
+  Future<List<Map<String, dynamic>>> setCafeRanking({
+    required String cafeId,
+    required String bucket,
+    required int position,
+  }) async {
+    try {
+      final response = await supabase.rpc(
+        'set_cafe_ranking',
+        params: {
+          'p_cafe_id': cafeId,
+          'p_bucket': bucket,
+          'p_position': position,
+        },
+      );
+      if (response is! List) return const [];
+      return response
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to rank cafe "$cafeId" as "$bucket".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Drops the caller's ranking for a cafe. Does not touch its Been entry —
+  /// this is "unrank", not "unlog".
+  Future<void> removeCafeRanking(String cafeId) async {
+    try {
+      await supabase.rpc('remove_cafe_ranking', params: {'p_cafe_id': cafeId});
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to remove ranking for cafe "$cafeId".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// The caller's whole ranking. RLS scopes this to the current user, so no
+  /// user id is passed — and none can be spoofed.
+  Future<List<Map<String, dynamic>>> fetchCafeRankings() async {
+    try {
+      final response = await supabase
+          .from('cafe_rankings')
+          .select('cafe_id, bucket, position, score')
+          .order('position', ascending: true);
+      return (response as List)
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch cafe rankings.',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Appends one head-to-head answer to the comparison log (analytics only).
+  /// Best-effort by design: the ranking itself is already persisted by
+  /// setCafeRanking, so a lost log row must never surface to the user.
+  Future<void> logCafeComparison({
+    required String winnerCafeId,
+    required String loserCafeId,
+  }) async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+    try {
+      await supabase.from('cafe_comparisons').insert({
+        'user_id': userId,
+        'winner_cafe_id': winnerCafeId,
+        'loser_cafe_id': loserCafeId,
+      });
+    } catch (_) {
+      // Swallowed on purpose — see doc comment.
+    }
+  }
+
   Future<String?> fetchCafeNote(String cafeId) async {
     try {
       final response = await supabase.rpc(

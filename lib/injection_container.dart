@@ -34,6 +34,11 @@ import 'package:nook/core/cafe/domain/use_cases/set_cafe_status_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_statuses_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/set_cafe_note_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_note_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/get_cafe_rankings_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/log_cafe_comparison_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/remove_cafe_ranking_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/set_cafe_ranking_usecase.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
@@ -225,6 +230,19 @@ Future<void> initDependencies() async {
     () => GetCafeNoteUseCase(sl<ICafeRepository>()),
   );
 
+  sl.registerLazySingleton<SetCafeRankingUseCase>(
+    () => SetCafeRankingUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<GetCafeRankingsUseCase>(
+    () => GetCafeRankingsUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<RemoveCafeRankingUseCase>(
+    () => RemoveCafeRankingUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<LogCafeComparisonUseCase>(
+    () => LogCafeComparisonUseCase(sl<ICafeRepository>()),
+  );
+
   sl.registerLazySingleton<UpdateProfileUseCase>(
     () => UpdateProfileUseCase(sl<IProfileRepository>()),
   );
@@ -277,6 +295,16 @@ Future<void> initDependencies() async {
       setCafeStatusUseCase: sl<SetCafeStatusUseCase>(),
     ),
   );
+
+  sl.registerLazySingleton<CafeRankingCubit>(
+    () => CafeRankingCubit(
+      getCafeRankingsUseCase: sl<GetCafeRankingsUseCase>(),
+      setCafeRankingUseCase: sl<SetCafeRankingUseCase>(),
+      removeCafeRankingUseCase: sl<RemoveCafeRankingUseCase>(),
+      logCafeComparisonUseCase: sl<LogCafeComparisonUseCase>(),
+    ),
+  );
+
   sl.registerFactory<SaveToListCubit>(
     () => SaveToListCubit(
       getUserListsUseCase: sl<GetUserListsUseCase>(),

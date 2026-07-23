@@ -3,6 +3,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/utils/geo.dart';
 
@@ -122,6 +123,26 @@ abstract class ICafeRepository {
   Future<String?> setCafeNote(String cafeId, String? note);
 
   Future<String?> getCafeNote(String cafeId);
+
+  /// Places [cafeId] at [position] within [bucket]; returns the caller's full
+  /// refreshed ranking.
+  Future<List<CafeRanking>> setCafeRanking({
+    required String cafeId,
+    required RankBucket bucket,
+    required int position,
+  });
+
+  /// Unranks [cafeId]. The Been entry is untouched.
+  Future<void> removeCafeRanking(String cafeId);
+
+  /// The caller's whole ranking, ordered best first within each bucket.
+  Future<List<CafeRanking>> getCafeRankings();
+
+  /// Appends one head-to-head answer to the comparison log. Best-effort.
+  Future<void> logCafeComparison({
+    required String winnerCafeId,
+    required String loserCafeId,
+  });
 
   Future<void> warmCache(List<CafeSummary> summaries);
 }

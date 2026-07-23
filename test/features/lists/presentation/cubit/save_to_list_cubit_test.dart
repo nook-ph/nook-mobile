@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
@@ -260,9 +261,7 @@ class _FakeCafeRepository implements ICafeRepository {
   Future<String?> getCafeNote(String cafeId) async => null;
 
   @override
-  Future<Map<String, CafeStatus>> getCafeStatuses(
-    List<String> cafeIds,
-  ) async {
+  Future<Map<String, CafeStatus>> getCafeStatuses(List<String> cafeIds) async {
     return const {};
   }
 
@@ -320,6 +319,35 @@ class _FakeCafeRepository implements ICafeRepository {
 
   @override
   Future<void> deleteList(String listId) {
+    throw UnimplementedError();
+  }
+
+  // Ranking is not exercised by these tests; stubbed like the rest of the
+  // interface the SaveToListCubit does not touch.
+  @override
+  Future<List<CafeRanking>> setCafeRanking({
+    required String cafeId,
+    required RankBucket bucket,
+    required int position,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> removeCafeRanking(String cafeId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<CafeRanking>> getCafeRankings() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> logCafeComparison({
+    required String winnerCafeId,
+    required String loserCafeId,
+  }) {
     throw UnimplementedError();
   }
 

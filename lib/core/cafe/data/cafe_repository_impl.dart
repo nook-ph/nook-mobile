@@ -6,6 +6,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/utils/geo.dart';
 
@@ -378,7 +379,9 @@ class CafeRepositoryImpl implements ICafeRepository {
   @override
   Future<Map<String, CafeStatus>> getCafeStatuses(List<String> cafeIds) async {
     final raw = await remoteDataSource.fetchCafeStatuses(cafeIds);
-    return raw.map((cafeId, wire) => MapEntry(cafeId, CafeStatus.fromWire(wire)));
+    return raw.map(
+      (cafeId, wire) => MapEntry(cafeId, CafeStatus.fromWire(wire)),
+    );
   }
 
   @override
@@ -389,6 +392,80 @@ class CafeRepositoryImpl implements ICafeRepository {
   @override
   Future<String?> getCafeNote(String cafeId) {
     return remoteDataSource.fetchCafeNote(cafeId);
+  }
+
+  @override
+  Future<List<CafeRanking>> setCafeRanking({
+    required String cafeId,
+    required RankBucket bucket,
+    required int position,
+  }) async {
+    final rows = await remoteDataSource.setCafeRanking(
+      cafeId: cafeId,
+      bucket: bucket.wire,
+      position: position,
+    );
+    return _parseRankings(rows);
+  }
+
+  @override
+  Future<void> removeCafeRanking(String cafeId) {
+    return remoteDataSource.removeCafeRanking(cafeId);
+  }
+
+  @override
+  Future<List<CafeRanking>> getCafeRankings() async {
+    return _parseRankings(await remoteDataSource.fetchCafeRankings());
+  }
+
+  @override
+  Future<void> logCafeComparison({
+    required String winnerCafeId,
+    required String loserCafeId,
+  }) {
+    return remoteDataSource.logCafeComparison(
+      winnerCafeId: winnerCafeId,
+      loserCafeId: loserCafeId,
+    );
+  }
+
+  /// Rows with an unrecognised bucket are dropped rather than guessed at — a
+  /// wrong band would show the user a score that isn't theirs.
+  List<CafeRanking> _parseRankings(List<Map<String, dynamic>> rows) {
+    final rankings = <CafeRanking>[];
+    for (final row in rows) {
+      final cafeId = row['cafe_id']?.toString();
+      final bucket = RankBucket.fromWire(row['bucket']?.toString());
+      if (cafeId == null || cafeId.isEmpty || bucket == null) continue;
+
+      final position = switch (row['position']) {
+        final int v => v,
+        final num v => v.toInt(),
+        final String v => int.tryParse(v),
+        _ => null,
+      };
+      // numeric(3,1) arrives as String over the wire, not double.
+      final score = switch (row['score']) {
+        final num v => v.toDouble(),
+        final String v => double.tryParse(v),
+        _ => null,
+      };
+      if (position == null || score == null) continue;
+
+      rankings.add(
+        CafeRanking(
+          cafeId: cafeId,
+          bucket: bucket,
+          position: position,
+          score: score,
+        ),
+      );
+    }
+    rankings.sort((a, b) {
+      final byBucket = a.bucket.sortOrder.compareTo(b.bucket.sortOrder);
+      return byBucket != 0 ? byBucket : a.position.compareTo(b.position);
+    });
+    return rankings;
   }
 
   @override
