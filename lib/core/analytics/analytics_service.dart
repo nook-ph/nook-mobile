@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
+import 'package:nook/core/analytics/analytics_config.dart';
 
 /// Shared analytics property keys passed via `metadata` into PostHog events.
 abstract final class AnalyticsMetadataKeys {
@@ -53,11 +54,10 @@ class AnalyticsService {
       if (metadata != null) ...metadata,
     };
 
+    if (!kAnalyticsEnabled) return;
+
     try {
       await Posthog().capture(eventName: eventName, properties: properties);
-      if (kDebugMode) {
-        await Posthog().flush();
-      }
     } catch (e, st) {
       assert(() {
         debugPrint('PostHog tracking failed: $e\n$st');
@@ -72,11 +72,10 @@ class AnalyticsService {
   }) async {
     if (eventName.isEmpty) return;
 
+    if (!kAnalyticsEnabled) return;
+
     try {
       await Posthog().capture(eventName: eventName, properties: properties);
-      if (kDebugMode) {
-        await Posthog().flush();
-      }
     } catch (e, st) {
       assert(() {
         debugPrint('PostHog event logging failed: $e\n$st');

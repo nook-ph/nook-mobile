@@ -23,6 +23,7 @@ import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
+import 'package:nook/core/analytics/analytics_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 void main() async {
@@ -43,7 +44,11 @@ void main() async {
   );
 
   final posthogToken = dotenv.env['POSTHOG_PROJECT_TOKEN']?.trim() ?? '';
-  if (posthogToken.isNotEmpty) {
+  if (!kAnalyticsEnabled) {
+    // Not merely "don't send": skipping setup means no session, no autocapture
+    // and no queued events on disk waiting to flush from a dev device.
+    debugPrint('PostHog setup skipped: analytics disabled outside release.');
+  } else if (posthogToken.isNotEmpty) {
     final config = PostHogConfig(posthogToken)
       ..host = dotenv.env['POSTHOG_HOST']?.trim() ?? 'https://us.i.posthog.com'
       ..debug = kDebugMode;

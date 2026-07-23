@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
+import 'package:nook/core/analytics/analytics_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
@@ -380,6 +381,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _identifyPosthogUser(User user) async {
+    // identify() creates the person record, so this has to be gated too —
+    // otherwise dev sign-ins mint PostHog persons for real user accounts.
+    if (!kAnalyticsEnabled) return;
+
     try {
       final email = user.email?.trim();
       final metadata = user.userMetadata;
@@ -399,6 +404,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> _resetPosthogUser() async {
+    if (!kAnalyticsEnabled) return;
+
     try {
       await Posthog().reset();
     } catch (_) {}
