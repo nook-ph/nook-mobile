@@ -19,6 +19,7 @@ import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/injection_container.dart';
@@ -95,6 +96,7 @@ class _MyAppState extends State<MyApp> {
         ),
         BlocProvider<ListsBloc>(create: (_) => sl<ListsBloc>()),
         BlocProvider<CafeStatusCubit>(create: (_) => sl<CafeStatusCubit>()),
+        BlocProvider<CafeRankingCubit>(create: (_) => sl<CafeRankingCubit>()),
         BlocProvider<FilterCubit>(create: (_) => sl<FilterCubit>()),
         BlocProvider<BlockCubit>(create: (_) => sl<BlockCubit>()),
         BlocProvider<AuthBloc>(
@@ -119,10 +121,13 @@ class _MyAppState extends State<MyApp> {
               final blockCubit = context.read<BlockCubit>();
               if (state is AuthAuthenticated) {
                 blockCubit.load();
+                // Prefetch the ranking so the comparison flow has opponents.
+                context.read<CafeRankingCubit>().load();
               } else {
                 blockCubit.clear();
-                // Been / Want to Try statuses are per-user.
+                // Been / Want to Try statuses and rankings are per-user.
                 context.read<CafeStatusCubit>().reset();
+                context.read<CafeRankingCubit>().reset();
               }
             },
             child: MaterialApp.router(

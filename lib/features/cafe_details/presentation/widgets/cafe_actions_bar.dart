@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_control.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -11,6 +14,7 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/utils/launch_cafe_directions.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/injection_container.dart';
@@ -62,6 +66,10 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
     // get_cafe_statuses is authenticated-only; guests just see empty pills.
     if (Supabase.instance.client.auth.currentSession == null) return;
     context.read<CafeStatusCubit>().loadFor([_cafeId]);
+    // The ranking flow needs opponents; make sure they're in before the user
+    // can possibly tap Been. Idempotent and cheap (one user's own rows).
+    final ranking = context.read<CafeRankingCubit>();
+    if (!ranking.state.loaded) unawaited(ranking.load());
   }
 
   Future<void> _onStatusTap(CafeStatus tapped) async {
@@ -71,6 +79,7 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
     }
 
     final cubit = context.read<CafeStatusCubit>();
+    final rankingCubit = context.read<CafeRankingCubit>();
     final listsBloc = context.read<ListsBloc>();
     final current = cubit.state.statusFor(_cafeId);
     final next = current == tapped ? CafeStatus.none : tapped;
@@ -100,19 +109,55 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
       CafeStatus.none => 'unmark_status',
     });
 
-    // Logging stays one tap — the note is offered after the write, never before.
+    // Leaving Been drops the ranking server-side (trigger); refresh the local
+    // cache so a stale score doesn't linger on this session's surfaces.
+    if (current == CafeStatus.been && next != CafeStatus.been) {
+      unawaited(rankingCubit.load());
+    }
+
+    // Logging stays one tap — ranking is offered after the write, never
+    // before, and skipping it falls back to exactly the old toast.
     if (next == CafeStatus.been) {
-      showPrimaryToastWithAction(
+      final details = widget.cafe.cafeDetails;
+      final outcome = await showCafeRankingFlow(
         context,
-        'Added to Been',
-        actionLabel: 'Add a note',
-        onAction: () => showCafeNoteSheet(
-          context,
-          cafeId: _cafeId,
-          cafeName: widget.cafe.cafeDetails.name,
-        ),
-        bottomOffset: _toastOffset,
+        cubit: rankingCubit,
+        cafeId: _cafeId,
+        cafeName: details.name,
+        cafeImageUrl: details.featuredImageUrl?.trim().isNotEmpty == true
+            ? details.featuredImageUrl!.trim()
+            : (details.photos.isNotEmpty ? details.photos.first : null),
       );
+      if (!mounted) return;
+
+      switch (outcome) {
+        case RankingFlowOutcome.completed:
+          break; // The score reveal was the feedback.
+        case RankingFlowOutcome.completedAddNote:
+          await showCafeNoteSheet(
+            context,
+            cafeId: _cafeId,
+            cafeName: details.name,
+          );
+        case RankingFlowOutcome.failed:
+          showPrimaryToast(
+            context,
+            "Couldn't save your ranking — your Been is safe.",
+            bottomOffset: _toastOffset,
+          );
+        case RankingFlowOutcome.skipped || null:
+          showPrimaryToastWithAction(
+            context,
+            'Added to Been',
+            actionLabel: 'Add a note',
+            onAction: () => showCafeNoteSheet(
+              context,
+              cafeId: _cafeId,
+              cafeName: details.name,
+            ),
+            bottomOffset: _toastOffset,
+          );
+      }
       return;
     }
 
