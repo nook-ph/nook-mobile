@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/pages/menu_full_page.dart';
 
@@ -80,39 +81,26 @@ class MenuHighlights extends StatelessWidget {
             itemBuilder: (context, index) {
               final item = highlights[index];
 
-              return Container(
+              // Floating image, home-card style: rounded on all sides, no
+              // border box, name and price below. The fixed image height (vs
+              // the old Expanded flex split) also removes the 1.6px bottom
+              // overflow the bordered layout produced.
+              return SizedBox(
                 width: width,
-                height: 178,
-                clipBehavior: Clip.hardEdge,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFE0E0E0),
-                    width: 1.0,
-                  ),
-                ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      flex: 3,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
                       child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                          ? Image.network(
-                              item.imageUrl!,
+                          ? CafeCardImage(
+                              imageUrl: item.imageUrl!,
+                              height: 106,
                               width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) {
-                                return Container(
-                                  color: const Color(0xFFF5F5F5),
-                                  alignment: Alignment.center,
-                                  child: const Icon(
-                                    Icons.image_not_supported_outlined,
-                                    color: Color(0xFFBDBDBD),
-                                  ),
-                                );
-                              },
                             )
                           : Container(
+                              height: 106,
                               color: const Color(0xFFF5F5F5),
                               alignment: Alignment.center,
                               child: const Icon(
@@ -121,26 +109,18 @@ class MenuHighlights extends StatelessWidget {
                               ),
                             ),
                     ),
-                    Expanded(
-                      flex: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                            const Gap(2),
-                            Text(
-                              _formatPrice(item.price),
-                              style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
-                            ),
-                          ],
-                        ),
+                    const Gap(8),
+                    Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                    const Gap(2),
+                    Text(
+                      _formatPrice(item.price),
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: const Color(0xFF848685),
                       ),
                     ),
                   ],

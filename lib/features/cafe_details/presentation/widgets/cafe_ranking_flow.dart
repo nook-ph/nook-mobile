@@ -358,6 +358,7 @@ class _CompareStep extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: _CompareCard(
@@ -440,42 +441,42 @@ class _CompareCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final url = imageUrl?.trim();
+    // Floating image, home-card style: rounded on all sides, no border box,
+    // name below. Fixed image height keeps the two cards level even when one
+    // name wraps to a second line.
     return AdaptiveTap(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFE0E0E0)),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (url != null && url.isNotEmpty)
-              CafeCardImage(imageUrl: url, height: 110, width: double.infinity)
-            else
-              Container(
-                height: 110,
-                color: const Color(0xFFEEEEEE),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.coffee_outlined,
-                  color: Color(0xFF868584),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Text(
-                name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: context.textTheme.bodyMediumMed,
-              ),
-            ),
-          ],
-        ),
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: url != null && url.isNotEmpty
+                ? CafeCardImage(
+                    imageUrl: url,
+                    height: 120,
+                    width: double.infinity,
+                  )
+                : Container(
+                    height: 120,
+                    color: const Color(0xFFEEEEEE),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.coffee_outlined,
+                      color: Color(0xFF868584),
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: context.textTheme.bodyMediumMed,
+          ),
+        ],
       ),
     );
   }
