@@ -21,6 +21,10 @@ class CafeSummary {
   /// rather than guessed at (see `CafeOpenStatus`).
   final Map<String, dynamic>? operatingHours;
 
+  /// The caller's private note from the list membership row. Only list read
+  /// paths carry it; null elsewhere.
+  final String? note;
+
   const CafeSummary({
     required this.id,
     required this.name,
@@ -39,6 +43,7 @@ class CafeSummary {
     this.isNew = false,
     this.isFavorited = false,
     this.operatingHours,
+    this.note,
   });
 
   String get locationLabel {

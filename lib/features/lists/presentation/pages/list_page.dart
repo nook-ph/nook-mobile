@@ -221,7 +221,11 @@ class _ListsPageState extends State<ListsPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ListDetailPage(listId: list.id, title: list.name),
+            builder: (_) => ListDetailPage(
+              listId: list.id,
+              title: list.name,
+              listType: list.listType,
+            ),
           ),
         );
       },
@@ -279,7 +283,11 @@ class _ListsPageState extends State<ListsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ListDetailPage(listId: list.id, title: list.name),
+        builder: (_) => ListDetailPage(
+          listId: list.id,
+          title: list.name,
+          listType: list.listType,
+        ),
       ),
     );
   }

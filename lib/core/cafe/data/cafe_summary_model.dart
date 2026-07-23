@@ -19,6 +19,7 @@ class CafeSummaryModel extends CafeSummary {
     super.isNew = false,
     super.isFavorited = false,
     super.operatingHours,
+    super.note,
   });
 
   factory CafeSummaryModel.fromJson(Map<String, dynamic> json) {
@@ -40,6 +41,7 @@ class CafeSummaryModel extends CafeSummary {
       lat: _asNullableDouble(json['lat']),
       lng: _asNullableDouble(json['lng']),
       operatingHours: _asNullableMap(json['operating_hours']),
+      note: _asNullableString(json['note']),
     );
   }
 

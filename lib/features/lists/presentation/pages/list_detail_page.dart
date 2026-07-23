@@ -11,13 +11,27 @@ import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/lists/presentation/widgets/list_detail_cafe_card.dart';
+import 'package:nook/features/lists/presentation/widgets/ranked_been_list.dart';
 
 class ListDetailPage extends StatefulWidget {
   final String listId;
   final String title;
 
-  const ListDetailPage({super.key, required this.listId, required this.title});
+  /// `lists.list_type` — 'been' switches the body to the ranked view
+  /// (docs/RANKING_DESIGN.md §3.2). Callers that don't know default to the
+  /// plain grid.
+  final String listType;
+
+  const ListDetailPage({
+    super.key,
+    required this.listId,
+    required this.title,
+    this.listType = 'custom',
+  });
+
+  bool get isBeenList => listType == 'been';
 
   @override
   State<ListDetailPage> createState() => _ListDetailPageState();
@@ -38,6 +52,11 @@ class _ListDetailPageState extends State<ListDetailPage> {
       _cachedDescription = state.list.description;
     } else {
       context.read<ListsBloc>().add(LoadListCafes(listId: widget.listId));
+    }
+    if (widget.isBeenList) {
+      // The ranked view needs positions/scores; idempotent and cheap.
+      final ranking = context.read<CafeRankingCubit>();
+      if (!ranking.state.loaded) ranking.load();
     }
   }
 
@@ -70,7 +89,8 @@ class _ListDetailPageState extends State<ListDetailPage> {
             previous is ListCafesLoaded || current is ListCafesLoaded,
         listener: (context, state) {
           if (state is ListCafesLoaded && state.list.id == widget.listId) {
-            final hadRemoval = _lastRemovedCafeName != null &&
+            final hadRemoval =
+                _lastRemovedCafeName != null &&
                 state.cafes.length < (_cachedCafes?.length ?? 0);
             setState(() {
               _cachedCafes = state.cafes;
@@ -120,10 +140,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
             vertical: 8.0,
           ),
           children: [
-            Text(
-              widget.title,
-              style: context.textTheme.titleLargeSemi,
-            ),
+            Text(widget.title, style: context.textTheme.titleLargeSemi),
             if (description != null && description.trim().isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
@@ -140,12 +157,13 @@ class _ListDetailPageState extends State<ListDetailPage> {
                 padding: const EdgeInsets.symmetric(vertical: 24.0),
                 child: Text(
                   'No cafes in this list yet.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyLarge
-                      ?.copyWith(color: const Color(0xFF848586)),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: const Color(0xFF848586),
+                  ),
                 ),
               )
+            else if (widget.isBeenList)
+              RankedBeenList(cafes: cafes)
             else
               GridView.builder(
                 shrinkWrap: true,

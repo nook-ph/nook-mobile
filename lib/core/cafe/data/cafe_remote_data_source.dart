@@ -501,6 +501,7 @@ class CafeRemoteDataSource {
           .from('list_cafes')
           .select('''
               added_at,
+              note,
               cafe:cafes!list_cafes_cafe_id_fkey (
                 id,
                 name,
@@ -514,11 +515,17 @@ class CafeRemoteDataSource {
             ''')
           .eq('list_id', listId)
           .order('added_at', ascending: false);
+      // The personal note lives on the membership row, not the cafe; merge it
+      // in so the summary carries it to list surfaces.
       return (response as List)
           .map((row) => Map<String, dynamic>.from(row))
-          .map((row) => row['cafe'])
-          .whereType<Map>()
-          .map((cafe) => Map<String, dynamic>.from(cafe))
+          .where((row) => row['cafe'] is Map)
+          .map(
+            (row) => {
+              ...Map<String, dynamic>.from(row['cafe'] as Map),
+              'note': row['note'],
+            },
+          )
           .map(CafeSummaryModel.fromJson)
           .toList();
     } on PostgrestException catch (e, st) {
