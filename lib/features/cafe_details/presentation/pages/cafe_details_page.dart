@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
@@ -13,6 +16,7 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/injection_container.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -242,6 +246,15 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                           ),
                           actions: [
                             Center(
+                              child: _ShareButton(
+                                cafeId: widget.cafeId,
+                                cafeName: state is CafeDetailsLoaded
+                                    ? state.data.cafeDetails.name
+                                    : '',
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Center(
                               child: _SavedButton(
                                 cafeId: widget.cafeId,
                                 cafeName: state is CafeDetailsLoaded
@@ -419,6 +432,48 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ShareButton extends StatelessWidget {
+  const _ShareButton({required this.cafeId, required this.cafeName});
+
+  final String cafeId;
+  final String cafeName;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBarCircleIconButton(
+      icon: PhosphorIcons.shareNetwork(),
+      iconSize: 18,
+      onTap: () {
+        // Details are still loading — a share with no name reads broken, and
+        // the load takes well under a second.
+        if (cafeName.isEmpty) return;
+
+        // iPadOS anchors its share popover to this rect; everywhere else it
+        // is ignored.
+        final box = context.findRenderObject() as RenderBox?;
+        final origin = (box != null && box.hasSize)
+            ? box.localToGlobal(Offset.zero) & box.size
+            : null;
+
+        unawaited(
+          sl<AnalyticsService>().track(
+            cafeId,
+            'share_cafe',
+            metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
+          ),
+        );
+        unawaited(
+          sl<ShareService>().shareCafe(
+            id: cafeId,
+            name: cafeName,
+            sharePositionOrigin: origin,
+          ),
+        );
+      },
     );
   }
 }

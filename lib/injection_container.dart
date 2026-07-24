@@ -84,9 +84,7 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
-  sl.registerLazySingleton<ShareService>(
-    () => ShareService(httpClient: sl<http.Client>()),
-  );
+  sl.registerLazySingleton<ShareService>(() => ShareService());
 
   // 2) Data sources
   sl.registerLazySingleton<CafeStore>(() => CafeStore());
