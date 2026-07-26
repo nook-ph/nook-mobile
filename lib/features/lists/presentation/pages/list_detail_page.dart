@@ -112,10 +112,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
   }
 
   Future<void> _confirmDelete(ListsBloc bloc, CafeList list) async {
-    final confirmed = await showDeleteListConfirm(
-      context,
-      listName: list.name,
-    );
+    final confirmed = await showDeleteListConfirm(context, listName: list.name);
     if (!confirmed || !mounted || _isDeleting) return;
 
     // The list this page is showing is gone — leave before the bloc reloads
@@ -232,15 +229,20 @@ class _ListDetailPageState extends State<ListDetailPage> {
             ],
             const SizedBox(height: 20),
             if (cafes.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24.0),
-                child: Text(
-                  'No cafes in this list yet.',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF848586),
-                  ),
-                ),
-              )
+              // Been gets a real empty state: it is the one list a user never
+              // creates and never deletes, so "no cafes yet" is a beginning,
+              // not an error.
+              widget.isBeenList
+                  ? const BeenEmptyState()
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24.0),
+                      child: Text(
+                        'No cafes in this list yet.',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: const Color(0xFF767574),
+                        ),
+                      ),
+                    )
             else if (widget.isBeenList)
               RankedBeenList(cafes: cafes)
             else

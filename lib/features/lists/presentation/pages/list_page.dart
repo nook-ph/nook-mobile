@@ -13,29 +13,8 @@ import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
 import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
+import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-
-/// Design tokens for this screen, straight from the Claude Design doc
-/// ("Lists & Been Ranking"). Kept local rather than themed because the rest of
-/// the app has not adopted the corrected palette yet — notably [_muted], which
-/// replaces the `#848586` this page used to ship and which failed WCAG AA.
-class _T {
-  const _T._();
-
-  static const brand = Color(0xFF344E41);
-  static const brandHover = Color(0xFF2F4833);
-  static const ink = Color(0xFF0A0F0D);
-  static const muted = Color(0xFF767574);
-  static const border = Color(0xFFE0E0E0);
-  static const surface = Color(0xFFFEFEFE);
-  static const sage = Color(0xFFDAD7CD);
-
-  static const gutter = 22.0;
-  static const radius = 12.0;
-
-  /// `--tracking-headline: -0.02em`, resolved per size.
-  static double tracking(double fontSize) => fontSize * -0.02;
-}
 
 class ListsPage extends StatefulWidget {
   const ListsPage({super.key, this.showBackButton = true});
@@ -75,19 +54,19 @@ class _ListsPageState extends State<ListsPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: _T.surface,
+        backgroundColor: ListsTokens.surface,
         appBar: AppBar(
-          backgroundColor: _T.surface,
+          backgroundColor: ListsTokens.surface,
           elevation: 0,
           scrolledUnderElevation: 0,
-          surfaceTintColor: _T.surface,
+          surfaceTintColor: ListsTokens.surface,
           automaticallyImplyLeading: widget.showBackButton,
           leading: widget.showBackButton
               ? AdaptiveTap(
                   onTap: () => Navigator.of(context).pop(),
                   child: const Padding(
                     padding: EdgeInsets.all(8),
-                    child: Icon(Icons.arrow_back, color: _T.ink),
+                    child: Icon(Icons.arrow_back, color: ListsTokens.ink),
                   ),
                 )
               : null,
@@ -101,7 +80,7 @@ class _ListsPageState extends State<ListsPage> {
 
             if (state is ListsLoading && lists.isEmpty) {
               return const Center(
-                child: CircularProgressIndicator(color: _T.brand),
+                child: CircularProgressIndicator(color: ListsTokens.brand),
               );
             }
 
@@ -126,23 +105,22 @@ class _ListsPageState extends State<ListsPage> {
             // Everything else, most recently touched first. Favorites is no
             // longer pinned to the front: it is labelled "Default" in its own
             // card instead, which explains the one thing that was odd about it.
-            final regularLists =
-                lists.where((list) => !list.isSystem).toList()
-                  ..sort((a, b) => _recencyOf(b).compareTo(_recencyOf(a)));
+            final regularLists = lists.where((list) => !list.isSystem).toList()
+              ..sort((a, b) => _recencyOf(b).compareTo(_recencyOf(a)));
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(
-                _T.gutter,
+                ListsTokens.gutter,
                 0,
-                _T.gutter,
+                ListsTokens.gutter,
                 120, // clears the extended FAB and the tab bar
               ),
               children: [
                 Text(
                   'Your Lists',
                   style: context.textTheme.titleLargeSemi.copyWith(
-                    color: _T.ink,
-                    letterSpacing: _T.tracking(24),
+                    color: ListsTokens.ink,
+                    letterSpacing: ListsTokens.tracking(24),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -150,7 +128,8 @@ class _ListsPageState extends State<ListsPage> {
                   if (i > 0) const SizedBox(height: 10),
                   _SystemListCard(
                     list: systemLists[i],
-                    previews: listsBloc.listPreviews[systemLists[i].id] ?? const [],
+                    previews:
+                        listsBloc.listPreviews[systemLists[i].id] ?? const [],
                     onTap: () => _openList(context, systemLists[i]),
                   ),
                 ],
@@ -158,8 +137,8 @@ class _ListsPageState extends State<ListsPage> {
                 Text(
                   'All Lists',
                   style: context.textTheme.titleMediumSemi.copyWith(
-                    color: _T.brand,
-                    letterSpacing: _T.tracking(18),
+                    color: ListsTokens.brand,
+                    letterSpacing: ListsTokens.tracking(18),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -260,14 +239,14 @@ class _SystemListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AdaptiveTap(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(_T.radius),
+      borderRadius: BorderRadius.circular(ListsTokens.radius),
       child: Container(
         constraints: const BoxConstraints(minHeight: 80),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: _T.surface,
-          borderRadius: BorderRadius.circular(_T.radius),
-          border: Border.all(color: _T.border),
+          color: ListsTokens.surface,
+          borderRadius: BorderRadius.circular(ListsTokens.radius),
+          border: Border.all(color: ListsTokens.border),
         ),
         child: Row(
           children: [
@@ -279,15 +258,15 @@ class _SystemListCard extends StatelessWidget {
                   Text(
                     list.name,
                     style: context.textTheme.titleMediumSemi.copyWith(
-                      color: _T.ink,
-                      letterSpacing: _T.tracking(18),
+                      color: ListsTokens.ink,
+                      letterSpacing: ListsTokens.tracking(18),
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     _subtitle(list),
                     style: context.textTheme.bodySmall?.copyWith(
-                      color: _T.muted,
+                      color: ListsTokens.muted,
                     ),
                   ),
                 ],
@@ -309,7 +288,7 @@ class _SystemListCard extends StatelessWidget {
             Icon(
               PhosphorIcons.caretRight(),
               size: 16,
-              color: _T.muted,
+              color: ListsTokens.muted,
             ),
           ],
         ),
@@ -340,7 +319,7 @@ class _PreviewThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(_T.radius),
+      borderRadius: BorderRadius.circular(ListsTokens.radius),
       child: Image.network(
         imageUrl,
         width: 44,
@@ -419,13 +398,13 @@ class _ListGridCard extends StatelessWidget {
 
     return AdaptiveTap(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(_T.radius),
+      borderRadius: BorderRadius.circular(ListsTokens.radius),
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: _T.surface,
-          borderRadius: BorderRadius.circular(_T.radius),
-          border: Border.all(color: _T.border),
+          color: ListsTokens.surface,
+          borderRadius: BorderRadius.circular(ListsTokens.radius),
+          border: Border.all(color: ListsTokens.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,8 +418,10 @@ class _ListGridCard extends StatelessWidget {
                   : Image.network(
                       cover,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          const _CoffeeTile(size: double.infinity, glyphSize: 22),
+                      errorBuilder: (_, _, _) => const _CoffeeTile(
+                        size: double.infinity,
+                        glyphSize: 22,
+                      ),
                     ),
             ),
             Padding(
@@ -454,14 +435,14 @@ class _ListGridCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: context.textTheme.bodyLargeMed.copyWith(
-                      color: _T.ink,
+                      color: ListsTokens.ink,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     _subtitle(list),
                     style: context.textTheme.bodySmall?.copyWith(
-                      color: _T.muted,
+                      color: ListsTokens.muted,
                     ),
                   ),
                 ],
@@ -501,8 +482,8 @@ class _NoListsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(_T.radius),
-        border: Border.all(color: _T.border),
+        borderRadius: BorderRadius.circular(ListsTokens.radius),
+        border: Border.all(color: ListsTokens.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,7 +493,7 @@ class _NoListsCard extends StatelessWidget {
             'Make a list of your own — best matcha, study spots, '
             'date-night nooks.',
             style: context.textTheme.bodyLarge?.copyWith(
-              color: _T.ink,
+              color: ListsTokens.ink,
               height: 1.55,
             ),
           ),
@@ -541,17 +522,19 @@ class _NewListButton extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: onTap == null ? _T.brandHover : _T.brand,
+          color: onTap == null ? ListsTokens.brandHover : ListsTokens.brand,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(PhosphorIcons.plus(), size: 18, color: _T.surface),
+            Icon(PhosphorIcons.plus(), size: 18, color: ListsTokens.surface),
             const SizedBox(width: 8),
             Text(
               'New list',
-              style: context.textTheme.bodyLargeMed.copyWith(color: _T.surface),
+              style: context.textTheme.bodyLargeMed.copyWith(
+                color: ListsTokens.surface,
+              ),
             ),
           ],
         ),
@@ -573,9 +556,13 @@ class _CoffeeTile extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      color: _T.sage,
+      color: ListsTokens.sage,
       alignment: Alignment.center,
-      child: Icon(PhosphorIcons.coffee(), size: glyphSize, color: _T.brand),
+      child: Icon(
+        PhosphorIcons.coffee(),
+        size: glyphSize,
+        color: ListsTokens.brand,
+      ),
     );
   }
 }

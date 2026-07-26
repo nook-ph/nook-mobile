@@ -29,9 +29,7 @@ class ListDetailCafeCard extends StatelessWidget {
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => CafeDetailsPage(cafeId: cafe.id),
-          ),
+          MaterialPageRoute(builder: (_) => CafeDetailsPage(cafeId: cafe.id)),
         );
       },
       child: Container(
@@ -43,7 +41,8 @@ class ListDetailCafeCard extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min, // <-- Forces the card to hug its children
+          mainAxisSize:
+              MainAxisSize.min, // <-- Forces the card to hug its children
           children: [
             Stack(
               children: [
@@ -81,7 +80,8 @@ class ListDetailCafeCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min, // <-- Forces text column to hug text
+                mainAxisSize:
+                    MainAxisSize.min, // <-- Forces text column to hug text
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -118,7 +118,9 @@ class ListDetailCafeCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6), // Tight gap between title and address
+                  const SizedBox(
+                    height: 6,
+                  ), // Tight gap between title and address
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -162,9 +164,7 @@ class ListDetailCafeCard extends StatelessWidget {
         onViewDetails: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => CafeDetailsPage(cafeId: cafe.id),
-            ),
+            MaterialPageRoute(builder: (_) => CafeDetailsPage(cafeId: cafe.id)),
           );
         },
         onRemove: onRemove,

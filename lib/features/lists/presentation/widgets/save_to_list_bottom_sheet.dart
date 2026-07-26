@@ -120,10 +120,7 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    Text(
-                      'Save to...',
-                      style: context.textTheme.titleLargeSemi,
-                    ),
+                    Text('Save to...', style: context.textTheme.titleLargeSemi),
                     const SizedBox(height: 16),
                     Expanded(
                       child: _SaveToListContent(
@@ -305,9 +302,9 @@ class _SaveToListRow extends StatelessWidget {
                       cafeListDisplayTitle(list),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-          style: context.textTheme.titleMediumSemi.copyWith(
-            color: context.colorScheme.black,
-          ),
+                      style: context.textTheme.titleMediumSemi.copyWith(
+                        color: context.colorScheme.black,
+                      ),
                     ),
 
                     Text(
@@ -452,4 +449,3 @@ class _NewListButton extends StatelessWidget {
     );
   }
 }
-

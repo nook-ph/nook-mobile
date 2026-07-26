@@ -42,18 +42,19 @@ class CafeActionsBottomSheet extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey,
+                ),
               ),
             ),
             const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(
-                Icons.info_outline,
-                color: Color(0xFF344E41),
-              ),
+              leading: const Icon(Icons.info_outline, color: Color(0xFF344E41)),
               title: Text(
                 'View details',
-                style: context.textTheme.bodyMedium?.copyWith(color: Colors.black),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: Colors.black,
+                ),
               ),
               onTap: () {
                 Navigator.pop(context);
@@ -65,7 +66,9 @@ class CafeActionsBottomSheet extends StatelessWidget {
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: Text(
                 'Remove from list',
-                style: context.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                style: context.textTheme.bodyMedium?.copyWith(
+                  color: Colors.red,
+                ),
               ),
               onTap: () {
                 Navigator.pop(context);

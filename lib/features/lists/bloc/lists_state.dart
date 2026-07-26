@@ -1,7 +1,6 @@
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 
-
 abstract class ListsState {}
 
 class ListsInitial extends ListsState {}

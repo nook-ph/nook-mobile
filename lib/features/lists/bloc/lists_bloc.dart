@@ -70,7 +70,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     LoadUserLists event,
     Emitter<ListsState> emit,
   ) async {
-    if (!_isAuthenticated) return; 
+    if (!_isAuthenticated) return;
 
     emit(ListsLoading());
     try {

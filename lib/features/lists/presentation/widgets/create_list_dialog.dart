@@ -4,10 +4,7 @@ import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 
 class CreateListInput {
-  const CreateListInput({
-    required this.name,
-    this.description,
-  });
+  const CreateListInput({required this.name, this.description});
 
   final String name;
   final String? description;
@@ -40,19 +37,14 @@ class _CreateListDialogState extends State<CreateListDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16.0),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Create New List',
-              style: context.textTheme.titleMediumSemi,
-            ),
+            Text('Create New List', style: context.textTheme.titleMediumSemi),
             const SizedBox(height: 16),
             SingleChildScrollView(
               child: Column(
@@ -135,11 +127,16 @@ class _CreateListDialogState extends State<CreateListDialog> {
                   onPressed: () => Navigator.pop(context),
                   style: TextButton.styleFrom(
                     foregroundColor: context.colorScheme.onSurface,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   child: Text(
                     'Cancel',
-                    style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                    style: context.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -147,7 +144,10 @@ class _CreateListDialogState extends State<CreateListDialog> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF33523F),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
