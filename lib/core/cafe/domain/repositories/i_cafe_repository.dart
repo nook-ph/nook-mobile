@@ -79,6 +79,10 @@ abstract class ICafeRepository {
   Future<String> getDefaultListId();
   Future<List<CafeList>> getUserLists();
   Future<List<CafeSummary>> getListCafes(String listId);
+
+  /// Up to three cafe images per list id, newest first, for the Lists index
+  /// preview strip. Lists with no usable image are absent from the map.
+  Future<Map<String, List<String>>> getListPreviewImages(List<String> listIds);
   Future<Set<String>> getCafeListMemberships(
     String cafeId,
     List<String> listIds,

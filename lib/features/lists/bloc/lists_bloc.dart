@@ -25,6 +25,10 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
   String? defaultListId;
   List<CafeList> userLists = const [];
 
+  /// list id → up to three cafe images, for the Lists index preview strip.
+  /// Read alongside [userLists]; refreshed by every [LoadUserLists].
+  Map<String, List<String>> listPreviews = const {};
+
   ListsBloc({
     required this.getUserListsUseCase,
     required this.addCafeToListUseCase,
@@ -45,6 +49,23 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
   bool get _isAuthenticated =>
       Supabase.instance.client.auth.currentSession != null;
 
+  /// Previews are decoration. A failure here must not take the Lists page down
+  /// with it — the last good set is kept and the cards fall back to text.
+  Future<Map<String, List<String>>> _loadPreviews(List<CafeList> lists) async {
+    final withCafes = [
+      for (final list in lists)
+        if (list.cafeCount > 0) list.id,
+    ];
+    if (withCafes.isEmpty) return const {};
+
+    try {
+      return await repository.getListPreviewImages(withCafes);
+    } catch (e, st) {
+      debugPrint('ListsBloc._loadPreviews error: $e\n$st');
+      return listPreviews;
+    }
+  }
+
   Future<void> _onLoadUserLists(
     LoadUserLists event,
     Emitter<ListsState> emit,
@@ -61,6 +82,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       defaultListId = results[0] as String?;
       final lists = (results[1] as List).cast<CafeList>();
       userLists = lists;
+      listPreviews = await _loadPreviews(lists);
 
       emit(ListsLoaded(lists));
     } catch (e, st) {

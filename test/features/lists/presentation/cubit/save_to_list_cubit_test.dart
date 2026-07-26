@@ -395,6 +395,13 @@ class _FakeCafeRepository implements ICafeRepository {
   }
 
   @override
+  Future<Map<String, List<String>>> getListPreviewImages(
+    List<String> listIds,
+  ) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<bool> isCafeInList(String listId, String cafeId) {
     throw UnimplementedError();
   }

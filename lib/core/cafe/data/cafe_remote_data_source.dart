@@ -537,6 +537,52 @@ class CafeRemoteDataSource {
     }
   }
 
+  /// Up to [perList] cafe images per list, newest first — the preview strip on
+  /// the Lists index.
+  ///
+  /// System lists need this: Been and Want to Try are written by
+  /// `set_cafe_status`, which never populates `lists.cover_image_url`, so they
+  /// have no cover of their own to show. Only the image column is selected.
+  Future<Map<String, List<String>>> fetchListPreviewImages(
+    List<String> listIds, {
+    int perList = 3,
+  }) async {
+    if (listIds.isEmpty) return const {};
+
+    try {
+      final response = await supabase
+          .from('list_cafes')
+          .select('''
+              list_id,
+              added_at,
+              cafe:cafes!list_cafes_cafe_id_fkey ( featured_image_url )
+            ''')
+          .inFilter('list_id', listIds)
+          .order('added_at', ascending: false);
+
+      final previews = <String, List<String>>{};
+      for (final raw in response as List) {
+        final row = Map<String, dynamic>.from(raw as Map);
+        final listId = row['list_id'] as String?;
+        final cafe = row['cafe'];
+        if (listId == null || cafe is! Map) continue;
+
+        final url = (cafe['featured_image_url'] as String?)?.trim();
+        if (url == null || url.isEmpty) continue;
+
+        final bucket = previews.putIfAbsent(listId, () => <String>[]);
+        if (bucket.length < perList) bucket.add(url);
+      }
+      return previews;
+    } on PostgrestException catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch list preview images.',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   Future<Set<String>> fetchCafeListMemberships(
     String cafeId,
     List<String> listIds,
