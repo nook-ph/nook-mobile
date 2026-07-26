@@ -468,28 +468,12 @@ class _CompareStep extends StatelessWidget {
       children: [
         // The longest part of the flow, previously with no sense of how long.
         // A count and a way back turn it from open-ended into bounded.
-        Stack(
-          alignment: Alignment.topLeft,
+        // Leading slot, title, matching trailing spacer — the back control
+        // sits beside the title rather than on top of it, and the title stays
+        // optically centred.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
-              children: [
-                Text(
-                  'Which did you like more?',
-                  textAlign: TextAlign.center,
-                  style: context.textTheme.titleMediumSemi.copyWith(
-                    letterSpacing: -0.36,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$step of $total',
-                  textAlign: TextAlign.center,
-                  style: context.textTheme.bodySmallMed.copyWith(
-                    color: const Color(0xFF767574),
-                  ),
-                ),
-              ],
-            ),
             AdaptiveTap(
               onTap: onBack,
               borderRadius: BorderRadius.circular(999),
@@ -503,6 +487,28 @@ class _CompareStep extends StatelessWidget {
                 ),
               ),
             ),
+            Expanded(
+              child: Column(
+                children: [
+                  Text(
+                    'Which did you like more?',
+                    textAlign: TextAlign.center,
+                    style: context.textTheme.titleMediumSemi.copyWith(
+                      letterSpacing: -0.36,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$step of $total',
+                    textAlign: TextAlign.center,
+                    style: context.textTheme.bodySmallMed.copyWith(
+                      color: const Color(0xFF767574),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 44),
           ],
         ),
         const SizedBox(height: 18),
