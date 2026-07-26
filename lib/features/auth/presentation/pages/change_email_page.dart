@@ -155,7 +155,9 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     _emailError!,
-                    style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
+                    style: context.textTheme.bodySmall!.copyWith(
+                      color: Colors.red,
+                    ),
                   ),
                 ),
               ],

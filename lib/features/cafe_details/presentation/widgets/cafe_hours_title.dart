@@ -80,9 +80,7 @@ class CafeHoursTile extends StatelessWidget {
               sl<AnalyticsService>().track(
                 id,
                 AnalyticsService.checkHours,
-                metadata: {
-                  AnalyticsMetadataKeys.screen: 'cafe_details',
-                },
+                metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
               ),
             );
           },

@@ -90,9 +90,7 @@ class BestForTagList extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildHighlightedLabel(textTheme, label),
-                      ),
+                      Expanded(child: _buildHighlightedLabel(textTheme, label)),
                     ],
                   ),
                 ),
@@ -108,12 +106,10 @@ class BestForTagList extends StatelessWidget {
     final query = filterQuery?.trim().toLowerCase() ?? '';
     if (query.isEmpty) return bestForTags;
 
-    return bestForTags
-        .where((item) {
-          final label = item['label'] as String? ?? '';
-          return label.toLowerCase().contains(query);
-        })
-        .toList();
+    return bestForTags.where((item) {
+      final label = item['label'] as String? ?? '';
+      return label.toLowerCase().contains(query);
+    }).toList();
   }
 
   Widget _buildHighlightedLabel(TextTheme textTheme, String label) {

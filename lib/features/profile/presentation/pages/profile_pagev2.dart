@@ -53,228 +53,234 @@ class ProfileRedesignPage extends StatelessWidget {
         child: DefaultTabController(
           length: 2,
           child: Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
             backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            elevation: 0,
-            centerTitle: false,
-            title: BlocBuilder<ProfileCubit, ProfileState>(
-              builder: (context, state) {
-                final username = state is ProfileLoaded
-                    ? state.username
-                    : '...';
-                return Text(
-                  '@$username',
-                  style: context.textTheme.titleMediumSemi.copyWith(
-                    color: const Color(0xFF344E41),
-                  ),
-                );
-              },
-            ),
-            actions: [
-              AdaptiveTap(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+            appBar: AppBar(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 0,
+              centerTitle: false,
+              title: BlocBuilder<ProfileCubit, ProfileState>(
+                builder: (context, state) {
+                  final username = state is ProfileLoaded
+                      ? state.username
+                      : '...';
+                  return Text(
+                    '@$username',
+                    style: context.textTheme.titleMediumSemi.copyWith(
+                      color: const Color(0xFF344E41),
+                    ),
                   );
                 },
-                child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Icon(PhosphorIcons.gearSix(), color: Colors.black87),
-                ),
               ),
-            ],
-          ),
-          body: BlocBuilder<ProfileCubit, ProfileState>(
-            builder: (context, state) {
-              final isLoading =
-                  state is ProfileLoading || state is ProfileInitial;
-              final name = state is ProfileLoaded ? state.name : 'No Name';
-              final avatarUrl = state is ProfileLoaded ? state.avatarUrl : '';
-              final bio = state is ProfileLoaded ? state.bio : '';
-              final username = state is ProfileLoaded ? state.username : '';
-              final isReviewsLoading = isLoading;
-              final writtenReviews = state is ProfileLoaded
-                  ? state.reviews
-                  : const <WrittenReview>[];
-              final visibleReviews = writtenReviews.take(4).toList();
+              actions: [
+                AdaptiveTap(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(PhosphorIcons.gearSix(), color: Colors.black87),
+                  ),
+                ),
+              ],
+            ),
+            body: BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, state) {
+                final isLoading =
+                    state is ProfileLoading || state is ProfileInitial;
+                final name = state is ProfileLoaded ? state.name : 'No Name';
+                final avatarUrl = state is ProfileLoaded ? state.avatarUrl : '';
+                final bio = state is ProfileLoaded ? state.bio : '';
+                final username = state is ProfileLoaded ? state.username : '';
+                final isReviewsLoading = isLoading;
+                final writtenReviews = state is ProfileLoaded
+                    ? state.reviews
+                    : const <WrittenReview>[];
+                final visibleReviews = writtenReviews.take(4).toList();
 
-              return NestedScrollView(
-                headerSliverBuilder: (context, _) => [
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 22),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 64,
-                                    height: 64,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Color(0xFFF5F5F5),
+                return NestedScrollView(
+                  headerSliverBuilder: (context, _) => [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 22),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Color(0xFFF5F5F5),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child:
+                                          (avatarUrl != null &&
+                                              avatarUrl.isNotEmpty)
+                                          ? Image.network(
+                                              avatarUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, _, __) =>
+                                                  Icon(
+                                                    PhosphorIcons.user(),
+                                                    size: 32,
+                                                    color: Colors.grey,
+                                                  ),
+                                            )
+                                          : Icon(
+                                              PhosphorIcons.user(),
+                                              size: 32,
+                                              color: Colors.grey,
+                                            ),
                                     ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child:
-                                        (avatarUrl != null &&
-                                            avatarUrl.isNotEmpty)
-                                        ? Image.network(
-                                            avatarUrl,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (context, _, __) =>
-                                                Icon(
-                                                  PhosphorIcons.user(),
-                                                  size: 32,
-                                                  color: Colors.grey,
-                                                ),
-                                          )
-                                        : Icon(
-                                            PhosphorIcons.user(),
-                                            size: 32,
-                                            color: Colors.grey,
-                                          ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
                                           Text(
                                             name,
-                                            style: context.textTheme.titleMediumSemi.copyWith(
-                                              color: Colors.black,
-                                              letterSpacing: -0.5,
-                                            ),
+                                            style: context
+                                                .textTheme
+                                                .titleMediumSemi
+                                                .copyWith(
+                                                  color: Colors.black,
+                                                  letterSpacing: -0.5,
+                                                ),
                                           ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
+                                  ],
+                                ),
+                                if (bio != null && bio.isNotEmpty) ...[
+                                  const SizedBox(height: 14),
+                                  Text(
+                                    bio,
+                                    style: context.textTheme.bodySmall!
+                                        .copyWith(
+                                          color: Colors.black87,
+                                          height: 1.4,
+                                        ),
                                   ),
                                 ],
-                              ),
-                              if (bio != null && bio.isNotEmpty) ...[
                                 const SizedBox(height: 14),
-                                Text(
-                                  bio,
-                                  style: context.textTheme.bodySmall!.copyWith(
-                                    color: Colors.black87,
-                                    height: 1.4,
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: AdaptiveOutlinedButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => MultiBlocProvider(
+                                            providers: [
+                                              BlocProvider.value(
+                                                value: context
+                                                    .read<ProfileCubit>(),
+                                              ),
+                                              BlocProvider.value(
+                                                value: context
+                                                    .read<AvatarUploadBloc>(),
+                                              ),
+                                            ],
+                                            child: const EditProfilePage(),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      side: const BorderSide(
+                                        color: Color(0xFF344E41),
+                                        width: 1,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      foregroundColor: const Color(0xFF344E41),
+                                    ),
+                                    child: Text(
+                                      'Edit Profile',
+                                      style: context.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: const Color(0xFF344E41),
+                                          ),
+                                    ),
                                   ),
                                 ),
                               ],
-                              const SizedBox(height: 14),
-                              SizedBox(
-                                width: double.infinity,
-                                child: AdaptiveOutlinedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => MultiBlocProvider(
-                                          providers: [
-                                            BlocProvider.value(
-                                              value: context
-                                                  .read<ProfileCubit>(),
-                                            ),
-                                            BlocProvider.value(
-                                              value: context
-                                                  .read<AvatarUploadBloc>(),
-                                            ),
-                                          ],
-                                          child: const EditProfilePage(),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    side: const BorderSide(
-                                      color: Color(0xFF344E41),
-                                      width: 1,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    foregroundColor: const Color(0xFF344E41),
-                                  ),
-                                  child: Text(
-                                    'Edit Profile',
-                                    style: context.textTheme.bodyMedium?.copyWith(
-                                      color: const Color(0xFF344E41),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 2),
-                      ],
+                          const SizedBox(height: 2),
+                        ],
+                      ),
                     ),
-                  ),
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _StickyTabBarDelegate(
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          tabBarTheme: const TabBarThemeData(
-                            dividerColor: Colors.transparent,
-                            splashFactory: NoSplash.splashFactory,
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _StickyTabBarDelegate(
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            tabBarTheme: const TabBarThemeData(
+                              dividerColor: Colors.transparent,
+                              splashFactory: NoSplash.splashFactory,
+                            ),
                           ),
-                        ),
-                        child: ColoredBox(
-                          color: Colors.white,
-                          child: TabBar(
-                            isScrollable: true,
-                            tabAlignment: TabAlignment.center,
-                            indicatorColor: Color(0xFF344E41),
-                            indicatorWeight: 3,
+                          child: ColoredBox(
+                            color: Colors.white,
+                            child: TabBar(
+                              isScrollable: true,
+                              tabAlignment: TabAlignment.center,
+                              indicatorColor: Color(0xFF344E41),
+                              indicatorWeight: 3,
 
-                            indicatorSize: TabBarIndicatorSize.label,
-                            labelColor: Color(0xFF344E41),
-                            unselectedLabelColor: Colors.grey,
-                            dividerColor: Color(0xFFE0E0E0),
-                            labelStyle: context.textTheme.bodySmallMed,
-                            unselectedLabelStyle: context.textTheme.bodySmallMed,
-                            tabs: [
-                              Tab(text: 'Reviews'),
-                              Tab(text: 'Collections'),
-                            ],
+                              indicatorSize: TabBarIndicatorSize.label,
+                              labelColor: Color(0xFF344E41),
+                              unselectedLabelColor: Colors.grey,
+                              dividerColor: Color(0xFFE0E0E0),
+                              labelStyle: context.textTheme.bodySmallMed,
+                              unselectedLabelStyle:
+                                  context.textTheme.bodySmallMed,
+                              tabs: [
+                                Tab(text: 'Reviews'),
+                                Tab(text: 'Collections'),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
-                body: TabBarView(
-                  children: [
-                    // ── Reviews Tab ──
-                    _ReviewsTab(
-                      isReviewsLoading: isReviewsLoading,
-                      visibleReviews: visibleReviews,
-                      username: username,
-                      avatarUrl: avatarUrl ?? '',
-                    ),
-
-                    const _CollectionsTab(),
                   ],
-                ),
-              );
-            },
+                  body: TabBarView(
+                    children: [
+                      // ── Reviews Tab ──
+                      _ReviewsTab(
+                        isReviewsLoading: isReviewsLoading,
+                        visibleReviews: visibleReviews,
+                        username: username,
+                        avatarUrl: avatarUrl ?? '',
+                      ),
+
+                      const _CollectionsTab(),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -501,13 +507,22 @@ class _CollectionsTabState extends State<_CollectionsTab> {
 
                     // TikTok-style Create Collection Row
                     InkWell(
-                      onTap: _isCreating ? null : () => _showCreateListDialog(context),
+                      onTap: _isCreating
+                          ? null
+                          : () => _showCreateListDialog(context),
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 4.0),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12.0,
+                          horizontal: 4.0,
+                        ),
                         child: Row(
                           children: [
-                            const Icon(Icons.add, size: 22, color: Colors.black87),
+                            const Icon(
+                              Icons.add,
+                              size: 22,
+                              color: Colors.black87,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
@@ -518,7 +533,11 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                                 ),
                               ),
                             ),
-                            const Icon(Icons.chevron_right, size: 22, color: Colors.black54),
+                            const Icon(
+                              Icons.chevron_right,
+                              size: 22,
+                              color: Colors.black54,
+                            ),
                           ],
                         ),
                       ),
@@ -562,7 +581,8 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                               ),
                               const SizedBox(height: 12),
                               AdaptiveTextButton(
-                                onPressed: () => _listsBloc.add(LoadUserLists()),
+                                onPressed: () =>
+                                    _listsBloc.add(LoadUserLists()),
                                 child: Text(
                                   'Retry',
                                   style: context.textTheme.bodyMedium,

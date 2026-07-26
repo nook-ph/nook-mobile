@@ -5,10 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
-import 'package:nook/core/presentation/widgets/cafe_score_chip.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_control.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
@@ -84,6 +84,9 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
     final listsBloc = context.read<ListsBloc>();
     final current = cubit.state.statusFor(_cafeId);
     final next = current == tapped ? CafeStatus.none : tapped;
+    // Captured before the write: leaving Been deletes the ranking server-side,
+    // so this is the only copy Undo can restore from.
+    final rankingBefore = rankingCubit.state.rankingFor(_cafeId);
 
     if (next != CafeStatus.none) {
       // The "stamp" moment — make it feel good.
@@ -162,25 +165,58 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
       return;
     }
 
+    // Unsetting is one tap and instant, as it always was — but it silently
+    // destroyed a score built out of four comparisons. The spec called for an
+    // undo toast here (§3.1); this is it, and it says what was lost.
+    if (next == CafeStatus.none) {
+      final wasBeen = current == CafeStatus.been;
+      showPrimaryToastWithAction(
+        context,
+        wasBeen
+            ? (rankingBefore == null
+                  ? 'Removed from Been'
+                  : 'Removed from Been — rank deleted.')
+            : 'Removed from Want to Try',
+        actionLabel: 'Undo',
+        onAction: () => _undoUnset(current, rankingBefore),
+        bottomOffset: _toastOffset,
+      );
+      return;
+    }
+
     showPrimaryToast(context, switch (next) {
       CafeStatus.been => 'Added to Been',
       CafeStatus.wantToTry => 'Added to Want to Try',
-      CafeStatus.none =>
-        current == CafeStatus.been
-            ? 'Removed from Been'
-            : 'Removed from Want to Try',
+      CafeStatus.none => '',
     }, bottomOffset: _toastOffset);
   }
 
-  void _openRerankFlow() {
-    final details = widget.cafe.cafeDetails;
-    showCafeRankingFlow(
-      context,
-      cubit: context.read<CafeRankingCubit>(),
-      cafeId: _cafeId,
-      cafeName: details.name,
-      cafeImageUrl: details.featuredImageUrl,
-    );
+  /// Restores the mark, and the ranking that went with it.
+  Future<void> _undoUnset(CafeStatus previous, CafeRanking? ranking) async {
+    final cubit = context.read<CafeStatusCubit>();
+    final rankingCubit = context.read<CafeRankingCubit>();
+    final listsBloc = context.read<ListsBloc>();
+
+    final ok = await cubit.set(_cafeId, previous);
+    if (!mounted) return;
+    if (!ok) {
+      showPrimaryToast(
+        context,
+        "Couldn't undo. Please try again.",
+        bottomOffset: _toastOffset,
+      );
+      return;
+    }
+
+    listsBloc.add(LoadUserLists());
+
+    if (previous == CafeStatus.been && ranking != null) {
+      await rankingCubit.restore(
+        cafeId: _cafeId,
+        bucket: ranking.bucket,
+        position: ranking.position,
+      );
+    }
   }
 
   @override
@@ -193,50 +229,58 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Row(
-            children: [
-              BlocBuilder<CafeStatusCubit, CafeStatusState>(
-                buildWhen: (previous, current) =>
-                    previous.statusFor(_cafeId) != current.statusFor(_cafeId) ||
-                    previous.isPending(_cafeId) != current.isPending(_cafeId),
-                builder: (context, state) {
-                  return BlocBuilder<CafeRankingCubit, CafeRankingState>(
-                    builder: (context, rankingState) {
-                      final ranking = rankingState.rankingFor(_cafeId);
-                      return Row(
-                        children: [
-                          CafeStatusControl(
-                            status: state.statusFor(_cafeId),
-                            isBusy: state.isPending(_cafeId),
-                            // Ranked: the score chip takes the backlog pill's
-                            // slot — the row doesn't fit all four controls.
-                            showWantToTry: ranking == null,
-                            onTapBeen: () => _onStatusTap(CafeStatus.been),
-                            onTapWantToTry: () =>
-                                _onStatusTap(CafeStatus.wantToTry),
-                            onLongPressBeen: () => showCafeNoteSheet(
-                              context,
-                              cafeId: _cafeId,
-                              cafeName: widget.cafe.cafeDetails.name,
-                            ),
-                          ),
-                          if (ranking != null) ...[
-                            const SizedBox(width: 8),
-                            CafeScoreChip(
-                              score: ranking.displayScore,
-                              onTap: _openRerankFlow,
-                            ),
-                          ],
-                        ],
-                      );
-                    },
+          padding: const EdgeInsets.fromLTRB(22, 12, 22, 16),
+          child: BlocBuilder<CafeStatusCubit, CafeStatusState>(
+            buildWhen: (previous, current) =>
+                previous.statusFor(_cafeId) != current.statusFor(_cafeId) ||
+                previous.isPending(_cafeId) != current.isPending(_cafeId),
+            builder: (context, state) {
+              return BlocBuilder<CafeRankingCubit, CafeRankingState>(
+                builder: (context, rankingState) {
+                  final ranking = rankingState.rankingFor(_cafeId);
+                  final overall = rankingState.overallRankOf(_cafeId);
+
+                  final controls = CafeStatusControl(
+                    status: state.statusFor(_cafeId),
+                    isBusy: state.isPending(_cafeId),
+                    score: ranking?.displayScore,
+                    rankLabel: ranking == null || overall == null
+                        ? null
+                        : '#$overall of ${rankingState.rankedCount}',
+                    onTapBeen: () => _onStatusTap(CafeStatus.been),
+                    onTapWantToTry: () => _onStatusTap(CafeStatus.wantToTry),
+                  );
+
+                  // Two layouts, not one that clips. At normal type the bar is
+                  // a row with Directions taking the remaining width; once the
+                  // user scales text up, the pills wrap and Directions drops to
+                  // a full-width run of its own. Nothing truncates and every
+                  // target stays ≥48pt either way.
+                  final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
+                  if (scale > 1.3) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        controls,
+                        const SizedBox(height: 8),
+                        _DirectionsButton(cafe: widget.cafe),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      controls,
+                      const SizedBox(width: 6),
+                      // Directions never moves slot and never changes fill —
+                      // it is the funnel's conversion event.
+                      Expanded(child: _DirectionsButton(cafe: widget.cafe)),
+                    ],
                   );
                 },
-              ),
-              const SizedBox(width: 8),
-              Expanded(child: _DirectionsButton(cafe: widget.cafe)),
-            ],
+              );
+            },
           ),
         ),
       ),
@@ -257,6 +301,7 @@ class _DirectionsButton extends StatelessWidget {
       onTap: () => launchCafeDirections(context, cafe),
       borderRadius: BorderRadius.circular(999),
       child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: _brandGreen,

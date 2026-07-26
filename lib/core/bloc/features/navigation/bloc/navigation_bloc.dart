@@ -15,7 +15,7 @@ class NavigationState {
 }
 
 class NavigationInitial extends NavigationState {
-  const NavigationInitial() : super(tabIndex: 0); 
+  const NavigationInitial() : super(tabIndex: 0);
 }
 
 // --- BLOC ---

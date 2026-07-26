@@ -54,10 +54,14 @@ class CafeOpenStatus {
   /// [CafeOpenState.open] or [CafeOpenState.closingSoon].
   final int? minutesUntilClose;
 
-  static const CafeOpenStatus unknown =
-      CafeOpenStatus._(CafeOpenState.unknown, null);
-  static const CafeOpenStatus closed =
-      CafeOpenStatus._(CafeOpenState.closed, null);
+  static const CafeOpenStatus unknown = CafeOpenStatus._(
+    CafeOpenState.unknown,
+    null,
+  );
+  static const CafeOpenStatus closed = CafeOpenStatus._(
+    CafeOpenState.closed,
+    null,
+  );
 
   static const Duration closingSoonThreshold = Duration(minutes: 45);
 

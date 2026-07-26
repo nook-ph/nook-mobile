@@ -22,7 +22,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       final out = await getHomeFeedUseCase.call();
 
       final featured = _buildFeatured(out.feed);
-      final allEmpty = featured.isEmpty &&
+      final allEmpty =
+          featured.isEmpty &&
           out.feed.newest.isEmpty &&
           out.feed.trending.isEmpty &&
           out.feed.topRated.isEmpty;

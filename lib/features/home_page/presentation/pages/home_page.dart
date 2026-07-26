@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nook/core/cache/custom_cache_manager.dart';
@@ -53,6 +54,21 @@ class HomePage extends StatelessWidget {
             listenWhen: (prev, curr) =>
                 prev is! HomeLoadedState && curr is HomeLoadedState,
             listener: (context, state) {
+              // One batched get_cafe_statuses for everything on the feed, so
+              // the Been / Want to Try badges can render per card without a
+              // request per card (spec §3.2).
+              if (state is HomeLoadedState) {
+                final ids = <String>{
+                  for (final cafe in state.featuredCafes) cafe.id,
+                  for (final cafe in state.newestCafes) cafe.id,
+                  for (final cafe in state.trendingCafes) cafe.id,
+                  for (final cafe in state.topRatedCafes) cafe.id,
+                };
+                if (ids.isNotEmpty) {
+                  context.read<CafeStatusCubit>().loadFor(ids.toList());
+                }
+              }
+
               if (state is HomeLoadedState && state.featuredCafes.isNotEmpty) {
                 final first = state.featuredCafes.first;
                 final url = first.coverImage?.trim().isNotEmpty == true
@@ -85,20 +101,21 @@ class HomePage extends StatelessWidget {
                 }
 
                 if (state is HomeLoadedState) {
-                  final hasData = state.featuredCafes.isNotEmpty ||
+                  final hasData =
+                      state.featuredCafes.isNotEmpty ||
                       state.newestCafes.isNotEmpty ||
                       state.trendingCafes.isNotEmpty ||
                       state.topRatedCafes.isNotEmpty;
 
                   final locationBanner =
                       state.locationDenied && !state.locationBannerDismissed
-                          ? LocationDeniedBanner(
-                              visible: true,
-                              onDismiss: () => context.read<HomeBloc>().add(
-                                HomeDismissLocationBannerEvent(),
-                              ),
-                            )
-                          : null;
+                      ? LocationDeniedBanner(
+                          visible: true,
+                          onDismiss: () => context.read<HomeBloc>().add(
+                            HomeDismissLocationBannerEvent(),
+                          ),
+                        )
+                      : null;
 
                   return _HomeScrollView(
                     onRefresh: () => _onRefresh(context),
@@ -184,7 +201,9 @@ class _HomeContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final featuredWidth = FeaturedCard.cardWidth;
-    final featuredImageHeight = ResponsiveCardSizes.featuredImageHeight(context);
+    final featuredImageHeight = ResponsiveCardSizes.featuredImageHeight(
+      context,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,7 +271,9 @@ class _HomeSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final featuredWidth = FeaturedCard.cardWidth;
-    final featuredImageHeight = ResponsiveCardSizes.featuredImageHeight(context);
+    final featuredImageHeight = ResponsiveCardSizes.featuredImageHeight(
+      context,
+    );
 
     return Skeletonizer(
       enabled: true,

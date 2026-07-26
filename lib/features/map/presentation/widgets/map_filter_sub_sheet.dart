@@ -11,12 +11,7 @@ import 'package:nook/features/map/presentation/widgets/map_filter_bottom_sheet.d
 import 'package:nook/features/map/presentation/widgets/map_filter_content.dart';
 
 /// One section of the map filter, opened from a quick filter chip.
-enum MapFilterSubSection {
-  sort,
-  bestFor,
-  amenities,
-  payment,
-}
+enum MapFilterSubSection { sort, bestFor, amenities, payment }
 
 class MapFilterSubSheet extends StatefulWidget {
   const MapFilterSubSheet({
@@ -50,10 +45,7 @@ class MapFilterSubSheet extends StatefulWidget {
       ),
       builder: (_) => BlocProvider<MapBloc>.value(
         value: mapBloc,
-        child: MapFilterSubSheet(
-          section: section,
-          initialFilter: initial,
-        ),
+        child: MapFilterSubSheet(section: section, initialFilter: initial),
       ),
     );
   }
@@ -199,9 +191,7 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
               shrinkWrap: true,
               physics: const ClampingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(22, 16, 22, 16),
-              children: [
-                _buildSectionContent(),
-              ],
+              children: [_buildSectionContent()],
             ),
           ),
           const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),

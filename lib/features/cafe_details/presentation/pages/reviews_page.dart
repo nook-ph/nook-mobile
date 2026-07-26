@@ -94,10 +94,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
         shadowColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: Text(
-          'Reviews',
-          style: context.textTheme.titleMediumSemi,
-        ),
+        title: Text('Reviews', style: context.textTheme.titleMediumSemi),
         leading: AdaptiveTap(
           onTap: () => Navigator.of(context).pop(),
           child: const Padding(
@@ -192,7 +189,10 @@ class _ReviewsPageState extends State<ReviewsPage> {
                         ...reviews.map(
                           (review) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: ReviewCard(review: review, isInReviewsPage: true),
+                            child: ReviewCard(
+                              review: review,
+                              isInReviewsPage: true,
+                            ),
                           ),
                         ),
                       const SizedBox(height: 30),

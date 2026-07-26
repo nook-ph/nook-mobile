@@ -343,9 +343,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   onTap: isSaving ? null : _pickAvatar,
                                   child: Text(
                                     'Change Photo',
-                                    style: context.textTheme.bodySmallMed.copyWith(
-                                      color: isSaving ? _grey : _green,
-                                    ),
+                                    style: context.textTheme.bodySmallMed
+                                        .copyWith(
+                                          color: isSaving ? _grey : _green,
+                                        ),
                                   ),
                                 ),
                               ],
@@ -384,9 +385,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                               padding: const EdgeInsets.only(left: 4),
                               child: Text(
                                 'You can change your username in $_daysUntilUsernameUnlock days.',
-                              style: context.textTheme.bodySmall!.copyWith(
-                                color: Colors.orange,
-                              ),
+                                style: context.textTheme.bodySmall!.copyWith(
+                                  color: Colors.orange,
+                                ),
                               ),
                             ),
                           ] else ...[
@@ -502,7 +503,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   //   Row( label Text  +  optional suffix )
   //   TextField with no decoration at all (border: InputBorder.none)
   // This is the exact layout in the reference screenshot.
- 
+
   Widget _buildOutlinedField({
     required TextEditingController controller,
     required String label,
@@ -517,7 +518,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         builder: (ctx) {
           final focused = Focus.of(ctx).hasFocus;
           final activeBorder = focused ? _green : borderColor;
- 
+
           return Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -562,7 +563,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
     );
   }
-  
+
   /// Username field — same container pattern, with @-prefix and validation icon
   Widget _buildUsernameOutlinedField({required bool enabled}) {
     Color borderColor = _borderColor;
@@ -574,7 +575,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         borderColor = _green;
       }
     }
- 
+
     return Focus(
       onFocusChange: (_) => setState(() {}),
       child: Builder(
@@ -583,7 +584,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           final activeBorder = focused
               ? (borderColor == _borderColor ? _green : borderColor)
               : borderColor;
- 
+
           return Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -636,7 +637,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
     );
   }
- 
+
   /// Bio field — label + char counter on top row, TextField below
   Widget _buildBioOutlinedField({required bool enabled}) {
     return Focus(
@@ -644,7 +645,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       child: Builder(
         builder: (ctx) {
           final focused = Focus.of(ctx).hasFocus;
- 
+
           return Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
@@ -681,8 +682,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   enabled: enabled,
                   maxLines: 5,
                   maxLength: _bioMaxLength,
-                  buildCounter: (_, {required currentLength, required isFocused, maxLength}) =>
-                      const SizedBox.shrink(),
+                  buildCounter:
+                      (
+                        _, {
+                        required currentLength,
+                        required isFocused,
+                        maxLength,
+                      }) => const SizedBox.shrink(),
                   style: context.textTheme.bodyMedium!.copyWith(
                     color: enabled ? Colors.black87 : const Color(0xFF888888),
                   ),
@@ -699,13 +705,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
     );
   }
- 
+
   // ── Username Status Widgets ─────────────────────────────────────────────────
- 
+
   Widget? _buildUsernameSuffixIcon() {
     if (_usernameController.text.isEmpty ||
-        _usernameController.text == _initialUsername) return null;
- 
+        _usernameController.text == _initialUsername)
+      return null;
+
     if (_isChecking) {
       return const Padding(
         padding: EdgeInsets.all(14),
@@ -719,7 +726,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
       );
     }
- 
+
     if (_validationError != null || _isAvailable == false) {
       return const Icon(Icons.cancel_rounded, color: Colors.red, size: 20);
     }
@@ -728,7 +735,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
     return null;
   }
- 
+
   Widget _buildUsernameStatusText() {
     if (_usernameController.text == _initialUsername ||
         _usernameController.text.isEmpty) {
@@ -761,4 +768,3 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return const SizedBox.shrink();
   }
 }
-

@@ -133,11 +133,7 @@ class _SettingsPageState extends State<SettingsPage>
               onTap: () => Navigator.pop(context),
               child: const Padding(
                 padding: EdgeInsets.all(8),
-                child: Icon(
-                  Icons.arrow_back,
-                  color: Colors.black87,
-                  size: 22,
-                ),
+                child: Icon(Icons.arrow_back, color: Colors.black87, size: 22),
               ),
             ),
           ),
@@ -222,7 +218,8 @@ class _SettingsPageState extends State<SettingsPage>
                     context: context,
                     icon: Icons.privacy_tip_outlined,
                     label: 'Privacy Policy',
-                    onTap: () => _openUrl(context, AppConstants.privacyPolicyUrl),
+                    onTap: () =>
+                        _openUrl(context, AppConstants.privacyPolicyUrl),
                   ),
                   const Divider(color: _dividerColor, height: 1),
                   _buildItem(
@@ -278,10 +275,7 @@ class _SettingsPageState extends State<SettingsPage>
                 ),
               ),
             ),
-            if (trailing != null) ...[
-              trailing,
-              const SizedBox(width: 8),
-            ],
+            if (trailing != null) ...[trailing, const SizedBox(width: 8)],
             const Icon(Icons.chevron_right, size: 20, color: _chevronColor),
           ],
         ),
@@ -302,10 +296,7 @@ void _showLogoutDialog(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Log out',
-              style: ctx.textTheme.titleMediumSemi,
-            ),
+            Text('Log out', style: ctx.textTheme.titleMediumSemi),
             const SizedBox(height: 16),
             Text(
               'Are you sure you want to log out?',
@@ -318,11 +309,16 @@ void _showLogoutDialog(BuildContext context) {
                 AdaptiveTextButton(
                   onPressed: () => Navigator.pop(ctx),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   child: Text(
                     'Cancel',
-                    style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                    style: ctx.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -333,7 +329,9 @@ void _showLogoutDialog(BuildContext context) {
                   },
                   child: Text(
                     'Log out',
-                    style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                    style: ctx.textTheme.bodyMedium?.copyWith(
+                      color: Colors.red,
+                    ),
                   ),
                 ),
               ],
@@ -396,12 +394,8 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   void _onSubmit() {
     if (!_canSubmit) return;
     setState(() => _isSubmitting = true);
-    final password = widget.isEmailUser
-        ? _inputController.text
-        : null;
-    context.read<AuthBloc>().add(
-          AuthDeleteAccountEvent(password: password),
-        );
+    final password = widget.isEmailUser ? _inputController.text : null;
+    context.read<AuthBloc>().add(AuthDeleteAccountEvent(password: password));
   }
 
   @override
@@ -433,10 +427,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Delete Account?',
-                style: context.textTheme.titleMediumSemi,
-              ),
+              Text('Delete Account?', style: context.textTheme.titleMediumSemi),
               const SizedBox(height: 12),
               Text(
                 'This will permanently delete your account and all associated data, including your reviews, lists, and saved cafes. This cannot be undone.',
@@ -473,9 +464,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
                 inputFormatters: isEmail
                     ? const []
                     : [
-                        FilteringTextInputFormatter.allow(
-                          RegExp(r'[A-Za-z]'),
-                        ),
+                        FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
                         _UpperCaseFormatter(),
                       ],
                 decoration: InputDecoration(

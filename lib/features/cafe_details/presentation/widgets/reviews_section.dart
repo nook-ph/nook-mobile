@@ -74,17 +74,17 @@ class ReviewsSection extends StatelessWidget {
                       Text(
                         resolvedRating.toStringAsFixed(1),
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                        height: 1,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
+                          height: 1,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                Text(
-                  '$resolvedReviewCount Reviews',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w400,
+                    ],
+                  ),
+                  Text(
+                    '$resolvedReviewCount Reviews',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w400,
                       color: const Color(0xFF616161),
                     ),
                   ),
@@ -107,7 +107,10 @@ class ReviewsSection extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
-                    side: BorderSide(color: context.colorScheme.border, width: 1),
+                    side: BorderSide(
+                      color: context.colorScheme.border,
+                      width: 1,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -268,22 +271,25 @@ class _EmptyReviewsSection extends StatelessWidget {
           ),
           SizedBox(
             width: double.infinity,
-          child: AdaptiveElevatedButton(
-            onPressed: onWriteReviewTap,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF344E41),
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            child: AdaptiveElevatedButton(
+              onPressed: onWriteReviewTap,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF344E41),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Text(
+                'Write a Review',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
             ),
-            child: Text(
-              'Write a Review',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500, color: Colors.white),
-            ),
-          ),
           ),
           const SizedBox(height: 40),
         ],
@@ -293,7 +299,11 @@ class _EmptyReviewsSection extends StatelessWidget {
 }
 
 class ReviewCard extends StatefulWidget {
-  const ReviewCard({super.key, required this.review, this.isInReviewsPage = false});
+  const ReviewCard({
+    super.key,
+    required this.review,
+    this.isInReviewsPage = false,
+  });
 
   final ReviewEntity review;
   final bool isInReviewsPage;
@@ -329,9 +339,9 @@ class _ReviewCardState extends State<ReviewCard> {
         ? '${reviewContent.substring(0, _collapsedCharLimit).trimRight()}...'
         : reviewContent;
     final resolvedImageUrls = widget.review.imageUrls
-      .map(_resolveImageUrl)
-      .where((url) => url.isNotEmpty)
-      .toList(growable: false);
+        .map(_resolveImageUrl)
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
 
     return Container(
       width: double.infinity,

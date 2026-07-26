@@ -55,7 +55,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
        _deleteAccountUseCase = deleteAccountUseCase,
        _getCurrentSessionUseCase = getCurrentSessionUseCase,
        super(AuthInitial()) {
-
     on<AuthCheckEmailEvent>(_onCheckEmail);
     on<AuthSignUpEvent>(_onSignUp);
     on<AuthSignInEvent>(_onSignIn);
@@ -191,22 +190,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     final result = await _signInWithAppleUsecase();
-    await result.fold((failure) async {
-      if (failure.message == 'CANCELED') {
+    await result.fold(
+      (failure) async {
+        if (failure.message == 'CANCELED') {
+          emit(const AuthUnauthenticated());
+          return;
+        }
+        emit(AuthError(failure.message));
+      },
+      (_) async {
+        final user = _getCurrentSessionUseCase()?.user;
+        if (user != null) {
+          await _identifyPosthogUser(user);
+          _initListsSession();
+          await _emitAuthSuccess(user, emit);
+          return;
+        }
         emit(const AuthUnauthenticated());
-        return;
-      }
-      emit(AuthError(failure.message));
-    }, (_) async {
-      final user = _getCurrentSessionUseCase()?.user;
-      if (user != null) {
-        await _identifyPosthogUser(user);
-        _initListsSession();
-        await _emitAuthSuccess(user, emit);
-        return;
-      }
-      emit(const AuthUnauthenticated());
-    });
+      },
+    );
   }
 
   Future<void> _onSignInWithGoogle(
@@ -215,22 +217,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(AuthLoading());
     final result = await _signInWithGoogleUseCase();
-    await result.fold((failure) async {
-      if (failure.message == 'CANCELED') {
+    await result.fold(
+      (failure) async {
+        if (failure.message == 'CANCELED') {
+          emit(const AuthUnauthenticated());
+          return;
+        }
+        emit(AuthError(failure.message));
+      },
+      (_) async {
+        final user = _getCurrentSessionUseCase()?.user;
+        if (user != null) {
+          await _identifyPosthogUser(user);
+          _initListsSession();
+          await _emitAuthSuccess(user, emit);
+          return;
+        }
         emit(const AuthUnauthenticated());
-        return;
-      }
-      emit(AuthError(failure.message));
-    }, (_) async {
-      final user = _getCurrentSessionUseCase()?.user;
-      if (user != null) {
-        await _identifyPosthogUser(user);
-        _initListsSession();
-        await _emitAuthSuccess(user, emit);
-        return;
-      }
-      emit(const AuthUnauthenticated());
-    });
+      },
+    );
   }
 
   Future<void> _onSignOut(
@@ -273,7 +278,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(const AuthUnauthenticated());
     } on AuthException catch (e) {
       final mapped = _mapAuthError(e);
-      final isInvalidPassword = e.code == 'invalid_credentials' ||
+      final isInvalidPassword =
+          e.code == 'invalid_credentials' ||
           e.code == 'invalid_grant' ||
           e.message.toLowerCase().contains('invalid login credentials') ||
           e.message.toLowerCase().contains('invalid password');

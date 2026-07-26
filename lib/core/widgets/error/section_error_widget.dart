@@ -4,11 +4,7 @@ import 'package:nook/core/utils/error_info.dart';
 
 /// Compact error block for a subsection (e.g. failed reviews list).
 class SectionErrorWidget extends StatelessWidget {
-  const SectionErrorWidget({
-    super.key,
-    required this.error,
-    this.onRetry,
-  });
+  const SectionErrorWidget({super.key, required this.error, this.onRetry});
 
   final ErrorInfo error;
   final VoidCallback? onRetry;
@@ -23,11 +19,7 @@ class SectionErrorWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(
-            _iconFor(error.type),
-            size: 36,
-            color: Colors.grey.shade800,
-          ),
+          Icon(_iconFor(error.type), size: 36, color: Colors.grey.shade800),
           const SizedBox(height: 12),
           Text(
             error.title,

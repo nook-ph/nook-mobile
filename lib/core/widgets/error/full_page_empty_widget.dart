@@ -35,7 +35,9 @@ class FullPageEmptyWidget extends StatelessWidget {
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: textTheme.bodyLarge?.copyWith(color: Colors.grey.shade700),
+                style: textTheme.bodyLarge?.copyWith(
+                  color: Colors.grey.shade700,
+                ),
               ),
             ],
           ),

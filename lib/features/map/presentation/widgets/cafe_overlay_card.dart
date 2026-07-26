@@ -75,7 +75,8 @@ class CafeOverlayCard extends StatelessWidget {
                                         cafe.name,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: context.textTheme.titleMediumSemi,
+                                        style:
+                                            context.textTheme.titleMediumSemi,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -95,9 +96,10 @@ class CafeOverlayCard extends StatelessWidget {
                                         const SizedBox(width: 4),
                                         Text(
                                           '(${cafe.reviewCount})',
-                                          style: context.textTheme.bodySmallMed.copyWith(
-                                            color: const Color(0xFF848586),
-                                          ),
+                                          style: context.textTheme.bodySmallMed
+                                              .copyWith(
+                                                color: const Color(0xFF848586),
+                                              ),
                                         ),
                                       ],
                                     ),
@@ -116,9 +118,10 @@ class CafeOverlayCard extends StatelessWidget {
                                         cafe.locationLabel,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: context.textTheme.bodySmallMed.copyWith(
-                                          color: const Color(0xFF848586),
-                                        ),
+                                        style: context.textTheme.bodySmallMed
+                                            .copyWith(
+                                              color: const Color(0xFF848586),
+                                            ),
                                       ),
                                     ),
                                     // Outside the Expanded so the status always

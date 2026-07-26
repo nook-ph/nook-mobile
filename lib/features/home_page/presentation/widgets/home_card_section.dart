@@ -39,10 +39,7 @@ class HomeCafeSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 22),
-          child: Text(
-            title,
-            style: context.textTheme.titleMediumSemi,
-          ),
+          child: Text(title, style: context.textTheme.titleMediumSemi),
         ),
         const SizedBox(height: 12),
         if (!isSkeleton && cafes.isEmpty)

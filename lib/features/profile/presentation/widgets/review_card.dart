@@ -135,8 +135,7 @@ class ReviewCard extends StatelessWidget {
                     return Padding(
                       padding: EdgeInsets.only(
                         right:
-                            index < visiblePhotos.length - 1 ||
-                                extraCount > 0
+                            index < visiblePhotos.length - 1 || extraCount > 0
                             ? photoSpacing
                             : 0,
                       ),
@@ -175,8 +174,7 @@ class ReviewCard extends StatelessWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Hero(
-                          tag:
-                              'photo-${photos[maxVisiblePhotos - 1].hashCode}',
+                          tag: 'photo-${photos[maxVisiblePhotos - 1].hashCode}',
                           child: Stack(
                             children: [
                               Image.network(
@@ -194,9 +192,8 @@ class ReviewCard extends StatelessWidget {
                                 alignment: Alignment.center,
                                 child: Text(
                                   '+$extraCount',
-                                  style: context.textTheme.titleMediumSemi.copyWith(
-                                    color: Colors.white,
-                                  ),
+                                  style: context.textTheme.titleMediumSemi
+                                      .copyWith(color: Colors.white),
                                 ),
                               ),
                             ],

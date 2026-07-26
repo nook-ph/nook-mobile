@@ -40,9 +40,7 @@ class MenuItemCard extends StatelessWidget {
         const SizedBox(width: 16),
         Text(
           _formatPrice(item.price),
-          style: context.textTheme.bodySmallMed.copyWith(
-            color: Colors.black,
-          ),
+          style: context.textTheme.bodySmallMed.copyWith(color: Colors.black),
         ),
       ],
     );

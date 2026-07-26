@@ -10,7 +10,6 @@ class SearchEntryButton extends StatelessWidget {
 
   static const double height = 52;
 
- 
   static double mapSearchBarBottom(
     BuildContext context, {
     double topPaddingBelowSafeArea = 8,
@@ -18,7 +17,6 @@ class SearchEntryButton extends StatelessWidget {
     return MediaQuery.paddingOf(context).top + topPaddingBelowSafeArea + height;
   }
 
-  
   static double mapBottomSheetTop(
     BuildContext context, {
     double topPaddingBelowSafeArea = 8,

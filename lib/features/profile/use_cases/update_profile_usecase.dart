@@ -20,7 +20,7 @@ class UpdateProfileUseCase {
     return repository.updateProfile(
       userId: userId,
       name: name,
-      username: username, 
+      username: username,
       bio: bio,
       avatarUrl: avatarUrl,
     );

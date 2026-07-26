@@ -88,9 +88,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: _brandGreen),
-      );
+      return const Center(child: CircularProgressIndicator(color: _brandGreen));
     }
     if (_error) {
       return _CenteredMessage(

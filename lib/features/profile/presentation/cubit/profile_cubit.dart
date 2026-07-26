@@ -87,7 +87,7 @@ class ProfileCubit extends Cubit<ProfileState> {
           bio: bio,
           userId: user.id,
           avatarUrl: avatarUrl,
-          lastUsernameChange: lastUsernameChange, 
+          lastUsernameChange: lastUsernameChange,
           reviews: reviews,
         ),
       );
@@ -127,7 +127,7 @@ class ProfileCubit extends Cubit<ProfileState> {
           avatarUrl: avatarUrl ?? currentState.avatarUrl,
           email: currentState.email,
           userId: currentState.userId,
-          lastUsernameChange: newLastChange, 
+          lastUsernameChange: newLastChange,
           reviews: currentState.reviews,
         ),
       );
@@ -193,7 +193,7 @@ class ProfileLoaded extends ProfileState {
   final String bio;
   final String userId;
   final String? avatarUrl;
-  final DateTime? lastUsernameChange; 
+  final DateTime? lastUsernameChange;
   final List<WrittenReview> reviews;
 
   const ProfileLoaded({
@@ -215,7 +215,7 @@ class ProfileLoaded extends ProfileState {
     bio,
     userId,
     avatarUrl,
-    lastUsernameChange, 
+    lastUsernameChange,
     reviews,
   ];
 }

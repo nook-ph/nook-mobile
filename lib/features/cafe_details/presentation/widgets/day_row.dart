@@ -16,8 +16,18 @@ class DayRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(day, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color)),
-          Text(hours, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color)),
+          Text(
+            day,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: color),
+          ),
+          Text(
+            hours,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: color),
+          ),
         ],
       ),
     );

@@ -146,32 +146,44 @@ class _CafeInfoHeaderState extends State<CafeInfoHeader> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Text(
-                    (widget.cafe?.cafeDetails.rating ?? 0).toStringAsFixed(1),
-                    style: Theme.of(context).textTheme.bodyLargeMed,
+              // A catalog this young means most cafes have no reviews, and
+              // "0.0" beside five empty stars reads as a bad cafe rather than
+              // a new one — while competing with the user's own score for the
+              // same glance. Nothing to average, nothing to show.
+              if ((widget.cafe?.cafeDetails.reviewCount ?? 0) == 0)
+                Text(
+                  'No reviews yet',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF767574),
                   ),
-                  const SizedBox(width: 4),
-                  RatingBarIndicator(
-                    rating: (widget.cafe?.cafeDetails.rating ?? 0).toDouble(),
-                    itemBuilder: (context, index) => Icon(
-                      PhosphorIconsFill.star,
-                      color: Theme.of(context).colorScheme.primary60,
-                      size: 14,
+                )
+              else
+                Row(
+                  children: [
+                    Text(
+                      (widget.cafe?.cafeDetails.rating ?? 0).toStringAsFixed(1),
+                      style: Theme.of(context).textTheme.bodyLargeMed,
                     ),
-                    itemCount: 5,
-                    itemSize: 16,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '(${widget.cafe?.cafeDetails.reviewCount} reviews)',
-                    style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                      color: Theme.of(context).colorScheme.gray,
+                    const SizedBox(width: 4),
+                    RatingBarIndicator(
+                      rating: (widget.cafe?.cafeDetails.rating ?? 0).toDouble(),
+                      itemBuilder: (context, index) => Icon(
+                        PhosphorIconsFill.star,
+                        color: Theme.of(context).colorScheme.primary60,
+                        size: 14,
+                      ),
+                      itemCount: 5,
+                      itemSize: 16,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '(${widget.cafe?.cafeDetails.reviewCount} reviews)',
+                      style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                        color: Theme.of(context).colorScheme.gray,
+                      ),
+                    ),
+                  ],
+                ),
               const SizedBox(height: 4),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,

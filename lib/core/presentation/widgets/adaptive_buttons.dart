@@ -31,11 +31,7 @@ class AdaptiveElevatedButton extends StatelessWidget {
         child: child,
       );
     }
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: style,
-      child: child,
-    );
+    return ElevatedButton(onPressed: onPressed, style: style, child: child);
   }
 }
 
@@ -66,11 +62,7 @@ class AdaptiveTextButton extends StatelessWidget {
         child: child,
       );
     }
-    return TextButton(
-      onPressed: onPressed,
-      style: style,
-      child: child,
-    );
+    return TextButton(onPressed: onPressed, style: style, child: child);
   }
 }
 
@@ -102,11 +94,7 @@ class AdaptiveOutlinedButton extends StatelessWidget {
         child: child,
       );
     }
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: style,
-      child: child,
-    );
+    return OutlinedButton(onPressed: onPressed, style: style, child: child);
   }
 }
 
@@ -137,11 +125,7 @@ class AdaptiveFilledButton extends StatelessWidget {
         child: child,
       );
     }
-    return FilledButton(
-      onPressed: onPressed,
-      style: style,
-      child: child,
-    );
+    return FilledButton(onPressed: onPressed, style: style, child: child);
   }
 }
 
@@ -212,12 +196,13 @@ class _AdaptiveCupertinoButton extends StatelessWidget {
     );
 
     return CupertinoTheme(
-      data: CupertinoTheme.of(context).copyWith(
-        primaryColor: resolvedForeground,
-      ),
+      data: CupertinoTheme.of(
+        context,
+      ).copyWith(primaryColor: resolvedForeground),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final shouldExpand = constraints.maxWidth < double.infinity &&
+          final shouldExpand =
+              constraints.maxWidth < double.infinity &&
               constraints.minWidth == constraints.maxWidth &&
               constraints.maxWidth > 0;
           final content = shouldExpand
@@ -228,11 +213,7 @@ class _AdaptiveCupertinoButton extends StatelessWidget {
             minimumSize: Size.zero,
             borderRadius: resolvedBorderRadius,
             onPressed: onPressed,
-            child: Semantics(
-              button: true,
-              enabled: isEnabled,
-              child: content,
-            ),
+            child: Semantics(button: true, enabled: isEnabled, child: content),
           );
         },
       ),
@@ -248,10 +229,7 @@ class _AdaptiveCupertinoButton extends StatelessWidget {
       return BoxConstraints.tight(fixedSize);
     }
     if (minSize != null) {
-      return BoxConstraints(
-        minWidth: minSize.width,
-        minHeight: minSize.height,
-      );
+      return BoxConstraints(minWidth: minSize.width, minHeight: minSize.height);
     }
     return null;
   }

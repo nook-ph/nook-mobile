@@ -10,6 +10,7 @@ import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 /// How the ranking sheet ended, so the caller knows which toast (if any) to
 /// show. A null result from the sheet means it was dismissed — treated as
@@ -84,6 +85,38 @@ class _CafeRankingFlowState extends State<_CafeRankingFlow> {
   CafeRanking? _result;
   int? _overallRank;
   int _rankedCount = 0;
+
+  /// The ranking this cafe already has, captured when the sheet opens. Its
+  /// presence turns step 1 into the re-rank variant: without it the sheet
+  /// asked "How was it?" identically whether you were ranking for the first
+  /// time or moving an existing entry, and never said which.
+  late final CafeRanking? _existing = widget.cubit.state.rankingFor(
+    widget.cafeId,
+  );
+  late final String? _existingRankLabel = _buildExistingRankLabel();
+
+  String? _buildExistingRankLabel() {
+    final existing = _existing;
+    if (existing == null) return null;
+    final overall = widget.cubit.state.overallRankOf(widget.cafeId);
+    if (overall == null) return existing.displayScore;
+    return '${existing.displayScore} · #$overall of '
+        '${widget.cubit.state.rankedCount}';
+  }
+
+  void _onBack() {
+    final session = widget.cubit.state.session;
+    if (session == null) return;
+    if (session.canUndo) {
+      widget.cubit.undoComparison();
+      setState(() {});
+    } else {
+      // Back off the first comparison returns to the feeling question, so a
+      // wrong bucket isn't a dead end.
+      widget.cubit.cancelSession();
+      setState(() => _phase = _Phase.bucket);
+    }
+  }
 
   @override
   void dispose() {
@@ -191,6 +224,8 @@ class _CafeRankingFlowState extends State<_CafeRankingFlow> {
                 _Phase.bucket => _BucketStep(
                   key: const ValueKey('bucket'),
                   cafeName: widget.cafeName,
+                  existing: _existing,
+                  existingRankLabel: _existingRankLabel,
                   onChosen: _onBucketChosen,
                   onSkip: () => _finish(RankingFlowOutcome.skipped),
                 ),
@@ -201,6 +236,9 @@ class _CafeRankingFlowState extends State<_CafeRankingFlow> {
                   cafeName: widget.cafeName,
                   cafeImageUrl: widget.cafeImageUrl,
                   opponentId: widget.cubit.state.session?.currentOpponent,
+                  step: widget.cubit.state.session?.currentComparison ?? 1,
+                  total: widget.cubit.state.session?.plannedComparisons ?? 1,
+                  onBack: _onBack,
                   onPicked: _onComparisonPicked,
                   onTooClose: _onTooClose,
                 ),
@@ -234,13 +272,19 @@ class _BucketStep extends StatelessWidget {
   const _BucketStep({
     super.key,
     required this.cafeName,
+    required this.existing,
+    required this.existingRankLabel,
     required this.onChosen,
     required this.onSkip,
   });
 
   final String cafeName;
+  final CafeRanking? existing;
+  final String? existingRankLabel;
   final ValueChanged<RankBucket> onChosen;
   final VoidCallback onSkip;
+
+  bool get _isRerank => existing != null;
 
   @override
   Widget build(BuildContext context) {
@@ -253,41 +297,93 @@ class _BucketStep extends StatelessWidget {
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: context.textTheme.titleMediumSemi,
+          style: context.textTheme.titleMediumSemi.copyWith(
+            letterSpacing: -0.36,
+          ),
         ),
-        const SizedBox(height: 20),
+        // Re-ranking used to be indistinguishable from ranking fresh: same
+        // question, no sign the cafe already had a score, and a "Skip" that
+        // looked like it might discard one.
+        if (_isRerank && existingRankLabel != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDAD7CD),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  const TextSpan(text: 'Ranked '),
+                  TextSpan(
+                    text: existingRankLabel,
+                    style: context.textTheme.bodySmallMed.copyWith(
+                      color: const Color(0xFF3A5A40),
+                    ),
+                  ),
+                  const TextSpan(
+                    text:
+                        ' — answer again to move it. '
+                        'Skipping keeps this rank.',
+                  ),
+                ],
+              ),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF0A0F0D),
+                height: 1.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ] else
+          const SizedBox(height: 18),
         _BucketOption(
-          emoji: '😍',
+          icon: PhosphorIcons.smiley(),
           label: 'Liked it',
+          isCurrent: existing?.bucket == RankBucket.liked,
           onTap: () => onChosen(RankBucket.liked),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         _BucketOption(
-          emoji: '🙂',
+          icon: PhosphorIcons.smileyMeh(),
           label: 'It was fine',
+          isCurrent: existing?.bucket == RankBucket.fine,
           onTap: () => onChosen(RankBucket.fine),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         _BucketOption(
-          emoji: '😕',
+          icon: PhosphorIcons.smileySad(),
           label: 'Not for me',
+          isCurrent: existing?.bucket == RankBucket.disliked,
           onTap: () => onChosen(RankBucket.disliked),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         AdaptiveTap(
           onTap: onSkip,
           borderRadius: BorderRadius.circular(999),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            alignment: Alignment.center,
             child: Text(
-              'Skip for now',
+              _isRerank ? 'Keep current rank' : 'Skip for now',
               textAlign: TextAlign.center,
-              style: context.textTheme.bodyMediumMed.copyWith(
-                color: const Color(0xFF868584),
+              style: context.textTheme.bodyLargeMed.copyWith(
+                color: const Color(0xFF767574),
               ),
             ),
           ),
         ),
+        // The mark is already saved. Saying so removes the main reason to
+        // hesitate on a screen that is otherwise entirely optional.
+        if (!_isRerank)
+          Text(
+            'Already saved to Been — this just ranks it.',
+            textAlign: TextAlign.center,
+            style: context.textTheme.bodySmall?.copyWith(
+              color: const Color(0xFF767574),
+            ),
+          ),
       ],
     );
   }
@@ -295,14 +391,16 @@ class _BucketStep extends StatelessWidget {
 
 class _BucketOption extends StatelessWidget {
   const _BucketOption({
-    required this.emoji,
+    required this.icon,
     required this.label,
     required this.onTap,
+    this.isCurrent = false,
   });
 
-  final String emoji;
+  final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool isCurrent;
 
   @override
   Widget build(BuildContext context) {
@@ -310,7 +408,8 @@ class _BucketOption extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        constraints: const BoxConstraints(minHeight: 56),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: const Color(0xFFE0E0E0)),
@@ -318,9 +417,19 @@ class _BucketOption extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 20)),
+            // Phosphor smileys rather than 😍🙂😕: emoji render per-platform
+            // and sit outside the icon system everything else on the screen
+            // uses.
+            Icon(icon, size: 22, color: const Color(0xFF344E41)),
             const SizedBox(width: 12),
-            Text(label, style: context.textTheme.bodyLargeMed),
+            Expanded(child: Text(label, style: context.textTheme.bodyLargeMed)),
+            if (isCurrent)
+              Text(
+                'current',
+                style: context.textTheme.bodySmallMed.copyWith(
+                  color: const Color(0xFF767574),
+                ),
+              ),
           ],
         ),
       ),
@@ -336,6 +445,9 @@ class _CompareStep extends StatelessWidget {
     required this.cafeName,
     required this.cafeImageUrl,
     required this.opponentId,
+    required this.step,
+    required this.total,
+    required this.onBack,
     required this.onPicked,
     required this.onTooClose,
   });
@@ -343,6 +455,9 @@ class _CompareStep extends StatelessWidget {
   final String cafeName;
   final String? cafeImageUrl;
   final String? opponentId;
+  final int step;
+  final int total;
+  final VoidCallback onBack;
   final void Function({required bool preferredTarget}) onPicked;
   final VoidCallback onTooClose;
 
@@ -351,12 +466,46 @@ class _CompareStep extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          'Which did you like more?',
-          textAlign: TextAlign.center,
-          style: context.textTheme.titleMediumSemi,
+        // The longest part of the flow, previously with no sense of how long.
+        // A count and a way back turn it from open-ended into bounded.
+        Stack(
+          alignment: Alignment.topLeft,
+          children: [
+            Column(
+              children: [
+                Text(
+                  'Which did you like more?',
+                  textAlign: TextAlign.center,
+                  style: context.textTheme.titleMediumSemi.copyWith(
+                    letterSpacing: -0.36,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$step of $total',
+                  textAlign: TextAlign.center,
+                  style: context.textTheme.bodySmallMed.copyWith(
+                    color: const Color(0xFF767574),
+                  ),
+                ),
+              ],
+            ),
+            AdaptiveTap(
+              onTap: onBack,
+              borderRadius: BorderRadius.circular(999),
+              child: const SizedBox(
+                width: 44,
+                height: 44,
+                child: Icon(
+                  Icons.chevron_left,
+                  size: 24,
+                  color: Color(0xFF0A0F0D),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 18),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -379,15 +528,25 @@ class _CompareStep extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 14),
+        // One line of why. The comparisons are the most intrusive thing the
+        // app asks for, and nothing said where the answers went.
+        Text(
+          'Your answers order your list — nothing is public.',
+          textAlign: TextAlign.center,
+          style: context.textTheme.bodySmall?.copyWith(
+            color: const Color(0xFF767574),
+          ),
+        ),
         AdaptiveTap(
           onTap: onTooClose,
           borderRadius: BorderRadius.circular(999),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            alignment: Alignment.center,
             child: Text(
               'Too close — skip',
-              style: context.textTheme.bodyMediumMed.copyWith(
-                color: const Color(0xFF868584),
+              style: context.textTheme.bodyLargeMed.copyWith(
+                color: const Color(0xFF767574),
               ),
             ),
           ),
@@ -509,8 +668,8 @@ class _RevealStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rankLine = rankedCount <= 1
-        ? 'Your first ranked cafe ☕'
-        : '#${overallRank ?? ranking.position} of $rankedCount · My Cebu Cafes';
+        ? 'Your first ranked cafe'
+        : '#${overallRank ?? ranking.position} of $rankedCount · Been';
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -541,37 +700,58 @@ class _RevealStep extends StatelessWidget {
             color: const Color(0xFF868584),
           ),
         ),
-        const SizedBox(height: 22),
-        AdaptiveTap(
-          onTap: onDone,
-          borderRadius: BorderRadius.circular(999),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 13),
-            decoration: BoxDecoration(
-              color: _green,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              'Done',
-              textAlign: TextAlign.center,
-              style: context.textTheme.bodyLargeMed.copyWith(
-                color: Colors.white,
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(
+              child: AdaptiveTap(
+                onTap: onDone,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF344E41),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Done',
+                    textAlign: TextAlign.center,
+                    style: context.textTheme.bodyLargeMed.copyWith(
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        AdaptiveTap(
-          onTap: onAddNote,
-          borderRadius: BorderRadius.circular(999),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Text(
-              'Add a note',
-              textAlign: TextAlign.center,
-              style: context.textTheme.bodyMediumMed.copyWith(color: _green),
+            const SizedBox(width: 8),
+            Expanded(
+              // Promoted from a quiet text link: the note is the diary content
+              // the whole feature exists to collect, and this is the one moment
+              // the user is already thinking about the visit.
+              child: AdaptiveTap(
+                onTap: onAddNote,
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFF588157)),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Add a note',
+                    textAlign: TextAlign.center,
+                    style: context.textTheme.bodyLargeMed.copyWith(
+                      color: const Color(0xFF344E41),
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ],
     );

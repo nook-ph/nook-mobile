@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/cafe_status_badge.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -69,39 +70,51 @@ class HomeCafeCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                Positioned(
-                  top: 10,
-                  left: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(
-                          PhosphorIconsFill.star,
-                          color: context.colorScheme.primary60,
-                          size: 14,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          ratingText,
-                          style: context.textTheme.bodyExtraSmallMed.copyWith(
-                            color: context.colorScheme.black,
-                            height: 1.1,
+                // Your own status owns the top-left corner: it is the one
+                // thing on a card that is about you rather than the cafe.
+                if (!isSkeleton)
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: CafeStatusBadge(cafeId: cafe.id),
+                  ),
+                // The community rating moves to the opposite corner and only
+                // renders once there is something to average — "0.0" beside
+                // an empty star made every new cafe look bad.
+                if (cafe.reviewCount > 0)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(
+                            PhosphorIconsFill.star,
+                            color: context.colorScheme.primary60,
+                            size: 14,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Text(
+                            ratingText,
+                            style: context.textTheme.bodyExtraSmallMed.copyWith(
+                              color: context.colorScheme.black,
+                              height: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
 

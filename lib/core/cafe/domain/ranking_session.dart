@@ -41,7 +41,39 @@ class RankingSession {
   int _asked = 0;
   bool _stopped = false;
 
+  /// (lo, hi) before each answer, so a mis-tap can be walked back.
+  final List<(int, int)> _history = [];
+
   int get comparisonsAsked => _asked;
+
+  /// How many questions this session expects to ask in total — the binary
+  /// search depth over the opponents, capped at [maxComparisons]. Drives the
+  /// "2 of 3" progress line, which is the difference between a bounded task
+  /// and an open-ended one.
+  int get plannedComparisons {
+    var depth = 0;
+    var remaining = _opponents.length;
+    while (remaining > 0) {
+      depth++;
+      remaining ~/= 2;
+    }
+    return depth > maxComparisons ? maxComparisons : depth;
+  }
+
+  /// 1-based number of the question currently on screen.
+  int get currentComparison => _asked + 1;
+
+  bool get canUndo => _history.isNotEmpty && !_stopped;
+
+  /// Steps back one comparison. The search is a pure range narrowing, so
+  /// restoring the previous range is a complete undo.
+  void undo() {
+    if (_history.isEmpty) return;
+    final (lo, hi) = _history.removeLast();
+    _lo = lo;
+    _hi = hi;
+    _asked--;
+  }
 
   /// True once the position is settled — the range collapsed, the cap was
   /// reached, the user skipped, or there was nothing to compare against.
@@ -63,6 +95,7 @@ class RankingSession {
   void answer({required bool preferredTarget}) {
     if (isComplete) return;
     final mid = _midpoint;
+    _history.add((_lo, _hi));
     if (preferredTarget) {
       // Better than the midpoint → it belongs somewhere above it.
       _hi = mid - 1;

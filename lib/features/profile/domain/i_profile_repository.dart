@@ -1,4 +1,3 @@
-
 abstract class IProfileRepository {
   Future<void> updateProfile({
     required String userId,

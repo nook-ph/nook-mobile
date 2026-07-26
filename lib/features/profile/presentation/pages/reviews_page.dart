@@ -62,18 +62,11 @@ class _ReviewsPageState extends State<ReviewsPage> {
             onTap: () => Navigator.pop(context),
             child: const Padding(
               padding: EdgeInsets.all(8),
-              child: Icon(
-                Icons.chevron_right,
-                color: Colors.black,
-                size: 28,
-              ),
+              child: Icon(Icons.chevron_right, color: Colors.black, size: 28),
             ),
           ),
         ),
-        title: Text(
-          'Reviews',
-          style: context.textTheme.titleMediumSemi,
-        ),
+        title: Text('Reviews', style: context.textTheme.titleMediumSemi),
       ),
       body: BlocBuilder<ProfileCubit, ProfileState>(
         builder: (context, profileState) {
@@ -115,7 +108,9 @@ class _ReviewsPageState extends State<ReviewsPage> {
                       children: [
                         Text(
                           'Sort by:',
-                          style: context.textTheme.bodySmall!.copyWith(color: Colors.grey),
+                          style: context.textTheme.bodySmall!.copyWith(
+                            color: Colors.grey,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Container(
@@ -147,9 +142,8 @@ class _ReviewsPageState extends State<ReviewsPage> {
                                   value: option,
                                   child: Text(
                                     option,
-                                    style: context.textTheme.bodySmallMed.copyWith(
-                                      color: Colors.black87,
-                                    ),
+                                    style: context.textTheme.bodySmallMed
+                                        .copyWith(color: Colors.black87),
                                   ),
                                 );
                               }).toList(),
@@ -194,16 +188,15 @@ class _ReviewsPageState extends State<ReviewsPage> {
               const SizedBox(height: 12),
               Text(
                 'Could not load reviews.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey[800]),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey[800]),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               AdaptiveTextButton(
                 onPressed: () => context.read<ProfileCubit>().loadProfile(),
-                child: Text(
-                  'Retry',
-                  style: context.textTheme.bodyMedium,
-                ),
+                child: Text('Retry', style: context.textTheme.bodyMedium),
               ),
             ],
           ),
@@ -223,11 +216,17 @@ class _ReviewsPageState extends State<ReviewsPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.rate_review_outlined, size: 48, color: Colors.grey),
+            const Icon(
+              Icons.rate_review_outlined,
+              size: 48,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 12),
             Text(
               'No reviews found.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
             ),
           ],
         ),

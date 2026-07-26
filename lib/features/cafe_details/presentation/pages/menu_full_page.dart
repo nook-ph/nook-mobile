@@ -129,7 +129,8 @@ class MenuFullPage extends StatelessWidget {
                                 const Gap(2),
                                 Text(
                                   '₱${item.displayPrice}',
-                                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.black),
+                                  style: Theme.of(context).textTheme.bodyLarge
+                                      ?.copyWith(color: Colors.black),
                                 ),
                               ],
                             ),

@@ -83,6 +83,13 @@ class CafeRankingCubit extends Cubit<CafeRankingState> {
     emit(state.copyWith(sessionRevision: state.sessionRevision + 1));
   }
 
+  /// Steps one comparison back. Nothing has been written yet, so this is a
+  /// pure cursor move.
+  void undoComparison() {
+    state.session?.undo();
+    emit(state.copyWith(sessionRevision: state.sessionRevision + 1));
+  }
+
   /// "Too close to call" — stop asking, keep the current best estimate.
   void skipComparisons() {
     state.session?.skip();
@@ -151,6 +158,31 @@ class CafeRankingCubit extends Cubit<CafeRankingState> {
     } catch (e, st) {
       debugPrint('[CafeRanking] remove($cafeId) failed: $e\n$st');
       emit(state.copyWith(rankings: previous));
+      return false;
+    }
+  }
+
+  /// Puts a ranking back where it was, for Undo after an un-Been.
+  ///
+  /// Leaving Been deletes the ranking server-side (trigger), so undo has to
+  /// re-write it rather than roll anything back. The other cafes closed ranks
+  /// in the meantime, so re-inserting at the old position restores the order
+  /// the user had, not necessarily the identical score.
+  Future<bool> restore({
+    required String cafeId,
+    required RankBucket bucket,
+    required int position,
+  }) async {
+    try {
+      final rankings = await setCafeRankingUseCase(
+        cafeId: cafeId,
+        bucket: bucket,
+        position: position,
+      );
+      emit(state.copyWith(rankings: rankings, loaded: true));
+      return true;
+    } catch (e, st) {
+      debugPrint('[CafeRanking] restore($cafeId) failed: $e\n$st');
       return false;
     }
   }

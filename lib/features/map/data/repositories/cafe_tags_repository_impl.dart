@@ -12,4 +12,3 @@ class CafeTagsRepositoryImpl implements ICafeTagsRepository {
     return await remoteDataSource.filterTags();
   }
 }
-

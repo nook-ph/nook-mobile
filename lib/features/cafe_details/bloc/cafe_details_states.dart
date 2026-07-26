@@ -1,5 +1,3 @@
-
-
 import 'package:equatable/equatable.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 

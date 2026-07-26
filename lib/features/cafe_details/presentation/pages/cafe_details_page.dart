@@ -30,6 +30,7 @@ import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_your_visit_block.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_hours_title.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
@@ -318,6 +319,19 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   ? state.data.cafeDetails.tags
                                   : const [],
                             ),
+
+                            // Your own history with the cafe, next to the
+                            // cafe — not buried in the bottom bar behind a
+                            // long-press. Renders nothing unless it's a Been.
+                            if (state is CafeDetailsLoaded) ...[
+                              const SizedBox(height: 16),
+                              CafeYourVisitBlock(
+                                cafeId: widget.cafeId,
+                                cafeName: state.data.cafeDetails.name,
+                                cafeImageUrl:
+                                    state.data.cafeDetails.featuredImageUrl,
+                              ),
+                            ],
 
                             if (state is CafeDetailsLoaded &&
                                 state

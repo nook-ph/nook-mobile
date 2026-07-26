@@ -160,9 +160,7 @@ class SupabaseAuthRemoteDataSource {
       method: HttpMethod.post,
     );
     if (response.status != 200) {
-      throw AuthException(
-        'Account deletion failed. Please try again later.',
-      );
+      throw AuthException('Account deletion failed. Please try again later.');
     }
   }
 }

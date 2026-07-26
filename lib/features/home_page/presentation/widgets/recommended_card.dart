@@ -67,7 +67,9 @@ class RecommendedCard extends StatelessWidget {
                                 cafe.name,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleMediumSemi,
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.titleMediumSemi,
                               ),
                             ),
                             Row(

@@ -121,9 +121,10 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
             child: SizedBox(
               width: double.infinity,
               child: AdaptiveElevatedButton(
-                onPressed: () => Navigator.of(context).pop<ReviewFilterResult>(
-                  (sort: _selectedSort, ratingFilter: _selectedRatingFilter),
-                ),
+                onPressed: () => Navigator.of(context).pop<ReviewFilterResult>((
+                  sort: _selectedSort,
+                  ratingFilter: _selectedRatingFilter,
+                )),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF344E41),
                   foregroundColor: Colors.white,
@@ -205,13 +206,13 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Text(
-          text,
-          style: context.textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-          ),
+      child: Text(
+        text,
+        style: context.textTheme.bodyLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: Colors.black,
         ),
+      ),
     );
   }
 }

@@ -22,10 +22,8 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
   final SearchCafesUseCase searchCafesUseCase;
   final SupabaseClient supabase;
 
-  SearchBloc({
-    required this.searchCafesUseCase,
-    required this.supabase,
-  }) : super(const SearchState()) {
+  SearchBloc({required this.searchCafesUseCase, required this.supabase})
+    : super(const SearchState()) {
     on<SearchQueryChanged>(
       _onQueryChanged,
       transformer: debounce(_debounceDuration),
@@ -95,11 +93,17 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     await _fetchCafes(emit);
   }
 
-  Future<void> _onLoadMore(SearchLoadMore event, Emitter<SearchState> emit) async {
+  Future<void> _onLoadMore(
+    SearchLoadMore event,
+    Emitter<SearchState> emit,
+  ) async {
     return;
   }
 
-  Future<void> _onRefresh(SearchRefresh event, Emitter<SearchState> emit) async {
+  Future<void> _onRefresh(
+    SearchRefresh event,
+    Emitter<SearchState> emit,
+  ) async {
     emit(
       state.copyWith(
         status: SearchStatus.loading,
@@ -127,15 +131,12 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       final isInitialLoad = currentPage == 0 && state.query.trim().isEmpty;
       final limit = isInitialLoad ? 5 : 20;
 
-      final resolvedSort =
-          (state.sort == 'nearby' && loc.position == null)
+      final resolvedSort = (state.sort == 'nearby' && loc.position == null)
           ? 'top_rated'
           : state.sort;
 
       final locationDeniedForBanner =
-          state.sort == 'nearby' &&
-          loc.position == null &&
-          loc.locationDenied;
+          state.sort == 'nearby' && loc.position == null && loc.locationDenied;
 
       final query = CafeQuery(
         query: state.query.trim().isEmpty ? null : state.query.trim(),
@@ -210,15 +211,16 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
         );
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          distanceFilter: 100,
-        ),
-      ).timeout(
-        const Duration(seconds: 3),
-        onTimeout: () => throw TimeoutException('Location timeout'),
-      );
+      final position =
+          await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+              distanceFilter: 100,
+            ),
+          ).timeout(
+            const Duration(seconds: 3),
+            onTimeout: () => throw TimeoutException('Location timeout'),
+          );
       return (position: position, locationDenied: false);
     } catch (e, st) {
       debugPrint('SearchBloc: resolve location failed $e');

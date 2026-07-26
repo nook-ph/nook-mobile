@@ -80,10 +80,7 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
 }
 
 class CafeStatusState extends Equatable {
-  const CafeStatusState({
-    this.statuses = const {},
-    this.pending = const {},
-  });
+  const CafeStatusState({this.statuses = const {}, this.pending = const {}});
 
   /// Cafes with a status; absent means none (or not yet loaded).
   final Map<String, CafeStatus> statuses;
@@ -91,8 +88,7 @@ class CafeStatusState extends Equatable {
   /// Cafe ids with an in-flight write.
   final Set<String> pending;
 
-  CafeStatus statusFor(String cafeId) =>
-      statuses[cafeId] ?? CafeStatus.none;
+  CafeStatus statusFor(String cafeId) => statuses[cafeId] ?? CafeStatus.none;
 
   bool isPending(String cafeId) => pending.contains(cafeId);
 

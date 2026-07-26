@@ -77,7 +77,10 @@ class RatingReviewSummary extends StatelessWidget {
                 ),
                 child: Text(
                   'Write a Review',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500, color: Colors.white),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),

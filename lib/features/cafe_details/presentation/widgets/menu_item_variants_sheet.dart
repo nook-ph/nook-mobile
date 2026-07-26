@@ -115,10 +115,10 @@ class _VariantRow extends StatelessWidget {
         ),
         Text(
           priceLabel,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          fontWeight: FontWeight.w600,
-          color: Colors.black,
-        ),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: Colors.black,
+          ),
         ),
       ],
     );

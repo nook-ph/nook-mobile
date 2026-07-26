@@ -182,7 +182,9 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                         widget.fullName != null
                             ? 'Welcome, ${widget.fullName!.split(' ').first}! Choose a unique handle.'
                             : 'This is how other people will find you.',
-                        style: context.textTheme.bodySmall!.copyWith(color: _grey),
+                        style: context.textTheme.bodySmall!.copyWith(
+                          color: _grey,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ],
@@ -235,7 +237,9 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                       const Gap(12),
                       Text(
                         'Letters, numbers, and underscores only. 3\u201320 characters.',
-                        style: context.textTheme.bodySmall!.copyWith(color: _grey),
+                        style: context.textTheme.bodySmall!.copyWith(
+                          color: _grey,
+                        ),
                       ),
                       const Gap(32),
                       SizedBox(
@@ -270,9 +274,8 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                                 )
                               : Text(
                                   'Confirm Username',
-                                  style: context.textTheme.bodyLargeMed.copyWith(
-                                    color: Colors.white,
-                                  ),
+                                  style: context.textTheme.bodyLargeMed
+                                      .copyWith(color: Colors.white),
                                 ),
                         ),
                       ),

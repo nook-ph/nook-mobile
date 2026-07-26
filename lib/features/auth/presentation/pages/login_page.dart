@@ -85,10 +85,7 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                       children: [
                         Image.asset('assets/logos/logoT.png', width: 110),
                         const Gap(22),
-                        Text(
-                          'Log in',
-                          style: context.textTheme.titleLargeSemi,
-                        ),
+                        Text('Log in', style: context.textTheme.titleLargeSemi),
                         const Gap(8),
                         Text(
                           'Welcome back, $email',
@@ -192,12 +189,11 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
                                       ),
                                     ),
                                   )
-                              : Text(
-                                  'Log In',
-                                  style: context.textTheme.bodyLargeMed.copyWith(
-                                    color: Colors.white,
+                                : Text(
+                                    'Log In',
+                                    style: context.textTheme.bodyLargeMed
+                                        .copyWith(color: Colors.white),
                                   ),
-                                ),
                           ),
                         ),
                       ],

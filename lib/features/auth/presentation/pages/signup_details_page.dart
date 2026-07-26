@@ -82,7 +82,9 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: context.textTheme.bodySmall!.copyWith(color: const Color(0xFFA8AAAA)),
+      hintStyle: context.textTheme.bodySmall!.copyWith(
+        color: const Color(0xFFA8AAAA),
+      ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -259,9 +261,8 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
                                 )
                               : Text(
                                   'Continue',
-                                  style: context.textTheme.bodyLargeMed.copyWith(
-                                    color: Colors.white,
-                                  ),
+                                  style: context.textTheme.bodyLargeMed
+                                      .copyWith(color: Colors.white),
                                 ),
                         ),
                       ),

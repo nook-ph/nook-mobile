@@ -269,7 +269,9 @@ class _PasswordField extends StatelessWidget {
           obscureText: obscure,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: context.textTheme.bodySmall!.copyWith(color: const Color(0xFFA8AAAA)),
+            hintStyle: context.textTheme.bodySmall!.copyWith(
+              color: const Color(0xFFA8AAAA),
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
@@ -300,7 +302,10 @@ class _PasswordField extends StatelessWidget {
         ),
         if (error != null) ...[
           const SizedBox(height: 8),
-          Text(error!, style: context.textTheme.bodySmall!.copyWith(color: Colors.red)),
+          Text(
+            error!,
+            style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
+          ),
         ],
       ],
     );

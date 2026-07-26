@@ -8,8 +8,5 @@ class SubmitAvatarRequested extends AvatarUploadEvent {
   final File file;
   final String? accessToken;
 
-  const SubmitAvatarRequested({
-    required this.file,
-    this.accessToken,
-  });
+  const SubmitAvatarRequested({required this.file, this.accessToken});
 }

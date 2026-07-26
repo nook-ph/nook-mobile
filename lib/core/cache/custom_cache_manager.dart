@@ -8,10 +8,6 @@ class CustomCacheManager {
   static const int _maxObjects = 150;
 
   static final CacheManager instance = CacheManager(
-    Config(
-      _key,
-      stalePeriod: _maxAge,
-      maxNrOfCacheObjects: _maxObjects,
-    ),
+    Config(_key, stalePeriod: _maxAge, maxNrOfCacheObjects: _maxObjects),
   );
 }

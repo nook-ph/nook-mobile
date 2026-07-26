@@ -345,9 +345,7 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
-  Future<Map<String, List<String>>> getListPreviewImages(
-    List<String> listIds,
-  ) {
+  Future<Map<String, List<String>>> getListPreviewImages(List<String> listIds) {
     return remoteDataSource.fetchListPreviewImages(listIds);
   }
 

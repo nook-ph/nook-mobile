@@ -19,9 +19,7 @@ class MapFilterBottomSheet extends StatefulWidget {
 
   /// Matches [CafeInfo] section headers. Uses the app's text theme.
   static TextStyle sectionTitleStyle(BuildContext context) =>
-      context.textTheme.bodyLargeMed.copyWith(
-        color: const Color(0xFF848685),
-      );
+      context.textTheme.bodyLargeMed.copyWith(color: const Color(0xFF848685));
 
   static Future<void> show(BuildContext context) {
     final mapBloc = context.read<MapBloc>();
@@ -105,10 +103,7 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Filters',
-                  style: context.textTheme.titleMediumSemi,
-                ),
+                Text('Filters', style: context.textTheme.titleMediumSemi),
                 AdaptiveTap(
                   onTap: () => Navigator.of(context).maybePop(),
                   child: const Padding(
@@ -308,9 +303,7 @@ class MapFilterTagChip extends StatelessWidget {
           ],
           Text(
             label,
-            style: context.textTheme.bodySmallMed.copyWith(
-              color: contentColor,
-            ),
+            style: context.textTheme.bodySmallMed.copyWith(color: contentColor),
           ),
         ],
       ),

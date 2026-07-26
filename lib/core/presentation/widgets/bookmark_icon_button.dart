@@ -48,7 +48,7 @@ class BookmarkIconButton extends StatelessWidget {
       ),
       child: AdaptiveTap(
         onTap: handleTap ?? () {},
-        borderRadius: BorderRadius.circular(20), 
+        borderRadius: BorderRadius.circular(20),
         child: Center(child: icon),
       ),
     );

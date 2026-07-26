@@ -41,7 +41,6 @@ class AvatarUploadBloc extends Bloc<AvatarUploadEvent, AvatarUploadState> {
         throw Exception('unauthenticated');
       }
 
-
       await updateProfileAvatarUseCase(
         userId: userId,
         avatarUrl: uploadedAvatar.publicUrl,

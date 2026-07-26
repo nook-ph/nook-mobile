@@ -171,8 +171,9 @@ class _CafeNoteSheetState extends State<_CafeNoteSheet> {
                       ),
                       child: Text(
                         _isSaving ? 'Saving…' : 'Save note',
-                        style: Theme.of(context).textTheme.bodyLargeMed
-                            .copyWith(color: Colors.white),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyLargeMed.copyWith(color: Colors.white),
                       ),
                     ),
                   ),

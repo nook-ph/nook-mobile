@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/cafe_status_badge.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
@@ -51,30 +52,40 @@ class FeaturedCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Skeleton.replace(
-              replace: isSkeleton,
-              replacement: Container(
-                height: imgHeight,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
+            Stack(
+              children: [
+                Skeleton.replace(
+                  replace: isSkeleton,
+                  replacement: Container(
+                    height: imgHeight,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      ),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                    child: CafeCardImage(
+                      imageUrl: imageUrl,
+                      height: imgHeight,
+                      width: double.infinity,
+                    ),
                   ),
                 ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-                child: CafeCardImage(
-                  imageUrl: imageUrl,
-                  height: imgHeight,
-                  width: double.infinity,
-                ),
-              ),
+                if (!isSkeleton)
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: CafeStatusBadge(cafeId: cafe.id),
+                  ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
@@ -95,32 +106,35 @@ class FeaturedCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            PhosphorIconsFill.star,
-                            color: context.colorScheme.primary60,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            cafe.rating.toStringAsFixed(1),
-                            style: context.textTheme.bodyLargeMed.copyWith(
-                              color: context.colorScheme.black,
-                              height: 1.2,
+                      // Nothing to average yet — "0.0 (0)" reads as a verdict
+                      // rather than an absence.
+                      if (cafe.reviewCount > 0)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              PhosphorIconsFill.star,
+                              color: context.colorScheme.primary60,
+                              size: 18,
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '(${cafe.reviewCount})',
-                            style: context.textTheme.bodyMediumMed.copyWith(
-                              color: context.colorScheme.gray,
-                              height: 1.1,
+                            const SizedBox(width: 4),
+                            Text(
+                              cafe.rating.toStringAsFixed(1),
+                              style: context.textTheme.bodyLargeMed.copyWith(
+                                color: context.colorScheme.black,
+                                height: 1.2,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '(${cafe.reviewCount})',
+                              style: context.textTheme.bodyMediumMed.copyWith(
+                                color: context.colorScheme.gray,
+                                height: 1.1,
+                              ),
+                            ),
+                          ],
+                        ),
                     ],
                   ),
                   const SizedBox(height: 4),

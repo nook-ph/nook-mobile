@@ -57,7 +57,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _isLoading = true;
     });
 
-    bool handled = false; 
+    bool handled = false;
 
     try {
       await Supabase.instance.client.auth.resetPasswordForEmail(
@@ -69,12 +69,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       showPrimaryToast(context, 'Password reset link sent to $email');
       context.pop();
     } on AuthException catch (e) {
-      if (handled) return; 
+      if (handled) return;
       if (mounted) {
         showPrimaryToast(context, e.message);
       }
     } catch (_) {
-      if (handled) return; 
+      if (handled) return;
       if (mounted) {
         showPrimaryToast(context, 'Unable to send reset link. Try again.');
       }
@@ -150,7 +150,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     _emailError!,
-                    style: context.textTheme.bodySmall!.copyWith(color: Colors.red),
+                    style: context.textTheme.bodySmall!.copyWith(
+                      color: Colors.red,
+                    ),
                   ),
                 ),
               ],

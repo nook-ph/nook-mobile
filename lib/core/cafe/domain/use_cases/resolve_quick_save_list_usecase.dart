@@ -36,7 +36,9 @@ class ResolveQuickSaveListUseCase {
           );
         }
       }
-      debugPrint('[ResolveQuickSave] stored id not in user lists, fall through');
+      debugPrint(
+        '[ResolveQuickSave] stored id not in user lists, fall through',
+      );
     }
 
     try {
@@ -51,8 +53,13 @@ class ResolveQuickSaveListUseCase {
           );
         }
       }
-      debugPrint('[ResolveQuickSave] branch: default id not in rows, use id only');
-      return ResolvedQuickSaveList(listId: defaultId, displayTitle: 'Favorites');
+      debugPrint(
+        '[ResolveQuickSave] branch: default id not in rows, use id only',
+      );
+      return ResolvedQuickSaveList(
+        listId: defaultId,
+        displayTitle: 'Favorites',
+      );
     } catch (e, st) {
       debugPrint('[ResolveQuickSave] getDefaultListId failed: $e');
       debugPrint('$st');

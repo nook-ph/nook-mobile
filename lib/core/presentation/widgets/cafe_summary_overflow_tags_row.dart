@@ -26,7 +26,9 @@ class CafeSummaryOverflowTagsRow extends StatelessWidget {
       textScaler: textScaler,
     )..layout();
 
-    final iconExtra = resolveTagIcon(label) != null ? _iconSize + _iconGap : 0.0;
+    final iconExtra = resolveTagIcon(label) != null
+        ? _iconSize + _iconGap
+        : 0.0;
     return tp.width + _hPadding + _borderWidth + iconExtra + 2;
   }
 
@@ -46,8 +48,10 @@ class CafeSummaryOverflowTagsRow extends StatelessWidget {
       final isLast = i == tags.length - 1;
 
       if (isLast) {
-        if (used + w <= availableWidth) result.add(tags[i]);
-        else if (used + dotWidth <= availableWidth) result.add('...');
+        if (used + w <= availableWidth)
+          result.add(tags[i]);
+        else if (used + dotWidth <= availableWidth)
+          result.add('...');
       } else {
         if (used + w + _spacing + dotWidth <= availableWidth) {
           result.add(tags[i]);
@@ -118,9 +122,9 @@ class _TagChip extends StatelessWidget {
           ],
           Text(
             label,
-            style: Theme.of(context).textTheme.bodySmallMed.copyWith(
-              color: textColor,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmallMed.copyWith(color: textColor),
           ),
         ],
       ),

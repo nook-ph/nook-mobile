@@ -168,7 +168,8 @@ class _ReviewPhotoViewerState extends State<ReviewPhotoViewer>
     }
     final velocity = details.primaryVelocity ?? 0.0;
     final shouldDismiss =
-        _dragY > _dismissDistanceThreshold || velocity > _dismissVelocityThreshold;
+        _dragY > _dismissDistanceThreshold ||
+        velocity > _dismissVelocityThreshold;
     final size = MediaQuery.of(context).size;
     final target = shouldDismiss ? size.height : 0.0;
     _runDismissAnimation(target, dismiss: shouldDismiss);
@@ -229,9 +230,7 @@ class _ReviewPhotoViewerState extends State<ReviewPhotoViewer>
                       child: Column(
                         children: [
                           _buildTopBar(),
-                          Expanded(
-                            child: _buildGallery(),
-                          ),
+                          Expanded(child: _buildGallery()),
                         ],
                       ),
                     ),
@@ -265,7 +264,10 @@ class _ReviewPhotoViewerState extends State<ReviewPhotoViewer>
             if (total > 1)
               Center(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.45),
                     borderRadius: BorderRadius.circular(14),
@@ -303,10 +305,7 @@ class _ReviewPhotoViewerState extends State<ReviewPhotoViewer>
         child: SizedBox(
           width: 32,
           height: 32,
-          child: CircularProgressIndicator(
-            color: Colors.white,
-            strokeWidth: 2,
-          ),
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
         ),
       ),
       builder: (context, index) {

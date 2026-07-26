@@ -4,11 +4,7 @@ import 'package:nook/core/utils/error_info.dart';
 
 /// Full-screen error shell: icon, title, subtitle, optional primary action.
 class FullPageErrorWidget extends StatelessWidget {
-  const FullPageErrorWidget({
-    super.key,
-    required this.error,
-    this.onRetry,
-  });
+  const FullPageErrorWidget({super.key, required this.error, this.onRetry});
 
   final ErrorInfo error;
   final VoidCallback? onRetry;
@@ -24,11 +20,7 @@ class FullPageErrorWidget extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                _iconFor(error.type),
-                size: 64,
-                color: Colors.grey.shade800,
-              ),
+              Icon(_iconFor(error.type), size: 64, color: Colors.grey.shade800),
               const SizedBox(height: 24),
               Text(
                 error.title,
@@ -39,15 +31,15 @@ class FullPageErrorWidget extends StatelessWidget {
               Text(
                 error.subtitle,
                 textAlign: TextAlign.center,
-                style: textTheme.bodyLarge?.copyWith(color: Colors.grey.shade700),
+                style: textTheme.bodyLarge?.copyWith(
+                  color: Colors.grey.shade700,
+                ),
               ),
               if (onRetry != null) ...[
                 const SizedBox(height: 32),
                 AdaptiveTextButton(
                   onPressed: onRetry,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.black,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.black),
                   child: Text(
                     error.type == ErrorType.sessionExpired
                         ? 'Sign in'

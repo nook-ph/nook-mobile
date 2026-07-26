@@ -349,10 +349,7 @@ class ProfileHeroSection extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: context.textTheme.titleMediumSemi,
-                ),
+                Text(name, style: context.textTheme.titleMediumSemi),
                 const SizedBox(height: 4),
                 Text(
                   email,
@@ -573,7 +570,12 @@ class _SettingsTile extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: labelColor)),
+            Text(
+              label,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: labelColor),
+            ),
             Icon(iconData, color: iconColor, size: 20),
           ],
         ),
@@ -601,10 +603,7 @@ void _showLogoutDialog(BuildContext context) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Log out',
-              style: ctx.textTheme.titleMediumSemi,
-            ),
+            Text('Log out', style: ctx.textTheme.titleMediumSemi),
             const SizedBox(height: 16),
             Text(
               'Are you sure you want to log out?',
@@ -617,11 +616,16 @@ void _showLogoutDialog(BuildContext context) {
                 AdaptiveTextButton(
                   onPressed: () => Navigator.pop(ctx),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                   ),
                   child: Text(
                     'Cancel',
-                    style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                    style: ctx.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -632,7 +636,9 @@ void _showLogoutDialog(BuildContext context) {
                   },
                   child: Text(
                     'Log out',
-                    style: ctx.textTheme.bodyMedium?.copyWith(color: Colors.red),
+                    style: ctx.textTheme.bodyMedium?.copyWith(
+                      color: Colors.red,
+                    ),
                   ),
                 ),
               ],

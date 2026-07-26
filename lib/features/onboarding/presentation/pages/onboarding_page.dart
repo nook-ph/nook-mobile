@@ -80,20 +80,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                     Text(
                                       currentData.title,
                                       textAlign: TextAlign.center,
-                                      style: context.textTheme.titleLargeSemi.copyWith(
-                                        color: const Color(0xFF344E41),
-                                        height: 1.3,
-                                      ),
+                                      style: context.textTheme.titleLargeSemi
+                                          .copyWith(
+                                            color: const Color(0xFF344E41),
+                                            height: 1.3,
+                                          ),
                                     ),
 
                                     const SizedBox(height: 10),
                                     Text(
                                       currentData.description,
                                       textAlign: TextAlign.center,
-                                      style: context.textTheme.bodyMedium?.copyWith(
-                                        color: const Color(0xFF0A0F0D),
-                                        height: 1.5,
-                                      ),
+                                      style: context.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: const Color(0xFF0A0F0D),
+                                            height: 1.5,
+                                          ),
                                     ),
                                   ],
                                 ),

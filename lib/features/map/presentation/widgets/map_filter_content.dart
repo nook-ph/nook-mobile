@@ -33,11 +33,7 @@ const List<String> kMapFilterAmenityLabels = [
   'Pet Friendly',
 ];
 
-const List<String> kMapFilterPaymentLabels = [
-  'Cash',
-  'E-wallet',
-  'Card',
-];
+const List<String> kMapFilterPaymentLabels = ['Cash', 'E-wallet', 'Card'];
 
 /// Uppercase section labels for full filter sheet only (not sub-sheets).
 const String kMapFilterSectionSortBy = 'SORT BY';
@@ -50,7 +46,9 @@ Set<String> mergeTagsReplacingCategory(
   Set<String> categoryLabelPool,
   Set<String> newSelectionForCategory,
 ) {
-  return currentTags.difference(categoryLabelPool).union(newSelectionForCategory);
+  return currentTags
+      .difference(categoryLabelPool)
+      .union(newSelectionForCategory);
 }
 
 /// Display label for the sort quick chip (matches [mapFilterSortOptions] ids).
@@ -65,24 +63,8 @@ String mapFilterSortLabel(String sortId) {
 }
 
 List<({String id, String label, IconData icon})> mapFilterSortOptions() => [
-      (
-        id: 'nearby',
-        label: 'Nearby',
-        icon: PhosphorIcons.mapPin(),
-      ),
-      (
-        id: 'top_rated',
-        label: 'Top rated',
-        icon: PhosphorIcons.star(),
-      ),
-      (
-        id: 'trending',
-        label: 'Trending',
-        icon: PhosphorIcons.trendUp(),
-      ),
-      (
-        id: 'newest',
-        label: 'Newest',
-        icon: PhosphorIcons.sparkle(),
-      ),
-    ];
+  (id: 'nearby', label: 'Nearby', icon: PhosphorIcons.mapPin()),
+  (id: 'top_rated', label: 'Top rated', icon: PhosphorIcons.star()),
+  (id: 'trending', label: 'Trending', icon: PhosphorIcons.trendUp()),
+  (id: 'newest', label: 'Newest', icon: PhosphorIcons.sparkle()),
+];

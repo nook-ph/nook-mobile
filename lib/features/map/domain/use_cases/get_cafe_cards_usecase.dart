@@ -4,10 +4,7 @@ import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:geolocator/geolocator.dart';
 
-typedef CafeCardResult = ({
-  List<CafeSummary> cafes,
-  bool locationDenied,
-});
+typedef CafeCardResult = ({List<CafeSummary> cafes, bool locationDenied});
 
 class GetCafeCardUseCase {
   final ICafeRepository repository;

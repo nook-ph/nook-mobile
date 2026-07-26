@@ -23,9 +23,9 @@ class AdaptiveTap extends StatelessWidget {
       final colorScheme = Theme.of(context).colorScheme;
 
       final button = CupertinoTheme(
-        data: CupertinoTheme.of(context).copyWith(
-          primaryColor: colorScheme.onSurface,
-        ),
+        data: CupertinoTheme.of(
+          context,
+        ).copyWith(primaryColor: colorScheme.onSurface),
         child: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: onTap,

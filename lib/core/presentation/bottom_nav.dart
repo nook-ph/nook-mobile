@@ -5,11 +5,7 @@ class BottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  const BottomNav({
-    super.key,
-    required this.currentIndex,
-    required this.onTap,
-  });
+  const BottomNav({super.key, required this.currentIndex, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -17,10 +13,7 @@ class BottomNav extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          top: BorderSide(
-            color: Colors.grey.shade300,
-            width: 1.0,
-          ),
+          top: BorderSide(color: Colors.grey.shade300, width: 1.0),
         ),
       ),
       child: Theme(
@@ -33,9 +26,9 @@ class BottomNav extends StatelessWidget {
           backgroundColor: Colors.white,
           type: BottomNavigationBarType.fixed,
           iconSize: 28.0,
-          currentIndex: currentIndex, 
-          onTap: onTap,               
-          selectedItemColor: const Color(0xFF344E41), 
+          currentIndex: currentIndex,
+          onTap: onTap,
+          selectedItemColor: const Color(0xFF344E41),
           unselectedItemColor: Colors.grey,
           showSelectedLabels: false,
           showUnselectedLabels: false,
