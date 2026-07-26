@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/extensions/extensions.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -14,7 +13,29 @@ import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
 import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
-import 'package:nook/features/lists/presentation/widgets/list_options_bottom_sheet.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+
+/// Design tokens for this screen, straight from the Claude Design doc
+/// ("Lists & Been Ranking"). Kept local rather than themed because the rest of
+/// the app has not adopted the corrected palette yet — notably [_muted], which
+/// replaces the `#848586` this page used to ship and which failed WCAG AA.
+class _T {
+  const _T._();
+
+  static const brand = Color(0xFF344E41);
+  static const brandHover = Color(0xFF2F4833);
+  static const ink = Color(0xFF0A0F0D);
+  static const muted = Color(0xFF767574);
+  static const border = Color(0xFFE0E0E0);
+  static const surface = Color(0xFFFEFEFE);
+  static const sage = Color(0xFFDAD7CD);
+
+  static const gutter = 22.0;
+  static const radius = 12.0;
+
+  /// `--tracking-headline: -0.02em`, resolved per size.
+  static double tracking(double fontSize) => fontSize * -0.02;
+}
 
 class ListsPage extends StatefulWidget {
   const ListsPage({super.key, this.showBackButton = true});
@@ -26,8 +47,6 @@ class ListsPage extends StatefulWidget {
 }
 
 class _ListsPageState extends State<ListsPage> {
-  String? _pendingEditName;
-  String? _pendingDeleteName;
   String? _pendingCreateName;
   bool _isCreating = false;
 
@@ -44,45 +63,31 @@ class _ListsPageState extends State<ListsPage> {
         if (state is ListsError) {
           final info = AppErrorCopy.fromException(state.error);
           showPrimaryToast(context, '${info.title} · ${info.subtitle}');
-          _pendingEditName = null;
-          _pendingDeleteName = null;
           _pendingCreateName = null;
           if (mounted) setState(() => _isCreating = false);
           return;
         }
 
-        if (state is ListsLoaded) {
-          if (_pendingEditName != null) {
-            showPrimaryToast(context, 'List updated.');
-            _pendingEditName = null;
-          }
-
-          if (_pendingDeleteName != null) {
-            showPrimaryToast(context, 'List deleted.');
-            _pendingDeleteName = null;
-          }
-
-          if (_pendingCreateName != null) {
-            showPrimaryToast(context, 'List created.');
-            _pendingCreateName = null;
-            if (mounted) setState(() => _isCreating = false);
-          }
+        if (state is ListsLoaded && _pendingCreateName != null) {
+          showPrimaryToast(context, 'List created.');
+          _pendingCreateName = null;
+          if (mounted) setState(() => _isCreating = false);
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFFFFFFF),
+        backgroundColor: _T.surface,
         appBar: AppBar(
-          backgroundColor: const Color(0xFFFFFFFF),
+          backgroundColor: _T.surface,
           elevation: 0,
           scrolledUnderElevation: 0,
-          surfaceTintColor: Colors.white,
+          surfaceTintColor: _T.surface,
           automaticallyImplyLeading: widget.showBackButton,
           leading: widget.showBackButton
               ? AdaptiveTap(
                   onTap: () => Navigator.of(context).pop(),
                   child: const Padding(
                     padding: EdgeInsets.all(8),
-                    child: Icon(Icons.arrow_back, color: Colors.black),
+                    child: Icon(Icons.arrow_back, color: _T.ink),
                   ),
                 )
               : null,
@@ -93,24 +98,11 @@ class _ListsPageState extends State<ListsPage> {
             final lists = state is ListsLoaded
                 ? state.lists
                 : listsBloc.userLists;
-            final defaultList = _defaultList(lists);
-            // Pinned system lists, Want to Try first — it is the actionable
-            // one ("where should I go?"); Been (the ranked archive) second.
-            // Spec: docs/BEEN_WANT_TO_TRY.md §3.3 #3.
-            final systemLists = lists.where((list) => list.isSystem).toList()
-              ..sort((a, b) {
-                int rank(CafeList l) => l.listType == 'want_to_try' ? 0 : 1;
-                return rank(a).compareTo(rank(b));
-              });
-            // Favorites is demoted into the grid: it is just another list now
-            // that Been / Want to Try carry the primary save semantics.
-            final regularLists = [
-              if (defaultList != null) defaultList,
-              ...lists.where((list) => !list.isDefault && !list.isSystem),
-            ];
 
             if (state is ListsLoading && lists.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
+              return const Center(
+                child: CircularProgressIndicator(color: _T.brand),
+              );
             }
 
             if (state is ListsError && lists.isEmpty) {
@@ -123,74 +115,91 @@ class _ListsPageState extends State<ListsPage> {
               );
             }
 
+            // Want to Try first — it is the actionable one ("where should I
+            // go?"); Been, the ranked archive, second.
+            final systemLists = lists.where((list) => list.isSystem).toList()
+              ..sort((a, b) {
+                int rank(CafeList l) => l.listType == 'want_to_try' ? 0 : 1;
+                return rank(a).compareTo(rank(b));
+              });
+
+            // Everything else, most recently touched first. Favorites is no
+            // longer pinned to the front: it is labelled "Default" in its own
+            // card instead, which explains the one thing that was odd about it.
+            final regularLists =
+                lists.where((list) => !list.isSystem).toList()
+                  ..sort((a, b) => _recencyOf(b).compareTo(_recencyOf(a)));
+
             return ListView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-                vertical: 8.0,
+              padding: const EdgeInsets.fromLTRB(
+                _T.gutter,
+                0,
+                _T.gutter,
+                120, // clears the extended FAB and the tab bar
               ),
               children: [
-                Text('Your Lists', style: context.textTheme.titleLargeSemi),
-                const SizedBox(height: 20),
-                for (final list in systemLists) ...[
-                  _buildSystemListCard(context, list),
-                  const SizedBox(height: 12),
-                ],
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'All Lists',
-                      style: context.textTheme.titleMediumSemi.copyWith(
-                        color: const Color(0xFF1E3A2B),
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Your Lists',
+                  style: context.textTheme.titleLargeSemi.copyWith(
+                    color: _T.ink,
+                    letterSpacing: _T.tracking(24),
+                  ),
                 ),
                 const SizedBox(height: 16),
+                for (var i = 0; i < systemLists.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 10),
+                  _SystemListCard(
+                    list: systemLists[i],
+                    previews: listsBloc.listPreviews[systemLists[i].id] ?? const [],
+                    onTap: () => _openList(context, systemLists[i]),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Text(
+                  'All Lists',
+                  style: context.textTheme.titleMediumSemi.copyWith(
+                    color: _T.brand,
+                    letterSpacing: _T.tracking(18),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 if (regularLists.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24.0),
-                    child: Text(
-                      'Create a list to start organizing your saved cafes.',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: const Color(0xFF848586),
-                      ),
-                    ),
+                  _NoListsCard(
+                    onCreate: _isCreating
+                        ? null
+                        : () => _showCreateListDialog(context),
                   )
                 else
-                  for (final list in regularLists) ...[
-                    CollectionCard(
-                      title: list.name,
-                      subtitle:
-                          '${_placeCountText(list.cafeCount)} • ${_visibilityText(list)}',
-                      imageUrl: _imageUrl(list.coverImageUrl),
-                      onTap: () => _openList(context, list),
-                      onOptionsTap: list.isSystem || list.isDefault
-                          ? null
-                          : () => _showListOptions(context, list),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                const SizedBox(height: 80),
+                  _ListsGrid(
+                    lists: regularLists,
+                    previews: listsBloc.listPreviews,
+                    onOpen: (list) => _openList(context, list),
+                  ),
               ],
             );
           },
         ),
-        floatingActionButton: FloatingActionButton(
-          heroTag: 'fab-list-create',
-          onPressed: _isCreating ? null : () => _showCreateListDialog(context),
-          backgroundColor: const Color(0xFF33523F),
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
-          ),
-          child: const Icon(Icons.add, color: Colors.white, size: 28),
+        // Hidden while the "make your first list" card is on screen — it
+        // already carries the same button, and two of them read as two actions.
+        floatingActionButton: BlocBuilder<ListsBloc, ListsState>(
+          builder: (context, state) {
+            final lists = state is ListsLoaded
+                ? state.lists
+                : context.read<ListsBloc>().userLists;
+            final hasCustomLists = lists.any((list) => !list.isSystem);
+            if (!hasCustomLists) return const SizedBox.shrink();
+
+            return _NewListButton(
+              onTap: _isCreating ? null : () => _showCreateListDialog(context),
+            );
+          },
         ),
       ),
     );
   }
+
+  static DateTime _recencyOf(CafeList list) =>
+      list.lastSavedAt ?? list.updatedAt;
 
   Future<void> _showCreateListDialog(BuildContext context) async {
     final listsBloc = context.read<ListsBloc>();
@@ -213,72 +222,6 @@ class _ListsPageState extends State<ListsPage> {
     );
   }
 
-  Widget _buildSystemListCard(BuildContext context, CafeList list) {
-    final isWantToTry = list.listType == 'want_to_try';
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ListDetailPage(
-              listId: list.id,
-              title: list.name,
-              listType: list.listType,
-            ),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(16.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16.0),
-          border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: const BoxDecoration(
-                color: Color(0xFF33523F),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isWantToTry ? Icons.bookmark_outline : Icons.check,
-                color: Colors.white,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    list.name,
-                    style: context.textTheme.bodyLargeMed.copyWith(
-                      color: Colors.black87,
-                    ),
-                  ),
-                  Text(
-                    _placeCountText(list.cafeCount),
-                    style: context.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF848586),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: Color(0xFF848586), size: 28),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _openList(BuildContext context, CafeList list) {
     Navigator.push(
       context,
@@ -291,424 +234,237 @@ class _ListsPageState extends State<ListsPage> {
       ),
     );
   }
-
-  void _showListOptions(BuildContext context, CafeList list) {
-    // System lists (Been / Want to Try) can't be renamed or deleted —
-    // the server rejects both (trg_protect_system_lists).
-    if (list.isSystem) return;
-
-    final bloc = context.read<ListsBloc>();
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ListOptionsBottomSheet(
-        listId: list.id,
-        listName: list.name,
-        onEdit: () => _showEditDialog(context, bloc, list),
-        onDelete: () => _showDeleteDialog(context, bloc, list.id, list.name),
-      ),
-    );
-  }
-
-  void _showEditDialog(BuildContext context, ListsBloc bloc, CafeList list) {
-    showDialog(
-      context: context,
-      builder: (_) => _EditListDialog(
-        currentName: list.name,
-        currentDescription:
-            list.description, // Assuming CafeList has a description field
-        currentIsPublic: list.isPublic,
-        onSave: (newName, newDesc, newIsPublic) {
-          _pendingEditName = list.name;
-          bloc.add(
-            UpdateList(
-              listId: list.id,
-              name: newName,
-              description: newDesc,
-              isPublic: newIsPublic,
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showDeleteDialog(
-    BuildContext context,
-    ListsBloc bloc,
-    String listId,
-    String listName,
-  ) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Delete list?', style: context.textTheme.titleMediumSemi),
-              const SizedBox(height: 16),
-              Text(
-                '"$listName" will be permanently deleted. Cafes won\'t be deleted.',
-                style: context.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  AdaptiveTextButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: Text(
-                      'Cancel',
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AdaptiveTextButton(
-                    onPressed: () {
-                      _pendingDeleteName = listName;
-                      bloc.add(DeleteList(listId: listId));
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      'Delete',
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: Colors.red,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  CafeList? _defaultList(List<CafeList> lists) {
-    for (final list in lists) {
-      if (list.isDefault) return list;
-    }
-    return null;
-  }
-
-  static String _placeCountText(int count) {
-    return '$count ${count == 1 ? 'Place' : 'Places'}';
-  }
-
-  static String _visibilityText(CafeList list) {
-    return list.isPublic ? 'Public' : 'Private';
-  }
-
-  static String _imageUrl(String? imageUrl) => imageUrl?.trim() ?? '';
 }
 
-class _EditListDialog extends StatefulWidget {
-  final String currentName;
-  final String? currentDescription;
-  final bool currentIsPublic;
-  final void Function(String name, String? description, bool isPublic) onSave;
+// ── Been / Want to Try ─────────────────────────────────────────────────────
 
-  const _EditListDialog({
-    required this.currentName,
-    this.currentDescription,
-    required this.currentIsPublic,
-    required this.onSave,
+/// The two lists every user has, given the weight they earn: a full-width card
+/// with an 18pt name, a live preview of what's inside, and recency. They used
+/// to be thin icon rows sitting under photo cards for "Weekend spots", which
+/// inverted the hierarchy.
+class _SystemListCard extends StatelessWidget {
+  const _SystemListCard({
+    required this.list,
+    required this.previews,
+    required this.onTap,
   });
 
-  @override
-  State<_EditListDialog> createState() => _EditListDialogState();
-}
+  final CafeList list;
 
-class _EditListDialogState extends State<_EditListDialog> {
-  static const _green = Color(0xFF344E41);
-
-  late final TextEditingController _nameController;
-  late final TextEditingController _descController;
-  late bool _isPublic;
-
-  String get _trimmedName => _nameController.text.trim();
-  String get _trimmedDesc => _descController.text.trim();
-
-  bool get _canSave {
-    if (_trimmedName.isEmpty) return false;
-    // Check if any value has changed
-    return _trimmedName != widget.currentName ||
-        _trimmedDesc != (widget.currentDescription ?? '') ||
-        _isPublic != widget.currentIsPublic;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.currentName)
-      ..addListener(_onFormChanged);
-    _descController = TextEditingController(
-      text: widget.currentDescription ?? '',
-    )..addListener(_onFormChanged);
-    _isPublic = widget.currentIsPublic;
-  }
-
-  @override
-  void dispose() {
-    _nameController.removeListener(_onFormChanged);
-    _descController.removeListener(_onFormChanged);
-    _nameController.dispose();
-    _descController.dispose();
-    super.dispose();
-  }
-
-  void _onFormChanged() {
-    setState(() {}); // Triggers rebuild to evaluate _canSave
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Edit list', style: context.textTheme.titleMediumSemi),
-            const SizedBox(height: 16),
-            SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    controller: _nameController,
-                    autofocus: true,
-                    maxLength: 50,
-                    textInputAction: TextInputAction.next,
-                    decoration: InputDecoration(
-                      labelText: 'List name',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: _green, width: 2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _descController,
-                    maxLines: 2,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _saveIfValid(context),
-                    decoration: InputDecoration(
-                      labelText: 'Description (Optional)',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: _green, width: 2),
-                      ),
-                    ),
-                  ),
-                  // const SizedBox(height: 16),
-                  // SwitchListTile(
-                  //   contentPadding: EdgeInsets.zero,
-                  //   title: Text(
-                  //     'Public list',
-                  //     style: context.textTheme.bodyLargeMed,
-                  //   ),
-                  //   subtitle: Text(
-                  //     'Anyone can view this list',
-                  //     style: context.textTheme.bodySmall?.copyWith(color: Colors.grey),
-                  //   ),
-                  //   value: _isPublic,
-                  //   activeColor: _green,
-                  //   onChanged: (bool value) {
-                  //     setState(() {
-                  //       _isPublic = value;
-                  //     });
-                  //   },
-                  // ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AdaptiveTextButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: Text(
-                    'Cancel',
-                    style: context.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AdaptiveElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF33523F),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                    elevation: 0,
-                  ),
-                  onPressed: _canSave ? () => _saveIfValid(context) : null,
-                  child: Text(
-                    'Save',
-                    style: context.textTheme.bodySmallMed.copyWith(
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _saveIfValid(BuildContext context) {
-    if (!_canSave) return;
-
-    widget.onSave(
-      _trimmedName,
-      _trimmedDesc.isEmpty ? null : _trimmedDesc,
-      _isPublic,
-    );
-    Navigator.pop(context);
-  }
-}
-
-class CollectionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String imageUrl;
-  final Widget? footerWidget;
-  final bool isSkeleton;
-  final VoidCallback? onTap;
-  final VoidCallback? onOptionsTap;
-
-  const CollectionCard({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.imageUrl,
-    this.footerWidget,
-    this.isSkeleton = false,
-    this.onTap,
-    this.onOptionsTap,
-  });
+  /// Up to three cafe images from inside the list. Empty is a supported state,
+  /// not a bug — an empty list has nothing to preview.
+  final List<String> previews;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return AdaptiveTap(
-      onTap: () {
-        if (isSkeleton) return;
-        onTap?.call();
-      },
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(_T.radius),
       child: Container(
-        clipBehavior: Clip.hardEdge,
+        constraints: const BoxConstraints(minHeight: 80),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16.0),
-          border: Border.all(color: const Color(0xFFE0E0E0), width: 1.0),
+          color: _T.surface,
+          borderRadius: BorderRadius.circular(_T.radius),
+          border: Border.all(color: _T.border),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    list.name,
+                    style: context.textTheme.titleMediumSemi.copyWith(
+                      color: _T.ink,
+                      letterSpacing: _T.tracking(18),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _subtitle(list),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: _T.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (previews.isNotEmpty) ...[
+              const SizedBox(width: 12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < previews.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 4),
+                    _PreviewThumb(imageUrl: previews[i]),
+                  ],
+                ],
+              ),
+            ],
+            const SizedBox(width: 12),
+            Icon(
+              PhosphorIcons.caretRight(),
+              size: 16,
+              color: _T.muted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// A count is not a reason to tap. When there is something inside, the line
+  /// carries recency; when there isn't, it explains what the list is *for*.
+  static String _subtitle(CafeList list) {
+    if (list.cafeCount == 0) {
+      return list.listType == 'want_to_try'
+          ? 'Cafes you want to visit wait here.'
+          : 'Cafes you visit rank themselves here.';
+    }
+    // No "added" prefix: with three preview thumbnails alongside it, the
+    // longer phrasing wraps to a second line on a 390pt screen.
+    return '${_placeCountText(list.cafeCount)} · '
+        '${_relativeDay(list.lastSavedAt ?? list.updatedAt)}';
+  }
+}
+
+class _PreviewThumb extends StatelessWidget {
+  const _PreviewThumb({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(_T.radius),
+      child: Image.network(
+        imageUrl,
+        width: 44,
+        height: 44,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => const _CoffeeTile(size: 44),
+      ),
+    );
+  }
+}
+
+// ── Custom lists ───────────────────────────────────────────────────────────
+
+/// Two-up grid. Full-width photo cards cost a lot of scroll for one line of
+/// text each, and every card reserved a block of space it never filled.
+class _ListsGrid extends StatelessWidget {
+  const _ListsGrid({
+    required this.lists,
+    required this.previews,
+    required this.onOpen,
+  });
+
+  final List<CafeList> lists;
+  final Map<String, List<String>> previews;
+  final void Function(CafeList) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 600 ? 3 : 2;
+        const gap = 12.0;
+        final cardWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final list in lists)
+              SizedBox(
+                width: cardWidth,
+                child: _ListGridCard(
+                  list: list,
+                  previews: previews[list.id] ?? const [],
+                  onTap: () => onOpen(list),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ListGridCard extends StatelessWidget {
+  const _ListGridCard({
+    required this.list,
+    required this.previews,
+    required this.onTap,
+  });
+
+  final CafeList list;
+  final List<String> previews;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    // The list's own cover when it has one; otherwise borrow the newest cafe
+    // image inside it, so a list is never a blank tile just because nothing
+    // set `cover_image_url`.
+    final cover = switch (list.coverImageUrl?.trim()) {
+      final String url when url.isNotEmpty => url,
+      _ => previews.isEmpty ? '' : previews.first,
+    };
+
+    return AdaptiveTap(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(_T.radius),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: _T.surface,
+          borderRadius: BorderRadius.circular(_T.radius),
+          border: Border.all(color: _T.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(
-              height: 160,
+              height: 72,
               width: double.infinity,
-              child: _buildCoverImage(imageUrl),
+              child: cover.isEmpty
+                  ? const _CoffeeTile(size: double.infinity, glyphSize: 22)
+                  : Image.network(
+                      cover,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) =>
+                          const _CoffeeTile(size: double.infinity, glyphSize: 22),
+                    ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 80),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                        // No affordance for lists with no options: rename /
-                        // delete is refused for system lists server-side and
-                        // would orphan bookmark saves for Favorites. A dead ⋮
-                        // reads as a broken button.
-                        if (onOptionsTap != null)
-                          AdaptiveTap(
-                            onTap: isSkeleton ? null : onOptionsTap,
-                            child: const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Icon(
-                                  Icons.more_vert,
-                                  size: 20,
-                                  color: Color(0xFF848586),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    list.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textTheme.bodyLargeMed.copyWith(
+                      color: _T.ink,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: context.textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF6B7280),
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _subtitle(list),
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: _T.muted,
                     ),
-                    if (footerWidget != null) ...[
-                      const SizedBox(height: 16),
-                      footerWidget!,
-                    ],
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -717,32 +473,132 @@ class CollectionCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCoverImage(String imageUrl) {
-    final isEmpty = imageUrl.trim().isEmpty;
+  /// "Private" used to live here on every card. Public lists are not built —
+  /// nothing ever sets `is_public` — so the slot said the same word forever.
+  /// It now carries recency, and names the default list instead of leaving it
+  /// silently different from its neighbours.
+  static String _subtitle(CafeList list) {
+    if (list.cafeCount == 0) return 'No cafes yet';
 
-    if (isEmpty) return _placeholder();
+    final parts = [
+      if (list.isDefault) 'Default',
+      _placeCountText(list.cafeCount),
+      _relativeDay(list.lastSavedAt ?? list.updatedAt),
+    ];
+    return parts.join(' · ');
+  }
+}
 
-    return Image.network(
-      imageUrl,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorBuilder: (_, __, ___) => _placeholder(),
+// ── Empty state + create ───────────────────────────────────────────────────
+
+class _NoListsCard extends StatelessWidget {
+  const _NoListsCard({required this.onCreate});
+
+  final VoidCallback? onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(_T.radius),
+        border: Border.all(color: _T.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Make a list of your own — best matcha, study spots, '
+            'date-night nooks.',
+            style: context.textTheme.bodyLarge?.copyWith(
+              color: _T.ink,
+              height: 1.55,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _NewListButton(onTap: onCreate),
+        ],
+      ),
     );
   }
+}
 
-  Widget _placeholder() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFE8E8E8), Color(0xFF9E9E9E)],
+/// Labelled rather than a bare ＋: on a first run the plus was the only action
+/// on the screen and said nothing about what it would do.
+class _NewListButton extends StatelessWidget {
+  const _NewListButton({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdaptiveTap(
+      onTap: onTap ?? () {},
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: onTap == null ? _T.brandHover : _T.brand,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(PhosphorIcons.plus(), size: 18, color: _T.surface),
+            const SizedBox(width: 8),
+            Text(
+              'New list',
+              style: context.textTheme.bodyLargeMed.copyWith(color: _T.surface),
+            ),
+          ],
         ),
       ),
-      child: const Center(
-        child: Icon(Icons.coffee, color: Color(0xFFBDBDBD), size: 36),
-      ),
     );
   }
+}
+
+// ── Shared bits ────────────────────────────────────────────────────────────
+
+class _CoffeeTile extends StatelessWidget {
+  const _CoffeeTile({required this.size, this.glyphSize = 20});
+
+  final double size;
+  final double glyphSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      color: _T.sage,
+      alignment: Alignment.center,
+      child: Icon(PhosphorIcons.coffee(), size: glyphSize, color: _T.brand),
+    );
+  }
+}
+
+String _placeCountText(int count) =>
+    '$count ${count == 1 ? 'place' : 'places'}';
+
+/// "yesterday" / "3 days ago" / "last week". Coarse on purpose — the point is
+/// which list was touched most recently, not an audit trail.
+String _relativeDay(DateTime when) {
+  final now = DateTime.now();
+  final days = DateTime(
+    now.year,
+    now.month,
+    now.day,
+  ).difference(DateTime(when.year, when.month, when.day)).inDays;
+
+  if (days <= 0) return 'today';
+  if (days == 1) return 'yesterday';
+  if (days < 7) return '$days days ago';
+  if (days < 14) return 'last week';
+  if (days < 30) return '${days ~/ 7} weeks ago';
+  if (days < 60) return 'last month';
+  if (days < 365) return '${days ~/ 30} months ago';
+  return 'over a year ago';
 }

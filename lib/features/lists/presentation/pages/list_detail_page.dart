@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -13,6 +14,8 @@ import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/lists/presentation/widgets/list_detail_cafe_card.dart';
+import 'package:nook/features/lists/presentation/widgets/list_edit_dialogs.dart';
+import 'package:nook/features/lists/presentation/widgets/list_options_bottom_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/ranked_been_list.dart';
 
 class ListDetailPage extends StatefulWidget {
@@ -42,6 +45,8 @@ class _ListDetailPageState extends State<ListDetailPage> {
   List<CafeSummary>? _cachedCafes;
   String? _cachedDescription;
   String? _lastRemovedCafeName;
+  CafeList? _cachedList;
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -50,6 +55,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     if (state is ListCafesLoaded && state.list.id == widget.listId) {
       _cachedCafes = state.cafes;
       _cachedDescription = state.list.description;
+      _cachedList = state.list;
     } else {
       context.read<ListsBloc>().add(LoadListCafes(listId: widget.listId));
     }
@@ -58,6 +64,65 @@ class _ListDetailPageState extends State<ListDetailPage> {
       final ranking = context.read<CafeRankingCubit>();
       if (!ranking.state.loaded) ranking.load();
     }
+  }
+
+  bool get _canEditList {
+    final list = _cachedList;
+    return list != null && !list.isSystem && !list.isDefault;
+  }
+
+  void _showListOptions() {
+    final list = _cachedList;
+    if (list == null) return;
+
+    final bloc = context.read<ListsBloc>();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ListOptionsBottomSheet(
+        listId: list.id,
+        listName: list.name,
+        onEdit: () => _showEditDialog(bloc, list),
+        onDelete: () => _confirmDelete(bloc, list),
+      ),
+    );
+  }
+
+  void _showEditDialog(ListsBloc bloc, CafeList list) {
+    showDialog(
+      context: context,
+      builder: (_) => EditListDialog(
+        currentName: list.name,
+        currentDescription: list.description,
+        currentIsPublic: list.isPublic,
+        onSave: (name, description, isPublic) {
+          bloc.add(
+            UpdateList(
+              listId: list.id,
+              name: name,
+              description: description,
+              isPublic: isPublic,
+            ),
+          );
+          showPrimaryToast(context, 'List updated.');
+        },
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(ListsBloc bloc, CafeList list) async {
+    final confirmed = await showDeleteListConfirm(
+      context,
+      listName: list.name,
+    );
+    if (!confirmed || !mounted || _isDeleting) return;
+
+    // The list this page is showing is gone — leave before the bloc reloads
+    // and this page rebuilds against a list that no longer exists.
+    _isDeleting = true;
+    bloc.add(DeleteList(listId: list.id));
+    Navigator.of(context).pop();
   }
 
   void _removeCafe(CafeSummary cafe) {
@@ -83,6 +148,19 @@ class _ListDetailPageState extends State<ListDetailPage> {
             child: Icon(Icons.arrow_back, color: Colors.black),
           ),
         ),
+        // Rename / delete moved here when the Lists index dropped its ⋮.
+        // Absent for system lists (the server refuses both) and for the
+        // default list, whose bookmark saves would be orphaned by a delete.
+        actions: [
+          if (_canEditList)
+            AdaptiveTap(
+              onTap: _showListOptions,
+              child: const Padding(
+                padding: EdgeInsets.all(12),
+                child: Icon(Icons.more_vert, color: Color(0xFF767574)),
+              ),
+            ),
+        ],
       ),
       body: BlocConsumer<ListsBloc, ListsState>(
         listenWhen: (previous, current) =>
@@ -95,6 +173,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
             setState(() {
               _cachedCafes = state.cafes;
               _cachedDescription = state.list.description;
+              _cachedList = state.list;
             });
             if (hadRemoval) {
               showPrimaryToast(context, 'Removed "${_lastRemovedCafeName!}".');
