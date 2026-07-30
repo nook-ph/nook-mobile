@@ -246,21 +246,34 @@ class _ListDetailPageState extends State<ListDetailPage> {
             else if (widget.isBeenList)
               RankedBeenList(cafes: cafes)
             else
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columns,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.85,
-                ),
-                itemCount: cafes.length,
-                itemBuilder: (_, index) {
-                  final cafe = cafes[index];
-                  return ListDetailCafeCard(
-                    cafe: cafe,
-                    onRemove: () => _removeCafe(cafe),
+              // Not a GridView: `SliverGridDelegateWithFixedCrossAxisCount`
+              // hands every cell a *tight* height derived from
+              // `childAspectRatio`, which overrides the card's
+              // `MainAxisSize.min` and left a band of empty white under the
+              // address. `Wrap` gives each card a width and lets it size its
+              // own height. Name and address are both `maxLines: 1`, so cards
+              // in a run still come out the same height. Same approach as
+              // `_ListsGrid` on the Lists index.
+              LayoutBuilder(
+                builder: (context, gridConstraints) {
+                  const gap = 12.0;
+                  final cardWidth =
+                      (gridConstraints.maxWidth - gap * (columns - 1)) /
+                      columns;
+
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final cafe in cafes)
+                        SizedBox(
+                          width: cardWidth,
+                          child: ListDetailCafeCard(
+                            cafe: cafe,
+                            onRemove: () => _removeCafe(cafe),
+                          ),
+                        ),
+                    ],
                   );
                 },
               ),
