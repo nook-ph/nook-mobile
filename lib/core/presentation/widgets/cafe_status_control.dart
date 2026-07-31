@@ -131,7 +131,7 @@ class _Pill extends StatelessWidget {
             // row wraps instead of clipping.
             constraints: const BoxConstraints(minHeight: 48),
             padding: EdgeInsets.symmetric(
-              horizontal: compactLabel != null ? 12 : 16,
+              horizontal: compactLabel != null ? 12 : 14,
               vertical: 10,
             ),
             decoration: BoxDecoration(

@@ -232,7 +232,9 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 16),
+          // 16, not 22: three controls with full labels need every point of
+          // width to stay on one line at the common 360–412dp widths.
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: BlocBuilder<CafeStatusCubit, CafeStatusState>(
             buildWhen: (previous, current) =>
                 previous.statusFor(_cafeId) != current.statusFor(_cafeId) ||
