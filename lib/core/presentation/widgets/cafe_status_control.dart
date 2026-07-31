@@ -4,18 +4,23 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// Been / Want to Try pills for the cafe details action bar (spec:
+/// Been / Want to Try for the cafe details action bar (spec:
 /// docs/BEEN_WANT_TO_TRY.md §3.1), rebuilt from the Claude Design project
 /// "Been & Want to Try".
 ///
 /// Dumb widget: owns no state — the parent decides what a tap means (select /
 /// unset / login guard) and drives [status] / [isBusy].
 ///
-/// The bar keeps three slots in every state. When the cafe is ranked, the
-/// score merges into the Been pill ("✓ 5.5 · #8 of 9") and Want to Try
-/// shortens to "Try" rather than disappearing, which is what the previous
-/// build did once a fourth control no longer fit. Both pills always announce
-/// their full name regardless of what the visible label says.
+/// **One segmented control, not two pills.** `CafeStatus` is an enum: a cafe is
+/// Been *or* Want to Try, never both. Two free-standing pills read as two
+/// independent toggles and left the row to be packed by hand, which parked an
+/// arbitrary gap wherever the labels happened to end. A single filled track
+/// expands to fill the row, so leftover width lands inside a real surface
+/// instead of sitting as a hole next to the primary action.
+///
+/// When the cafe is ranked the score merges into the Been segment
+/// ("✓ 5.5 · #8 of 9") and Want to Try shortens to "Try". Both segments always
+/// announce their full name regardless of what the visible label says.
 class CafeStatusControl extends StatelessWidget {
   const CafeStatusControl({
     super.key,
@@ -39,44 +44,58 @@ class CafeStatusControl extends StatelessWidget {
   /// as a review of the cafe (docs/RANKING_DESIGN.md §3.3).
   final String? rankLabel;
 
+  static const _track = Color(0xFFF1F0EC);
+  static const _trackBorder = Color(0xFFE0E0E0);
+
   bool get _isRanked => score != null;
 
   @override
   Widget build(BuildContext context) {
     final isBeen = status == CafeStatus.been;
+    final showsScore = _isRanked && isBeen;
 
-    return Wrap(
-      spacing: 6,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        _Pill(
-          onTap: isBusy ? null : onTapBeen,
-          isSelected: isBeen,
-          icon: PhosphorIcons.check,
-          label: 'Been',
-          score: _isRanked && isBeen ? score : null,
-          rankLabel: _isRanked && isBeen ? rankLabel : null,
-        ),
-        _Pill(
-          onTap: isBusy ? null : onTapWantToTry,
-          isSelected: status == CafeStatus.wantToTry,
-          icon: PhosphorIcons.bookmarkSimple,
-          label: 'Want to Try',
-          // Compressed, not stripped, once the Been pill carries a score: four
-          // controls' jobs in three slots. It was icon-only, which left a bare
-          // bookmark glyph sitting a thumb away from the save-to-list bookmark
-          // in the header — same icon, different job. A one-word label keeps
-          // the row on one line and says which one this is.
-          compactLabel: _isRanked && isBeen ? 'Try' : null,
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: _track,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _trackBorder),
+      ),
+      child: Row(
+        children: [
+          // Weighted, not halved, and the weighting flips with the state:
+          // unranked, "Want to Try" is the longer label and equal halves
+          // clipped it to "Want to …"; ranked, the scored label
+          // ("9.0 · #2 of 7") is the long one and "Try" needs almost nothing.
+          Expanded(
+            flex: showsScore ? 3 : 2,
+            child: _Segment(
+              onTap: isBusy ? null : onTapBeen,
+              isSelected: isBeen,
+              icon: PhosphorIcons.check,
+              label: 'Been',
+              score: showsScore ? score : null,
+              rankLabel: showsScore ? rankLabel : null,
+            ),
+          ),
+          Expanded(
+            flex: showsScore ? 2 : 3,
+            child: _Segment(
+              onTap: isBusy ? null : onTapWantToTry,
+              isSelected: status == CafeStatus.wantToTry,
+              icon: PhosphorIcons.bookmarkSimple,
+              label: 'Want to Try',
+              compactLabel: showsScore ? 'Try' : null,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _Pill extends StatelessWidget {
-  const _Pill({
+class _Segment extends StatelessWidget {
+  const _Segment({
     required this.onTap,
     required this.isSelected,
     required this.icon,
@@ -93,17 +112,16 @@ class _Pill extends StatelessWidget {
   final String? score;
   final String? rankLabel;
 
-  /// Short stand-in shown instead of [label] when the bar is tight. [label]
+  /// Short stand-in shown instead of [label] when the track is tight. [label]
   /// still goes to screen readers, so the spoken name never abbreviates.
   final String? compactLabel;
 
   static const _selectedBg = Color(0xFF3A5A40);
-  static const _border = Color(0xFFE0E0E0);
   static const _ink = Color(0xFF0A0F0D);
 
   /// Spoken name, always the full one. Built explicitly because the visible
   /// text is excluded below: it abbreviates ("Try") or replaces the name with
-  /// a number ("9.3 · #2 of 8"), neither of which identifies the control.
+  /// a number ("9.3 · #2 of 7"), neither of which identifies the control.
   String get _semanticLabel {
     if (score == null) return label;
     return rankLabel == null ? '$label, $score' : '$label, $score, $rankLabel';
@@ -115,7 +133,7 @@ class _Pill extends StatelessWidget {
 
     // MergeSemantics + ExcludeSemantics on the text, not a bare Semantics
     // wrapper: a plain `Semantics(label:)` around a subtree that has its own
-    // gesture node left the button node's label empty — the compressed pill
+    // gesture node left the button node's label empty — the compressed segment
     // announced itself as nothing at all.
     return MergeSemantics(
       child: Semantics(
@@ -127,17 +145,15 @@ class _Pill extends StatelessWidget {
           borderRadius: BorderRadius.circular(999),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            // Min height, never fixed: at 200% text scale the pills grow and the
-            // row wraps instead of clipping.
-            constraints: const BoxConstraints(minHeight: 48),
-            padding: EdgeInsets.symmetric(
-              horizontal: compactLabel != null ? 12 : 14,
-              vertical: 10,
-            ),
+            // Min height, never fixed: at 200% text scale the segments grow
+            // and the bar reflows instead of clipping.
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             decoration: BoxDecoration(
-              color: isSelected ? _selectedBg : Colors.white,
+              // Only the selected segment gets a surface — the track behind
+              // carries the unselected one.
+              color: isSelected ? _selectedBg : Colors.transparent,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: isSelected ? _selectedBg : _border),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -155,38 +171,43 @@ class _Pill extends StatelessWidget {
                 const SizedBox(width: 6),
                 // The visible text is decoration for the label above, so it is
                 // kept out of the semantics tree rather than merged into it.
-                ExcludeSemantics(
-                  child: score == null
-                      ? Text(
-                          compactLabel ?? label,
-                          style: context.textTheme.bodyLargeMed.copyWith(
-                            color: foreground,
-                          ),
-                        )
-                      // "5.5 · #8 of 9" — the score chip and the Been pill were
-                      // always the same object, so they are one control now.
-                      : Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: score,
-                                style: context.textTheme.bodyLargeMed.copyWith(
-                                  color: foreground,
-                                ),
-                              ),
-                              if (rankLabel != null)
+                Flexible(
+                  child: ExcludeSemantics(
+                    child: score == null
+                        ? Text(
+                            compactLabel ?? label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.textTheme.bodyLargeMed.copyWith(
+                              color: foreground,
+                            ),
+                          )
+                        // "5.5 · #8 of 9" — the score chip and the Been pill
+                        // were always the same object, so they are one control.
+                        : Text.rich(
+                            TextSpan(
+                              children: [
                                 TextSpan(
-                                  text: ' · $rankLabel',
-                                  style: context.textTheme.bodySmallMed
-                                      .copyWith(
-                                        color: foreground.withValues(
-                                          alpha: 0.85,
-                                        ),
-                                      ),
+                                  text: score,
+                                  style: context.textTheme.bodyLargeMed
+                                      .copyWith(color: foreground),
                                 ),
-                            ],
+                                if (rankLabel != null)
+                                  TextSpan(
+                                    text: ' · $rankLabel',
+                                    style: context.textTheme.bodySmallMed
+                                        .copyWith(
+                                          color: foreground.withValues(
+                                            alpha: 0.85,
+                                          ),
+                                        ),
+                                  ),
+                              ],
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
+                  ),
                 ),
               ],
             ),
