@@ -402,9 +402,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         if (name != null && name.isNotEmpty) 'name': name,
       };
 
+      // Set-once, from Supabase rather than PostHog's own first-seen date:
+      // the activation metric (STICKY_FEATURES.md Phase 0 — "% of new users
+      // who rank >= 1 cafe on day 1") needs the real account age. PostHog's
+      // person created_at is when the device was first seen, which for a
+      // reinstall or a second device is not the same day at all.
+      final signupDate = user.createdAt.trim();
+
       await Posthog().identify(
         userId: user.id,
         userProperties: userProperties.isEmpty ? null : userProperties,
+        userPropertiesSetOnce: signupDate.isEmpty
+            ? null
+            : {'signup_date': signupDate},
       );
     } catch (_) {}
   }
