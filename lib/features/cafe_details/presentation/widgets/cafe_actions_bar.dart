@@ -245,16 +245,19 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
                   final ranking = rankingState.rankingFor(_cafeId);
                   final overall = rankingState.overallRankOf(_cafeId);
 
-                  final controls = CafeStatusControl(
-                    status: state.statusFor(_cafeId),
-                    isBusy: state.isPending(_cafeId),
-                    score: ranking?.displayScore,
-                    rankLabel: ranking == null || overall == null
-                        ? null
-                        : '#$overall of ${rankingState.rankedCount}',
-                    onTapBeen: () => _onStatusTap(CafeStatus.been),
-                    onTapWantToTry: () => _onStatusTap(CafeStatus.wantToTry),
-                  );
+                  CafeStatusControl controls({bool compact = false}) =>
+                      CafeStatusControl(
+                        status: state.statusFor(_cafeId),
+                        isBusy: state.isPending(_cafeId),
+                        compact: compact,
+                        score: ranking?.displayScore,
+                        rankLabel: ranking == null || overall == null
+                            ? null
+                            : '#$overall of ${rankingState.rankedCount}',
+                        onTapBeen: () => _onStatusTap(CafeStatus.been),
+                        onTapWantToTry: () =>
+                            _onStatusTap(CafeStatus.wantToTry),
+                      );
 
                   // Two layouts, not one that clips. At normal type the bar is
                   // a row with Directions taking the remaining width; once the
@@ -267,31 +270,34 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        controls,
+                        controls(),
                         const SizedBox(height: 8),
                         _DirectionsButton(cafe: widget.cafe),
                       ],
                     );
                   }
 
-                  return Row(
-                    children: [
-                      // The pills absorb the slack; Directions doesn't flex.
-                      // Under `Expanded` on Directions the pills took their
-                      // intrinsic width first and Directions got the leftovers,
-                      // so its label clipped to "Directio…" — the opposite of
-                      // the rule below. Under `Flexible` here the row stopped
-                      // filling and left a gap on the right, obvious once the
-                      // ranked state shortens "Want to Try" to "Try".
-                      // `Expanded` gives the pills every remaining point, so
-                      // Directions keeps its natural width at the trailing edge
-                      // and the row is flush in both states.
-                      Expanded(child: controls),
-                      const SizedBox(width: 6),
-                      // Directions never moves slot and never changes fill —
-                      // it is the funnel's conversion event.
-                      _DirectionsButton(cafe: widget.cafe),
-                    ],
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Directions expands, so the row always reaches the edge
+                      // and never leaves a gap. What that costs is the CTA's
+                      // own label when the row runs short — so the status
+                      // labels are made to yield first: below the width where
+                      // both full labels plus a natural-width Directions fit
+                      // (~90 + 135 + 6 gaps + ~130), Want to Try shortens to
+                      // "Try". The conversion event keeps its label at every
+                      // width; the toggles give way instead.
+                      final compact = constraints.maxWidth < 380;
+                      return Row(
+                        children: [
+                          controls(compact: compact),
+                          const SizedBox(width: 6),
+                          // Directions never moves slot and never changes fill
+                          // — it is the funnel's conversion event.
+                          Expanded(child: _DirectionsButton(cafe: widget.cafe)),
+                        ],
+                      );
+                    },
                   );
                 },
               );
