@@ -276,14 +276,17 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
 
                   return Row(
                     children: [
-                      // The pills flex, Directions doesn't. Under `Expanded`
-                      // the pills took their intrinsic width first and
-                      // Directions got the leftovers, so its label clipped to
-                      // "Directio…" — the opposite of the rule below. Row lays
-                      // non-flex children out first, so Directions now takes
-                      // its natural width and the pills wrap (runSpacing is
-                      // already set for it) instead of squeezing it.
-                      Flexible(child: controls),
+                      // The pills absorb the slack; Directions doesn't flex.
+                      // Under `Expanded` on Directions the pills took their
+                      // intrinsic width first and Directions got the leftovers,
+                      // so its label clipped to "Directio…" — the opposite of
+                      // the rule below. Under `Flexible` here the row stopped
+                      // filling and left a gap on the right, obvious once the
+                      // ranked state shortens "Want to Try" to "Try".
+                      // `Expanded` gives the pills every remaining point, so
+                      // Directions keeps its natural width at the trailing edge
+                      // and the row is flush in both states.
+                      Expanded(child: controls),
                       const SizedBox(width: 6),
                       // Directions never moves slot and never changes fill —
                       // it is the funnel's conversion event.
