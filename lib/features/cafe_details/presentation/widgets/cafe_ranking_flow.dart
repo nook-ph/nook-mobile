@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
@@ -26,6 +27,10 @@ enum RankingFlowOutcome {
   /// sheet with its own (still-mounted) context; opening it from inside this
   /// sheet would use a context that was popped a frame earlier.
   completedAddNote,
+
+  /// Ranked, and the user tapped through to their ranked list. Same
+  /// popped-context reason as [completedAddNote]: the caller navigates.
+  completedViewList,
 
   /// The write failed. The Been mark is safe; only the score was lost.
   failed,
@@ -242,10 +247,17 @@ class _CafeRankingFlowState extends State<_CafeRankingFlow> {
                   onPicked: _onComparisonPicked,
                   onTooClose: _onTooClose,
                 ),
-                _Phase.saving => const Padding(
+                // Full width, and roughly the reveal's height: sized to its
+                // content this collapsed the sheet to a narrow strip mid-flow,
+                // which reads as a rendering glitch at the one moment the user
+                // is waiting on the network.
+                _Phase.saving => const SizedBox(
                   key: ValueKey('saving'),
-                  padding: EdgeInsets.symmetric(vertical: 48),
-                  child: CircularProgressIndicator(color: _green),
+                  width: double.infinity,
+                  height: 180,
+                  child: Center(
+                    child: CircularProgressIndicator(color: _green),
+                  ),
                 ),
                 _Phase.reveal => _RevealStep(
                   key: const ValueKey('reveal'),
@@ -256,6 +268,8 @@ class _CafeRankingFlowState extends State<_CafeRankingFlow> {
                   rankedCount: _rankedCount,
                   onDone: () => _finish(RankingFlowOutcome.completed),
                   onAddNote: () => _finish(RankingFlowOutcome.completedAddNote),
+                  onViewList: () =>
+                      _finish(RankingFlowOutcome.completedViewList),
                 ),
               },
             ),
@@ -566,26 +580,50 @@ class _CompareStep extends StatelessWidget {
 /// backed by the CafeStore cache — after the first comparison most opponents
 /// are already local. Failure shows a name-less card that is still tappable:
 /// blocking the flow on a thumbnail would be backwards.
-class _OpponentCard extends StatelessWidget {
+///
+/// The fetch is held in State deliberately. Built inside `build()` it was
+/// recreated on every rebuild, discarding the in-flight request and resetting
+/// the FutureBuilder to `waiting`; with the sheet's AnimatedSwitcher transition
+/// on a cold CafeStore, the first opponent could stay stuck on the "This cafe"
+/// fallback indefinitely — an anonymous grey card on the one screen where the
+/// user is being asked to choose between two cafes.
+class _OpponentCard extends StatefulWidget {
   const _OpponentCard({required this.cafeId, required this.onTap});
 
   final String cafeId;
   final VoidCallback onTap;
 
   @override
+  State<_OpponentCard> createState() => _OpponentCardState();
+}
+
+class _OpponentCardState extends State<_OpponentCard> {
+  late Future<CafeBundle> _future = _fetch();
+
+  Future<CafeBundle> _fetch() {
+    return sl<ICafeRepository>().getCafeBundleById(
+      widget.cafeId,
+      includeMenu: false,
+      includeReviews: false,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _OpponentCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.cafeId != widget.cafeId) _future = _fetch();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: sl<ICafeRepository>().getCafeBundleById(
-        cafeId,
-        includeMenu: false,
-        includeReviews: false,
-      ),
+      future: _future,
       builder: (context, snapshot) {
         final details = snapshot.data?.details;
         return _CompareCard(
           name: details?.name ?? 'This cafe',
           imageUrl: details?.coverImage,
-          onTap: onTap,
+          onTap: widget.onTap,
         );
       },
     );
@@ -659,6 +697,7 @@ class _RevealStep extends StatelessWidget {
     required this.rankedCount,
     required this.onDone,
     required this.onAddNote,
+    required this.onViewList,
   });
 
   final String cafeId;
@@ -668,6 +707,7 @@ class _RevealStep extends StatelessWidget {
   final int rankedCount;
   final VoidCallback onDone;
   final VoidCallback onAddNote;
+  final VoidCallback onViewList;
 
   static const _green = Color(0xFF3A5A40);
 
@@ -710,8 +750,11 @@ class _RevealStep extends StatelessWidget {
         Row(
           children: [
             Expanded(
+              // The spec's payoff CTA (§3.1 step 3). This screen is the peak
+              // moment of the loop; sending the user back to a cafe detail
+              // page wastes it. The ranked list is the asset they just grew.
               child: AdaptiveTap(
-                onTap: onDone,
+                onTap: onViewList,
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
                   constraints: const BoxConstraints(minHeight: 48),
@@ -722,7 +765,7 @@ class _RevealStep extends StatelessWidget {
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    'Done',
+                    'View my list',
                     textAlign: TextAlign.center,
                     style: context.textTheme.bodyLargeMed.copyWith(
                       color: Colors.white,
@@ -758,6 +801,23 @@ class _RevealStep extends StatelessWidget {
               ),
             ),
           ],
+        ),
+        // Neither CTA is the way out any more, so dismissal needs its own
+        // affordance — quiet, but present.
+        AdaptiveTap(
+          onTap: onDone,
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            alignment: Alignment.center,
+            child: Text(
+              'Done',
+              textAlign: TextAlign.center,
+              style: context.textTheme.bodyLargeMed.copyWith(
+                color: const Color(0xFF767574),
+              ),
+            ),
+          ),
         ),
       ],
     );

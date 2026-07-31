@@ -23,7 +23,11 @@ class CafeCardImage extends StatelessWidget {
         imageUrl: imageUrl,
         cacheManager: CustomCacheManager.instance,
         fit: BoxFit.cover,
-        placeholder: (_, _) => const SizedBox.shrink(),
+        // A neutral block, not nothing: an empty placeholder leaves a
+        // card-shaped hole in the layout while the image loads. On the ranking
+        // comparison sheet that meant one of two cafes rendered and the other
+        // did not, which biases the choice the whole feature is built on.
+        placeholder: (_, _) => const ColoredBox(color: Color(0xFFE5E7EB)),
         errorWidget: (_, _, _) => Container(
           color: const Color(0xFFE5E7EB),
           alignment: Alignment.center,

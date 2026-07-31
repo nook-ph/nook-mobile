@@ -9,6 +9,7 @@ import 'package:nook/core/cafe/domain/use_cases/get_cafe_note_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
+import 'package:nook/features/lists/presentation/utils/open_been_list.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 /// "Your visit" — the user's own history with this cafe, on the page itself.
@@ -79,14 +80,29 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
     if (mounted) await _loadNote();
   }
 
-  void _openRankingFlow() {
-    showCafeRankingFlow(
+  Future<void> _openRankingFlow() async {
+    final outcome = await showCafeRankingFlow(
       context,
       cubit: context.read<CafeRankingCubit>(),
       cafeId: widget.cafeId,
       cafeName: widget.cafeName,
       cafeImageUrl: widget.cafeImageUrl,
     );
+    if (!mounted) return;
+
+    // The reveal's CTAs have to be honoured here too — this entry point
+    // dropped the outcome, so "Add a note" off a re-rank did nothing at all.
+    switch (outcome) {
+      case RankingFlowOutcome.completedAddNote:
+        await _openNoteSheet();
+      case RankingFlowOutcome.completedViewList:
+        await openBeenList(context);
+      case RankingFlowOutcome.completed ||
+          RankingFlowOutcome.skipped ||
+          RankingFlowOutcome.failed ||
+          null:
+        break;
+    }
   }
 
   @override

@@ -13,8 +13,9 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 ///
 /// The bar keeps three slots in every state. When the cafe is ranked, the
 /// score merges into the Been pill ("✓ 5.5 · #8 of 9") and Want to Try
-/// compresses to its icon rather than disappearing, which is what the previous
-/// build did once a fourth control no longer fit.
+/// shortens to "Try" rather than disappearing, which is what the previous
+/// build did once a fourth control no longer fit. Both pills always announce
+/// their full name regardless of what the visible label says.
 class CafeStatusControl extends StatelessWidget {
   const CafeStatusControl({
     super.key,
@@ -62,9 +63,12 @@ class CafeStatusControl extends StatelessWidget {
           isSelected: status == CafeStatus.wantToTry,
           icon: PhosphorIcons.bookmarkSimple,
           label: 'Want to Try',
-          // Icon-only once the Been pill carries a score: four controls' jobs
-          // in three slots. It stays tappable and stays 48pt.
-          iconOnly: _isRanked && isBeen,
+          // Compressed, not stripped, once the Been pill carries a score: four
+          // controls' jobs in three slots. It was icon-only, which left a bare
+          // bookmark glyph sitting a thumb away from the save-to-list bookmark
+          // in the header — same icon, different job. A one-word label keeps
+          // the row on one line and says which one this is.
+          compactLabel: _isRanked && isBeen ? 'Try' : null,
         ),
       ],
     );
@@ -79,7 +83,7 @@ class _Pill extends StatelessWidget {
     required this.label,
     this.score,
     this.rankLabel,
-    this.iconOnly = false,
+    this.compactLabel,
   });
 
   final VoidCallback? onTap;
@@ -88,86 +92,104 @@ class _Pill extends StatelessWidget {
   final String label;
   final String? score;
   final String? rankLabel;
-  final bool iconOnly;
+
+  /// Short stand-in shown instead of [label] when the bar is tight. [label]
+  /// still goes to screen readers, so the spoken name never abbreviates.
+  final String? compactLabel;
 
   static const _selectedBg = Color(0xFF3A5A40);
   static const _border = Color(0xFFE0E0E0);
   static const _ink = Color(0xFF0A0F0D);
 
+  /// Spoken name, always the full one. Built explicitly because the visible
+  /// text is excluded below: it abbreviates ("Try") or replaces the name with
+  /// a number ("9.3 · #2 of 8"), neither of which identifies the control.
+  String get _semanticLabel {
+    if (score == null) return label;
+    return rankLabel == null ? '$label, $score' : '$label, $score, $rankLabel';
+  }
+
   @override
   Widget build(BuildContext context) {
     final foreground = isSelected ? Colors.white : _ink;
 
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      label: iconOnly ? label : null,
-      child: AdaptiveTap(
-        onTap: onTap ?? () {},
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          // Min height, never fixed: at 200% text scale the pills grow and the
-          // row wraps instead of clipping.
-          constraints: BoxConstraints(
-            minHeight: 48,
-            minWidth: iconOnly ? 48 : 0,
-          ),
-          padding: EdgeInsets.symmetric(
-            horizontal: iconOnly ? 12 : 16,
-            vertical: 10,
-          ),
-          decoration: BoxDecoration(
-            color: isSelected ? _selectedBg : Colors.white,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: isSelected ? _selectedBg : _border),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon(
-                  isSelected
-                      ? PhosphorIconsStyle.fill
-                      : PhosphorIconsStyle.regular,
+    // MergeSemantics + ExcludeSemantics on the text, not a bare Semantics
+    // wrapper: a plain `Semantics(label:)` around a subtree that has its own
+    // gesture node left the button node's label empty — the compressed pill
+    // announced itself as nothing at all.
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        selected: isSelected,
+        label: _semanticLabel,
+        child: AdaptiveTap(
+          onTap: onTap ?? () {},
+          borderRadius: BorderRadius.circular(999),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            // Min height, never fixed: at 200% text scale the pills grow and the
+            // row wraps instead of clipping.
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: EdgeInsets.symmetric(
+              horizontal: compactLabel != null ? 12 : 16,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: isSelected ? _selectedBg : Colors.white,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: isSelected ? _selectedBg : _border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon(
+                    isSelected
+                        ? PhosphorIconsStyle.fill
+                        : PhosphorIconsStyle.regular,
+                  ),
+                  size: 16,
+                  color: foreground,
                 ),
-                size: 16,
-                color: foreground,
-              ),
-              if (!iconOnly) ...[
                 const SizedBox(width: 6),
-                if (score == null)
-                  Text(
-                    label,
-                    style: context.textTheme.bodyLargeMed.copyWith(
-                      color: foreground,
-                    ),
-                  )
-                else
-                  // "5.5 · #8 of 9" — the score chip and the Been pill were
-                  // always the same object, so they are one control now.
-                  Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(
-                          text: score,
+                // The visible text is decoration for the label above, so it is
+                // kept out of the semantics tree rather than merged into it.
+                ExcludeSemantics(
+                  child: score == null
+                      ? Text(
+                          compactLabel ?? label,
                           style: context.textTheme.bodyLargeMed.copyWith(
                             color: foreground,
                           ),
-                        ),
-                        if (rankLabel != null)
+                        )
+                      // "5.5 · #8 of 9" — the score chip and the Been pill were
+                      // always the same object, so they are one control now.
+                      : Text.rich(
                           TextSpan(
-                            text: ' · $rankLabel',
-                            style: context.textTheme.bodySmallMed.copyWith(
-                              color: foreground.withValues(alpha: 0.85),
-                            ),
+                            children: [
+                              TextSpan(
+                                text: score,
+                                style: context.textTheme.bodyLargeMed.copyWith(
+                                  color: foreground,
+                                ),
+                              ),
+                              if (rankLabel != null)
+                                TextSpan(
+                                  text: ' · $rankLabel',
+                                  style: context.textTheme.bodySmallMed
+                                      .copyWith(
+                                        color: foreground.withValues(
+                                          alpha: 0.85,
+                                        ),
+                                      ),
+                                ),
+                            ],
                           ),
-                      ],
-                    ),
-                  ),
+                        ),
+                ),
               ],
-            ],
+            ),
           ),
         ),
       ),

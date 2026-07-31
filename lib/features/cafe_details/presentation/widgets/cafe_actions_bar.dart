@@ -18,6 +18,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
+import 'package:nook/features/lists/presentation/utils/open_been_list.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -143,6 +144,8 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
             cafeId: _cafeId,
             cafeName: details.name,
           );
+        case RankingFlowOutcome.completedViewList:
+          await openBeenList(context);
         case RankingFlowOutcome.failed:
           showPrimaryToast(
             context,
@@ -271,11 +274,18 @@ class _CafeActionsBarState extends State<CafeActionsBar> {
 
                   return Row(
                     children: [
-                      controls,
+                      // The pills flex, Directions doesn't. Under `Expanded`
+                      // the pills took their intrinsic width first and
+                      // Directions got the leftovers, so its label clipped to
+                      // "Directio…" — the opposite of the rule below. Row lays
+                      // non-flex children out first, so Directions now takes
+                      // its natural width and the pills wrap (runSpacing is
+                      // already set for it) instead of squeezing it.
+                      Flexible(child: controls),
                       const SizedBox(width: 6),
                       // Directions never moves slot and never changes fill —
                       // it is the funnel's conversion event.
-                      Expanded(child: _DirectionsButton(cafe: widget.cafe)),
+                      _DirectionsButton(cafe: widget.cafe),
                     ],
                   );
                 },

@@ -81,7 +81,10 @@ void showPrimaryToastWithAction(
               Flexible(
                 child: Text(
                   message,
-                  maxLines: 1,
+                  // Two lines: at one line the action label ate enough width
+                  // that "Removed from Been — rank deleted." truncated to
+                  // "rank delete…", clipping the consequence being undone.
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(
                     context,
