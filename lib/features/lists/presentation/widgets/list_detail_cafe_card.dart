@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
+import 'package:nook/core/presentation/widgets/cafe_rating_label.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/lists/presentation/widgets/cafe_actions_bottom_sheet.dart';
@@ -22,8 +23,6 @@ class ListDetailCafeCard extends StatelessWidget {
     final imageUrl = (cafe.coverImage?.trim().isNotEmpty ?? false)
         ? cafe.coverImage!.trim()
         : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
-    final ratingText = cafe.rating.toStringAsFixed(1);
 
     return AdaptiveTap(
       onTap: () {
@@ -98,23 +97,18 @@ class ListDetailCafeCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Row(
-                        children: [
-                          Text(
-                            ratingText,
-                            style: context.textTheme.bodySmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(width: 2),
-                          const Icon(
-                            Icons.star,
-                            color: Color(0xFF588157),
-                            size: 12,
-                          ),
-                        ],
+                      if (cafe.reviewCount > 0) const SizedBox(width: 8),
+                      CafeRatingLabel(
+                        rating: cafe.rating,
+                        reviewCount: cafe.reviewCount,
+                        starSize: 12,
+                        starColor: const Color(0xFF588157),
+                        showCount: false,
+                        ratingStyle: context.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        countStyle: context.textTheme.bodySmall,
                       ),
                     ],
                   ),

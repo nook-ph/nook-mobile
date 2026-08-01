@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
@@ -51,12 +52,7 @@ class _CafeCardState extends State<CafeCard> {
                   width: double.infinity,
                   color: Colors.black,
                 ),
-                child: Image.network(
-                  imageUrl,
-                  height: 320,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+                child: CafeCardImage(imageUrl: imageUrl, height: 320),
               ),
             ),
             SizedBox(height: 16),

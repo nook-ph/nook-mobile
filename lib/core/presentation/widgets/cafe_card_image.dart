@@ -2,12 +2,21 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:nook/core/cache/custom_cache_manager.dart';
 
+/// The one way this app draws a cafe photo.
+///
+/// Every surface must go through here rather than `Image.network`, which has
+/// no disk cache (so a photo is re-downloaded on every tab switch — real money
+/// on mobile data) and paints nothing while loading (so cards appear as blank
+/// holes on the discovery surfaces).
+///
+/// [height] and [width] default to filling the parent, for the cards that size
+/// their image with `Expanded` rather than a fixed box.
 class CafeCardImage extends StatelessWidget {
   const CafeCardImage({
     super.key,
     required this.imageUrl,
-    required this.height,
-    required this.width,
+    this.height = double.infinity,
+    this.width = double.infinity,
   });
 
   final String imageUrl;

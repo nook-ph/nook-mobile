@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/core/extensions/extensions.dart';
@@ -40,15 +41,7 @@ class RecommendedCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Expanded(
-              flex: 4,
-              child: Image.network(
-                imageUrl,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
+            Expanded(flex: 4, child: CafeCardImage(imageUrl: imageUrl)),
             Expanded(
               flex: 8,
               child: Padding(

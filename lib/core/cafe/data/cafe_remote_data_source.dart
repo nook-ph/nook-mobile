@@ -509,6 +509,7 @@ class CafeRemoteDataSource {
                 neighborhood,
                 city,
                 rating,
+                review_count,
                 featured_image_url,
                 cafe_tags ( is_featured, tags ( name ) )
               )

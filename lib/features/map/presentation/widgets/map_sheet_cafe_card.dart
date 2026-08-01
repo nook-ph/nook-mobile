@@ -4,10 +4,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/presentation/widgets/cafe_open_badge.dart';
+import 'package:nook/core/presentation/widgets/cafe_rating_label.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 
@@ -71,22 +72,7 @@ class MapSheetCafeCard extends StatelessWidget {
                       height: double.infinity,
                       color: Colors.black,
                     ),
-                    child: Image.network(
-                      imageUrl,
-                      width: double.infinity,
-                      height: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[300],
-                          alignment: Alignment.center,
-                          child: const Icon(
-                            Icons.image_not_supported_outlined,
-                            color: Color(0xFF9E9E9E),
-                          ),
-                        );
-                      },
-                    ),
+                    child: CafeCardImage(imageUrl: imageUrl),
                   ),
                 ),
               ),
@@ -113,29 +99,20 @@ class MapSheetCafeCard extends StatelessWidget {
                                   ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                PhosphorIconsFill.star,
-                                size: 18,
-                                color: colors.primary60,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                cafe.rating.toStringAsFixed(1),
-                                style: Theme.of(context).textTheme.bodyLargeMed
-                                    .copyWith(color: colors.black, height: 1.2),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '(${cafe.reviewCount})',
-
-                                style: Theme.of(context).textTheme.bodyMediumMed
-                                    .copyWith(color: colors.gray, height: 1.1),
-                              ),
-                            ],
+                          if (cafe.reviewCount > 0) const SizedBox(width: 8),
+                          CafeRatingLabel(
+                            rating: cafe.rating,
+                            reviewCount: cafe.reviewCount,
+                            starSize: 18,
+                            starColor: colors.primary60,
+                            ratingStyle: Theme.of(context)
+                                .textTheme
+                                .bodyLargeMed
+                                .copyWith(color: colors.black, height: 1.2),
+                            countStyle: Theme.of(context)
+                                .textTheme
+                                .bodyMediumMed
+                                .copyWith(color: colors.gray, height: 1.1),
                           ),
                         ],
                       ),

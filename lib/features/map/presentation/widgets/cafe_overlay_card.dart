@@ -5,10 +5,11 @@ import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/presentation/widgets/cafe_open_badge.dart';
+import 'package:nook/core/presentation/widgets/cafe_rating_label.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
 import 'package:nook/core/extensions/extensions.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class CafeOverlayCard extends StatelessWidget {
   final CafeSummary cafe;
@@ -50,11 +51,7 @@ class CafeOverlayCard extends StatelessWidget {
                   children: [
                     Expanded(
                       flex: 19,
-                      child: Image.network(
-                        imageUrl,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                      child: CafeCardImage(imageUrl: imageUrl),
                     ),
                     Expanded(
                       flex: 11,
@@ -79,29 +76,19 @@ class CafeOverlayCard extends StatelessWidget {
                                             context.textTheme.titleMediumSemi,
                                       ),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          PhosphorIconsFill.star,
-                                          size: 14,
-                                          color: colors.primary100,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          cafe.rating.toStringAsFixed(1),
-                                          style: context.textTheme.bodySmallMed,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '(${cafe.reviewCount})',
-                                          style: context.textTheme.bodySmallMed
-                                              .copyWith(
-                                                color: const Color(0xFF848586),
-                                              ),
-                                        ),
-                                      ],
+                                    if (cafe.reviewCount > 0)
+                                      const SizedBox(width: 8),
+                                    CafeRatingLabel(
+                                      rating: cafe.rating,
+                                      reviewCount: cafe.reviewCount,
+                                      starSize: 14,
+                                      starColor: colors.primary100,
+                                      ratingStyle:
+                                          context.textTheme.bodySmallMed,
+                                      countStyle: context.textTheme.bodySmallMed
+                                          .copyWith(
+                                            color: const Color(0xFF848586),
+                                          ),
                                     ),
                                   ],
                                 ),

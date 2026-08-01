@@ -608,21 +608,22 @@ class _MapPageState extends State<MapPage> {
     };
   }
 
+  /// Height of the map the sheet is sitting on top of, in logical pixels.
+  ///
+  /// Metrics arrive from a post-frame callback, so on the very first fit they
+  /// can still be null — fall back to the sheet's resting fraction rather than
+  /// treating the map as fully visible.
+  double get _sheetOcclusion {
+    final measured = _sheetMetrics.value?.topFromBottom;
+    if (measured != null && measured > 0) return measured;
+    return MediaQuery.sizeOf(context).height * 0.45;
+  }
+
   Future<void> _fitCameraToCafes(
     MapLibreMapController controller,
     List<CafeSummary> cafes,
   ) async {
     if (cafes.isEmpty) return;
-
-    if (cafes.length == 1) {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(cafes.first.lat!, cafes.first.lng!),
-          15.5,
-        ),
-      );
-      return;
-    }
 
     var minLat = cafes.first.lat!, maxLat = cafes.first.lat!;
     var minLng = cafes.first.lng!, maxLng = cafes.first.lng!;
@@ -632,16 +633,32 @@ class _MapPageState extends State<MapPage> {
       if (cafe.lng! < minLng) minLng = cafe.lng!;
       if (cafe.lng! > maxLng) maxLng = cafe.lng!;
     }
+
+    if (cafes.length == 1) {
+      // Give a lone pin a box so the padding below applies to it too —
+      // newLatLngZoom would centre it in the full viewport, i.e. behind the
+      // sheet. ~450m each way lands around the old zoom of 15.5.
+      const delta = 0.004;
+      minLat -= delta;
+      maxLat += delta;
+      minLng -= delta;
+      maxLng += delta;
+    }
+
+    // The sheet covers the bottom half of the map. Fitting to the *whole*
+    // viewport therefore parks every pin behind it, and the strip the user can
+    // actually see shows empty coastline north of the metro — which reads as
+    // "54 cafes in view" next to a map with nothing on it.
     await controller.animateCamera(
       CameraUpdate.newLatLngBounds(
         LatLngBounds(
           southwest: LatLng(minLat, minLng),
           northeast: LatLng(maxLat, maxLng),
         ),
-        left: 60,
+        left: 40,
         top: 60,
-        right: 60,
-        bottom: 60,
+        right: 40,
+        bottom: _sheetOcclusion.round() + 24,
       ),
     );
   }

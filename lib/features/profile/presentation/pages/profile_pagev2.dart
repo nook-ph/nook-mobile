@@ -5,6 +5,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
@@ -490,9 +491,11 @@ class _CollectionsTabState extends State<_CollectionsTab> {
             final lists = state is ListsLoaded
                 ? state.lists
                 : _listsBloc.userLists;
-            final regularLists = lists
-                .where((l) => !l.isDefault)
-                .toList(growable: false);
+            // Every list the user has, same as the Saved tab. Filtering out
+            // `isDefault` hid Favorites here while Saved kept showing it, so
+            // the two screens disagreed about how many lists existed — and it
+            // hid it while still showing the other two system lists.
+            final regularLists = lists.toList(growable: false);
             final isLoading = state is ListsLoading && lists.isEmpty;
             final isError = state is ListsError && lists.isEmpty;
 
@@ -608,7 +611,14 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                           final list = regularLists[index];
                           return _CollectionGridTile(
                             title: list.name,
-                            imageUrl: list.coverImageUrl,
+                            // System lists carry no coverImageUrl, which left
+                            // Been and Want to Try as blank grey tiles here
+                            // while the Saved tab showed real thumbnails for
+                            // the same lists. Same fallback, same source.
+                            imageUrl:
+                                list.coverImageUrl?.trim().isNotEmpty == true
+                                ? list.coverImageUrl
+                                : _listsBloc.listPreviews[list.id]?.firstOrNull,
                             cafeCount: list.cafeCount,
                             onTap: () => Navigator.push(
                               context,
@@ -681,11 +691,7 @@ class _CollectionGridTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (hasImage)
-              Image.network(
-                imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _buildPlaceholderBg(),
-              )
+              CafeCardImage(imageUrl: imageUrl!.trim())
             else
               _buildPlaceholderBg(),
             // gradient + labels
