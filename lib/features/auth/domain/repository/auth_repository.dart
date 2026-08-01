@@ -21,6 +21,15 @@ abstract class AuthRepository {
     required String password,
   });
 
+  /// Confirms a pending signup with the code from the confirmation email.
+  /// Establishes a session on success.
+  Future<AuthResponse> verifySignupOtp({
+    required String email,
+    required String token,
+  });
+
+  Future<void> resendSignupOtp({required String email});
+
   Future<void> signOut();
 
   Future<void> deleteAccount({String? password});

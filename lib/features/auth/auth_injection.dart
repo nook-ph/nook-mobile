@@ -7,8 +7,10 @@ import 'package:nook/features/auth/domain/use_cases/get_current_session_usecase.
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_apple_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_email_usecase.dart';
+import 'package:nook/features/auth/domain/use_cases/resend_signup_otp_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_out_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_up_with_email_usecase.dart';
+import 'package:nook/features/auth/domain/use_cases/verify_signup_otp_usecase.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 
@@ -31,6 +33,12 @@ class AuthInjection {
   static final SignInWithEmailUseCase _signInWithEmailUseCase =
       SignInWithEmailUseCase(_authRepository);
 
+  static final VerifySignupOtpUseCase _verifySignupOtpUseCase =
+      VerifySignupOtpUseCase(_authRepository);
+
+  static final ResendSignupOtpUseCase _resendSignupOtpUseCase =
+      ResendSignupOtpUseCase(_authRepository);
+
   static final SignInWithAppleUsecase _signInWithAppleUsecase =
       SignInWithAppleUsecase(_authRepository);
 
@@ -52,6 +60,8 @@ class AuthInjection {
       checkEmailExistsUseCase: _checkEmailExistsUseCase,
       signUpWithEmailUseCase: _signUpWithEmailUseCase,
       signInWithEmailUseCase: _signInWithEmailUseCase,
+      verifySignupOtpUseCase: _verifySignupOtpUseCase,
+      resendSignupOtpUseCase: _resendSignupOtpUseCase,
       signInWithAppleUseCase: _signInWithAppleUsecase,
       signInWithGoogleUseCase: _signInWithGoogleUseCase,
       signOutUseCase: _signOutUseCase,

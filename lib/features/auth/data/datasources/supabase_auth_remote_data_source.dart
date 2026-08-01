@@ -41,7 +41,41 @@ class SupabaseAuthRemoteDataSource {
     return await _client.auth.signUp(
       email: email,
       password: password,
-      data: {'full_name': name},
+      data: {
+        'full_name': name,
+        // Switches the shared "Confirm signup" template
+        // (nook-supabase/supabase/templates/confirmation.html) to its
+        // `{{ if .Data.otp_signup }}` branch, which renders {{ .Token }}.
+        // Without this flag the email is link-only and there is no code to type.
+        'otp_signup': true,
+      },
+      emailRedirectTo: AppConstants.emailRedirectUri,
+    );
+  }
+
+  /// Confirms a new account with the code from the signup email.
+  ///
+  /// On success this establishes a session, exactly like signInWithPassword —
+  /// the caller is responsible for the post-login gate.
+  Future<AuthResponse> verifySignupOtp({
+    required String email,
+    required String token,
+  }) async {
+    developer.log('Verifying signup OTP: email=$email', name: 'EmailVerification');
+    return await _client.auth.verifyOTP(
+      type: OtpType.signup,
+      email: email,
+      token: token,
+    );
+  }
+
+  /// Re-sends the signup confirmation email. [emailRedirectTo] is kept so the
+  /// tap-the-link path in the same email keeps working as a fallback.
+  Future<void> resendSignupOtp({required String email}) async {
+    developer.log('Resending signup OTP: email=$email', name: 'EmailVerification');
+    await _client.auth.resend(
+      type: OtpType.signup,
+      email: email,
       emailRedirectTo: AppConstants.emailRedirectUri,
     );
   }

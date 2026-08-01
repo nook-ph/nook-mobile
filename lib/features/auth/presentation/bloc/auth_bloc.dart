@@ -14,8 +14,10 @@ import 'package:nook/features/auth/domain/use_cases/get_current_session_usecase.
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_apple_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_google_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_in_with_email_usecase.dart';
+import 'package:nook/features/auth/domain/use_cases/resend_signup_otp_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_out_usecase.dart';
 import 'package:nook/features/auth/domain/use_cases/sign_up_with_email_usecase.dart';
+import 'package:nook/features/auth/domain/use_cases/verify_signup_otp_usecase.dart';
 
 // External Blocs
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
@@ -28,6 +30,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final CheckEmailExistsUseCase _checkEmailExistsUseCase;
   final SignUpWithEmailUseCase _signUpWithEmailUseCase;
   final SignInWithEmailUseCase _signInWithEmailUseCase;
+  final VerifySignupOtpUseCase _verifySignupOtpUseCase;
+  final ResendSignupOtpUseCase _resendSignupOtpUseCase;
   final SignInWithAppleUsecase _signInWithAppleUsecase;
   final SignInWithGoogleUseCase _signInWithGoogleUseCase;
   final SignOutUseCase _signOutUseCase;
@@ -40,6 +44,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required CheckEmailExistsUseCase checkEmailExistsUseCase,
     required SignUpWithEmailUseCase signUpWithEmailUseCase,
     required SignInWithEmailUseCase signInWithEmailUseCase,
+    required VerifySignupOtpUseCase verifySignupOtpUseCase,
+    required ResendSignupOtpUseCase resendSignupOtpUseCase,
     required SignInWithAppleUsecase signInWithAppleUseCase,
     required SignInWithGoogleUseCase signInWithGoogleUseCase,
     required SignOutUseCase signOutUseCase,
@@ -49,6 +55,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }) : _checkEmailExistsUseCase = checkEmailExistsUseCase,
        _signUpWithEmailUseCase = signUpWithEmailUseCase,
        _signInWithEmailUseCase = signInWithEmailUseCase,
+       _verifySignupOtpUseCase = verifySignupOtpUseCase,
+       _resendSignupOtpUseCase = resendSignupOtpUseCase,
        _signInWithAppleUsecase = signInWithAppleUseCase,
        _signInWithGoogleUseCase = signInWithGoogleUseCase,
        _signOutUseCase = signOutUseCase,
@@ -58,6 +66,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthCheckEmailEvent>(_onCheckEmail);
     on<AuthSignUpEvent>(_onSignUp);
     on<AuthSignInEvent>(_onSignIn);
+    on<AuthVerifyOtpEvent>(_onVerifyOtp);
+    on<AuthResendOtpEvent>(_onResendOtp);
     on<AuthSignInWithAppleEvent>(_onSignInWithApple);
     on<AuthSignInWithGoogleEvent>(_onSignInWithGoogle);
     on<AuthSignOutEvent>(_onSignOut);
@@ -181,6 +191,81 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthError(_mapDatabaseError(e)));
     } catch (_) {
       emit(const AuthError('Connection failed. Check your internet.'));
+    }
+  }
+
+  Future<void> _onVerifyOtp(
+    AuthVerifyOtpEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    final pending = state;
+    if (pending is! AuthAwaitingEmailConfirmation) return;
+    if (pending.isVerifying) return;
+
+    emit(pending.copyWith(isVerifying: true, clearError: true));
+    try {
+      final response = await _verifySignupOtpUseCase(
+        email: pending.email,
+        token: event.token,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        emit(
+          pending.copyWith(
+            isVerifying: false,
+            error: 'Connection failed. Check your internet.',
+          ),
+        );
+        return;
+      }
+
+      // verifyOTP establishes the session, so from here this is the same
+      // post-login gate as password sign-in.
+      await _identifyPosthogUser(user);
+      _initListsSession();
+      await _emitAuthSuccess(user, emit);
+    } on AuthException catch (e) {
+      emit(pending.copyWith(isVerifying: false, error: _mapAuthError(e)));
+    } on PostgrestException catch (e) {
+      emit(pending.copyWith(isVerifying: false, error: _mapDatabaseError(e)));
+    } catch (_) {
+      emit(
+        pending.copyWith(
+          isVerifying: false,
+          error: 'Connection failed. Check your internet.',
+        ),
+      );
+    }
+  }
+
+  Future<void> _onResendOtp(
+    AuthResendOtpEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    final pending = state;
+    if (pending is! AuthAwaitingEmailConfirmation) return;
+    if (pending.isResending) return;
+
+    emit(pending.copyWith(isResending: true, clearError: true));
+    try {
+      await _resendSignupOtpUseCase(email: pending.email);
+      emit(
+        pending.copyWith(
+          isResending: false,
+          resendCount: pending.resendCount + 1,
+          clearError: true,
+        ),
+      );
+    } on AuthException catch (e) {
+      emit(pending.copyWith(isResending: false, error: _mapAuthError(e)));
+    } catch (_) {
+      emit(
+        pending.copyWith(
+          isResending: false,
+          error: 'Unable to resend the code. Try again.',
+        ),
+      );
     }
   }
 
@@ -439,6 +524,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (code == 'email_not_confirmed' ||
         message.contains('email not confirmed')) {
       return 'Please verify your email before logging in';
+    }
+    // Supabase returns one error for a wrong code and an expired one, so the
+    // copy has to cover both rather than guess which it was.
+    if (code == 'otp_expired' ||
+        code == 'otp_disabled' ||
+        message.contains('token has expired') ||
+        message.contains('invalid token') ||
+        message.contains('token not found')) {
+      return 'That code is incorrect or has expired.';
     }
     if (code == 'user_already_exists' ||
         message.contains('already registered')) {

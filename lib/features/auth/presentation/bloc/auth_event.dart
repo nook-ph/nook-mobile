@@ -40,6 +40,21 @@ class AuthSignInEvent extends AuthEvent {
   List<Object?> get props => [email, password];
 }
 
+/// Confirms the pending signup with the code from the email. The email comes
+/// from [AuthAwaitingEmailConfirmation], never from the caller — the code is
+/// only valid for the address it was sent to.
+class AuthVerifyOtpEvent extends AuthEvent {
+  final String token;
+  const AuthVerifyOtpEvent(this.token);
+
+  @override
+  List<Object?> get props => [token];
+}
+
+class AuthResendOtpEvent extends AuthEvent {
+  const AuthResendOtpEvent();
+}
+
 class AuthPasswordRecoveryEvent extends AuthEvent {
   const AuthPasswordRecoveryEvent();
 }
