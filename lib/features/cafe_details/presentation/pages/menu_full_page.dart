@@ -4,6 +4,7 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/widgets/error/section_empty_widget.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_category_section.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/menu_highlight_card.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_item_variants_sheet.dart';
 
 class MenuFullPage extends StatelessWidget {
@@ -74,7 +75,7 @@ class MenuFullPage extends StatelessWidget {
             if (highlights.isNotEmpty) ...[
               const SizedBox(height: 12),
               SizedBox(
-                height: 178,
+                height: MenuHighlightCard.listHeight,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 22),
@@ -82,83 +83,12 @@ class MenuFullPage extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(width: 12),
                   itemBuilder: (context, index) {
                     final item = highlights[index];
-
-                    // Define the card content
-                    final cardContent = Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child:
-                              item.imageUrl != null && item.imageUrl!.isNotEmpty
-                              ? Image.network(
-                                  item.imageUrl!,
-                                  width: double.infinity,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: const Color(0xFFF5F5F5),
-                                    alignment: Alignment.center,
-                                    child: const Icon(
-                                      Icons.image_not_supported_outlined,
-                                      color: Color(0xFFBDBDBD),
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  color: const Color(0xFFF5F5F5),
-                                  alignment: Alignment.center,
-                                  child: const Icon(
-                                    Icons.image_outlined,
-                                    color: Color(0xFFBDBDBD),
-                                  ),
-                                ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
-                                const Gap(2),
-                                Text(
-                                  '₱${item.displayPrice}',
-                                  style: Theme.of(context).textTheme.bodyLarge
-                                      ?.copyWith(color: Colors.black),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-
-                    return Container(
+                    return MenuHighlightCard(
+                      item: item,
                       width: cardWidth,
-                      height: 178,
-                      clipBehavior: Clip
-                          .antiAlias, // Ensures splash/image stays in bounds
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(radius),
-                        border: Border.all(
-                          color: const Color(0xFFE0E0E0),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: AdaptiveTap(
-                        onTap: item.hasVariants
-                            ? () => MenuItemVariantsSheet.show(context, item)
-                            : () {},
-                        borderRadius: BorderRadius.circular(radius),
-                        child: cardContent,
-                      ),
+                      onTap: item.hasVariants
+                          ? () => MenuItemVariantsSheet.show(context, item)
+                          : null,
                     );
                   },
                 ),

@@ -4,16 +4,13 @@ import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/pages/menu_full_page.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/menu_highlight_card.dart';
 
 class MenuHighlights extends StatelessWidget {
   const MenuHighlights({super.key, required this.width, required this.cafe});
 
   final double width;
   final CafeDetailsResult? cafe;
-
-  String _formatPrice(double price) {
-    return '₱${price.toStringAsFixed(2)}';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,61 +69,14 @@ class MenuHighlights extends StatelessWidget {
         const SizedBox(height: 16),
 
         SizedBox(
-          height: 178,
+          height: MenuHighlightCard.listHeight,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 22),
             itemCount: highlights.length,
             separatorBuilder: (context, index) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final item = highlights[index];
-
-              // Floating image, home-card style: rounded on all sides, no
-              // border box, name and price below. The fixed image height (vs
-              // the old Expanded flex split) also removes the 1.6px bottom
-              // overflow the bordered layout produced.
-              return SizedBox(
-                width: width,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                          ? CafeCardImage(
-                              imageUrl: item.imageUrl!,
-                              height: 106,
-                              width: double.infinity,
-                            )
-                          : Container(
-                              height: 106,
-                              color: const Color(0xFFF5F5F5),
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.image_outlined,
-                                color: Color(0xFFBDBDBD),
-                              ),
-                            ),
-                    ),
-                    const Gap(8),
-                    Text(
-                      item.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const Gap(2),
-                    Text(
-                      _formatPrice(item.price),
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: const Color(0xFF848685),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+            itemBuilder: (context, index) =>
+                MenuHighlightCard(item: highlights[index], width: width),
           ),
         ),
       ],

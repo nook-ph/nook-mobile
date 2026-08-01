@@ -60,25 +60,17 @@ class _MenuItemRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // The name once. The row carried a second Text below it styled as a
+          // subtitle but rendering `item.name` again, so every item on the
+          // menu printed its own name twice. MenuItemEntity has no
+          // description field for it to have meant.
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                ),
-                // Subtitle/Description (Fixed: using a lighter color for hierarchy)
-                Text(
-                  item.name,
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
+            child: Text(
+              item.name,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+              ),
             ),
           ),
           const SizedBox(width: 16),
