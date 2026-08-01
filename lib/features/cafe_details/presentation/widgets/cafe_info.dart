@@ -21,7 +21,7 @@ class CafeInfo extends StatelessWidget {
   final CafeDetailsResult? cafe;
 
   TextStyle? _sectionTitleStyle(BuildContext context) =>
-      context.textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685));
+      context.textTheme.bodyLarge?.copyWith(color: const Color(0xFF767574));
 
   String _normalizeCategory(String value) {
     return value
@@ -215,7 +215,7 @@ class CafeInfo extends StatelessWidget {
                 Text(
                   'No amenities listed',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF848685),
+                    color: const Color(0xFF767574),
                   ),
                 )
               else
@@ -237,7 +237,7 @@ class CafeInfo extends StatelessWidget {
                             child: Text(
                               tag.name,
                               style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(color: const Color(0xFF848685)),
+                                  ?.copyWith(color: const Color(0xFF767574)),
                             ),
                           ),
                         ],
@@ -273,24 +273,19 @@ class CafeInfo extends StatelessWidget {
               ),
             ],
           ),
-          const Gap(28),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-          const Gap(28),
-
-          // Accepted Payments
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('ACCEPTED PAYMENTS', style: _sectionTitleStyle(context)),
-              const Gap(18),
-              if (paymentOptions.isEmpty)
-                Text(
-                  'No payment options listed',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF848685),
-                  ),
-                )
-              else
+          // Accepted Payments — the whole section goes when there is nothing
+          // in it, divider included. It used to render a heading followed by
+          // "No payment options listed", spending a full section of a long
+          // page to tell the user nothing.
+          if (paymentOptions.isNotEmpty) ...[
+            const Gap(28),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
+            const Gap(28),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('ACCEPTED PAYMENTS', style: _sectionTitleStyle(context)),
+                const Gap(18),
                 Wrap(
                   spacing: 16,
                   runSpacing: 12,
@@ -305,8 +300,9 @@ class CafeInfo extends StatelessWidget {
                       )
                       .toList(),
                 ),
-            ],
-          ),
+              ],
+            ),
+          ],
           const Gap(28),
           const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
           const Gap(28),
@@ -410,7 +406,7 @@ class CafeInfo extends StatelessWidget {
                               PhosphorIconsStyle.regular,
                             ),
                             size: 32,
-                            color: const Color(0xFF848685),
+                            color: const Color(0xFF767574),
                           ),
                         ),
                       ),
@@ -429,7 +425,7 @@ class CafeInfo extends StatelessWidget {
                               PhosphorIconsStyle.regular,
                             ),
                             size: 32,
-                            color: const Color(0xFF848685),
+                            color: const Color(0xFF767574),
                           ),
                         ),
                       ),
@@ -448,7 +444,7 @@ class CafeInfo extends StatelessWidget {
                               PhosphorIconsStyle.regular,
                             ),
                             size: 32.0,
-                            color: const Color(0xFF848685),
+                            color: const Color(0xFF767574),
                           ),
                         ),
                       ),
@@ -474,20 +470,23 @@ class _BestForTag extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
+        // Border stays light — it's decoration. The label and icon carry the
+        // meaning, so they move to a tone that clears WCAG AA on white
+        // (#868584 measured 3.66:1, under the 4.5:1 needed for body text).
         border: Border.all(color: const Color(0xFF868584)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 14, color: const Color(0xFF868584)),
+            Icon(icon, size: 14, color: const Color(0xFF767574)),
             const Gap(4),
           ],
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF868584),
+              color: const Color(0xFF767574),
             ),
           ),
         ],
@@ -506,13 +505,13 @@ class _PaymentType extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: const Color(0xFF848685)),
+        Icon(icon, color: const Color(0xFF767574)),
         const Gap(4),
         Text(
           label,
           style: Theme.of(
             context,
-          ).textTheme.bodyLarge?.copyWith(color: const Color(0xFF848685)),
+          ).textTheme.bodyLarge?.copyWith(color: const Color(0xFF767574)),
         ),
       ],
     );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:nook/core/location/device_location.dart';
+import 'package:nook/core/presentation/widgets/cafe_distance_label.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
@@ -15,7 +17,7 @@ class CafeInfoHeader extends StatefulWidget {
 }
 
 class _CafeInfoHeaderState extends State<CafeInfoHeader> {
-  double? _distanceMeters;
+  String? _distanceText;
 
   static const List<String> _orderedDays = [
     'sunday',
@@ -41,20 +43,24 @@ class _CafeInfoHeaderState extends State<CafeInfoHeader> {
     }
   }
 
+  /// Shares [DeviceLocation] with every card in the app rather than resolving
+  /// its own fix — this used `getLastKnownPosition` while cards showed a
+  /// server distance measured from the map centre, so the same cafe reported
+  /// two different numbers. The formatter also drops absurd readings.
   Future<void> _fetchDistance() async {
     final cafe = widget.cafe?.cafeDetails;
     if (cafe == null) return;
-    try {
-      final position = await Geolocator.getLastKnownPosition();
-      if (position == null) return;
-      final distance = Geolocator.distanceBetween(
+    final position = await DeviceLocation.instance.ensure();
+    if (position == null || !mounted) return;
+    final text = formatDistanceMeters(
+      Geolocator.distanceBetween(
         position.latitude,
         position.longitude,
         cafe.lat,
         cafe.lng,
-      );
-      if (mounted) setState(() => _distanceMeters = distance);
-    } catch (_) {}
+      ),
+    );
+    if (mounted) setState(() => _distanceText = text);
   }
 
   String _formatDisplayTime(TimeOfDay time) {
@@ -188,9 +194,9 @@ class _CafeInfoHeaderState extends State<CafeInfoHeader> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (_distanceMeters != null) ...[
+                  if (_distanceText != null) ...[
                     Text(
-                      '${(_distanceMeters! / 1000).toStringAsFixed(1)} km',
+                      _distanceText!,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w400,
                         color: const Color(0xFF868584),

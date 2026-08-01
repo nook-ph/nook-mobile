@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/presentation/widgets/cafe_distance_label.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
@@ -201,10 +202,10 @@ class HomeCafeCard extends StatelessWidget {
                       else
                         const SizedBox.shrink(),
                       const SizedBox(width: 6),
-                      Text(
-                        cafe.distanceMeters != null
-                            ? '${(cafe.distanceMeters! / 1000).toStringAsFixed(1)} km'
-                            : '',
+                      // Always device-relative; see CafeDistanceLabel.
+                      CafeDistanceLabel(
+                        lat: cafe.lat,
+                        lng: cafe.lng,
                         style: context.textTheme.bodyMedium!.copyWith(
                           color: context.colorScheme.gray,
                           height: 1.1,

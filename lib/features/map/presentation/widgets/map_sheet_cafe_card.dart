@@ -5,6 +5,7 @@ import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
+import 'package:nook/core/presentation/widgets/cafe_distance_label.dart';
 import 'package:nook/core/presentation/widgets/cafe_open_badge.dart';
 import 'package:nook/core/presentation/widgets/cafe_rating_label.dart';
 import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
@@ -157,10 +158,12 @@ class MapSheetCafeCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        cafe.distanceMeters != null
-                            ? '${(cafe.distanceMeters! / 1000).toStringAsFixed(1)} km'
-                            : '',
+                      // Not cafe.distanceMeters — the server measures that
+                      // from the map camera centre, so it changed as the user
+                      // panned. Always from the device.
+                      CafeDistanceLabel(
+                        lat: cafe.lat,
+                        lng: cafe.lng,
                         style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                           color: colors.gray,
                           height: 1.1,

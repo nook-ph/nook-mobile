@@ -435,6 +435,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                 );
                               },
                             ),
+                            // Clearance for the sticky action bar. Without it
+                            // the last thing on the page — "Write a Review" —
+                            // sat flush against the bar with no gap at all.
+                            const SizedBox(height: 24),
                           ],
                         ),
                       ),
