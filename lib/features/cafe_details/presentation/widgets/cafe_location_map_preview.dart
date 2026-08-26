@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -63,12 +62,7 @@ class _CafeLocationMapPreviewState extends State<CafeLocationMapPreview> {
   }
 
   Future<void> _onStyleLoaded() async {
-    // Capture the platform-dependent icon size before any awaits so we don't
-    // touch `context` after the widget may have been disposed.
-    final base = defaultTargetPlatform == TargetPlatform.iOS
-        ? MediaQuery.of(context).devicePixelRatio / _pinRasterScale
-        : 1 / _pinRasterScale;
-    final iconSize = base * _pinSizeBoost;
+    const iconSize = _pinSizeBoost / _pinRasterScale;
 
     try {
       final controller = await _controllerCompleter.future;

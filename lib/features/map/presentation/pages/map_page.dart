@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' show Point;
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
@@ -108,14 +107,9 @@ class _MapPageState extends State<MapPage> {
   );
 
   /// icon-size that renders a [_pinRasterScale]x raster at logical size.
-  /// Android registers images at pixel-ratio 1 (raw pixels are density-
-  /// independent units); iOS registers them at the device scale.
-  double get _pillIconSize {
-    final base = defaultTargetPlatform == TargetPlatform.iOS
-        ? MediaQuery.of(context).devicePixelRatio / _pinRasterScale
-        : 1 / _pinRasterScale;
-    return base * _pinSizeBoost;
-  }
+  /// Both platforms register images in raw pixels treated as density-
+  /// independent units, so the raster scale is the only compensation needed.
+  double get _pillIconSize => _pinSizeBoost / _pinRasterScale;
 
   @override
   void initState() {
