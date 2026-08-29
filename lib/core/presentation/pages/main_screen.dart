@@ -21,7 +21,7 @@ class MainScreen extends StatelessWidget {
         builder: (context, state) {
           final pages = [
             const HomePage(),
-            MapPage(key: ValueKey('map_tab_${state.tabIndex == 1}')),
+            MapPage(isActive: state.tabIndex == 1),
             const ListsPage(showBackButton: false),
             ProfileRedesignPage(
               key: ValueKey('profile_tab_${state.tabIndex == 3}'),

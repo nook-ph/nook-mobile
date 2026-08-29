@@ -10,6 +10,7 @@ import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/cafe_overlay_card.dart';
 import 'package:nook/features/map/presentation/widgets/map_updating_chip.dart';
+import 'package:nook/features/map/presentation/utils/map_camera_fit.dart';
 import 'package:nook/features/map/presentation/utils/map_fit_padding.dart';
 import 'package:nook/features/map/presentation/utils/map_pin_images.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
@@ -28,7 +29,15 @@ import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  const MapPage({super.key, this.isActive = true});
+
+  /// Whether the map is the tab currently on screen.
+  ///
+  /// MainScreen keeps every tab alive in an IndexedStack, so this page runs
+  /// with a laid-out Flutter box but a native MLNMapView that is not on screen
+  /// and has no usable size. Camera work in that state makes MapLibre divide
+  /// by a zero viewport, and the NaN it derives aborts the process.
+  final bool isActive;
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -205,6 +214,22 @@ class _MapPageState extends State<MapPage> {
         !sel.dismissed &&
         !_isSheetExpanded &&
         (m?.topFromBottom ?? 0.0) > 0;
+  }
+
+  @override
+  void didUpdateWidget(MapPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      final cafes = _lastSyncedCafes;
+      if (!_cameraFitted && cafes != null && _mapController != null) {
+        unawaited(
+          _fitCameraToCafes(
+            _mapController!,
+            cafes.where((c) => c.lat != null && c.lng != null).toList(),
+          ).then((fitted) => _cameraFitted = fitted),
+        );
+      }
+    }
   }
 
   @override
@@ -432,7 +457,7 @@ class _MapPageState extends State<MapPage> {
 
   void _onCameraIdle() {
     final controller = _mapController;
-    if (controller == null || !_styleLoaded) return;
+    if (controller == null || !_styleLoaded || !widget.isActive) return;
     unawaited(_emitViewport(controller));
   }
 
@@ -499,7 +524,7 @@ class _MapPageState extends State<MapPage> {
       return;
     }
 
-    if (!_cameraFitted) {
+    if (!_cameraFitted && widget.isActive) {
       _cameraFitted = await _fitCameraToCafes(controller, validCafes);
     }
   }
@@ -677,10 +702,9 @@ class _MapPageState extends State<MapPage> {
     // actually see shows empty coastline north of the metro — which reads as
     // "54 cafes in view" next to a map with nothing on it.
     //
-    // But that bottom inset is only ever a request. Padding taller than the
-    // map leaves MapLibre solving for a negative viewport, and it throws a C++
-    // exception out of setCamera that kills the process rather than the call
-    // (see resolveMapFitPadding). So fit the request to the map first.
+    // That bottom inset is only ever a request, though: an expanded sheet can
+    // ask for more than the map is tall, and the solver below divides by what
+    // is left. Fit the request to the map first.
     final padding = resolveMapFitPadding(
       viewport: viewport,
       left: 40,
@@ -689,17 +713,24 @@ class _MapPageState extends State<MapPage> {
       bottom: _sheetOcclusion + 24,
     );
 
+    final fit = resolveMapCameraFit(
+      southLatitude: minLat,
+      westLongitude: minLng,
+      northLatitude: maxLat,
+      eastLongitude: maxLng,
+      viewport: viewport,
+      padding: padding,
+    );
+    if (fit == null) return false;
+
     try {
-      await controller.animateCamera(
-        CameraUpdate.newLatLngBounds(
-          LatLngBounds(
-            southwest: LatLng(minLat, minLng),
-            northeast: LatLng(maxLat, maxLng),
-          ),
-          left: padding.left,
-          top: padding.top,
-          right: padding.right,
-          bottom: padding.bottom,
+      // moveCamera, never animateCamera: the animated path aborts the
+      // process from native code on a camera this one accepts. See
+      // resolveMapCameraFit.
+      await controller.moveCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(fit.latitude, fit.longitude),
+          fit.zoom,
         ),
       );
     } on PlatformException {

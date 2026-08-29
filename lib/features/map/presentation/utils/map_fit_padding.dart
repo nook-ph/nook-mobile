@@ -24,19 +24,14 @@ const double kMinFitViewportExtent = 80.0;
 
 /// Shrinks fit-to-bounds padding until it fits inside [viewport].
 ///
-/// MapLibre solves a fit by looking for the camera that puts the bounds inside
-/// `viewport - padding`. Hand it padding that meets or exceeds the viewport and
-/// that rectangle is zero or negative, the zoom derived from it is NaN, and the
-/// native `setCamera` throws a C++ exception. Nothing on the Dart side can
-/// catch that one: it unwinds past the method channel into `std::terminate`,
-/// and iOS ends the process with SIGABRT — the app vanishes with no error
-/// screen at all.
+/// [resolveMapCameraFit] divides by the box this leaves, so that box has to be
+/// positive on both axes. The caller's numbers describe intent (keep pins clear
+/// of the sheet), not a promise the map is big enough to honour them — an
+/// expanded sheet can ask for a bottom inset taller than the map itself.
 ///
-/// The caller's numbers describe intent (keep pins clear of the sheet), not a
-/// promise the map is big enough to honour them. So when they do not fit, both
-/// sides of the axis are scaled down together — the bottom inset stays the
-/// largest one, the sheet still gets the most clearance available, and at least
-/// [minimumExtent] pixels survive for the pins themselves.
+/// When they do not fit, both sides of the axis are scaled down together, so
+/// the bottom inset stays the largest one and the sheet still gets the most
+/// clearance available.
 ///
 /// A [viewport] that is empty or not yet measured yields no padding rather than
 /// a guess.
@@ -46,19 +41,18 @@ MapFitPadding resolveMapFitPadding({
   required double top,
   required double right,
   required double bottom,
-  double minimumExtent = kMinFitViewportExtent,
 }) {
   final (resolvedLeft, resolvedRight) = _shrinkToFit(
     left,
     right,
     viewport.width,
-    minimumExtent,
+    kMinFitViewportExtent,
   );
   final (resolvedTop, resolvedBottom) = _shrinkToFit(
     top,
     bottom,
     viewport.height,
-    minimumExtent,
+    kMinFitViewportExtent,
   );
 
   return MapFitPadding(

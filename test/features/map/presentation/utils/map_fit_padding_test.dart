@@ -6,18 +6,19 @@ import 'package:nook/features/map/presentation/utils/map_fit_padding.dart';
 void main() {
   group('resolveMapFitPadding', () {
     test('leaves padding alone when the map is big enough for it', () {
+      // 60 + 250 is under half of 769, so nothing has to give.
       final padding = resolveMapFitPadding(
         viewport: const Size(393, 769),
         left: 40,
         top: 60,
         right: 40,
-        bottom: 407,
+        bottom: 250,
       );
 
       expect(padding.left, 40);
       expect(padding.top, 60);
       expect(padding.right, 40);
-      expect(padding.bottom, 407);
+      expect(padding.bottom, 250);
     });
 
     test('shrinks padding that would leave the map nothing to fit into', () {
@@ -63,13 +64,16 @@ void main() {
         left: 300,
         top: 60,
         right: 300,
-        bottom: 407,
+        bottom: 250,
       );
 
-      expect(padding.left + padding.right, lessThanOrEqualTo(393 - 80));
+      expect(
+        padding.left + padding.right,
+        lessThanOrEqualTo(393 - kMinFitViewportExtent),
+      );
       // The vertical axis had room, so it is untouched.
       expect(padding.top, 60);
-      expect(padding.bottom, 407);
+      expect(padding.bottom, 250);
     });
 
     test('gives up rather than guessing when the map has no size', () {
@@ -129,7 +133,7 @@ void main() {
       expect(padding.bottom, 100);
     });
 
-    test('never returns padding that exceeds the viewport, at any size', () {
+    test('always leaves a usable strip of map, at any size', () {
       for (var height = 1.0; height <= 1200; height += 7) {
         final padding = resolveMapFitPadding(
           viewport: Size(393, height),
@@ -139,9 +143,14 @@ void main() {
           bottom: height * 0.45 + 24,
         );
 
+        // A map smaller than the floor cannot honour it; it gets no padding
+        // at all, which leaves the whole (tiny) map clear.
+        final required = kMinFitViewportExtent > height
+            ? height
+            : kMinFitViewportExtent;
         expect(
-          padding.top + padding.bottom,
-          lessThanOrEqualTo(height),
+          height - padding.top - padding.bottom,
+          greaterThanOrEqualTo(required - 1e-9),
           reason: 'height $height',
         );
         expect(padding.top.isFinite && padding.bottom.isFinite, isTrue);
