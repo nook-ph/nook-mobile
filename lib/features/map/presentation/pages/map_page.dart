@@ -5,11 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show PlatformException, rootBundle;
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/cafe_overlay_card.dart';
 import 'package:nook/features/map/presentation/widgets/map_updating_chip.dart';
+import 'package:nook/features/map/presentation/utils/map_camera_fit.dart';
+import 'package:nook/features/map/presentation/utils/map_fit_padding.dart';
 import 'package:nook/features/map/presentation/utils/map_pin_images.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/bloc/map_event.dart';
@@ -27,7 +29,15 @@ import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  const MapPage({super.key, this.isActive = true});
+
+  /// Whether the map is the tab currently on screen.
+  ///
+  /// MainScreen keeps every tab alive in an IndexedStack, so this page runs
+  /// with a laid-out Flutter box but a native MLNMapView that is not on screen
+  /// and has no usable size. Camera work in that state makes MapLibre divide
+  /// by a zero viewport, and the NaN it derives aborts the process.
+  final bool isActive;
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -35,6 +45,11 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final _controllerCompleter = Completer<MapLibreMapController>();
+
+  /// On the map's own render box, not the page's: the fit has to be measured
+  /// against the rectangle MapLibre actually draws into, which is shorter than
+  /// the screen by the bottom navigation bar.
+  final _mapBoxKey = GlobalKey();
   String? _styleJson;
   MapLibreMapController? _mapController;
   MapBloc? _mapBloc;
@@ -202,6 +217,22 @@ class _MapPageState extends State<MapPage> {
   }
 
   @override
+  void didUpdateWidget(MapPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      final cafes = _lastSyncedCafes;
+      if (!_cameraFitted && cafes != null && _mapController != null) {
+        unawaited(
+          _fitCameraToCafes(
+            _mapController!,
+            cafes.where((c) => c.lat != null && c.lng != null).toList(),
+          ).then((fitted) => _cameraFitted = fitted),
+        );
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<MapBloc>()
@@ -224,6 +255,7 @@ class _MapPageState extends State<MapPage> {
               children: [
                 if (_styleJson != null)
                   MapLibreMap(
+                    key: _mapBoxKey,
                     initialCameraPosition: _initial,
                     compassEnabled: false,
                     trackCameraPosition: true,
@@ -425,7 +457,7 @@ class _MapPageState extends State<MapPage> {
 
   void _onCameraIdle() {
     final controller = _mapController;
-    if (controller == null || !_styleLoaded) return;
+    if (controller == null || !_styleLoaded || !widget.isActive) return;
     unawaited(_emitViewport(controller));
   }
 
@@ -492,9 +524,8 @@ class _MapPageState extends State<MapPage> {
       return;
     }
 
-    if (!_cameraFitted) {
-      _cameraFitted = true;
-      await _fitCameraToCafes(controller, validCafes);
+    if (!_cameraFitted && widget.isActive) {
+      _cameraFitted = await _fitCameraToCafes(controller, validCafes);
     }
   }
 
@@ -613,11 +644,30 @@ class _MapPageState extends State<MapPage> {
     return MediaQuery.sizeOf(context).height * 0.45;
   }
 
-  Future<void> _fitCameraToCafes(
+  /// The map's laid-out size, or null before it has one.
+  ///
+  /// [_sheetOcclusion] falls back to a fraction of the *screen*, which is
+  /// taller than the map by the bottom navigation bar — so the padding built
+  /// from it has to be checked against this, not against MediaQuery.
+  Size? get _mapViewportSize {
+    final box = _mapBoxKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.size.isEmpty ? null : box.size;
+  }
+
+  /// Returns whether the camera was actually moved, so the one-shot fit is
+  /// not spent on a sync that arrived before the map had a size.
+  Future<bool> _fitCameraToCafes(
     MapLibreMapController controller,
     List<CafeSummary> cafes,
   ) async {
-    if (cafes.isEmpty) return;
+    if (cafes.isEmpty) return false;
+
+    // The map is built on every tab (MainScreen keeps all four in an
+    // IndexedStack), so this can run while it has never been laid out. There
+    // is no viewport to fit into yet, and guessing one is what crashed.
+    final viewport = _mapViewportSize;
+    if (viewport == null) return false;
 
     var minLat = cafes.first.lat!, maxLat = cafes.first.lat!;
     var minLng = cafes.first.lng!, maxLng = cafes.first.lng!;
@@ -639,22 +689,56 @@ class _MapPageState extends State<MapPage> {
       maxLng += delta;
     }
 
+    // Web Mercator has no latitude past ~85.05, and the delta above can push a
+    // single far-north cafe over it. An out-of-range bound is the other way
+    // this call aborts the process.
+    minLat = minLat.clamp(-85.0, 85.0);
+    maxLat = maxLat.clamp(-85.0, 85.0);
+    minLng = minLng.clamp(-180.0, 180.0);
+    maxLng = maxLng.clamp(-180.0, 180.0);
+
     // The sheet covers the bottom half of the map. Fitting to the *whole*
     // viewport therefore parks every pin behind it, and the strip the user can
     // actually see shows empty coastline north of the metro — which reads as
     // "54 cafes in view" next to a map with nothing on it.
-    await controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        ),
-        left: 40,
-        top: 60,
-        right: 40,
-        bottom: _sheetOcclusion.round() + 24,
-      ),
+    //
+    // That bottom inset is only ever a request, though: an expanded sheet can
+    // ask for more than the map is tall, and the solver below divides by what
+    // is left. Fit the request to the map first.
+    final padding = resolveMapFitPadding(
+      viewport: viewport,
+      left: 40,
+      top: 60,
+      right: 40,
+      bottom: _sheetOcclusion + 24,
     );
+
+    final fit = resolveMapCameraFit(
+      southLatitude: minLat,
+      westLongitude: minLng,
+      northLatitude: maxLat,
+      eastLongitude: maxLng,
+      viewport: viewport,
+      padding: padding,
+    );
+    if (fit == null) return false;
+
+    try {
+      // moveCamera, never animateCamera: the animated path aborts the
+      // process from native code on a camera this one accepts. See
+      // resolveMapCameraFit.
+      await controller.moveCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(fit.latitude, fit.longitude),
+          fit.zoom,
+        ),
+      );
+    } on PlatformException {
+      // Style or platform view went away mid-fit (page tear-down).
+      return false;
+    }
+
+    return true;
   }
 
   // --- Selection ------------------------------------------------------------
