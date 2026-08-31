@@ -75,6 +75,15 @@ class _MapPageState extends State<MapPage> {
   MapPinImages? _pinImages;
   bool _layersAdded = false;
   bool _cameraFitted = false;
+
+  /// Whether MapLibre has reported a settled camera at least once.
+  ///
+  /// The fit aborts the process when it runs on the frame the map becomes
+  /// visible: the platform view is being created and sized on that same frame,
+  /// and the plugin derives its altitude from the native view. A camera-idle
+  /// event is the only signal Dart gets that the native map has a real
+  /// transform, so nothing moves the camera before one arrives.
+  bool _mapIdleSeen = false;
   List<CafeSummary>? _lastSyncedCafes;
   Future<void> _syncQueue = Future.value();
 
@@ -458,6 +467,18 @@ class _MapPageState extends State<MapPage> {
   void _onCameraIdle() {
     final controller = _mapController;
     if (controller == null || !_styleLoaded || !widget.isActive) return;
+    if (!_mapIdleSeen) {
+      _mapIdleSeen = true;
+      final cafes = _lastSyncedCafes;
+      if (!_cameraFitted && cafes != null) {
+        unawaited(
+          _fitCameraToCafes(
+            controller,
+            cafes.where((c) => c.lat != null && c.lng != null).toList(),
+          ).then((fitted) => _cameraFitted = fitted),
+        );
+      }
+    }
     unawaited(_emitViewport(controller));
   }
 
@@ -723,14 +744,28 @@ class _MapPageState extends State<MapPage> {
     );
     if (fit == null) return false;
 
+    // Never move the camera before MapLibre has reported a settled one. The
+    // plugin builds its altitude from the native view's size, and on the frame
+    // the tab becomes visible that view is still being created — what it
+    // derives there is what mbgl rejects with std::domain_error, killing the
+    // process outright. Traced on device: every fit that aborted ran on the tap
+    // frame; the one that survived ran on a map that was already live.
+    if (!_mapIdleSeen) return false;
+
     try {
-      // moveCamera, never animateCamera: the animated path aborts the
-      // process from native code on a camera this one accepts. See
-      // resolveMapCameraFit.
+      // newCameraPosition, not newLatLngZoom. Both reach the same
+      // `-[MLNMapView setCamera:]`, but newLatLngZoom derives its altitude from
+      // `mapView.camera.pitch` and `mapView.camera.centerCoordinate.latitude` —
+      // the native camera. newCameraPosition takes pitch, bearing and latitude
+      // from this dictionary, leaving the view's size as the only native input.
       await controller.moveCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(fit.latitude, fit.longitude),
-          fit.zoom,
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(fit.latitude, fit.longitude),
+            zoom: fit.zoom,
+            tilt: 0,
+            bearing: 0,
+          ),
         ),
       );
     } on PlatformException {
