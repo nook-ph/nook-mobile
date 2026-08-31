@@ -75,6 +75,15 @@ class _MapPageState extends State<MapPage> {
   MapPinImages? _pinImages;
   bool _layersAdded = false;
   bool _cameraFitted = false;
+
+  /// Whether MapLibre has reported a settled camera at least once.
+  ///
+  /// The fit aborts the process when it runs on the frame the map becomes
+  /// visible: the platform view is being created and sized on that same frame,
+  /// and the plugin derives its altitude from the native view. A camera-idle
+  /// event is the only signal Dart gets that the native map has a real
+  /// transform, so nothing moves the camera before one arrives.
+  bool _mapIdleSeen = false;
   List<CafeSummary>? _lastSyncedCafes;
   Future<void> _syncQueue = Future.value();
 
@@ -458,6 +467,18 @@ class _MapPageState extends State<MapPage> {
   void _onCameraIdle() {
     final controller = _mapController;
     if (controller == null || !_styleLoaded || !widget.isActive) return;
+    if (!_mapIdleSeen) {
+      _mapIdleSeen = true;
+      final cafes = _lastSyncedCafes;
+      if (!_cameraFitted && cafes != null) {
+        unawaited(
+          _fitCameraToCafes(
+            controller,
+            cafes.where((c) => c.lat != null && c.lng != null).toList(),
+          ).then((fitted) => _cameraFitted = fitted),
+        );
+      }
+    }
     unawaited(_emitViewport(controller));
   }
 
@@ -723,30 +744,20 @@ class _MapPageState extends State<MapPage> {
     );
     if (fit == null) return false;
 
-    // Flutter resizes a platform view a frame behind the Dart render box, so
-    // `viewport` above can be a real size while the native MLNMapView is still
-    // 0x0. Let that resize commit and measure again — the update below reads
-    // the native view, not this one.
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted || !widget.isActive) return false;
-    if (_mapViewportSize == null) return false;
+    // Never move the camera before MapLibre has reported a settled one. The
+    // plugin builds its altitude from the native view's size, and on the frame
+    // the tab becomes visible that view is still being created — what it
+    // derives there is what mbgl rejects with std::domain_error, killing the
+    // process outright. Traced on device: every fit that aborted ran on the tap
+    // frame; the one that survived ran on a map that was already live.
+    if (!_mapIdleSeen) return false;
 
     try {
-      // newCameraPosition, not newLatLngZoom, and never animateCamera.
-      //
-      // All three land in `-[MLNMapView setCamera:...]`, which turns zoom into
-      // an altitude and hands the camera to mbgl, whose LatLng constructor
-      // throws std::domain_error on a NaN or out-of-range coordinate. That C++
-      // exception unwinds through the method channel into std::terminate, so no
-      // Dart try can catch it and the process is killed outright — SIGABRT, the
-      // crash 1.1.1 still took on 30 Aug with the animateCamera fix in place.
-      //
-      // newLatLngZoom builds the altitude from `mapView.camera.pitch` and
-      // `mapView.camera.centerCoordinate.latitude`: the *native* camera, which
-      // has no valid transform yet on the frame the map tab appears.
-      // newCameraPosition takes pitch, bearing and latitude from this
-      // dictionary instead, leaving the view's own size as the only native
-      // input — and that is what the wait above is for.
+      // newCameraPosition, not newLatLngZoom. Both reach the same
+      // `-[MLNMapView setCamera:]`, but newLatLngZoom derives its altitude from
+      // `mapView.camera.pitch` and `mapView.camera.centerCoordinate.latitude` —
+      // the native camera. newCameraPosition takes pitch, bearing and latitude
+      // from this dictionary, leaving the view's size as the only native input.
       await controller.moveCamera(
         CameraUpdate.newCameraPosition(
           CameraPosition(
