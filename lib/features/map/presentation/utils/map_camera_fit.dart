@@ -37,13 +37,17 @@ const double _tileSize = 512.0;
 /// about at every map creation. Computing the camera here means the framing
 /// depends only on numbers we can see and test.
 ///
-/// The second is why the caller uses `moveCamera` and not `animateCamera`: the
-/// animated path throws `std::domain_error` out of native code with a camera
-/// this function had already proved finite (lat 10.08, lng 123.82, zoom 8.73).
-/// That exception unwinds through the method channel into `std::terminate`, so
-/// no Dart `try` can catch it — the process aborts with SIGABRT and the app
-/// vanishes with no error screen. `moveCamera` jumps instead of easing and is
-/// unaffected.
+/// The second is why the caller applies the result with `moveCamera` and a
+/// `newCameraPosition` update. Every camera update lands in
+/// `-[MLNMapView setCamera:...]`, and mbgl throws `std::domain_error` there on
+/// a NaN or out-of-range coordinate — with a camera this function had already
+/// proved finite (lat 10.08, lng 123.82, zoom 8.73). The exception unwinds
+/// through the method channel into `std::terminate`, so no Dart `try` can catch
+/// it: the process aborts with SIGABRT and the app vanishes with no error
+/// screen. Swapping `animateCamera` for `moveCamera` did not settle it — 1.1.1
+/// still aborted on 30 Aug — because the NaN comes from the plugin reading the
+/// *native* camera and view size, not from the numbers computed here. See
+/// `_fitCameraToCafes` for which reads were removed.
 ///
 /// Returns null when the geometry cannot produce a usable camera, in which case
 /// the caller should leave the camera where it is rather than guess.

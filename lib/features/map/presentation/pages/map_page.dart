@@ -723,14 +723,38 @@ class _MapPageState extends State<MapPage> {
     );
     if (fit == null) return false;
 
+    // Flutter resizes a platform view a frame behind the Dart render box, so
+    // `viewport` above can be a real size while the native MLNMapView is still
+    // 0x0. Let that resize commit and measure again — the update below reads
+    // the native view, not this one.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !widget.isActive) return false;
+    if (_mapViewportSize == null) return false;
+
     try {
-      // moveCamera, never animateCamera: the animated path aborts the
-      // process from native code on a camera this one accepts. See
-      // resolveMapCameraFit.
+      // newCameraPosition, not newLatLngZoom, and never animateCamera.
+      //
+      // All three land in `-[MLNMapView setCamera:...]`, which turns zoom into
+      // an altitude and hands the camera to mbgl, whose LatLng constructor
+      // throws std::domain_error on a NaN or out-of-range coordinate. That C++
+      // exception unwinds through the method channel into std::terminate, so no
+      // Dart try can catch it and the process is killed outright — SIGABRT, the
+      // crash 1.1.1 still took on 30 Aug with the animateCamera fix in place.
+      //
+      // newLatLngZoom builds the altitude from `mapView.camera.pitch` and
+      // `mapView.camera.centerCoordinate.latitude`: the *native* camera, which
+      // has no valid transform yet on the frame the map tab appears.
+      // newCameraPosition takes pitch, bearing and latitude from this
+      // dictionary instead, leaving the view's own size as the only native
+      // input — and that is what the wait above is for.
       await controller.moveCamera(
-        CameraUpdate.newLatLngZoom(
-          LatLng(fit.latitude, fit.longitude),
-          fit.zoom,
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: LatLng(fit.latitude, fit.longitude),
+            zoom: fit.zoom,
+            tilt: 0,
+            bearing: 0,
+          ),
         ),
       );
     } on PlatformException {
