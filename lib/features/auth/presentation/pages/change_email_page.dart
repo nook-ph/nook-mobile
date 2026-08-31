@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -67,7 +68,7 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
       debugPrint('[EmailVerification] Updating user email.');
       await Supabase.instance.client.auth.updateUser(
         UserAttributes(email: email),
-        emailRedirectTo: 'ph.nook.app://login-callback',
+        emailRedirectTo: AppConstants.emailRedirectUri,
       );
       debugPrint('[EmailVerification] Update email request completed.');
       if (!mounted) return;
