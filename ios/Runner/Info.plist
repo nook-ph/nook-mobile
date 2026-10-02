@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Nook uses your camera to take a photo for your crawl share image.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Nook uses your location to show your position on the map and find cafes near you.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>

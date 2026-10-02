@@ -74,7 +74,14 @@ class _CrawlSharePageState extends State<CrawlSharePage> {
       setState(() => _photo = File(picked.path));
     } catch (e) {
       debugPrint('[CrawlShare] pick failed: $e');
-      if (mounted) showPrimaryToast(context, "Couldn't open your photos.");
+      if (mounted) {
+        showPrimaryToast(
+          context,
+          source == ImageSource.camera
+              ? "Couldn't open the camera."
+              : "Couldn't open your photos.",
+        );
+      }
     }
   }
 
