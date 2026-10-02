@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
@@ -39,9 +41,13 @@ class _FakeSearch extends SearchCafesUseCase {
   final queries = <CafeQuery>[];
   List<CafeSummary> Function(CafeQuery query) answer = (_) => const [_cafe];
 
+  /// Holds a request open until the returned future completes.
+  Future<void> Function(CafeQuery query)? wait;
+
   @override
   Future<List<CafeSummary>> call(CafeQuery query) async {
     queries.add(query);
+    await wait?.call(query);
     return answer(query);
   }
 }
@@ -154,6 +160,84 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
       expect(search.queries, hasLength(1));
     });
+  });
+
+  group('paging', () {
+    test('a late next page is not appended to newer results (S-4)', () async {
+      search.answer = (_) => List.filled(20, _cafe);
+      final bloc = build();
+      await searchByTag(bloc);
+
+      final nextPage = Completer<void>();
+      search.wait = (q) => q.page == 1 ? nextPage.future : Future.value();
+      bloc.add(const SearchLoadMore());
+      await pumpEventQueue();
+      expect(search.queries.last.page, 1);
+
+      bloc.add(const SearchSortChanged('top_rated'));
+      await bloc.stream.firstWhere(
+        (s) => s.status == SearchStatus.success && s.sort == 'top_rated',
+      );
+      nextPage.complete();
+      await pumpEventQueue();
+
+      expect(bloc.state.cafes, hasLength(20));
+      expect(bloc.state.page, 0);
+      expect(bloc.state.sort, 'top_rated');
+    });
+
+    test('a failed next page keeps the results and waits for a retry '
+        '(S-5)', () async {
+      search.answer = (q) =>
+          q.page == 0 ? List.filled(20, _cafe) : throw Exception('offline');
+      final bloc = build();
+      await searchByTag(bloc);
+
+      bloc.add(const SearchLoadMore());
+      final failed = await bloc.stream.firstWhere((s) => s.loadMoreFailed);
+      expect(failed.status, SearchStatus.success);
+      expect(failed.cafes, hasLength(20));
+      expect(failed.lastError, isException);
+
+      // The list asks again on every build near its end; a failing page is
+      // not hammered.
+      bloc.add(const SearchLoadMore());
+      await pumpEventQueue();
+      expect(search.queries.where((q) => q.page == 1), hasLength(1));
+
+      search.answer = (q) => List.filled(q.page == 0 ? 20 : 5, _cafe);
+      bloc.add(const SearchLoadMore(retry: true));
+      final more = await bloc.stream.firstWhere((s) => s.cafes.length == 25);
+      expect(more.loadMoreFailed, isFalse);
+      expect(more.hasReachedMax, isTrue);
+      expect(more.page, 1);
+    });
+
+    test('a failed first page is still the full error state', () async {
+      search.answer = (_) => throw Exception('offline');
+      final bloc = build();
+      bloc.add(const SearchTagsChanged({'Free WiFi'}));
+      final state = await bloc.stream.firstWhere(
+        (s) => s.status == SearchStatus.failure,
+      );
+      expect(state.loadMoreFailed, isFalse);
+      expect(state.cafes, isEmpty);
+    });
+  });
+
+  test('the same query can be run again after it failed (S-8)', () async {
+    search.answer = (_) => throw Exception('offline');
+    final bloc = build();
+    bloc.add(const SearchQueryChanged('matcha'));
+    await bloc.stream.firstWhere((s) => s.status == SearchStatus.failure);
+
+    search.answer = (_) => const [_cafe];
+    bloc.add(const SearchQueryChanged('matcha'));
+    final state = await bloc.stream.firstWhere(
+      (s) => s.status == SearchStatus.success,
+    );
+    expect(state.cafes, [_cafe]);
+    expect(search.queries, hasLength(2));
   });
 
   group('countFor', () {

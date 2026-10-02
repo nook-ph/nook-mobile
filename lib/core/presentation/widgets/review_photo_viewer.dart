@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:nook/core/cache/custom_cache_manager.dart';
 import 'package:flutter/services.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -68,6 +70,7 @@ class ReviewPhotoViewer extends StatefulWidget {
     this.heroTagPrefix,
     this.author,
     this.captionDetail,
+    this.imageProvider,
   });
 
   final List<String> imageUrls;
@@ -77,6 +80,10 @@ class ReviewPhotoViewer extends StatefulWidget {
   /// Who posted the photo. With [captionDetail], shown bottom-left.
   final String? author;
   final String? captionDetail;
+
+  /// Where a photo comes from. Defaults to the app's disk-cached provider;
+  /// tests pass their own, as the cache needs platform plugins.
+  final ImageProvider Function(String url)? imageProvider;
 
   @override
   State<ReviewPhotoViewer> createState() => _ReviewPhotoViewerState();
@@ -376,7 +383,14 @@ class _ReviewPhotoViewerState extends State<ReviewPhotoViewer>
       builder: (context, index) {
         final url = widget.imageUrls[index];
         return PhotoViewGalleryPageOptions(
-          imageProvider: NetworkImage(url),
+          // Full size, for zooming, but from the same disk cache as the
+          // thumbnail that opened it.
+          imageProvider:
+              widget.imageProvider?.call(url) ??
+              CachedNetworkImageProvider(
+                url,
+                cacheManager: CustomCacheManager.instance,
+              ),
           heroAttributes: index == widget.initialIndex
               ? PhotoViewHeroAttributes(tag: _tagFor(index))
               : null,

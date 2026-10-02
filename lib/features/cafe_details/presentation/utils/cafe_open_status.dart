@@ -1,7 +1,13 @@
+import 'package:nook/core/cafe/domain/cafe_open_status.dart' as core;
+
 /// Whether a cafe is open right now, worked out from its weekly hours.
 ///
 /// One source for the header line, the hours row and the pinned bar, so the
 /// three can never disagree. Pure: pass [now] in tests.
+///
+/// Open or closed, how the hours are read and the Manila clock all come from
+/// the core resolver the map and search cards use, so the details page and a
+/// card cannot disagree either. This class only adds the page's wording.
 class CafeOpenStatus {
   const CafeOpenStatus._({
     required this.hasAnyHours,
@@ -9,25 +15,38 @@ class CafeOpenStatus {
     this.openMinutes,
     this.closeMinutes,
     this.minutesUntilChange,
+    this.opensDayOffset = 0,
+    this.opensDayKey,
   });
 
   /// How close the next change has to be before the status turns amber
   /// ("Opens soon", "Closes soon").
-  static const soonThreshold = 30;
+  static final soonThreshold =
+      core.CafeOpenStatus.closingSoonThreshold.inMinutes;
 
   /// False when no day of the week has both an opening and a closing time.
   /// The page then makes no open-or-closed claim at all.
   final bool hasAnyHours;
   final bool isOpen;
 
-  /// Today's opening and closing time in minutes from midnight; null when
-  /// today has no hours.
+  /// When closed, the next opening time in minutes from midnight: today's
+  /// while it is still ahead, otherwise the next day that opens. Null when
+  /// open, and when today has no hours.
   final int? openMinutes;
+
+  /// When open, the time it closes in minutes from midnight, which is past
+  /// midnight for overnight hours. Null when closed.
   final int? closeMinutes;
 
-  /// Minutes until the cafe next opens (when closed) or closes (when open),
-  /// counted within today's hours only. Null when today has no hours or
-  /// today's opening has already passed.
+  /// How many days ahead [openMinutes] is: 0 today, 1 tomorrow.
+  final int opensDayOffset;
+
+  /// The `operating_hours` key of the day [openMinutes] is on.
+  final String? opensDayKey;
+
+  /// Minutes until the cafe next opens (when closed) or closes (when open).
+  /// Null when today has no hours, when the next opening is on a later day
+  /// and not soon, and for round-the-clock hours.
   final int? minutesUntilChange;
 
   /// Closed, but today's opening is at most [soonThreshold] minutes away.
@@ -58,6 +77,13 @@ class CafeOpenStatus {
   /// The `operating_hours` key for [date]'s weekday.
   static String dayKey(DateTime date) => orderedDays[date.weekday % 7];
 
+  /// Today's key where the cafes are. Hours are Manila wall-clock times, so
+  /// "today" is Manila's day, whatever zone the phone is set to.
+  static String todayKey([DateTime? now]) =>
+      dayKey(core.CafeOpenStatus.manilaNow(now));
+
+  /// [now] is an instant; it is read on the Manila clock, so a local or a
+  /// UTC `DateTime` for the same moment gives the same answer.
   static CafeOpenStatus resolve(
     Map<String, dynamic> operatingHours,
     DateTime now,
@@ -65,62 +91,44 @@ class CafeOpenStatus {
     final hasAnyHours = orderedDays.any(
       (day) => hoursFor(operatingHours, day) != null,
     );
-    final today = hoursFor(operatingHours, dayKey(now));
-    if (today == null) {
-      return CafeOpenStatus._(hasAnyHours: hasAnyHours, isOpen: false);
+    final status = core.CafeOpenStatus.resolve(operatingHours, now: now);
+
+    if (status.isOpen) {
+      return CafeOpenStatus._(
+        hasAnyHours: hasAnyHours,
+        isOpen: true,
+        closeMinutes: status.closesAtMinutes,
+        minutesUntilChange: status.minutesUntilClose,
+      );
     }
 
-    final nowMinutes = now.hour * 60 + now.minute;
-    // A closing time at or before the opening time runs past midnight.
-    final overnight = today.close <= today.open;
-    final isOpen = overnight
-        ? (nowMinutes >= today.open || nowMinutes < today.close)
-        : (nowMinutes >= today.open && nowMinutes < today.close);
-
-    int? untilChange;
-    // Opening and closing at the same minute is round the clock: it never
-    // "closes soon".
-    final allDay = today.open == today.close;
-    if (isOpen && !allDay) {
-      untilChange = today.close - nowMinutes;
-      // Past midnight the close is tomorrow's clock time.
-      if (untilChange <= 0) untilChange += 24 * 60;
-    } else if (today.open > nowMinutes) {
-      untilChange = today.open - nowMinutes;
+    // A day with no readable hours of its own says nothing about when the
+    // cafe opens next.
+    final next = status.nextOpening;
+    if (next == null || hoursFor(operatingHours, todayKey(now)) == null) {
+      return CafeOpenStatus._(hasAnyHours: hasAnyHours, isOpen: false);
     }
 
     return CafeOpenStatus._(
       hasAnyHours: hasAnyHours,
-      isOpen: isOpen,
-      openMinutes: today.open,
-      closeMinutes: today.close,
-      minutesUntilChange: untilChange,
+      isOpen: false,
+      openMinutes: next.openMinutes,
+      opensDayOffset: next.dayOffset,
+      opensDayKey: next.dayKey,
+      minutesUntilChange:
+          next.dayOffset == 0 || next.minutesFromNow <= soonThreshold
+          ? next.minutesFromNow
+          : null,
     );
   }
 
   /// Opening and closing minutes for [day], or null when that day is closed
-  /// or its hours are missing or unreadable.
+  /// or its hours are missing, unreadable or a placeholder. Read by the core
+  /// resolver's rules.
   static ({int open, int close})? hoursFor(
     Map<String, dynamic> operatingHours,
     String day,
-  ) {
-    final raw = operatingHours[day];
-    if (raw is! Map) return null;
-    final open = _parseMinutes(raw['open']?.toString());
-    final close = _parseMinutes(raw['close']?.toString());
-    if (open == null || close == null) return null;
-    return (open: open, close: close);
-  }
-
-  static int? _parseMinutes(String? value) {
-    if (value == null || value.isEmpty) return null;
-    final parts = value.split(':');
-    if (parts.length < 2) return null;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return null;
-    return hour * 60 + minute;
-  }
+  ) => core.CafeOpenStatus.hoursFor(operatingHours, day);
 
   /// "10:00 PM".
   static String formatTime(int minutes) {
@@ -156,9 +164,19 @@ class CafeOpenStatus {
     return isOpen ? 'Open' : 'Closed';
   }
 
+  /// " tomorrow" or " Monday" when the next opening is not today, so a time
+  /// is never shown for a day the cafe stays shut.
+  String get _opensDaySuffix {
+    final day = opensDayKey;
+    if (opensDayOffset <= 0 || day == null) return '';
+    if (opensDayOffset == 1) return ' tomorrow';
+    return ' ${day[0].toUpperCase()}${day.substring(1)}';
+  }
+
   /// What follows the label on the header line and in the bar: "until 10 PM"
-  /// when open, "opens 7 AM" when closed and today's opening is still ahead
-  /// or known. Null when today has no hours.
+  /// when open, "opens 7 AM" when closed and today's opening is still ahead,
+  /// "opens 7 AM tomorrow" / "opens 7 AM Tuesday" once it has passed. Null
+  /// when today has no hours.
   ///
   /// In the amber states it is just the time: "Closes soon 10 PM".
   String? get shortDetail {
@@ -169,7 +187,9 @@ class CafeOpenStatus {
       return close == null ? null : 'until ${formatTimeShort(close)}';
     }
     final open = openMinutes;
-    return open == null ? null : 'opens ${formatTimeShort(open)}';
+    return open == null
+        ? null
+        : 'opens ${formatTimeShort(open)}$_opensDaySuffix';
   }
 
   /// What follows the label on the hours row: "Closes 10:00 PM" or
@@ -188,7 +208,7 @@ class CafeOpenStatus {
       return close == null ? null : 'Closes ${formatTime(close)}';
     }
     final open = openMinutes;
-    return open == null ? null : 'Opens ${formatTime(open)}';
+    return open == null ? null : 'Opens ${formatTime(open)}$_opensDaySuffix';
   }
 
   /// The one line in the pinned bar: "Open until 10 PM", "Closed · opens

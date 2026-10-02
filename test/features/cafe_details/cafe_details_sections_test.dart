@@ -12,10 +12,11 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header
 import 'package:nook/utils/theme/theme.dart';
 
 /// Open around the clock, so the assertions do not depend on when the test
-/// runs: 00:00 to 00:00 reads as overnight and is always open.
+/// runs: 00:00 to 24:00 every day never closes. (00:00 to 00:00 is how a
+/// listing with no real hours is stored, and makes no claim.)
 Map<String, dynamic> _alwaysOpen() => {
   for (final day in CafeOpenStatus.orderedDays)
-    day: {'open': '00:00', 'close': '00:00'},
+    day: {'open': '00:00', 'close': '24:00'},
 };
 
 /// (0, 0) counts as "no coordinates", so the section shows the placeholder
@@ -203,7 +204,7 @@ void main() {
       await tester.tap(find.textContaining('Closes 12:00 AM'));
       await tester.pump();
 
-      final today = CafeOpenStatus.dayKey(DateTime.now());
+      final today = CafeOpenStatus.todayKey();
       final label = today[0].toUpperCase() + today.substring(1);
       expect(find.text('$label · Today'), findsOneWidget);
       // Seven day lines in total: six plain, one marked as today.
@@ -237,6 +238,21 @@ void main() {
       expect(find.bySemanticsLabel('Open instagram'), findsOneWidget);
       expect(find.bySemanticsLabel('Open facebook'), findsNothing);
       expect(find.bySemanticsLabel('Open tiktok'), findsNothing);
+    });
+
+    test('reads the account from a social link, not its last segment', () {
+      String? handle(String raw) => CafeHoursLocationSection.socialHandle(raw);
+
+      expect(handle('tadaima'), 'tadaima');
+      expect(handle('@tadaima'), 'tadaima');
+      expect(handle('https://www.instagram.com/tadaima'), 'tadaima');
+      expect(handle('https://www.instagram.com/tadaima/'), 'tadaima');
+      expect(handle('https://www.instagram.com/tadaima/reels/'), 'tadaima');
+      expect(handle('https://www.tiktok.com/@tadaima/video/123'), 'tadaima');
+      // A post or reel link names no account.
+      expect(handle('https://www.instagram.com/reel/Cabc123/'), isNull);
+      expect(handle('https://www.instagram.com/p/Cabc123/'), isNull);
+      expect(handle('  '), isNull);
     });
   });
 }

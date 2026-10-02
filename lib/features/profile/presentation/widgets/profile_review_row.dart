@@ -4,6 +4,8 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/reviews_logic.dart'
+    show resolveReviewImageUrl;
 import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
@@ -22,7 +24,12 @@ class ProfileReviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final photos = review.imageUrls;
+    // Older reviews carry malformed photo URLs; repair them as the cafe's
+    // own Reviews page does.
+    final photos = review.imageUrls
+        .map(resolveReviewImageUrl)
+        .where((url) => url.isNotEmpty)
+        .toList(growable: false);
     final shown = photos.take(_maxPhotos).toList();
     final text = review.content.trim();
     final date = formatReviewDate(review.createdAt);

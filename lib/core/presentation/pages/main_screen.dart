@@ -22,7 +22,7 @@ class MainScreen extends StatelessWidget {
         const HomePage(),
         MapPage(isActive: tabIndex == 1),
         const ListsPage(showBackButton: false),
-        ProfileRedesignPage(key: ValueKey('profile_tab_${tabIndex == 3}')),
+        ProfileRedesignPage(isActive: tabIndex == 3),
       ],
     );
   }
@@ -30,7 +30,7 @@ class MainScreen extends StatelessWidget {
 
 /// The tab bar and the page stack behind it. Split from [MainScreen] so the
 /// tab rules can be tested without the real pages or a Supabase session.
-class MainShell extends StatelessWidget {
+class MainShell extends StatefulWidget {
   const MainShell({
     super.key,
     required this.isAuthenticated,
@@ -46,11 +46,22 @@ class MainShell extends StatelessWidget {
   static const savedTab = 2;
   static const profileTab = 3;
 
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  /// Tabs that have been opened. A tab is built on its first visit and kept
+  /// alive from then on, so a cold start pays for Home alone: no native map
+  /// and no Saved or Profile requests for tabs nobody has looked at.
+  final Set<int> _visited = {};
+
   /// Saved and Profile need an account. A guest gets the sign-in sheet and
   /// stays on the tab they were on.
   void _onTabTap(BuildContext context, int index) {
-    if ((index == savedTab || index == profileTab) && !isAuthenticated()) {
-      if (index == savedTab) {
+    if ((index == MainShell.savedTab || index == MainShell.profileTab) &&
+        !widget.isAuthenticated()) {
+      if (index == MainShell.savedTab) {
         GuestSignInSheet.show(
           context,
           icon: LucideIcons.bookmark,
@@ -79,11 +90,16 @@ class MainShell extends StatelessWidget {
       create: (context) => NavigationBloc(),
       child: BlocBuilder<NavigationBloc, NavigationState>(
         builder: (context, state) {
+          _visited.add(state.tabIndex);
+          final pages = widget.pagesBuilder(state.tabIndex);
           return Scaffold(
             backgroundColor: Colors.white,
             body: IndexedStack(
               index: state.tabIndex,
-              children: pagesBuilder(state.tabIndex),
+              children: [
+                for (var i = 0; i < pages.length; i++)
+                  _visited.contains(i) ? pages[i] : const SizedBox.shrink(),
+              ],
             ),
             bottomNavigationBar: BottomNav(
               currentIndex: state.tabIndex,

@@ -115,6 +115,17 @@ class CrawlRun extends Equatable {
 }
 
 /// A run as listed on the Lists tab — enough to show progress and resume.
+/// The run of the crawl with [shareCode] that the user is still on, if any.
+/// "Start a run" resumes it instead of opening a second run of the same
+/// crawl.
+CrawlRunSummary? activeRunFor(MyCrawls crawls, String shareCode) {
+  if (shareCode.isEmpty) return null;
+  for (final run in crawls.runs) {
+    if (!run.isComplete && run.shareCode == shareCode) return run;
+  }
+  return null;
+}
+
 class CrawlRunSummary extends Equatable {
   final String runId;
   final String title;

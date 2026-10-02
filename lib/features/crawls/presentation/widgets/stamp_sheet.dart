@@ -274,6 +274,18 @@ class _Failed extends StatelessWidget {
             ).pop(error is CrawlNotFound ? StampSheetResult.gone : null),
           ),
         },
+        if (copy.action == _FailAction.locationSettings ||
+            copy.action == _FailAction.appSettings) ...[
+          // Back from Settings, the sheet still shows this failure: the
+          // button above only opens Settings, so this is the way forward.
+          _gap,
+          CrawlTextButton(
+            label: 'Try again',
+            color: ListsTokens.muted,
+            minHeight: 40,
+            onTap: () => cubit.stamp(stop),
+          ),
+        ],
         if (error is StampTooFar) ...[
           _gap,
           CrawlTextButton(

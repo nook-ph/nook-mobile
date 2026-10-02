@@ -8,6 +8,8 @@ import 'package:nook/features/profile/bloc/avatar_upload_state.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
+
 import 'profile_test_support.dart';
 
 void main() {
@@ -80,6 +82,122 @@ void main() {
     expect(cubit.edits.single.username, isNull);
     expect(find.text('Changes saved!'), findsOneWidget);
     expect(find.text('Edit profile'), findsNothing);
+    await letToastExpire(tester);
+  });
+
+  testWidgets('an account with no name: the field is empty and a save does '
+      'not write the placeholder', (tester) async {
+    final cubit = await pump(
+      tester,
+      cubit: FakeProfileCubit(profile(name: 'No name')),
+    );
+
+    // "No name" is the profile's label, not text in the field.
+    expect(tester.widget<TextField>(field('Name')).controller!.text, isEmpty);
+    expect(saveEnabled(tester), isFalse);
+
+    await tester.enterText(field('Bio'), 'Remote most days.');
+    await tester.pump();
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.edits.single.bio, 'Remote most days.');
+    expect(cubit.edits.single.name, isNull);
+    await letToastExpire(tester);
+  });
+
+  testWidgets('an emptied name cannot be saved', (tester) async {
+    final cubit = await pump(tester);
+
+    await tester.enterText(field('Name'), '   ');
+    await tester.pump();
+
+    expect(find.text('Name cannot be empty'), findsOneWidget);
+    expect(saveEnabled(tester), isFalse);
+    expect(cubit.edits, isEmpty);
+  });
+
+  testWidgets('only the fields that changed are written', (tester) async {
+    final cubit = await pump(tester);
+
+    await tester.enterText(field('Bio'), 'Cebu.');
+    await tester.pump();
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.edits.single.bio, 'Cebu.');
+    expect(cubit.edits.single.name, isNull);
+    expect(cubit.edits.single.username, isNull);
+    await letToastExpire(tester);
+  });
+
+  testWidgets('a username taken at save time says so and keeps the other '
+      'changes', (tester) async {
+    final cubit = FakeProfileCubit(profile())
+      ..usernameFailure = const PostgrestException(
+        message: 'duplicate key value violates unique constraint',
+        code: '23505',
+      );
+    await pump(tester, cubit: cubit);
+
+    await tester.enterText(field('Name'), 'Simon');
+    await tester.enterText(field('Username'), 'sai_brews');
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump();
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+
+    // The name went through on its own.
+    expect(cubit.edits.single.name, 'Simon');
+    expect(cubit.edits.single.username, isNull);
+    // Toast and helper line both say it.
+    expect(find.text('@sai_brews is already taken.'), findsNWidgets(2));
+    expect(find.text('Edit profile'), findsOneWidget);
+    expect(saveEnabled(tester), isFalse);
+    await letToastExpire(tester);
+  });
+
+  testWidgets('changing only the case of your username skips the check', (
+    tester,
+  ) async {
+    var checks = 0;
+    final cubit = await pump(
+      tester,
+      checkUsername: (_) async {
+        checks++;
+        return false;
+      },
+    );
+
+    await tester.enterText(field('Username'), 'Saiimonn_');
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump();
+
+    expect(checks, 0);
+    expect(find.textContaining('already taken'), findsNothing);
+    expect(saveEnabled(tester), isTrue);
+
+    await tester.tap(find.text('Save changes'));
+    await tester.pumpAndSettle();
+    expect(cubit.edits.single.username, 'Saiimonn_');
+    await letToastExpire(tester);
+  });
+
+  testWidgets('a photo that cannot be picked says so instead of throwing', (
+    tester,
+  ) async {
+    await pump(tester, pickPhoto: () async => throw Exception('denied'));
+
+    await tester.tap(find.bySemanticsLabel('Change photo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Choose from library'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Could not use that photo. Please try another.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
     await letToastExpire(tester);
   });
 

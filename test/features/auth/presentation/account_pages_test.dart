@@ -275,6 +275,48 @@ void main() {
       expect(bloc.events.last, isA<AuthSessionCheckEvent>());
       await _drainToasts(tester);
     });
+
+    testWidgets('opened from Settings, success leaves the page', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        authTestHost(
+          page: ChangePasswordScreen(updatePassword: (_) async {}),
+          bloc: bloc,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'latte-at-nine');
+      await tester.enterText(find.byType(TextField).last, 'latte-at-nine');
+      await tester.pump();
+      await tester.tap(find.text('Update password'));
+      await _pumpToast(tester);
+      await _drainToasts(tester);
+
+      expect(find.text('Change your password'), findsNothing);
+      expect(find.text('route:/'), findsOneWidget);
+    });
+
+    testWidgets('from the reset link, success waits for the redirect', (
+      tester,
+    ) async {
+      bloc.push(AuthPasswordRecovery());
+      await tester.pumpWidget(
+        authTestHost(
+          page: ChangePasswordScreen(updatePassword: (_) async {}),
+          bloc: bloc,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'latte-at-nine');
+      await tester.enterText(find.byType(TextField).last, 'latte-at-nine');
+      await tester.pump();
+      await tester.tap(find.text('Update password'));
+      await _pumpToast(tester);
+      await _drainToasts(tester);
+
+      expect(find.text('Change your password'), findsOneWidget);
+    });
   });
 
   group('ChangeEmailScreen', () {

@@ -61,9 +61,13 @@ class _SaveCubit extends SaveToListCubit {
 class _NoteRepository implements ICafeRepository {
   String? stored;
   bool failSave = false;
+  bool failLoad = false;
 
   @override
-  Future<String?> getCafeNote(String cafeId) async => stored;
+  Future<String?> getCafeNote(String cafeId) async {
+    if (failLoad) throw Exception('offline');
+    return stored;
+  }
 
   @override
   Future<String?> setCafeNote(String cafeId, String? note) async {
@@ -279,6 +283,40 @@ void main() {
       // Let the toast run out so no timer outlives the test.
       await tester.pump(const Duration(seconds: 4));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('a note that fails to load cannot be saved over', (
+      tester,
+    ) async {
+      repo.stored = 'Quiet upstairs.';
+      repo.failLoad = true;
+      await pump(tester);
+
+      // No editable empty field, no Save: only a way to read it again.
+      expect(find.text('Couldn’t load your note.'), findsOneWidget);
+      expect(find.text('Save note'), findsNothing);
+      expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+
+      repo.failLoad = false;
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Quiet upstairs.'), findsOneWidget);
+      expect(pill(tester, 'Save note').onTap, isNotNull);
+      expect(repo.stored, 'Quiet upstairs.');
+    });
+
+    testWidgets('a saved note is announced to whoever shows it', (
+      tester,
+    ) async {
+      final before = cafeNoteChanges.value;
+      await pump(tester);
+      await tester.enterText(find.byType(TextField), 'Go before lunch.');
+      await tester.pump();
+      await tester.tap(find.text('Save note'));
+      await tester.pumpAndSettle();
+
+      expect(cafeNoteChanges.value, before + 1);
     });
   });
 }

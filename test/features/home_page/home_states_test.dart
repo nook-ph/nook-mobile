@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/location/device_location.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
@@ -19,8 +22,12 @@ class _Repository implements ICafeRepository {
   Map<String, List<CafeSummary>> results = {};
   Map<String, Object> failing = {};
 
+  /// Answers a turn of the event loop later, as a network call would.
+  bool overNetwork = false;
+
   @override
   Future<List<CafeSummary>> getCafes(CafeQuery query) async {
+    if (overNetwork) await Future<void>.delayed(Duration.zero);
     final error = failing[query.sort];
     if (error != null) throw error;
     return results[query.sort] ?? const [];
@@ -99,6 +106,154 @@ void main() {
 
       expect(state, isA<HomeLoadedState>());
       expect((state as HomeLoadedState).hasCafes, isFalse);
+    });
+  });
+
+  group('staged load', () {
+    const near = CafeSummary(id: 'n1', name: 'Near', rating: 4);
+    const LocationAccess granted = (
+      servicesOff: false,
+      denied: false,
+      deniedForever: false,
+    );
+    final here = Position(
+      latitude: 10.3,
+      longitude: 123.9,
+      timestamp: DateTime(2026),
+      accuracy: 10,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+
+    _Repository repository() => _Repository()
+      ..results = {
+        'newest': [_cafe],
+        'nearby': [near],
+      };
+
+    test('the sections show while the position is still pending', () async {
+      final fix = Completer<Position?>();
+      final bloc = HomeBloc(
+        getHomeFeedUseCase: GetHomeFeedUseCase(
+          repository(),
+          locationAccess: () async => granted,
+          firstPosition: () => fix.future,
+        ),
+      );
+      addTearDown(bloc.close);
+      final loaded = <HomeLoadedState>[];
+      final sub = bloc.stream.listen((s) {
+        if (s is HomeLoadedState) loaded.add(s);
+      });
+      addTearDown(sub.cancel);
+
+      bloc.add(LoadHomeDataEvent());
+      await pumpEventQueue();
+
+      expect(loaded, hasLength(1));
+      expect(loaded.single.newestCafes, [_cafe]);
+      expect(loaded.single.nearbyCafes, isEmpty);
+      expect(loaded.single.newCafeIds, {'c1'});
+
+      fix.complete(here);
+      await pumpEventQueue();
+
+      expect(loaded, hasLength(2));
+      expect(loaded.last.newestCafes, [_cafe]);
+      expect(loaded.last.nearbyCafes, [near]);
+      // Only the cafe the second step added is new.
+      expect(loaded.last.newCafeIds, {'n1'});
+    });
+
+    test('a position that never comes leaves the sections up', () async {
+      final fix = Completer<Position?>();
+      final bloc = HomeBloc(
+        getHomeFeedUseCase: GetHomeFeedUseCase(
+          repository(),
+          locationAccess: () async => granted,
+          firstPosition: () => fix.future,
+        ),
+      );
+      addTearDown(bloc.close);
+
+      bloc.add(LoadHomeDataEvent());
+      await pumpEventQueue();
+      fix.complete(null);
+      await pumpEventQueue();
+
+      final state = bloc.state;
+      expect(state, isA<HomeLoadedState>());
+      expect((state as HomeLoadedState).newestCafes, [_cafe]);
+      expect(state.nearbyCafes, isEmpty);
+    });
+
+    test('a position already known gives one emission, with nearby', () async {
+      final bloc = HomeBloc(
+        getHomeFeedUseCase: GetHomeFeedUseCase(
+          repository()..overNetwork = true,
+          locationAccess: () async => granted,
+          firstPosition: () async => here,
+        ),
+      );
+      addTearDown(bloc.close);
+      final loaded = <HomeLoadedState>[];
+      final sub = bloc.stream.listen((s) {
+        if (s is HomeLoadedState) loaded.add(s);
+      });
+      addTearDown(sub.cancel);
+
+      bloc.add(LoadHomeDataEvent());
+      await pumpEventQueue();
+
+      expect(loaded, hasLength(1));
+      expect(loaded.single.nearbyCafes, [near]);
+    });
+
+    test('denied location says so on the first emission', () async {
+      final bloc = HomeBloc(
+        getHomeFeedUseCase: GetHomeFeedUseCase(
+          repository(),
+          locationAccess: () async =>
+              (servicesOff: false, denied: true, deniedForever: true),
+          firstPosition: () async => fail('no position without permission'),
+        ),
+      );
+      addTearDown(bloc.close);
+
+      bloc.add(LoadHomeDataEvent());
+      final state = await bloc.stream.firstWhere((s) => s is HomeLoadedState);
+
+      expect((state as HomeLoadedState).locationDenied, isTrue);
+      expect(state.nearbyCafes, isEmpty);
+    });
+
+    test('a refresh keeps the old nearby until the new one lands', () async {
+      Completer<Position?>? fix;
+      final bloc = HomeBloc(
+        getHomeFeedUseCase: GetHomeFeedUseCase(
+          repository()..overNetwork = true,
+          locationAccess: () async => granted,
+          firstPosition: () => fix?.future ?? Future.value(here),
+        ),
+      );
+      addTearDown(bloc.close);
+
+      bloc.add(LoadHomeDataEvent());
+      await pumpEventQueue();
+      expect((bloc.state as HomeLoadedState).nearbyCafes, [near]);
+
+      fix = Completer<Position?>();
+      bloc.add(LoadHomeDataEvent(refresh: true));
+      await pumpEventQueue();
+      expect((bloc.state as HomeLoadedState).nearbyCafes, [near]);
+
+      fix.complete(null);
+      await pumpEventQueue();
+      expect((bloc.state as HomeLoadedState).nearbyCafes, isEmpty);
     });
   });
 

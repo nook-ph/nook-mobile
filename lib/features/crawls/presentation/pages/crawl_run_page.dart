@@ -88,7 +88,9 @@ class _CrawlRunViewState extends State<_CrawlRunView>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    DeviceLocation.instance.ensure();
+    // "You're here" and the Stamp button on a later stop read this position:
+    // one resolved earlier in the session, somewhere else, is no use.
+    DeviceLocation.instance.ensure(forceRefresh: true);
     _checkLocation();
   }
 
@@ -105,7 +107,16 @@ class _CrawlRunViewState extends State<_CrawlRunView>
     if (state == AppLifecycleState.resumed && mounted) {
       context.read<CrawlRunCubit>().refresh();
       _checkLocation();
+      DeviceLocation.instance.ensure(forceRefresh: true);
     }
+  }
+
+  /// Pull-down: crew progress and where the phone is now.
+  Future<void> _refresh() async {
+    await Future.wait([
+      context.read<CrawlRunCubit>().refresh(),
+      DeviceLocation.instance.ensure(forceRefresh: true),
+    ]);
   }
 
   /// Reads the location switch and permission without prompting, so the
@@ -150,9 +161,24 @@ class _CrawlRunViewState extends State<_CrawlRunView>
 
     cubit.stamp(stop);
     final result = await StampSheet.show(context, cubit: cubit, stop: stop);
+    if (cubit.state.isStamping) {
+      // Swiped away while the check was running: the sheet is gone, the
+      // request is not. Wait for it, say how it went, and carry on to the
+      // recap below if that was the last stop.
+      final settled = await cubit.stampSettled();
+      if (!mounted) return;
+      showPrimaryToast(
+        context,
+        settled.stampPhase == StampPhase.stamped
+            ? 'Stamped! ${stop.name}'
+            : 'Couldn’t stamp ${stop.name}. Try again.',
+      );
+    }
     cubit.clearStamp();
     if (!mounted) return;
     _checkLocation();
+    // The stamp took its own high-accuracy fix; bring the rows up to it.
+    DeviceLocation.instance.ensure(forceRefresh: true);
 
     if (result == StampSheetResult.gone) {
       // The crawl was removed under the run: there is nothing left to come
@@ -321,7 +347,7 @@ class _CrawlRunViewState extends State<_CrawlRunView>
             CrawlRunStatus.error => _errorBody(context, state.error),
             CrawlRunStatus.loaded => RefreshIndicator(
               color: ListsTokens.brand,
-              onRefresh: context.read<CrawlRunCubit>().refresh,
+              onRefresh: _refresh,
               child: ValueListenableBuilder<Position?>(
                 valueListenable: DeviceLocation.instance.position,
                 builder: (context, position, _) =>

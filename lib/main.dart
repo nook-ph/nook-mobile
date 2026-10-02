@@ -29,6 +29,12 @@ import 'package:nook/core/analytics/analytics_config.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 void main() async {
+  // debugPrint is not stripped from release builds. The app logs a line or
+  // more per route change, save and auth event, some with user ids in them.
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 

@@ -83,7 +83,7 @@ class AuthRepositoryImpl implements AuthRepository {
       await _remoteDataSource.signInWithApple();
       return const Right<Failure, void>(null);
     } catch (e) {
-      return Left(Failure(e.toString()));
+      return Left(_providerFailure(e, 'Apple'));
     }
   }
 
@@ -93,8 +93,19 @@ class AuthRepositoryImpl implements AuthRepository {
       await _remoteDataSource.signInWithGoogle();
       return const Right<Failure, void>(null);
     } catch (e) {
-      return Left(Failure(e.toString()));
+      return Left(_providerFailure(e, 'Google'));
     }
+  }
+
+  /// The data source already phrases its [AuthException]s for the user, and
+  /// marks a dismissed sheet with the message `CANCELED`. `toString()` would
+  /// wrap both in `AuthException(message: …)`.
+  Failure _providerFailure(Object error, String provider) {
+    if (error is AuthRetryableFetchException) {
+      return const Failure('Connection failed. Check your internet.');
+    }
+    if (error is AuthException) return Failure(error.message);
+    return Failure('$provider Sign-In failed. Please try again.');
   }
 
   @override

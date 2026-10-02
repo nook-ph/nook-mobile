@@ -76,6 +76,57 @@ void main() {
       expect(state.listActionError, isNotNull);
     });
 
+    test(
+      'a failed toggle leaves another list\'s successful toggle alone',
+      () async {
+        final repository = _FakeCafeRepository(
+          lists: [
+            _list(id: 'list-1'),
+            _list(id: 'list-2'),
+          ],
+        );
+        final cubit = _buildCubit(repository);
+        await cubit.load('cafe-1');
+
+        // list-1's add hangs...
+        final slow = Completer<void>();
+        repository.addCompleter = slow;
+        final first = cubit.toggleList(cafeId: 'cafe-1', listId: 'list-1');
+        await pumpEventQueue();
+
+        // ...list-2's goes straight through meanwhile...
+        repository.addCompleter = null;
+        await cubit.toggleList(cafeId: 'cafe-1', listId: 'list-2');
+        expect((cubit.state as SaveToListLoaded).savedListIds, {
+          'list-1',
+          'list-2',
+        });
+
+        // ...then list-1's fails.
+        slow.completeError(StateError('add failed'));
+        await first;
+
+        final state = cubit.state as SaveToListLoaded;
+        expect(state.savedListIds, {'list-2'});
+        expect(state.pendingListIds, isEmpty);
+        expect(state.listActionError, isNotNull);
+      },
+    );
+
+    test('closing the sheet mid-request does not emit after close', () async {
+      final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+      final cubit = _buildCubit(repository);
+      await cubit.load('cafe-1');
+
+      repository.addCompleter = Completer<void>();
+      final toggle = cubit.toggleList(cafeId: 'cafe-1', listId: 'list-1');
+      await pumpEventQueue();
+      await cubit.close();
+      repository.addCompleter!.complete();
+
+      await expectLater(toggle, completes);
+    });
+
     test('persists last saved list id after successful add toggle', () async {
       final store = _RecordingLastSavedListStore();
       final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);

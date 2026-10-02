@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 
 class HeroImageSlider extends StatefulWidget {
   const HeroImageSlider({
@@ -71,20 +72,16 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
                 });
               },
               itemBuilder: (context, index) {
-                final image = Image.network(
-                  displayImages[index],
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (_, _, _) {
-                    return Container(
-                      color: Colors.grey[300],
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.image_not_supported_outlined,
-                        color: Color(0xFF9E9E9E),
-                      ),
-                    );
-                  },
+                final image = CafeCardImage(
+                  imageUrl: displayImages[index],
+                  errorWidget: Container(
+                    color: Colors.grey[300],
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Color(0xFF9E9E9E),
+                    ),
+                  ),
                 );
                 final onTap = widget.onImageTap;
                 if (onTap == null) return image;

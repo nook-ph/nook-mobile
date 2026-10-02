@@ -59,7 +59,11 @@ class CafeDetailsPage extends StatefulWidget {
 
 class _CafeDetailsPageState extends State<CafeDetailsPage> {
   late final ScrollController _scrollController;
-  final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
+
+  /// How far the bar has faded to white, 0 to 1. Only this is kept, not the
+  /// raw offset: it sits at 0 or 1 for most of a scroll, and a notifier
+  /// whose value has not changed rebuilds nothing.
+  final ValueNotifier<double> _collapseProgress = ValueNotifier(0);
   bool _hasTrackedViewDetails = false;
 
   /// The photo runs under the sheet by this much; the sheet's top corners
@@ -83,23 +87,29 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     super.initState();
     _scrollController = ScrollController()
       ..addListener(() {
-        _scrollOffset.value = _scrollController.offset;
+        _collapseProgress.value =
+            ((_scrollController.offset - (_collapseRange - _fadeRange)) /
+                    _fadeRange)
+                .clamp(0.0, 1.0);
       });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _hasTrackedViewDetails) return;
-      _hasTrackedViewDetails = true;
-      sl<AnalyticsService>().track(
-        widget.cafeId,
-        AnalyticsService.viewDetails,
-        metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
-      );
-    });
+  }
+
+  /// Logged once per visit, and only when the cafe loaded: a bad id or a
+  /// failed fetch is not a details view.
+  void _trackViewDetails() {
+    if (_hasTrackedViewDetails) return;
+    _hasTrackedViewDetails = true;
+    sl<AnalyticsService>().track(
+      widget.cafeId,
+      AnalyticsService.viewDetails,
+      metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
+    );
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _scrollOffset.dispose();
+    _collapseProgress.dispose();
     super.dispose();
   }
 
@@ -180,6 +190,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       ReviewsPreviewSection(
         onSeeAllTap: () => _openReviews(context, state),
         onWriteReviewTap: () => _writeReview(context),
+        onRetry: () => context.read<ReviewsBloc>().add(
+          LoadReviewsRequested(cafeId: widget.cafeId),
+        ),
         currentUserId: Supabase.instance.client.auth.currentUser?.id,
       ),
     ];
@@ -220,6 +233,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                 ..add(LoadCafeDetailsRequested(cafeId: widget.cafeId)),
         ),
         BlocProvider(
+          // Not lazy: the first reader is the reviews section, which only
+          // builds once the cafe has loaded. The reviews should already be
+          // on their way by then, not start after it.
+          lazy: false,
           create: (_) =>
               sl<ReviewsBloc>()
                 ..add(LoadReviewsRequested(cafeId: widget.cafeId)),
@@ -264,7 +281,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                 );
               },
             ),
-            body: BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
+            body: BlocConsumer<CafeDetailsBloc, CafeDetailsState>(
+              listenWhen: (_, current) => current is CafeDetailsLoaded,
+              listener: (_, _) => _trackViewDetails(),
               buildWhen: (previous, current) {
                 if (previous is CafeDetailsLoaded &&
                     current is CafeDetailsLoading) {
@@ -317,7 +336,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                   controller: _scrollController,
                   slivers: [
                     ValueListenableBuilder<double>(
-                      valueListenable: _scrollOffset,
+                      valueListenable: _collapseProgress,
                       child: RepaintBoundary(
                         child: HeroImageSlider(
                           images: heroImages,
@@ -330,11 +349,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                           ),
                         ),
                       ),
-                      builder: (context, offset, heroSlider) {
-                        final collapseProgress =
-                            ((offset - (_collapseRange - _fadeRange)) /
-                                    _fadeRange)
-                                .clamp(0.0, 1.0);
+                      builder: (context, collapseProgress, heroSlider) {
                         final titleOpacity = collapseProgress < 0.6
                             ? 0.0
                             : ((collapseProgress - 0.6) / 0.4).clamp(0.0, 1.0);
@@ -526,6 +541,10 @@ class _SavedButtonState extends State<_SavedButton> {
   int _savedStateRequest = 0;
   bool _loadErrorToastShown = false;
 
+  /// The saved-state read in flight. A tap waits for it: quick-saving on a
+  /// guess would re-add a cafe that is already saved.
+  Future<void>? _savedStateLoad;
+
   void _showErrorToast(
     BuildContext context,
     Object e, {
@@ -543,7 +562,7 @@ class _SavedButtonState extends State<_SavedButton> {
   @override
   void initState() {
     super.initState();
-    _loadSavedState();
+    _savedStateLoad = _loadSavedState();
   }
 
   @override
@@ -552,7 +571,7 @@ class _SavedButtonState extends State<_SavedButton> {
     if (oldWidget.cafeId != widget.cafeId) {
       _isSaved = false;
       _loadErrorToastShown = false;
-      _loadSavedState();
+      _savedStateLoad = _loadSavedState();
     }
   }
 
@@ -574,9 +593,26 @@ class _SavedButtonState extends State<_SavedButton> {
     final cafeId = widget.cafeId;
 
     try {
-      final isSaved = await listsBloc.repository.isCafeSavedToAnyUserList(
-        cafeId,
-      );
+      // The user's lists are usually in memory already, which leaves one
+      // membership query (or none, without a custom list) instead of
+      // fetching the lists again first.
+      final known = listsBloc.userLists;
+      final bool isSaved;
+      if (known.isEmpty) {
+        isSaved = await listsBloc.repository.isCafeSavedToAnyUserList(cafeId);
+      } else {
+        // Custom lists only, as in isCafeSavedToAnyUserList.
+        final custom = [
+          for (final list in known)
+            if (!list.isSystem) list.id,
+        ];
+        isSaved =
+            custom.isNotEmpty &&
+            (await listsBloc.repository.getCafeListMemberships(
+              cafeId,
+              custom,
+            )).isNotEmpty;
+      }
       if (!mounted ||
           widget.cafeId != cafeId ||
           requestId != _savedStateRequest)
@@ -604,19 +640,30 @@ class _SavedButtonState extends State<_SavedButton> {
       return;
     }
 
+    if (_isSaving) return;
+    await _savedStateLoad;
+    if (!mounted) return;
+
     if (_isSaved) {
       await _showSaveToListSheet();
       return;
     }
 
+    // The bookmark fills at once and empties again if the save fails.
     _savedStateRequest++;
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _isSaved = true;
+    });
 
     try {
       final listsBloc = context.read<ListsBloc>();
       final userId = session.user.id;
 
-      final quickSave = await sl<ResolveQuickSaveListUseCase>()(userId);
+      final quickSave = await sl<ResolveQuickSaveListUseCase>()(
+        userId,
+        knownLists: listsBloc.userLists,
+      );
       await listsBloc.addCafeToListUseCase(quickSave.listId, widget.cafeId);
       await sl<LastSavedListStore>().setLastSavedListId(
         userId,
@@ -626,7 +673,6 @@ class _SavedButtonState extends State<_SavedButton> {
       listsBloc.add(LoadUserLists());
 
       if (!mounted) return;
-      setState(() => _isSaved = true);
       showSavedToListToast(
         context,
         listDisplayName: quickSave.displayTitle,
@@ -636,6 +682,7 @@ class _SavedButtonState extends State<_SavedButton> {
     } catch (e, st) {
       debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
       if (!mounted) return;
+      setState(() => _isSaved = false);
       _showErrorToast(context, e, goLogin: true);
     } finally {
       if (mounted) setState(() => _isSaving = false);

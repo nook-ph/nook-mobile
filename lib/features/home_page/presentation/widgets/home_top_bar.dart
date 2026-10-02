@@ -23,7 +23,13 @@ class HomeTopBar extends StatelessWidget {
           SizedBox(
             width: 46.8,
             height: 26,
-            child: Image.asset('assets/logos/logoT.png', fit: BoxFit.contain),
+            // The file is 3960 px wide; decode it at the size it is drawn.
+            child: Image.asset(
+              'assets/logos/logoT.png',
+              fit: BoxFit.contain,
+              cacheWidth: (46.8 * MediaQuery.devicePixelRatioOf(context))
+                  .ceil(),
+            ),
           ),
           const SizedBox(width: 14),
           const Expanded(child: HomeSearchEntry()),

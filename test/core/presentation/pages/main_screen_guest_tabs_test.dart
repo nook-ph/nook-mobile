@@ -159,4 +159,26 @@ void main() {
     expect(find.byType(GuestSignInSheet), findsNothing);
     expect(_currentTab(tester), 3);
   });
+
+  testWidgets('a tab is built on its first visit and kept afterwards', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app(signedIn: true));
+
+    expect(find.text('home page'), findsOneWidget);
+    for (final other in ['map page', 'saved page', 'profile page']) {
+      expect(find.text(other, skipOffstage: false), findsNothing);
+    }
+
+    await tester.tap(_tab('Map'));
+    await tester.pumpAndSettle();
+    expect(find.text('map page'), findsOneWidget);
+    expect(find.text('saved page', skipOffstage: false), findsNothing);
+
+    await tester.tap(_tab('Home'));
+    await tester.pumpAndSettle();
+    // Still in the tree, only off stage.
+    expect(find.text('map page', skipOffstage: false), findsOneWidget);
+    expect(find.text('map page'), findsNothing);
+  });
 }

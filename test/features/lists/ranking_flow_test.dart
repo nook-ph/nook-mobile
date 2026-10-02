@@ -24,6 +24,28 @@ class _NoAnalytics extends AnalyticsService {
 /// Rankings plus the one read the comparison cards make.
 class _Repo extends FakeRankingRepository {
   final names = <String, String>{'b': 'Coffee Bear', 'c': 'Abaca'};
+  bool failRankings = false;
+  int setCalls = 0;
+
+  @override
+  Future<List<CafeRanking>> getCafeRankings() {
+    if (failRankings) throw Exception('offline');
+    return super.getCafeRankings();
+  }
+
+  @override
+  Future<List<CafeRanking>> setCafeRanking({
+    required String cafeId,
+    required RankBucket bucket,
+    required int position,
+  }) {
+    setCalls++;
+    return super.setCafeRanking(
+      cafeId: cafeId,
+      bucket: bucket,
+      position: position,
+    );
+  }
 
   @override
   Future<CafeBundle> getCafeBundleById(
@@ -277,6 +299,77 @@ void main() {
 
     expect(results, [RankingFlowOutcome.failed]);
     expect(cubit.state.rankingFor('a'), isNull);
+  });
+
+  testWidgets('rankings that never loaded are read before placing a cafe', (
+    tester,
+  ) async {
+    // The cubit starts unloaded, as after a failed load at sign-in.
+    repo.serverRankings = [ranking('b', RankBucket.liked, 1, 10)];
+    await open(tester);
+
+    await tester.tap(find.text('Liked it'));
+    await tester.pumpAndSettle();
+
+    // Compared against the cafe already there, not saved at #1 unasked.
+    expect(find.text('Which did you like more?'), findsOneWidget);
+    expect(find.text('Coffee Bear'), findsOneWidget);
+    expect(repo.setCalls, 0);
+  });
+
+  testWidgets('rankings that cannot be read end the flow without a save', (
+    tester,
+  ) async {
+    repo.failRankings = true;
+    final results = await open(tester);
+
+    await tester.tap(find.text('Liked it'));
+    await tester.pumpAndSettle();
+
+    expect(results, [RankingFlowOutcome.failed]);
+    expect(repo.setCalls, 0);
+  });
+
+  testWidgets('a double tap on a comparison saves once and still reveals', (
+    tester,
+  ) async {
+    repo.serverRankings = [ranking('b', RankBucket.liked, 1, 10)];
+    await cubit.load();
+    final results = await open(tester);
+
+    await tester.tap(find.text('Liked it'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tadaima'));
+    // The outgoing card is still on screen while it fades.
+    await tester.tap(find.text('Tadaima'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(results, isEmpty);
+    expect(repo.setCalls, 1);
+    expect(find.text('#1 of 2 · Been'), findsOneWidget);
+  });
+
+  testWidgets('Too close does not claim "next to" when it lands elsewhere', (
+    tester,
+  ) async {
+    repo.serverRankings = [
+      ranking('b', RankBucket.liked, 1, 10),
+      ranking('c', RankBucket.liked, 2, 9),
+      ranking('d', RankBucket.liked, 3, 8),
+    ];
+    await cubit.load();
+    await open(tester);
+
+    await tester.tap(find.text('Liked it'));
+    await tester.pumpAndSettle();
+    // The midpoint of three is the second, Abaca; a skip lands at the top.
+    expect(find.text('Abaca'), findsOneWidget);
+    await tester.tap(find.text('Too close — skip'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.rankingFor('a')?.position, 1);
+    expect(find.text('#1 of 4 · Been'), findsOneWidget);
+    expect(find.textContaining('next to'), findsNothing);
   });
 
   test('score ranges match the ranking design', () {

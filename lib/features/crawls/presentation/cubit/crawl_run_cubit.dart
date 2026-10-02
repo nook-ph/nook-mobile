@@ -134,6 +134,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
       } catch (e) {
         debugPrint('[CrawlRun] fake stamps for $runId not read: $e');
       }
+      if (isClosed) return;
     }
     if (initial != null) {
       emit(
@@ -155,9 +156,11 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
   Future<void> _fetch(String runId) async {
     try {
       final run = _withFakes(await getCrawlRunUseCase(runId));
+      if (isClosed) return;
       emit(state.copyWith(status: CrawlRunStatus.loaded, run: run));
     } catch (e, st) {
       debugPrint('[CrawlRun] fetch($runId) failed: $e\n$st');
+      if (isClosed) return;
       if (state.run == null) {
         emit(state.copyWith(status: CrawlRunStatus.error, error: e));
       }
@@ -179,6 +182,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
       } catch (e) {
         debugPrint('[CrawlRun] fake stamp for ${stop.stopId} not kept: $e');
       }
+      if (isClosed) return;
       emit(
         state.copyWith(
           run: _withFakes(run),
@@ -192,6 +196,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
     emit(state.copyWith(stampPhase: StampPhase.locating, stampStop: stop));
     try {
       final fix = await locator.currentFix();
+      if (isClosed) return;
       emit(state.copyWith(stampPhase: StampPhase.claiming));
 
       final updated = await claimCrawlStampUseCase(
@@ -204,12 +209,22 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
       );
 
       _track('claimed', stop, updated);
+      if (isClosed) return;
       emit(state.copyWith(run: updated, stampPhase: StampPhase.stamped));
     } catch (e, st) {
       debugPrint('[CrawlRun] stamp(${stop.stopId}) failed: $e\n$st');
       _track(_resultOf(e), stop, run, error: e);
+      if (isClosed) return;
       emit(state.copyWith(stampPhase: StampPhase.failed, stampError: e));
     }
+  }
+
+  /// The state once the stamp attempt under way has finished: at once when
+  /// none is. For a caller whose sheet was dismissed mid-request and still
+  /// has to act on how it went.
+  Future<CrawlRunState> stampSettled() {
+    if (!state.isStamping) return Future.value(state);
+    return stream.firstWhere((s) => !s.isStamping, orElse: () => state);
   }
 
   /// Called when the stamp sheet closes.
@@ -228,6 +243,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
     try {
       await leaveCrawlRunUseCase(run.id);
       await fakeStampStore?.clear(run.id);
+      if (isClosed) return true;
       analytics.logEvent(
         'crawl_run_left',
         properties: {
@@ -240,6 +256,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
       return true;
     } catch (e, st) {
       debugPrint('[CrawlRun] leave(${run.id}) failed: $e\n$st');
+      if (isClosed) return false;
       emit(state.copyWith(isLeaving: false));
       return false;
     }

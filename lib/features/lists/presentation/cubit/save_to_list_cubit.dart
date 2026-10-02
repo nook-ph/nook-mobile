@@ -62,6 +62,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
         cafeId,
         lists.map((list) => list.id).toList(growable: false),
       );
+      if (isClosed) return;
 
       emit(
         SaveToListLoaded(
@@ -71,6 +72,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
         ),
       );
     } catch (e) {
+      if (isClosed) return;
       emit(SaveToListError(e));
     }
   }
@@ -86,7 +88,6 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     }
 
     final wasSaved = current.savedListIds.contains(listId);
-    final previousSavedListIds = current.savedListIds;
     final optimisticSavedListIds = Set<String>.from(current.savedListIds);
     if (wasSaved) {
       optimisticSavedListIds.remove(listId);
@@ -111,6 +112,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
       }
 
       final refreshedLists = await _loadListsForPicker();
+      if (isClosed) return;
       final latest = state;
       if (latest is! SaveToListLoaded) return;
       final pending = Set<String>.from(latest.pendingListIds)..remove(listId);
@@ -123,12 +125,21 @@ class SaveToListCubit extends Cubit<SaveToListState> {
         ),
       );
     } catch (e) {
+      if (isClosed) return;
       final latest = state;
       if (latest is! SaveToListLoaded) return;
       final pending = Set<String>.from(latest.pendingListIds)..remove(listId);
+      // Undo this list's toggle only. Restoring the set as it was before the
+      // tap would also undo other lists' toggles that succeeded meanwhile.
+      final saved = Set<String>.from(latest.savedListIds);
+      if (wasSaved) {
+        saved.add(listId);
+      } else {
+        saved.remove(listId);
+      }
       emit(
         latest.copyWith(
-          savedListIds: previousSavedListIds,
+          savedListIds: saved,
           pendingListIds: pending,
           listActionError: e,
         ),
@@ -157,18 +168,24 @@ class SaveToListCubit extends Cubit<SaveToListState> {
       await _persistLastSavedList(listId);
 
       final lists = await _loadListsForPicker();
-      final savedListIds = Set<String>.from(current.savedListIds)..add(listId);
+      if (isClosed) return;
+      // Build on the state as it is now: toggles made while the list was
+      // being created must survive it.
+      final latest = state;
+      if (latest is! SaveToListLoaded) return;
+      final savedListIds = Set<String>.from(latest.savedListIds)..add(listId);
 
       emit(
-        current.copyWith(
+        latest.copyWith(
           lists: lists,
           savedListIds: savedListIds,
           isCreating: false,
-          refreshNonce: current.refreshNonce + 1,
+          refreshNonce: latest.refreshNonce + 1,
           clearListActionError: true,
         ),
       );
     } catch (e) {
+      if (isClosed) return;
       final latest = state;
       if (latest is! SaveToListLoaded) return;
       emit(latest.copyWith(isCreating: false, listActionError: e));

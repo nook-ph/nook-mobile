@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -23,7 +24,7 @@ import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart
 GoRouter createAppRouter(AuthBloc authBloc) {
   return GoRouter(
     initialLocation: '/',
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: kDebugMode,
     refreshListenable: GoRouterRefreshStream(authBloc.stream),
     redirect: (context, state) {
       final authState = authBloc.state;
@@ -107,6 +108,9 @@ GoRouter createAppRouter(AuthBloc authBloc) {
                           child: Image.asset(
                             'assets/logos/logoT.png',
                             fit: BoxFit.contain,
+                            cacheWidth:
+                                (79.2 * MediaQuery.devicePixelRatioOf(context))
+                                    .ceil(),
                           ),
                         ),
                         const SizedBox(height: 20),

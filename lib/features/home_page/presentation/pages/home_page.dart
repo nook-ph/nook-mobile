@@ -9,7 +9,9 @@ import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
@@ -26,7 +28,12 @@ class HomePage extends StatelessWidget {
     final bloc = context.read<HomeBloc>();
     // Wait for the state the refresh ends in. A refresh over a loaded feed
     // emits no loading state, so the first emission is already the outcome.
-    final done = bloc.stream.firstWhere((s) => s is! HomeLoadingState);
+    // Leaving the screen closes the bloc mid-refresh; the stream then ends
+    // with no match, which is not an error.
+    final done = bloc.stream.firstWhere(
+      (s) => s is! HomeLoadingState,
+      orElse: () => bloc.state,
+    );
     bloc.add(LoadHomeDataEvent(refresh: true));
     await done;
   }
@@ -56,14 +63,26 @@ class HomePage extends StatelessWidget {
             listenWhen: (prev, curr) =>
                 curr is HomeLoadedState &&
                 (prev is! HomeLoadedState ||
+                    curr.refreshError != null ||
                     !identical(prev.featuredCafes, curr.featuredCafes)),
             listener: (context, state) {
               if (state is! HomeLoadedState) return;
 
+              final refreshError = state.refreshError;
+              if (refreshError != null) {
+                showPrimaryToast(
+                  context,
+                  HomeStateView.errorCopy(refreshError).title,
+                );
+                return;
+              }
+
               // One batched get_cafe_statuses for everything on the feed, so
               // the Been / Want to Try badges can render per card without a
               // request per card (spec §3.2).
-              final ids = state.cafeIds;
+              // A load that emits twice only asks about the cafes the second
+              // emission added.
+              final ids = state.newCafeIds ?? state.cafeIds;
               if (ids.isNotEmpty) {
                 context.read<CafeStatusCubit>().loadFor(ids.toList());
               }
@@ -86,15 +105,29 @@ class HomePage extends StatelessWidget {
             // The top bar sits outside the feed's scroll view: search stays
             // reachable in every state, and the refresh spinner appears
             // under it.
-            child: Column(
-              children: [
-                const HomeTopBar(),
-                Expanded(
-                  child: BlocBuilder<HomeBloc, HomeState>(
-                    builder: (context, state) => _feedArea(context, state),
+            child: BlocListener<AuthBloc, AuthState>(
+              // Signing in from a guest sheet keeps this screen alive, so the
+              // feed does not reload and its badges have to be asked for.
+              listenWhen: (prev, curr) =>
+                  curr is AuthAuthenticated && prev is! AuthAuthenticated,
+              listener: (context, _) {
+                final home = context.read<HomeBloc>().state;
+                if (home is HomeLoadedState && home.hasCafes) {
+                  context.read<CafeStatusCubit>().loadFor(
+                    home.cafeIds.toList(),
+                  );
+                }
+              },
+              child: Column(
+                children: [
+                  const HomeTopBar(),
+                  Expanded(
+                    child: BlocBuilder<HomeBloc, HomeState>(
+                      builder: (context, state) => _feedArea(context, state),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

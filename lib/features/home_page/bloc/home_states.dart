@@ -29,6 +29,15 @@ class HomeLoadedState extends HomeState {
   /// "everything failed silently".
   final bool allEmpty;
 
+  /// The cafes this emission added to the feed. A load can emit twice (the
+  /// sections that need no position, then "Near you"), and the status lookup
+  /// should only ask about each cafe once. Null means all of [cafeIds].
+  final Set<String>? newCafeIds;
+
+  /// Why the last pull to refresh failed; the lists are the ones from before
+  /// it. Null on every other emission, so it is reported once.
+  final Object? refreshError;
+
   HomeLoadedState({
     required this.featuredCafes,
     this.nearbyCafes = const [],
@@ -39,6 +48,8 @@ class HomeLoadedState extends HomeState {
     this.locationServicesOff = false,
     this.locationBannerDismissed = false,
     this.allEmpty = false,
+    this.newCafeIds,
+    this.refreshError,
   });
 
   /// Every cafe on the feed, for the one batched status lookup.
@@ -66,6 +77,8 @@ class HomeLoadedState extends HomeState {
     bool? locationServicesOff,
     bool? locationBannerDismissed,
     bool? allEmpty,
+    Set<String>? newCafeIds,
+    Object? refreshError,
   }) {
     return HomeLoadedState(
       featuredCafes: featuredCafes ?? this.featuredCafes,
@@ -78,6 +91,8 @@ class HomeLoadedState extends HomeState {
       locationBannerDismissed:
           locationBannerDismissed ?? this.locationBannerDismissed,
       allEmpty: allEmpty ?? this.allEmpty,
+      newCafeIds: newCafeIds ?? this.newCafeIds,
+      refreshError: refreshError,
     );
   }
 }

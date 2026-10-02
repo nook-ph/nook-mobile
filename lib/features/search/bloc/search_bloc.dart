@@ -53,8 +53,9 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
   }
 
   /// Rows fetched to count a draft filter. A result this long may have been
-  /// cut off, so it is not reported as a count.
-  static const countLimit = 200;
+  /// cut off, so it is not reported as a count. `get_cafes` rejects a limit
+  /// above 100.
+  static const countLimit = 100;
 
   /// How many cafes the results would hold with [tags] in place of the
   /// current ones: the number "Show N cafes" promises.
@@ -154,7 +155,11 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     SearchQueryChanged event,
     Emitter<SearchState> emit,
   ) async {
-    if (event.query == state.query && state.status != SearchStatus.initial) {
+    // The same query again is only worth running when there is nothing to
+    // show for it: not yet searched, or the last attempt failed.
+    if (event.query == state.query &&
+        state.status != SearchStatus.initial &&
+        state.status != SearchStatus.failure) {
       return;
     }
 
@@ -220,6 +225,10 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
         state.hasReachedMax ||
         state.status != SearchStatus.success) {
       return;
+    }
+    if (state.loadMoreFailed) {
+      if (!event.retry) return;
+      emit(state.copyWith(loadMoreFailed: false));
     }
     _loadingMore = true;
     try {
@@ -295,13 +304,20 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     );
   }
 
+  /// Counts fetches. Only the query is debounced and switch-mapped; tags,
+  /// sort, place, refresh and load-more overlap freely, so a response is
+  /// applied only while its fetch is still the latest one.
+  int _fetchSeq = 0;
+
   Future<void> _fetchCafes(Emitter<SearchState> emit, {int? page}) async {
+    final request = ++_fetchSeq;
+    final currentPage = page ?? state.page;
     try {
-      final currentPage = page ?? state.page;
       const limit = _limit;
       final built = await _buildQuery(page: currentPage, limit: limit);
 
       final cafes = await searchCafesUseCase.call(built.query);
+      if (request != _fetchSeq) return;
 
       emit(
         state.copyWith(
@@ -311,6 +327,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
               : (List.of(state.cafes)..addAll(cafes)),
           page: currentPage,
           hasReachedMax: cafes.length < limit,
+          loadMoreFailed: false,
           clearLastError: true,
           locationDenied:
               built.sortFellBack && built.location == SearchLocationStatus.off,
@@ -325,11 +342,18 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     } catch (e, st) {
       debugPrint('SearchBloc: fetch cafes failed $e');
       debugPrint(st.toString());
+      if (request != _fetchSeq) return;
+      if (currentPage > 0) {
+        // A later page failed: the results already on screen are still good.
+        emit(state.copyWith(loadMoreFailed: true, lastError: e));
+        return;
+      }
       emit(
         state.copyWith(
           status: SearchStatus.failure,
           lastError: e,
           locationDenied: false,
+          loadMoreFailed: false,
         ),
       );
     }

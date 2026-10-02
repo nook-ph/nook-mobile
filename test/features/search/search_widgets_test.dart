@@ -389,6 +389,26 @@ void main() {
       expect(chips[3].selected, isTrue);
     });
 
+    testWidgets('"Open now" is left out when there are no hours to filter '
+        'on', (tester) async {
+      await pump(
+        tester,
+        SearchFiltersRow(
+          sort: 'nearby',
+          openNow: false,
+          tags: const {},
+          onAllFilters: () {},
+          onSort: () {},
+          onOpenNow: () {},
+          onTag: (_) {},
+          showOpenNow: false,
+        ),
+      );
+      expect(find.text('Open now'), findsNothing);
+      expect(find.text('Nearest'), findsOneWidget);
+      expect(find.text('Free WiFi'), findsOneWidget);
+    });
+
     testWidgets('"Open now" fills when on', (tester) async {
       await row(tester, openNow: true);
       expect(
