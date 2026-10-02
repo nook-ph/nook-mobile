@@ -9,7 +9,10 @@ import 'package:nook/features/crawls/presentation/cubit/crawl_run_cubit.dart';
 import 'crawl_fixtures.dart';
 
 void main() {
-  (CrawlRunCubit, FakeCrawlRepository) build({int stamped = 2}) {
+  (CrawlRunCubit, FakeCrawlRepository) build({
+    int stamped = 2,
+    bool fakeStamps = false,
+  }) {
     final repo = FakeCrawlRepository(currentRun: run(stamped: stamped));
     final cubit = CrawlRunCubit(
       getCrawlRunUseCase: GetCrawlRunUseCase(repo),
@@ -17,6 +20,7 @@ void main() {
       leaveCrawlRunUseCase: LeaveCrawlRunUseCase(repo),
       locator: FakeStampLocator(),
       analytics: AnalyticsService(),
+      fakeStamps: fakeStamps,
     );
     return (cubit, repo);
   }
@@ -48,6 +52,48 @@ void main() {
 
       expect(await cubit.leave(), isFalse);
       expect(repo.leftRunId, isNull);
+    });
+  });
+
+  group('fake stamps (dev aid)', () {
+    test(
+      'stamp marks the stop on the device and never calls the server',
+      () async {
+        final (cubit, repo) = build(stamped: 0, fakeStamps: true);
+        await cubit.load('run-1');
+        final stops = cubit.state.run!.crawl.stops;
+
+        await cubit.stamp(stops.first);
+
+        expect(repo.claimCalls, 0);
+        expect(cubit.state.stampPhase, StampPhase.stamped);
+        expect(cubit.state.run!.myStampedStopIds, {stops.first.stopId});
+        // The server's copy of the run is untouched.
+        expect(repo.currentRun!.stamps, isEmpty);
+      },
+    );
+
+    test('made-up stamps survive a refetch and can finish the crawl', () async {
+      final (cubit, _) = build(stamped: 0, fakeStamps: true);
+      await cubit.load('run-1');
+
+      for (final stop in cubit.state.run!.crawl.stops) {
+        await cubit.stamp(stop);
+        cubit.clearStamp();
+      }
+      await cubit.refresh();
+
+      expect(cubit.state.run!.isComplete, isTrue);
+      expect(cubit.state.run!.nextStop, isNull);
+    });
+
+    test('off by default: a stamp goes to the server', () async {
+      final (cubit, repo) = build(stamped: 0);
+      await cubit.load('run-1');
+
+      await cubit.stamp(cubit.state.run!.crawl.stops.first);
+
+      expect(repo.claimCalls, 1);
     });
   });
 }
