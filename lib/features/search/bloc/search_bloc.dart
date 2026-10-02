@@ -155,7 +155,11 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     SearchQueryChanged event,
     Emitter<SearchState> emit,
   ) async {
-    if (event.query == state.query && state.status != SearchStatus.initial) {
+    // The same query again is only worth running when there is nothing to
+    // show for it: not yet searched, or the last attempt failed.
+    if (event.query == state.query &&
+        state.status != SearchStatus.initial &&
+        state.status != SearchStatus.failure) {
       return;
     }
 
