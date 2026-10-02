@@ -46,7 +46,15 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
   @override
   void initState() {
     super.initState();
+    // The pills and the ranking reveal open the note sheet on their own.
+    cafeNoteChanges.addListener(_loadNote);
     _loadNote();
+  }
+
+  @override
+  void dispose() {
+    cafeNoteChanges.removeListener(_loadNote);
+    super.dispose();
   }
 
   @override

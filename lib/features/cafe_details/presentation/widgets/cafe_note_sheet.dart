@@ -11,6 +11,11 @@ import 'package:nook/injection_container.dart';
 /// Longest private note a cafe can carry.
 const cafeNoteLimit = 500;
 
+/// Ticks whenever a cafe note is written, from any entry point (the pills,
+/// the visit block, a ranking reveal, an Undo). Surfaces showing a note
+/// listen and re-read it.
+final ValueNotifier<int> cafeNoteChanges = ValueNotifier<int>(0);
+
 /// One-field private note on a logged cafe — the journal garnish after a
 /// one-tap log (spec: docs/BEEN_WANT_TO_TRY.md §3.1; Figma "Note — empty",
 /// "Note — edit"). Never blocks logging: it is always opened *after* the
@@ -63,6 +68,10 @@ class _CafeNoteSheetState extends State<CafeNoteSheet> {
   bool _isLoading = true;
   bool _isSaving = false;
 
+  /// The stored note could not be read. Saving now would overwrite it with
+  /// whatever is in an empty field, so the sheet offers a retry instead.
+  bool _loadFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -80,20 +89,30 @@ class _CafeNoteSheetState extends State<CafeNoteSheet> {
   }
 
   Future<void> _loadExistingNote() async {
+    setState(() {
+      _isLoading = true;
+      _loadFailed = false;
+    });
+    var failed = false;
     try {
       final note = await sl<GetCafeNoteUseCase>()(widget.cafeId);
       if (!mounted) return;
       _controller.text = note ?? '';
     } catch (_) {
-      // Prefill is best-effort — an empty field is still usable.
+      failed = true;
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _loadFailed = failed;
+        });
         // The field is disabled while the note loads, so it can only take
         // focus once it is enabled again.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _focus.requestFocus();
-        });
+        if (!failed) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _focus.requestFocus();
+          });
+        }
       }
     }
   }
@@ -104,6 +123,7 @@ class _CafeNoteSheetState extends State<CafeNoteSheet> {
 
     try {
       await sl<SetCafeNoteUseCase>()(widget.cafeId, _controller.text);
+      cafeNoteChanges.value++;
       if (!mounted) return;
       final cleared = _controller.text.trim().isEmpty;
       final host = widget.toastContext;
@@ -145,7 +165,7 @@ class _CafeNoteSheetState extends State<CafeNoteSheet> {
           child: TextField(
             controller: _controller,
             focusNode: _focus,
-            enabled: !_isLoading,
+            enabled: !_isLoading && !_loadFailed,
             expands: true,
             maxLines: null,
             textAlignVertical: TextAlignVertical.top,
@@ -156,6 +176,8 @@ class _CafeNoteSheetState extends State<CafeNoteSheet> {
             decoration: InputDecoration(
               hintText: _isLoading
                   ? 'Loading…'
+                  : _loadFailed
+                  ? 'Couldn’t load your note.'
                   : 'What do you want to remember about this place?',
               hintStyle: listsText(14, color: ListsTokens.muted),
               hintMaxLines: 3,
@@ -176,11 +198,14 @@ class _CafeNoteSheetState extends State<CafeNoteSheet> {
             style: listsText(12, color: ListsTokens.muted),
           ),
         ),
-        ListsPillButton(
-          label: 'Save note',
-          onTap: _isLoading ? null : _save,
-          busy: _isSaving,
-        ),
+        if (_loadFailed)
+          ListsPillButton(label: 'Try again', onTap: _loadExistingNote)
+        else
+          ListsPillButton(
+            label: 'Save note',
+            onTap: _isLoading ? null : _save,
+            busy: _isSaving,
+          ),
       ],
     );
   }
