@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:sliding_panel_kit/sliding_panel_kit.dart';
-import 'package:nook/core/widgets/error/full_page_empty_widget.dart';
+import 'package:go_router/go_router.dart';
+import 'package:nook/features/map/bloc/map_bloc.dart';
+import 'package:nook/features/map/bloc/map_event.dart';
+import 'package:nook/features/map/presentation/widgets/map_sheet_states.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/features/map/presentation/widgets/map_sheet_cafe_card.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_bottom_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_content.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_sub_sheet.dart';
+import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/utils/geo.dart';
 import 'package:nook/features/map/domain/entities/cafe_tags_entity.dart';
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
-import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class BottomModalSheet extends StatefulWidget {
@@ -21,12 +24,23 @@ class BottomModalSheet extends StatefulWidget {
   final ValueChanged<BottomSheetMetrics>? onMetricsChanged;
   final bool isLoadingCafes;
 
+  /// A failed load. The sheet shows the failure in place of its chips and
+  /// list, so the map and search field stay usable above it.
+  final Object? error;
+  final VoidCallback? onRetry;
+
+  /// The place distances are measured from; null means the phone.
+  final GeoPoint? distanceFrom;
+
   const BottomModalSheet({
     super.key,
     required this.cafes,
     required this.tags,
     this.onMetricsChanged,
     this.isLoadingCafes = false,
+    this.error,
+    this.onRetry,
+    this.distanceFrom,
   });
 
   @override
@@ -34,13 +48,30 @@ class BottomModalSheet extends StatefulWidget {
 }
 
 class _BottomModalSheetState extends State<BottomModalSheet> {
+  /// 36x4 grabber, 8 above and 10 below it.
+  static const _handle = SlidingPanelHandle(
+    width: 36,
+    color: MapTokens.border,
+    padding: EdgeInsets.only(top: 8, bottom: 10),
+  );
+
   final controller = SlidingPanelController();
   final _handleKey = GlobalKey();
   final _tagsRowKey = GlobalKey();
+  final _countKey = GlobalKey();
 
   static const double _maxExtent = 0.80;
   static const double _fallbackMinExtent = 0.10;
-  static const double _tagsBottomGap = 12.0;
+  static const double _tagsBottomGap = 10.0;
+
+  /// Figma: 24 from the count to the first photo. Half of it is a fixed gap
+  /// outside the list, so scrolled rows stop clear of the label instead of
+  /// sliding up against it; the other half is the list's own top padding.
+  static const double _countGap = 12.0;
+  static const double _listTopPad = 24.0 - _countGap;
+
+  /// Collapsed, 16 shows under the count; [_countGap] is part of it.
+  static const double _collapsedBottomPad = 16.0 - _countGap;
   static const double _estimatedTagsRowHeight = 52.0;
 
   double _minExtent = _fallbackMinExtent;
@@ -67,7 +98,7 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _panelMaxHeight <= 0) return;
 
-      const handleWidget = SlidingPanelHandle(color: Color(0xFFD9D9D9));
+      const handleWidget = _handle;
       final handleBox =
           _handleKey.currentContext?.findRenderObject() as RenderBox?;
       final tagsBox =
@@ -76,13 +107,23 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
       final handleHeight =
           handleBox?.size.height ?? handleWidget.preferredSize.height;
       final tagsHeight = tagsBox?.size.height ?? _estimatedTagsRowHeight;
+      // Collapsed, the sheet still shows the count under the chips.
+      final countBox =
+          _countKey.currentContext?.findRenderObject() as RenderBox?;
+      final countHeight = countBox?.size.height ?? 18;
       _handleHeight = handleHeight;
 
       final contentHeight = (_panelMaxHeight - handleHeight).clamp(
         1.0,
         _panelMaxHeight,
       );
-      final target = (tagsHeight + _tagsBottomGap) / contentHeight;
+      final target =
+          (tagsHeight +
+              _tagsBottomGap +
+              countHeight +
+              _countGap +
+              _collapsedBottomPad) /
+          contentHeight;
       final clamped = target.clamp(0.0, _maxExtent).toDouble();
 
       if ((clamped - _minExtent).abs() > 0.001) {
@@ -168,45 +209,71 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
               SpringDescription(mass: 1, stiffness: 350, damping: 30),
             ),
           ),
-          handle: const SlidingPanelHandle(color: Color(0xFFD9D9D9)),
+          handle: _handle,
           builder: (context, handle) {
             return SlidingPanelBody(
-              shadowColor: Colors.transparent,
-              color: Colors.white,
+              shadowColor: Colors.black.withValues(alpha: 0.1),
+              color: MapTokens.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               child: Column(
                 children: [
                   if (handle != null) SizedBox(key: _handleKey, child: handle),
 
                   // [OPT-4] Extracted to its own widget so FilterCubit rebuilds
                   // are isolated here and don't invalidate the list below.
-                  _FilterChipRow(tagsRowKey: _tagsRowKey),
+                  if (widget.error != null)
+                    Flexible(
+                      child: MapSheetStateView.error(
+                        error: widget.error!,
+                        onRetry: widget.onRetry ?? () {},
+                        onSignIn: () => context.push('/login'),
+                      ),
+                    )
+                  else ...[
+                    _FilterChipRow(tagsRowKey: _tagsRowKey),
 
-                  const SizedBox(height: _tagsBottomGap),
+                    const SizedBox(height: _tagsBottomGap),
 
-                  if (!widget.isLoadingCafes)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          '${widget.cafes.length} '
-                          '${widget.cafes.length == 1 ? 'cafe' : 'cafes'} in view',
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(color: Colors.grey.shade600),
+                    // "0 cafes in view" says nothing the empty state under it
+                    // does not, so the count shows only with cafes.
+                    if (!widget.isLoadingCafes && widget.cafes.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MapTokens.gutter,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            key: _countKey,
+                            '${widget.cafes.length} '
+                            '${widget.cafes.length == 1 ? 'cafe' : 'cafes'} in view',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  fontSize: 12,
+                                  color: MapTokens.muted,
+                                ),
+                          ),
                         ),
                       ),
-                    ),
 
-                  // [OPT-3] Replaced inner LayoutBuilder with Flexible + direct
-                  // use of cardWidth/cardHeight derived above.
-                  Flexible(
-                    child: _CafeList(
-                      cafes: widget.cafes,
-                      isLoadingCafes: widget.isLoadingCafes,
-                      cardWidth: cardWidth,
-                      cardHeight: cardHeight,
+                    if (!widget.isLoadingCafes && widget.cafes.isNotEmpty)
+                      const SizedBox(height: _countGap),
+
+                    // [OPT-3] Replaced inner LayoutBuilder with Flexible + direct
+                    // use of cardWidth/cardHeight derived above.
+                    Flexible(
+                      child: _CafeList(
+                        topPadding: _listTopPad,
+                        cafes: widget.cafes,
+                        isLoadingCafes: widget.isLoadingCafes,
+                        cardWidth: cardWidth,
+                        cardHeight: cardHeight,
+                        distanceFrom: widget.distanceFrom,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             );
@@ -224,17 +291,13 @@ class _FilterChipRow extends StatelessWidget {
 
   final GlobalKey tagsRowKey;
 
-  static const Color _activeChipBorder = Color(0xFF344E41);
-
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
-    return Padding(
+    return SizedBox(
       key: tagsRowKey,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: MapTokens.gutter),
         child: BlocBuilder<FilterCubit, CafeFilter>(
           // [OPT-4] Only rebuild when the values this widget actually uses change.
           buildWhen: (prev, next) =>
@@ -255,39 +318,32 @@ class _FilterChipRow extends StatelessWidget {
             );
             final sortActive = filter.sort != 'nearby';
 
+            final total = filter.tagNames.length + (sortActive ? 1 : 0);
+
+            // Sliders first, then sort, then the tag groups. A chip with a
+            // choice in it fills green and carries its count.
             return Row(
               children: [
-                FilterChip(
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: const VisualDensity(
-                    horizontal: -4,
-                    vertical: -4,
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  label: Icon(
-                    PhosphorIcons.faders(),
-                    size: 20,
-                    color: colors.primary100,
-                  ),
-                  backgroundColor: colors.surface,
-                  selectedColor: colors.primary60,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  side: BorderSide(
-                    color: fadersActive ? _activeChipBorder : colors.border,
-                    width: 1.5,
-                  ),
-                  selected: false,
-                  onSelected: (_) => MapFilterBottomSheet.show(context),
+                _QuickFilterChip(
+                  icon: LucideIcons.slidersHorizontal,
+                  semanticLabel: 'All filters',
+                  active: fadersActive,
+                  count: total,
+                  showCaret: false,
+                  onTap: () => MapFilterBottomSheet.show(context),
+                ),
+                const SizedBox(width: 8),
+                _QuickFilterChip(
+                  title: mapFilterSortLabel(filter.sort),
+                  active: sortActive,
+                  onTap: () =>
+                      MapFilterSubSheet.show(context, MapFilterSubSection.sort),
                 ),
                 const SizedBox(width: 8),
                 _QuickFilterChip(
                   title: 'Best for',
                   active: bestForActive,
+                  count: _countInPool(filter, kMapFilterBestForLabels),
                   onTap: () => MapFilterSubSheet.show(
                     context,
                     MapFilterSubSection.bestFor,
@@ -297,6 +353,7 @@ class _FilterChipRow extends StatelessWidget {
                 _QuickFilterChip(
                   title: 'Amenities',
                   active: amenitiesActive,
+                  count: _countInPool(filter, kMapFilterAmenityLabels),
                   onTap: () => MapFilterSubSheet.show(
                     context,
                     MapFilterSubSection.amenities,
@@ -304,19 +361,13 @@ class _FilterChipRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 _QuickFilterChip(
-                  title: 'Payment Option',
+                  title: 'Payment',
                   active: paymentActive,
+                  count: _countInPool(filter, kMapFilterPaymentLabels),
                   onTap: () => MapFilterSubSheet.show(
                     context,
                     MapFilterSubSection.payment,
                   ),
-                ),
-                const SizedBox(width: 8),
-                _QuickFilterChip(
-                  title: mapFilterSortLabel(filter.sort),
-                  active: sortActive,
-                  onTap: () =>
-                      MapFilterSubSheet.show(context, MapFilterSubSection.sort),
                 ),
               ],
             );
@@ -331,12 +382,17 @@ class _FilterChipRow extends StatelessWidget {
 // pre-computed cardWidth/cardHeight so it never needs its own LayoutBuilder.
 class _CafeList extends StatelessWidget {
   const _CafeList({
+    required this.topPadding,
     required this.cafes,
     required this.isLoadingCafes,
     required this.cardWidth,
     required this.cardHeight,
+    this.distanceFrom,
   });
 
+  final GeoPoint? distanceFrom;
+
+  final double topPadding;
   final List<CafeSummary> cafes;
   final bool isLoadingCafes;
   final double cardWidth;
@@ -355,47 +411,64 @@ class _CafeList extends StatelessWidget {
     final showSkeleton = isLoadingCafes && cafes.isEmpty;
     final showEmpty = !isLoadingCafes && cafes.isEmpty;
 
+    if (showSkeleton) return const MapSheetSkeleton();
+
     if (showEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: FullPageEmptyWidget(
-            title: 'No cafes in this area',
-            subtitle: 'Try zooming out or adjusting filters.',
-            icon: Icons.map_outlined,
-          ),
-        ),
+      final filtered = _anyMapFilterActive(context.watch<FilterCubit>().state);
+      return MapSheetStateView.noCafes(
+        onClearFilters: filtered
+            ? () {
+                context.read<FilterCubit>().reset();
+                context.read<MapBloc>().add(
+                  LoadMapDataEvent(filter: const CafeFilter()),
+                );
+              }
+            : null,
       );
     }
 
-    final itemCount = showSkeleton ? 3 : cafes.length;
+    final itemCount = showSkeleton ? 4 : cafes.length;
 
-    return Skeletonizer(
-      enabled: showSkeleton,
-      effect: const PulseEffect(),
-      child: ListView.separated(
-        padding: const EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 12,
-          bottom: 24,
-        ),
-        itemCount: itemCount,
-        separatorBuilder: (_, __) => const SizedBox(height: 18),
-        itemBuilder: (context, index) {
-          final cafe = showSkeleton ? _skeletonCafe : cafes[index];
-          return SizedBox(
-            height: cardHeight,
-            child: MapSheetCafeCard(
+    // Rows scrolling up fade out over the first [_fade] points of the list
+    // instead of being cut flat just under the count.
+    return ShaderMask(
+      blendMode: BlendMode.dstIn,
+      shaderCallback: (bounds) => LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: const [Color(0x00000000), Color(0xFF000000)],
+        stops: [0, bounds.height <= 0 ? 0 : (_fade / bounds.height)],
+      ).createShader(bounds),
+      child: Skeletonizer(
+        enabled: showSkeleton,
+        effect: const PulseEffect(),
+        child: ListView.separated(
+          padding: EdgeInsets.fromLTRB(
+            MapTokens.gutter,
+            topPadding,
+            MapTokens.gutter,
+            24,
+          ),
+          itemCount: itemCount,
+          // Figma: each row is padded 14 above and below its content, and the
+          // 1pt divider sits between rows, so 14 / divider / 14.
+          separatorBuilder: (context, _) =>
+              const Divider(height: 29, thickness: 1, color: MapTokens.border),
+          itemBuilder: (context, index) {
+            final cafe = showSkeleton ? _skeletonCafe : cafes[index];
+            return MapSheetCafeCard(
               width: cardWidth,
               cafe: cafe,
               isSkeleton: showSkeleton,
-            ),
-          );
-        },
+              distanceFrom: distanceFrom,
+            );
+          },
+        ),
       ),
     );
   }
+
+  static const double _fade = 12;
 }
 
 class BottomSheetMetrics {
@@ -418,53 +491,89 @@ bool _anyMapFilterActive(CafeFilter f) =>
 bool _hasTagInPool(CafeFilter f, List<String> pool) =>
     f.tagNames.any(pool.contains);
 
+int _countInPool(CafeFilter f, List<String> pool) =>
+    f.tagNames.where(pool.contains).length;
+
 class _QuickFilterChip extends StatelessWidget {
   const _QuickFilterChip({
-    required this.title,
+    this.title,
+    this.icon,
+    this.semanticLabel,
     required this.onTap,
     this.active = false,
+    this.count = 0,
+    this.showCaret = true,
   });
 
-  final String title;
+  final String? title;
+  final IconData? icon;
+  final String? semanticLabel;
   final VoidCallback onTap;
   final bool active;
 
+  /// How many choices are made inside this chip; shown when above zero.
+  final int count;
+  final bool showCaret;
+
   @override
   Widget build(BuildContext context) {
-    return FilterChip(
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.bodyMediumMed.copyWith(
-              color: Theme.of(context).colorScheme.primary100,
-            ),
+    final label = title;
+    final leading = icon;
+    // The sliders chip shows its total as a green number on white with a
+    // green outline; a group chip with a choice fills green.
+    final iconOnly = leading != null && label == null;
+    final filled = active && !iconOnly;
+    final foreground = filled ? MapTokens.surface : MapTokens.ink;
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      color: foreground,
+    );
+    final text = label == null ? null : (count > 0 ? '$label · $count' : label);
+
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: filled ? MapTokens.brand : MapTokens.surface,
+            borderRadius: BorderRadius.circular(100),
+            border: filled
+                ? null
+                : Border.all(
+                    color: active ? MapTokens.brand : MapTokens.border,
+                    width: active ? 1.5 : 1,
+                  ),
           ),
-          const SizedBox(width: 6),
-          Icon(
-            PhosphorIcons.caretDown(),
-            size: 20,
-            color: Theme.of(context).colorScheme.primary100,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leading != null)
+                Icon(leading, size: 16, color: MapTokens.ink),
+              if (iconOnly && count > 0) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '$count',
+                  style: style?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: MapTokens.brand,
+                  ),
+                ),
+              ],
+              if (text != null) Text(text, style: style),
+              if (showCaret) ...[
+                const SizedBox(width: 4),
+                Icon(LucideIcons.chevronDown, size: 14, color: foreground),
+              ],
+            ],
           ),
-        ],
+        ),
       ),
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      selectedColor: Theme.of(context).colorScheme.primary60,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      side: BorderSide(
-        color: active
-            ? Theme.of(context).colorScheme.primary100
-            : Theme.of(context).colorScheme.border,
-        width: 1.5,
-      ),
-      showCheckmark: false,
-      selected: false,
-      onSelected: (_) => onTap(),
     );
   }
 }

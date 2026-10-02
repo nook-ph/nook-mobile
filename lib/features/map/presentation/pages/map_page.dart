@@ -3,12 +3,11 @@ import 'dart:math' show Point;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:go_router/go_router.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/cafe_overlay_card.dart';
+import 'package:nook/features/map/presentation/widgets/map_search_pill.dart';
 import 'package:nook/features/map/presentation/widgets/map_updating_chip.dart';
 import 'package:nook/features/map/presentation/utils/map_pin_images.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
@@ -21,10 +20,14 @@ import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/geo.dart' as geo;
 import 'package:nook/features/search/presentation/widgets/search_entry_button.dart';
-import 'package:nook/core/utils/app_error_copy.dart';
-import 'package:nook/core/utils/error_info.dart';
-import 'package:nook/core/widgets/error/full_page_error_widget.dart';
+import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/map/presentation/widgets/map_sheet_states.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
+import 'package:nook/features/search/data/search_origin_store.dart';
+import 'package:nook/features/search/data/search_places.dart';
+import 'package:nook/features/search/data/search_recents_store.dart';
+import 'package:nook/features/search/domain/entities/search_origin.dart';
+import 'package:nook/features/search/presentation/search_origin_picker.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -49,9 +52,17 @@ class _MapPageState extends State<MapPage> {
 
   bool _myLocationEnabled = false;
 
+  /// True while the camera follows the user; the recenter button turns green.
+  /// MapLibre drops tracking as soon as the user pans the map.
+  final ValueNotifier<bool> _following = ValueNotifier(false);
+
   static bool _hasRequestedPermission = false;
 
   final _sheetMetrics = ValueNotifier<BottomSheetMetrics?>(null);
+
+  /// Measured height of the pin preview card; it hugs its content, so the
+  /// recenter button reads this to stay 12pt above it.
+  final _overlayHeight = ValueNotifier<double>(CafeOverlayCard.minHeight);
 
   Map<String, CafeSummary> _cafeById = {};
 
@@ -63,7 +74,19 @@ class _MapPageState extends State<MapPage> {
   List<CafeSummary>? _lastSyncedCafes;
   Future<void> _syncQueue = Future.value();
 
-  static const double _overlaySpacing = 16.0;
+  /// The place being searched near, shared with search. While one is chosen
+  /// the map centres on it, marks it with a pin, hides the blue dot and
+  /// measures distances from it.
+  final SearchOriginStore _originStore = sl<SearchOriginStore>();
+  bool _originLayerAdded = false;
+
+  SearchOrigin? get _origin => _originStore.value;
+
+  /// Figma: the preview card sits 12 above the sheet.
+  static const double _overlaySpacing = 12.0;
+
+  static const _originSourceId = 'search-origin';
+  static const _originLayerId = 'search-origin-pin';
 
   static const _cafeSourceId = 'cafes';
   static const _dotLayerId = 'cafe-dots';
@@ -76,8 +99,6 @@ class _MapPageState extends State<MapPage> {
     _selectedPillLayerId,
     _selectedCoffeeLayerId,
   ];
-
-  static const double _selectedPillScale = 1.16;
 
   /// Rated pins are supersampled at this factor for crisp rendering.
   static const double _pinRasterScale = 3.0;
@@ -119,6 +140,7 @@ class _MapPageState extends State<MapPage> {
       if (mounted) setState(() => _styleJson = s);
     });
     _syncLocationEnabledFromPermission();
+    _originStore.origin.addListener(_onOriginChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       try {
@@ -173,9 +195,12 @@ class _MapPageState extends State<MapPage> {
   @override
   void dispose() {
     sl<FilterCubit>().reset();
+    _originStore.origin.removeListener(_onOriginChanged);
     _mapController?.onFeatureTapped.remove(_onCafeFeatureTapped);
     _sheetMetrics.dispose();
+    _overlayHeight.dispose();
     _selection.dispose();
+    _following.dispose();
     super.dispose();
   }
 
@@ -227,7 +252,9 @@ class _MapPageState extends State<MapPage> {
                     initialCameraPosition: _initial,
                     compassEnabled: false,
                     trackCameraPosition: true,
-                    myLocationEnabled: _myLocationEnabled,
+                    // No blue dot while searching near a chosen place:
+                    // distances no longer start from the phone.
+                    myLocationEnabled: _myLocationEnabled && _origin == null,
                     myLocationRenderMode: MyLocationRenderMode.normal,
                     myLocationTrackingMode: MyLocationTrackingMode.none,
                     styleString: _styleJson!,
@@ -237,6 +264,9 @@ class _MapPageState extends State<MapPage> {
                       c.onFeatureTapped.add(_onCafeFeatureTapped);
                     },
                     onCameraIdle: _onCameraIdle,
+                    onCameraTrackingDismissed: () => _following.value = false,
+                    onCameraTrackingChanged: (mode) =>
+                        _following.value = mode != MyLocationTrackingMode.none,
                     onStyleLoadedCallback: () {
                       if (!mounted) return;
                       setState(() => _styleLoaded = true);
@@ -244,27 +274,52 @@ class _MapPageState extends State<MapPage> {
                       if (s is MapLoadedState) {
                         _queueSyncMapData(s.cafes);
                       }
+                      _queueApplyOrigin(moveCamera: _origin != null);
                     },
                   )
                 else
                   const Center(child: CircularProgressIndicator()),
 
+                // Recenter sits 16 above the sheet, or 12 above the pin
+                // preview when one is showing.
                 if (_styleLoaded)
-                  Positioned(
-                    right: 16,
-                    bottom: 90,
-                    child: FloatingActionButton(
-                      heroTag: 'fab-map-recenter',
-                      backgroundColor: Colors.white,
-                      foregroundColor: Theme.of(context).colorScheme.primary100,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: const BorderSide(color: Colors.white, width: 1.5),
-                      ),
-                      onPressed: _defaultView,
-                      child: const Icon(Icons.my_location),
-                    ),
+                  ValueListenableBuilder<BottomSheetMetrics?>(
+                    valueListenable: _sheetMetrics,
+                    builder: (context, metrics, _) {
+                      return ValueListenableBuilder<_MapSelection>(
+                        valueListenable: _selection,
+                        builder: (context, selection, _) {
+                          final top = metrics?.topFromBottom ?? 0.0;
+                          final expanded =
+                              (metrics?.extent ?? 0) >
+                              (metrics?.minExtent ?? 0) + 0.01;
+                          final preview =
+                              selection.cafe != null &&
+                              !selection.dismissed &&
+                              !expanded &&
+                              top > 0;
+                          return ValueListenableBuilder<double>(
+                            valueListenable: _overlayHeight,
+                            builder: (context, cardHeight, _) => Positioned(
+                              right: 16,
+                              bottom:
+                                  top +
+                                  (preview
+                                      ? _overlaySpacing + cardHeight + 12
+                                      : 16),
+                              child: ValueListenableBuilder<bool>(
+                                valueListenable: _following,
+                                builder: (context, following, _) =>
+                                    MapRecenterButton(
+                                      onTap: _defaultView,
+                                      active: following,
+                                    ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   ),
 
                 ValueListenableBuilder<BottomSheetMetrics?>(
@@ -325,6 +380,8 @@ class _MapPageState extends State<MapPage> {
                                     key: ValueKey(cafe.id),
                                     cafe: cafe,
                                     onClose: _dismissOverlay,
+                                    onHeight: (h) => _overlayHeight.value = h,
+                                    distanceFrom: _originPoint,
                                   )
                                 : const SizedBox.shrink(),
                           ),
@@ -352,30 +409,22 @@ class _MapPageState extends State<MapPage> {
                             cafes: state.cafes,
                             tags: state.tags,
                             isLoadingCafes: false,
+                            distanceFrom: _originPoint,
                             onMetricsChanged: _onSheetMetricsChanged,
                           )
                         : state is MapError
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: Builder(
-                                builder: (ctx) {
-                                  final info = AppErrorCopy.fromException(
-                                    state.error,
-                                  );
-                                  final filter = ctx.read<FilterCubit>().state;
-                                  return FullPageErrorWidget(
-                                    error: info,
-                                    onRetry:
-                                        info.type == ErrorType.sessionExpired
-                                        ? () => ctx.push('/login')
-                                        : () => ctx.read<MapBloc>().add(
-                                            LoadMapDataEvent(filter: filter),
-                                          ),
-                                  );
-                                },
+                        // The failure sits in the sheet, so the map and the
+                        // search field stay usable above it.
+                        ? BottomModalSheet(
+                            cafes: const [],
+                            tags: const [],
+                            error: state.error,
+                            onRetry: () => context.read<MapBloc>().add(
+                              LoadMapDataEvent(
+                                filter: context.read<FilterCubit>().state,
                               ),
                             ),
+                            onMetricsChanged: _onSheetMetricsChanged,
                           )
                         : const SizedBox.shrink(),
                   ),
@@ -405,9 +454,12 @@ class _MapPageState extends State<MapPage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(22, 8, 22, 0),
-                          child: SearchEntryButton(),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                          child: MapSearchPill(
+                            origin: _origin?.fullLabel ?? 'Current location',
+                            onOriginTap: _chooseOrigin,
+                          ),
                         ),
                       ],
                     ),
@@ -494,7 +546,149 @@ class _MapPageState extends State<MapPage> {
 
     if (!_cameraFitted) {
       _cameraFitted = true;
-      await _fitCameraToCafes(controller, validCafes);
+      // With a place chosen the map opens on the place, not on the cafes.
+      if (_origin == null) await _fitCameraToCafes(controller, validCafes);
+    }
+  }
+
+  // --- Search origin --------------------------------------------------------
+
+  geo.GeoPoint? get _originPoint {
+    final origin = _origin;
+    return origin == null
+        ? null
+        : geo.GeoPoint(lat: origin.lat, lng: origin.lng);
+  }
+
+  /// The "Near …" line: the same sheet search opens.
+  Future<void> _chooseOrigin() async {
+    final pick = await pickSearchOrigin(
+      context,
+      current: _origin,
+      places: sl<SearchPlaces>(),
+      recents: SearchRecentsStore(),
+    );
+    if (pick == null || !mounted) return;
+    _originStore.set(pick.origin);
+    // "Current location" recentres on the phone, asking for access if needed.
+    if (pick.origin == null) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (mounted) await _requestLocationAccess();
+    }
+  }
+
+  /// The place changed, here or in search.
+  void _onOriginChanged() {
+    if (!mounted) return;
+    // The pill's label, the blue dot and the distances all follow it.
+    setState(() {});
+    _queueApplyOrigin(moveCamera: true);
+  }
+
+  void _queueApplyOrigin({required bool moveCamera}) {
+    _syncQueue = _syncQueue.then((_) => _applyOrigin(moveCamera: moveCamera));
+  }
+
+  /// Draws (or removes) the place pin and, with [moveCamera], centres the
+  /// map on the place — or back on the phone when the place was reset.
+  Future<void> _applyOrigin({required bool moveCamera}) async {
+    final controller = _mapController;
+    if (controller == null || !_styleLoaded || !mounted) return;
+    final origin = _origin;
+    if (origin == null && !_originLayerAdded) {
+      // Nothing was ever drawn; only a reset needs the camera.
+      if (moveCamera) await _returnToMyLocation();
+      return;
+    }
+
+    final data = {
+      'type': 'FeatureCollection',
+      'features': [
+        if (origin != null)
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [origin.lng, origin.lat],
+            },
+            'properties': <String, dynamic>{},
+          },
+      ],
+    };
+    try {
+      _pinImages ??= MapPinImages(scale: _pinRasterScale);
+      await _pinImages!.ensurePlacePin(controller);
+      if (_originLayerAdded) {
+        await controller.setGeoJsonSource(_originSourceId, data);
+      } else {
+        await controller.addGeoJsonSource(_originSourceId, data);
+        await controller.addSymbolLayer(
+          _originSourceId,
+          _originLayerId,
+          SymbolLayerProperties(
+            iconImage: MapPinImages.placePinImageId,
+            // The pin's tip marks the place.
+            iconAnchor: 'bottom',
+            iconAllowOverlap: true,
+            iconIgnorePlacement: true,
+            iconSize: _pillIconSize,
+          ),
+        );
+        _originLayerAdded = true;
+      }
+    } catch (_) {
+      // Style went away mid-update (page tear-down).
+      return;
+    }
+
+    if (!moveCamera) return;
+    if (origin == null) {
+      await _returnToMyLocation();
+      return;
+    }
+    try {
+      await controller.updateMyLocationTrackingMode(
+        MyLocationTrackingMode.none,
+      );
+      _following.value = false;
+      await _centerOn(controller, LatLng(origin.lat, origin.lng));
+    } catch (_) {
+      // Camera unavailable (tear-down); the pin is drawn regardless.
+    }
+  }
+
+  /// Centres [point] in the strip of map above the sheet, about 450m each
+  /// way (the same framing a lone cafe gets).
+  Future<void> _centerOn(MapLibreMapController controller, LatLng point) {
+    const delta = 0.004;
+    return controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(point.latitude - delta, point.longitude - delta),
+          northeast: LatLng(point.latitude + delta, point.longitude + delta),
+        ),
+        left: 40,
+        top: 60,
+        right: 40,
+        bottom: _sheetOcclusion.round() + 24,
+      ),
+    );
+  }
+
+  /// After a reset: follow the phone again if it may be read. Never prompts.
+  Future<void> _returnToMyLocation() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      final granted =
+          permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always;
+      if (!granted || !await Geolocator.isLocationServiceEnabled()) return;
+      // Let the blue dot come back before following it.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      await _enterTrackingMode();
+    } catch (_) {
+      // Best-effort: the map simply stays where it is.
     }
   }
 
@@ -526,7 +720,7 @@ class _MapPageState extends State<MapPage> {
       _pillLayerId,
       SymbolLayerProperties(
         iconImage: ['get', 'pillIcon'],
-        iconAnchor: 'bottom',
+        iconAnchor: 'center',
         iconAllowOverlap: false,
         iconIgnorePlacement: false,
         iconSize: _pillIconSize,
@@ -557,11 +751,15 @@ class _MapPageState extends State<MapPage> {
       _cafeSourceId,
       _selectedPillLayerId,
       SymbolLayerProperties(
-        iconImage: ['get', 'pillIcon'],
-        iconAnchor: 'bottom',
+        iconImage: [
+          'concat',
+          MapPinImages.selectedPrefix,
+          ['get', 'pillIcon'],
+        ],
+        iconAnchor: 'center',
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
-        iconSize: _pillIconSize * _selectedPillScale,
+        iconSize: _pillIconSize,
       ),
       filter: _noSelectionFilter,
     );
@@ -569,8 +767,9 @@ class _MapPageState extends State<MapPage> {
       _cafeSourceId,
       _selectedCoffeeLayerId,
       SymbolLayerProperties(
-        iconImage: MapPinImages.coffeeImageId,
-        iconAnchor: 'bottom',
+        iconImage: MapPinImages.selectedCoffeeImageId,
+        // No tail: the badge is centred on the cafe, like the pills.
+        iconAnchor: 'center',
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
         iconSize: _pillIconSize,
@@ -784,7 +983,14 @@ class _MapPageState extends State<MapPage> {
 
   // --- Location -------------------------------------------------------------
 
+  /// Recenter. With a place chosen, that means going back to the phone:
+  /// the blue dot is hidden while a place is in force.
   Future<void> _defaultView() async {
+    if (_origin != null) {
+      _originStore.set(null);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+    }
     await _requestLocationAccess();
   }
 
@@ -796,12 +1002,10 @@ class _MapPageState extends State<MapPage> {
         permission == LocationPermission.always) {
       if (!serviceEnabled) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Turn on Location Services to center the map on you.',
-            ),
-          ),
+        showPrimaryToast(
+          context,
+          'Turn on Location Services to center the map on you.',
+          bottomOffset: _sheetMetrics.value?.topFromBottom ?? 0,
         );
         return;
       }
@@ -810,7 +1014,11 @@ class _MapPageState extends State<MapPage> {
     }
 
     if (permission == LocationPermission.deniedForever) {
-      await Geolocator.openAppSettings();
+      if (!mounted) return;
+      // Say why before leaving the app; the system won't ask again.
+      if (await showMapLocationDeniedDialog(context)) {
+        await Geolocator.openAppSettings();
+      }
       return;
     }
 
@@ -830,6 +1038,7 @@ class _MapPageState extends State<MapPage> {
   Future<void> _enterTrackingMode() async {
     final c = await _controllerCompleter.future;
     await c.updateMyLocationTrackingMode(MyLocationTrackingMode.tracking);
+    _following.value = true;
   }
 }
 

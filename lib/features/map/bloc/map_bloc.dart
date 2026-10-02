@@ -46,6 +46,22 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   /// immediately re-fetch the area the user is currently looking at.
   MapViewport? _lastViewport;
 
+  /// How many cafes the current viewport holds under [filter]: the number
+  /// "Show N cafes" promises, and the list's count once it is applied.
+  ///
+  /// There is no count RPC, so this runs the viewport query itself and
+  /// counts the rows. Null when the map has not reported a viewport yet, or
+  /// when the result hit the fetch cap and may have been cut off.
+  Future<int?> countFor(CafeFilter filter) async {
+    final viewport = _lastViewport;
+    if (viewport == null) return null;
+    final cafes = await getCafesForViewportUseCase
+        .call(viewport: viewport, filter: filter)
+        .timeout(_mapLoadTimeout);
+    if (cafes.length >= GetCafesForViewportUseCase.fetchCap) return null;
+    return cafes.length;
+  }
+
   /// Monotonic fetch counter; responses that don't match the latest id are
   /// stale (a newer fetch started while they were in flight) and get dropped.
   int _fetchId = 0;

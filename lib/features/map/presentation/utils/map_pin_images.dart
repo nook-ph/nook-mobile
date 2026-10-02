@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart' show IconData;
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 
@@ -11,8 +13,8 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 /// port of the webapp's `drawPillCanvas` / `buildCoffeePinCanvas`
 /// (nook-webapp `CafeMap.tsx`).
 ///
-/// Rated cafes get a stadium "pill" (star + rating + pointer tail); unrated
-/// cafes get a circular coffee badge when selected. One image is registered
+/// Rated cafes get a stadium "pill" (star + rating); unrated cafes get a
+/// dark circular coffee badge when selected. One image is registered
 /// per distinct rating and cached for the lifetime of the map style.
 class MapPinImages {
   MapPinImages({required this.scale});
@@ -25,8 +27,21 @@ class MapPinImages {
 
   static const coffeeImageId = 'coffee-pin';
 
-  static const _pillColor = Color(0xFF2D6A4F);
+  /// The badge a selected unrated cafe turns into on the map: a dark circle
+  /// with a coffee cup, no tail (Figma "Map — unrated pin selected").
+  static const selectedCoffeeImageId = 'coffee-pin-selected';
+
+  /// The pin marking the place being searched near (Figma "Map — searching
+  /// near a chosen place").
+  static const placePinImageId = 'origin-pin';
+
+  static const _pillColor = Color(0xFF344E41);
+
+  /// A selected pin turns near-black so it reads apart from the green ones.
+  static const _selectedColor = Color(0xFF0A0F0D);
   static const _textColor = Color(0xFFFFFFFF);
+  static const _iconColor = Color(0xFFFEFEFE);
+  static const _strokeColor = Color(0xFFFFFFFF);
   static const _shadowColor = Color.fromRGBO(15, 35, 20, 0.35);
 
   // Phosphor "Coffee" (regular weight) glyph path, viewBox 0 0 256 256 —
@@ -35,6 +50,10 @@ class MapPinImages {
       'M80,56V24a8,8,0,0,1,16,0V56a8,8,0,0,1-16,0Zm40,8a8,8,0,0,0,8-8V24a8,8,0,0,0-16,0V56A8,8,0,0,0,120,64Zm32,0a8,8,0,0,0,8-8V24a8,8,0,0,0-16,0V56A8,8,0,0,0,152,64Zm96,56v8a40,40,0,0,1-37.51,39.91,96.59,96.59,0,0,1-27,40.09H208a8,8,0,0,1,0,16H32a8,8,0,0,1,0-16H56.54A96.3,96.3,0,0,1,24,136V88a8,8,0,0,1,8-8H208A40,40,0,0,1,248,120ZM200,96H40v40a80.27,80.27,0,0,0,45.12,72h69.76A80.27,80.27,0,0,0,200,136Zm32,24a24,24,0,0,0-16-22.62V136a95.78,95.78,0,0,1-1.2,15A24,24,0,0,0,232,128Z';
 
   static String pillImageId(String ratingLabel) => 'pill-$ratingLabel';
+
+  /// Prefix of the dark, larger image a selected rated pin uses. The selected
+  /// layer reads it as `concat(selectedPrefix, pillIcon)`.
+  static const selectedPrefix = 'sel-';
 
   /// The `pillIcon` GeoJSON property value for [cafe]: the image id its pill
   /// layer should render, or '' when the cafe is unrated (dot only).
@@ -49,10 +68,10 @@ class MapPinImages {
     MapLibreMapController controller,
     List<CafeSummary> cafes,
   ) async {
-    if (!_registered.contains(coffeeImageId)) {
-      final bytes = await rasterizeCoffeePin();
-      await controller.addImage(coffeeImageId, bytes);
-      _registered.add(coffeeImageId);
+    if (!_registered.contains(selectedCoffeeImageId)) {
+      final bytes = await rasterizeSelectedCoffeePin();
+      await controller.addImage(selectedCoffeeImageId, bytes);
+      _registered.add(selectedCoffeeImageId);
     }
 
     final pending = <String, String>{};
@@ -65,10 +84,20 @@ class MapPinImages {
     }
 
     for (final entry in pending.entries) {
-      final bytes = await rasterizePill(entry.value);
-      await controller.addImage(entry.key, bytes);
+      await controller.addImage(entry.key, await rasterizePill(entry.value));
+      await controller.addImage(
+        '$selectedPrefix${entry.key}',
+        await rasterizePill(entry.value, selected: true),
+      );
       _registered.add(entry.key);
     }
+  }
+
+  /// Registers the place pin once; safe to call before every use.
+  Future<void> ensurePlacePin(MapLibreMapController controller) async {
+    if (_registered.contains(placePinImageId)) return;
+    await controller.addImage(placePinImageId, await rasterizePlacePin());
+    _registered.add(placePinImageId);
   }
 
   /// Registers the badge for a single cafe with the given [rating] on
@@ -96,49 +125,50 @@ class MapPinImages {
     return id;
   }
 
-  /// Stadium pill with star, rating text, and a pointer tail. The tail tip
-  /// lines up with `icon-anchor: bottom` (minus the shadow pad).
+  /// Stadium pill: star and rating in white on brand green, with a white
+  /// outline. 26pt tall at rest; [selected] draws it 34pt tall in near-black.
+  /// No pointer tail: the pin is drawn centred on the cafe (`icon-anchor:
+  /// center`).
   @visibleForTesting
-  Future<Uint8List> rasterizePill(String ratingLabel) async {
+  Future<Uint8List> rasterizePill(
+    String ratingLabel, {
+    bool selected = false,
+  }) async {
     final ratingStyle = TextStyle(
       color: _textColor,
-      fontSize: 15 * scale,
-      fontWeight: FontWeight.w500,
+      fontSize: (selected ? 12 : 10) * scale,
+      fontWeight: FontWeight.w600,
       fontFamily: 'Poppins',
     );
 
     final ratingPainter = _layoutText(ratingLabel, ratingStyle);
 
-    final starSize = 12 * scale;
-    final gap = 5 * scale;
-    final paddingX = 12 * scale;
-    final pillHeight = 32 * scale;
-    final tailHeight = 9 * scale;
-    final tailHalfWidth = 7 * scale;
-    final borderWidth = 2.5 * scale;
+    final starSize = (selected ? 12 : 10) * scale;
+    final gap = 3 * scale;
+    final paddingX = (selected ? 10 : 8) * scale;
+    final pillHeight = (selected ? 34 : 26) * scale;
+    final borderWidth = (selected ? 2 : 1.5) * scale;
     final shadowPad = 6 * scale;
 
     final contentWidth = starSize + gap + ratingPainter.width;
     final pillWidth = contentWidth + paddingX * 2;
 
     final canvasWidth = (pillWidth + borderWidth * 2 + shadowPad * 2).ceil();
-    final canvasHeight =
-        (pillHeight + tailHeight + borderWidth * 2 + shadowPad * 2).ceil();
+    final canvasHeight = (pillHeight + borderWidth * 2 + shadowPad * 2).ceil();
 
     return _rasterize(canvasWidth, canvasHeight, (canvas) {
       final pillLeft = (canvasWidth - pillWidth) / 2;
-      final pillTop = shadowPad + borderWidth;
-
-      final path = _badgePath(
-        left: pillLeft,
-        top: pillTop,
-        width: pillWidth,
-        height: pillHeight,
-        centerX: canvasWidth / 2,
-        tailHeight: tailHeight,
-        tailHalfWidth: tailHalfWidth,
+      final pillTop = (canvasHeight - pillHeight) / 2;
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(pillLeft, pillTop, pillWidth, pillHeight),
+        Radius.circular(pillHeight / 2),
       );
-      _paintBadge(canvas, path);
+      _paintPill(
+        canvas,
+        rect,
+        selected ? _selectedColor : _pillColor,
+        borderWidth,
+      );
 
       final starCx = pillLeft + paddingX + starSize / 2;
       final starCy = pillTop + pillHeight / 2;
@@ -153,8 +183,20 @@ class MapPinImages {
     });
   }
 
-  /// Circular coffee badge shown for selected unrated cafes — same pin
-  /// silhouette as the rating pill but with a centered coffee glyph.
+  void _paintPill(ui.Canvas canvas, RRect rect, Color fill, double border) {
+    canvas.drawRRect(
+      rect.shift(Offset(0, 2 * scale)),
+      Paint()
+        ..color = _shadowColor
+        ..maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, 3 * scale),
+    );
+    canvas.drawRRect(rect.inflate(border), Paint()..color = _strokeColor);
+    canvas.drawRRect(rect, Paint()..color = fill);
+  }
+
+  /// Green coffee badge with a pointer tail, for one-off previews of an
+  /// unrated cafe ([registerSingle]). The map tab's selected unrated pin is
+  /// [rasterizeSelectedCoffeePin].
   @visibleForTesting
   Future<Uint8List> rasterizeCoffeePin() async {
     final diameter = 32 * scale;
@@ -201,6 +243,82 @@ class MapPinImages {
       canvas.drawPath(icon, Paint()..color = _textColor);
       canvas.restore();
     });
+  }
+
+  /// Selected unrated cafe: a 38pt #0A0F0D circle with a 2pt white stroke
+  /// drawn inside it, a 16pt Lucide coffee cup, and the pins' shadow. No
+  /// tail: it is drawn centred on the cafe, like the rating pills.
+  @visibleForTesting
+  Future<Uint8List> rasterizeSelectedCoffeePin() async {
+    final diameter = 38 * scale;
+    final strokeWidth = 2 * scale;
+    final shadowPad = 8 * scale;
+    final size = (diameter + shadowPad * 2).ceil();
+
+    return _rasterize(size, size, (canvas) {
+      final center = Offset(size / 2, size / 2);
+      final radius = diameter / 2;
+      // Figma drop shadow: y 2, blur 6 (sigma 3), black at 20%.
+      canvas.drawCircle(
+        center.translate(0, 2 * scale),
+        radius,
+        Paint()
+          ..color = const Color.fromRGBO(0, 0, 0, 0.20)
+          ..maskFilter = ui.MaskFilter.blur(ui.BlurStyle.normal, 3 * scale),
+      );
+      canvas.drawCircle(center, radius, Paint()..color = _strokeColor);
+      canvas.drawCircle(
+        center,
+        radius - strokeWidth,
+        Paint()..color = _selectedColor,
+      );
+      _paintIcon(canvas, LucideIcons.coffee, center, 16 * scale, _iconColor);
+    });
+  }
+
+  /// The chosen place: a 40pt Lucide map pin in brand green. Drawn with its
+  /// tip on the place (`icon-anchor: bottom`), so the canvas ends at the
+  /// glyph's bottom edge.
+  @visibleForTesting
+  Future<Uint8List> rasterizePlacePin() async {
+    final size = (40 * scale).ceil();
+    return _rasterize(size, size, (canvas) {
+      _paintIcon(
+        canvas,
+        LucideIcons.mapPin,
+        Offset(size / 2, size / 2),
+        40 * scale,
+        _pillColor,
+      );
+    });
+  }
+
+  /// Paints an icon-font glyph [size] tall, centred on [center].
+  void _paintIcon(
+    ui.Canvas canvas,
+    IconData icon,
+    Offset center,
+    double size,
+    Color color,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          fontSize: size,
+          height: 1,
+          color: color,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      center - Offset(painter.width / 2, painter.height / 2),
+    );
+    painter.dispose();
   }
 
   Future<Uint8List> _rasterize(

@@ -11,6 +11,11 @@ import 'package:nook/core/utils/geo.dart';
 class GetCafesForViewportUseCase {
   static const double radiusMeters = 20000; // 20 km
 
+  /// The most rows one viewport fetch returns (the data source's map fetch
+  /// limit). A result this long may have been cut off, so its length is not
+  /// a count of the cafes in view.
+  static const int fetchCap = 1000;
+
   final ICafeRepository repository;
 
   GetCafesForViewportUseCase(this.repository);

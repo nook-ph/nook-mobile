@@ -155,6 +155,65 @@ void main() {
     expect(viewportUseCase.calls.last.filter, filter);
     expect(viewportUseCase.calls.last.viewport, _viewport);
   });
+
+  group('countFor', () {
+    const filter = CafeFilter(tagNames: {'Free WiFi'});
+
+    test('is null until the map has reported a viewport', () async {
+      final viewportUseCase = _FakeViewportUseCase();
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+
+      expect(await bloc.countFor(filter), isNull);
+      expect(viewportUseCase.calls, isEmpty);
+    });
+
+    test('counts the viewport query run with the draft filter', () async {
+      final viewportUseCase = _FakeViewportUseCase()
+        ..result = List.filled(9, _viewportCafe);
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+
+      expect(await bloc.countFor(filter), 9);
+      expect(viewportUseCase.calls.last.filter, filter);
+      expect(viewportUseCase.calls.last.viewport, _viewport);
+      // Counting a draft does not change the filter in force.
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+      expect(viewportUseCase.calls.last.filter, const CafeFilter());
+    });
+
+    test('is null when the result hit the fetch cap', () async {
+      final viewportUseCase = _FakeViewportUseCase()
+        ..result = List.filled(
+          GetCafesForViewportUseCase.fetchCap,
+          _viewportCafe,
+        );
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+
+      expect(await bloc.countFor(filter), isNull);
+    });
+
+    test('a failed count throws, so the caller keeps "Apply"', () async {
+      final viewportUseCase = _FakeViewportUseCase();
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+
+      viewportUseCase.failNext = true;
+      await expectLater(bloc.countFor(filter), throwsException);
+    });
+  });
 }
 
 class _ViewportCall {
@@ -167,6 +226,7 @@ class _FakeViewportUseCase extends GetCafesForViewportUseCase {
   _FakeViewportUseCase({this.failNext = false}) : super(_StubRepository());
 
   bool failNext;
+  List<CafeSummary> result = const [_viewportCafe];
   final calls = <_ViewportCall>[];
 
   @override
@@ -179,7 +239,7 @@ class _FakeViewportUseCase extends GetCafesForViewportUseCase {
       failNext = false;
       throw Exception('viewport fetch failed');
     }
-    return const [_viewportCafe];
+    return result;
   }
 }
 

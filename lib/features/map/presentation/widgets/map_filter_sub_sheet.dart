@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nook/core/extensions/extensions.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/utils/debounced_count.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/bloc/map_event.dart';
-import 'package:nook/features/map/presentation/widgets/map_filter_bottom_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_content.dart';
+import 'package:nook/features/map/presentation/widgets/map_filter_ui.dart';
+import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 
 /// One section of the map filter, opened from a quick filter chip.
 enum MapFilterSubSection { sort, bestFor, amenities, payment }
@@ -26,9 +27,9 @@ class MapFilterSubSheet extends StatefulWidget {
   static String titleFor(MapFilterSubSection section) {
     return switch (section) {
       MapFilterSubSection.sort => 'Sort',
-      MapFilterSubSection.bestFor => 'Best for',
-      MapFilterSubSection.amenities => 'Amenities',
-      MapFilterSubSection.payment => 'Payment Option',
+      MapFilterSubSection.bestFor => kMapFilterSectionBestFor,
+      MapFilterSubSection.amenities => kMapFilterSectionAmenities,
+      MapFilterSubSection.payment => kMapFilterSectionPaymentAccepted,
     };
   }
 
@@ -39,10 +40,7 @@ class MapFilterSubSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (_) => BlocProvider<MapBloc>.value(
         value: mapBloc,
         child: MapFilterSubSheet(section: section, initialFilter: initial),
@@ -55,247 +53,183 @@ class MapFilterSubSheet extends StatefulWidget {
 }
 
 class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
-  late String _selectedSortId;
-  final Set<String> _selectedBestFor = <String>{};
-  final Set<String> _selectedAmenities = <String>{};
-  final Set<String> _selectedPayment = <String>{};
+  late final Set<String> _selected;
+  final _count = DebouncedCount();
+
+  List<String> get _pool => switch (widget.section) {
+    MapFilterSubSection.bestFor => kMapFilterBestForLabels,
+    MapFilterSubSection.amenities => kMapFilterAmenityLabels,
+    MapFilterSubSection.payment => kMapFilterPaymentLabels,
+    MapFilterSubSection.sort => const [],
+  };
 
   @override
   void initState() {
     super.initState();
-    final f = widget.initialFilter;
-    _selectedSortId = f.sort;
-    _selectedBestFor.addAll(
-      f.tagNames.intersection(kMapFilterBestForLabels.toSet()),
+    _selected = widget.initialFilter.tagNames.intersection(_pool.toSet());
+    if (widget.section != MapFilterSubSection.sort) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _recount());
+    }
+  }
+
+  @override
+  void dispose() {
+    _count.dispose();
+    super.dispose();
+  }
+
+  /// Counts what Apply would show: the filter in force with this group's
+  /// tags swapped for the ones picked here.
+  void _recount() {
+    if (!mounted) return;
+    final bloc = context.read<MapBloc>();
+    final prev = context.read<FilterCubit>().state;
+    final draft = prev.copyWith(
+      tagNames: mergeTagsReplacingCategory(prev.tagNames, _pool.toSet(), {
+        ..._selected,
+      }),
     );
-    _selectedAmenities.addAll(
-      f.tagNames.intersection(kMapFilterAmenityLabels.toSet()),
-    );
-    _selectedPayment.addAll(
-      f.tagNames.intersection(kMapFilterPaymentLabels.toSet()),
-    );
+    _count.request(() => bloc.countFor(draft));
+  }
+
+  void _commit(BuildContext context, CafeFilter next) {
+    context.read<FilterCubit>().setFilter(next);
+    context.read<MapBloc>().add(LoadMapDataEvent(filter: next));
+  }
+
+  /// Sort applies the moment a row is tapped, then closes.
+  void _pickSort(BuildContext context, String id) {
+    final prev = context.read<FilterCubit>().state;
+    if (prev.sort != id) _commit(context, prev.copyWith(sort: id));
+    Navigator.of(context).pop();
   }
 
   void _apply(BuildContext context) {
     final prev = context.read<FilterCubit>().state;
-    late final CafeFilter next;
-    switch (widget.section) {
-      case MapFilterSubSection.sort:
-        next = prev.copyWith(sort: _selectedSortId);
-      case MapFilterSubSection.bestFor:
-        next = prev.copyWith(
-          tagNames: mergeTagsReplacingCategory(
-            prev.tagNames,
-            kMapFilterBestForLabels.toSet(),
-            _selectedBestFor,
-          ),
-        );
-      case MapFilterSubSection.amenities:
-        next = prev.copyWith(
-          tagNames: mergeTagsReplacingCategory(
-            prev.tagNames,
-            kMapFilterAmenityLabels.toSet(),
-            _selectedAmenities,
-          ),
-        );
-      case MapFilterSubSection.payment:
-        next = prev.copyWith(
-          tagNames: mergeTagsReplacingCategory(
-            prev.tagNames,
-            kMapFilterPaymentLabels.toSet(),
-            _selectedPayment,
-          ),
-        );
-    }
-    context.read<FilterCubit>().setFilter(next);
-    context.read<MapBloc>().add(LoadMapDataEvent(filter: next));
+    _commit(
+      context,
+      prev.copyWith(
+        tagNames: mergeTagsReplacingCategory(
+          prev.tagNames,
+          _pool.toSet(),
+          _selected,
+        ),
+      ),
+    );
     Navigator.of(context).pop();
   }
 
-  void _clearForSection(BuildContext context) {
+  /// Clears this group straight away and keeps the sheet open.
+  void _clear(BuildContext context) {
     final prev = context.read<FilterCubit>().state;
-    late final CafeFilter next;
-    switch (widget.section) {
-      case MapFilterSubSection.sort:
-        next = prev.copyWith(sort: 'nearby');
-        setState(() => _selectedSortId = 'nearby');
-      case MapFilterSubSection.bestFor:
-        next = prev.copyWith(
-          tagNames: mergeTagsReplacingCategory(
-            prev.tagNames,
-            kMapFilterBestForLabels.toSet(),
-            {},
-          ),
-        );
-        setState(() => _selectedBestFor.clear());
-      case MapFilterSubSection.amenities:
-        next = prev.copyWith(
-          tagNames: mergeTagsReplacingCategory(
-            prev.tagNames,
-            kMapFilterAmenityLabels.toSet(),
-            {},
-          ),
-        );
-        setState(() => _selectedAmenities.clear());
-      case MapFilterSubSection.payment:
-        next = prev.copyWith(
-          tagNames: mergeTagsReplacingCategory(
-            prev.tagNames,
-            kMapFilterPaymentLabels.toSet(),
-            {},
-          ),
-        );
-        setState(() => _selectedPayment.clear());
-    }
-    context.read<FilterCubit>().setFilter(next);
-    context.read<MapBloc>().add(LoadMapDataEvent(filter: next));
+    setState(_selected.clear);
+    _commit(
+      context,
+      prev.copyWith(
+        tagNames: mergeTagsReplacingCategory(prev.tagNames, _pool.toSet(), {}),
+      ),
+    );
+    _recount();
   }
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
     final title = MapFilterSubSheet.titleFor(widget.section);
-    final maxScrollBody = (media.size.height * 0.55).clamp(160.0, 520.0);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 8, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                ),
-                AdaptiveTap(
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: const Padding(
-                    padding: EdgeInsets.all(8),
-                    child: Icon(Icons.close, color: Colors.black, size: 24),
-                  ),
-                ),
-              ],
-            ),
+    if (widget.section == MapFilterSubSection.sort) {
+      final current = widget.initialFilter.sort;
+      return MapFilterSheetFrame(
+        title: title,
+        body: Padding(
+          padding: EdgeInsets.fromLTRB(
+            MapTokens.gutter,
+            0,
+            MapTokens.gutter,
+            MediaQuery.viewPaddingOf(context).bottom + 12,
           ),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: maxScrollBody),
-            child: ListView(
-              shrinkWrap: true,
-              physics: const ClampingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(22, 16, 22, 16),
-              children: [_buildSectionContent()],
-            ),
-          ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: AdaptiveOutlinedButton(
-                    onPressed: () => _clearForSection(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.black,
-                      side: BorderSide(
-                        color: context.colorScheme.border,
-                        width: 1.5,
-                      ),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                    ),
-                    child: Text(
-                      'Clear all',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final option in mapFilterSortOptions())
+                _SortRow(
+                  label: option.label,
+                  selected: option.id == current,
+                  onTap: () => _pickSort(context, option.id),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: AdaptiveElevatedButton(
-                    onPressed: () => _apply(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF344E41),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                    ),
-                    child: Text(
-                      'Apply',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
-        ],
+        ),
+      );
+    }
+
+    return MapFilterSheetFrame(
+      title: title,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          MapTokens.gutter,
+          0,
+          MapTokens.gutter,
+          16,
+        ),
+        child: MapFilterChipWrap(
+          labels: _pool,
+          isSelected: _selected.contains,
+          onTap: (label) {
+            setState(() {
+              if (!_selected.remove(label)) _selected.add(label);
+            });
+            _recount();
+          },
+        ),
+      ),
+      footer: MapFilterFooter(
+        onClear: () => _clear(context),
+        onApply: () => _apply(context),
+        count: _count.value,
       ),
     );
   }
+}
 
-  Widget _buildSectionContent() {
-    switch (widget.section) {
-      case MapFilterSubSection.sort:
-        return MapFilterSortGrid(
-          options: mapFilterSortOptions(),
-          selectedId: _selectedSortId,
-          onSelect: (id) => setState(() => _selectedSortId = id),
-        );
-      case MapFilterSubSection.bestFor:
-        return MapFilterTagWrap(
-          labels: kMapFilterBestForLabels,
-          selected: _selectedBestFor,
-          onToggle: (label) => setState(() {
-            if (_selectedBestFor.contains(label)) {
-              _selectedBestFor.remove(label);
-            } else {
-              _selectedBestFor.add(label);
-            }
-          }),
-        );
-      case MapFilterSubSection.amenities:
-        return MapFilterTagWrap(
-          labels: kMapFilterAmenityLabels,
-          selected: _selectedAmenities,
-          onToggle: (label) => setState(() {
-            if (_selectedAmenities.contains(label)) {
-              _selectedAmenities.remove(label);
-            } else {
-              _selectedAmenities.add(label);
-            }
-          }),
-        );
-      case MapFilterSubSection.payment:
-        return MapFilterTagWrap(
-          labels: kMapFilterPaymentLabels,
-          selected: _selectedPayment,
-          onToggle: (label) => setState(() {
-            if (_selectedPayment.contains(label)) {
-              _selectedPayment.remove(label);
-            } else {
-              _selectedPayment.add(label);
-            }
-          }),
-        );
-    }
+/// A sort option: the label, and a tick when it is the current sort.
+class _SortRow extends StatelessWidget {
+  const _SortRow({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: AdaptiveTap(
+        onTap: onTap,
+        child: SizedBox(
+          height: 47,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+                    color: MapTokens.ink,
+                  ),
+                ),
+              ),
+              if (selected)
+                const Icon(LucideIcons.check, size: 18, color: MapTokens.brand),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
