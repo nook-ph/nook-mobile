@@ -6,9 +6,9 @@ import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.d
 /// The sort values the reviews query accepts, with the label each one shows.
 const List<({String value, String label})> reviewSortOptions = [
   (value: 'recommended', label: 'Recommended'),
-  (value: 'recently_added', label: 'Recently added'),
-  (value: 'highest_rated', label: 'Highest rated'),
-  (value: 'most_helpful', label: 'Most helpful'),
+  (value: 'recent', label: 'Recently added'),
+  (value: 'highest', label: 'Highest rated'),
+  (value: 'helpful', label: 'Most helpful'),
 ];
 
 String reviewSortLabel(String value) {
