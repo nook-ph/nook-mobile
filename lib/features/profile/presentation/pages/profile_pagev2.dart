@@ -256,7 +256,7 @@ class ProfileRedesignPage extends StatelessWidget {
                                   context.textTheme.bodySmallMed,
                               tabs: [
                                 Tab(text: 'Reviews'),
-                                Tab(text: 'Collections'),
+                                Tab(text: 'Lists'),
                               ],
                             ),
                           ),
@@ -529,7 +529,7 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'Create new collection',
+                                'Create new list',
                                 style: context.textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w500,
                                   color: Colors.black87,
@@ -555,7 +555,7 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                         ),
                         child: Center(
                           child: Text(
-                            'Save your favourite cafes into collections.',
+                            'Save your favourite cafes into lists.',
                             textAlign: TextAlign.center,
                             style: context.textTheme.bodySmall!.copyWith(
                               color: Colors.black45,
@@ -577,7 +577,7 @@ class _CollectionsTabState extends State<_CollectionsTab> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                'Could not load collections.',
+                                'Could not load lists.',
                                 style: context.textTheme.bodySmall!.copyWith(
                                   color: Colors.black54,
                                 ),
