@@ -130,6 +130,10 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
         }
 
         return BlocBuilder<CafeRankingCubit, CafeRankingState>(
+          // Only the rankings are read. The state also changes on every
+          // answer in the comparison sheet open on top of this page.
+          buildWhen: (previous, current) =>
+              !identical(previous.rankings, current.rankings),
           builder: (context, rankingState) {
             final ranking = rankingState.rankingFor(widget.cafeId);
             final overall = rankingState.overallRankOf(widget.cafeId);

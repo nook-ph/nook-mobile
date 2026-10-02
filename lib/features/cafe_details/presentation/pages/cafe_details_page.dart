@@ -59,7 +59,11 @@ class CafeDetailsPage extends StatefulWidget {
 
 class _CafeDetailsPageState extends State<CafeDetailsPage> {
   late final ScrollController _scrollController;
-  final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
+
+  /// How far the bar has faded to white, 0 to 1. Only this is kept, not the
+  /// raw offset: it sits at 0 or 1 for most of a scroll, and a notifier
+  /// whose value has not changed rebuilds nothing.
+  final ValueNotifier<double> _collapseProgress = ValueNotifier(0);
   bool _hasTrackedViewDetails = false;
 
   /// The photo runs under the sheet by this much; the sheet's top corners
@@ -83,7 +87,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     super.initState();
     _scrollController = ScrollController()
       ..addListener(() {
-        _scrollOffset.value = _scrollController.offset;
+        _collapseProgress.value =
+            ((_scrollController.offset - (_collapseRange - _fadeRange)) /
+                    _fadeRange)
+                .clamp(0.0, 1.0);
       });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _hasTrackedViewDetails) return;
@@ -99,7 +106,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   @override
   void dispose() {
     _scrollController.dispose();
-    _scrollOffset.dispose();
+    _collapseProgress.dispose();
     super.dispose();
   }
 
@@ -321,7 +328,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                   controller: _scrollController,
                   slivers: [
                     ValueListenableBuilder<double>(
-                      valueListenable: _scrollOffset,
+                      valueListenable: _collapseProgress,
                       child: RepaintBoundary(
                         child: HeroImageSlider(
                           images: heroImages,
@@ -334,11 +341,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                           ),
                         ),
                       ),
-                      builder: (context, offset, heroSlider) {
-                        final collapseProgress =
-                            ((offset - (_collapseRange - _fadeRange)) /
-                                    _fadeRange)
-                                .clamp(0.0, 1.0);
+                      builder: (context, collapseProgress, heroSlider) {
                         final titleOpacity = collapseProgress < 0.6
                             ? 0.0
                             : ((collapseProgress - 0.6) / 0.4).clamp(0.0, 1.0);
