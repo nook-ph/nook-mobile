@@ -68,9 +68,11 @@ class _ReviewsPageState extends State<ReviewsPage> {
   String _sort = _defaultSort;
   int? _ratingFilter;
 
-  /// The last unfiltered load. The score, the rating rows and "has the
-  /// user reviewed" are derived from it on every build, so they stay right
-  /// while a rating filter is on and when the block list changes.
+  /// The last load, which is never filtered: the rating filter is applied
+  /// on the device, to rows that are all here already. The score, the rating
+  /// rows and "has the user reviewed" are derived from it on every build, so
+  /// they stay right while a rating filter is on and when the block list
+  /// changes.
   List<ReviewEntity>? _allReviews;
 
   /// Reviews the user just deleted, hidden until the reload drops them.
@@ -81,26 +83,29 @@ class _ReviewsPageState extends State<ReviewsPage> {
     super.initState();
     _reviewsBloc = context.read<ReviewsBloc>();
     _resolveCafe();
-    _load();
+
+    // The details page under this one shares the bloc and has loaded, or is
+    // loading, exactly what this page opens with. Only ask when it has not.
+    final state = _reviewsBloc.state;
+    if (state is ReviewsLoaded && state.cafeId == widget.cafeId) {
+      _allReviews = state.reviews;
+    } else if (state is! ReviewsLoading) {
+      _load();
+    }
   }
 
   @override
   void dispose() {
-    // The bloc is shared with the details page: hand it back unfiltered.
-    if (_ratingFilter != null || _sort != _defaultSort) {
+    // The bloc is shared with the details page: hand it back in the default
+    // order.
+    if (_sort != _defaultSort) {
       _reviewsBloc.add(LoadReviewsRequested(cafeId: widget.cafeId));
     }
     super.dispose();
   }
 
   void _load() {
-    _reviewsBloc.add(
-      LoadReviewsRequested(
-        cafeId: widget.cafeId,
-        sort: _sort,
-        ratingFilter: _ratingFilter,
-      ),
-    );
+    _reviewsBloc.add(LoadReviewsRequested(cafeId: widget.cafeId, sort: _sort));
   }
 
   String? get _currentUserId {
@@ -123,13 +128,11 @@ class _ReviewsPageState extends State<ReviewsPage> {
 
   void _onRatingTap(int star) {
     setState(() => _ratingFilter = toggleRatingFilter(_ratingFilter, star));
-    _load();
   }
 
   void _clearFilter() {
     if (_ratingFilter == null) return;
     setState(() => _ratingFilter = null);
-    _load();
   }
 
   Future<void> _openSort() async {
@@ -183,7 +186,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
   }
 
   void _onReviewsChanged(BuildContext context, ReviewsState state) {
-    if (state is! ReviewsLoaded || _ratingFilter != null) return;
+    if (state is! ReviewsLoaded) return;
     setState(() => _allReviews = state.reviews);
   }
 
@@ -202,15 +205,26 @@ class _ReviewsPageState extends State<ReviewsPage> {
 
     final loaded = state is ReviewsLoaded;
     final failed = state is ReviewsError;
+    final filter = _ratingFilter;
     final reviews = loaded
-        ? pinOwnReviewFirst(visible(state.reviews), userId)
+        ? pinOwnReviewFirst(
+            visible(
+              filter == null
+                  ? state.reviews
+                  : [
+                      for (final review in state.reviews)
+                        if (review.rating == filter) review,
+                    ],
+            ),
+            userId,
+          )
         : const <ReviewEntity>[];
 
     // Everything the cafe has, whatever the filter. Null on the first load.
     final all = _allReviews;
     final everyReview = all != null
         ? visible(all)
-        : (loaded && _ratingFilter == null ? reviews : null);
+        : (loaded ? visible(state.reviews) : null);
     final summary = everyReview == null
         ? null
         : ReviewsSummary.from(everyReview);
@@ -233,28 +247,48 @@ class _ReviewsPageState extends State<ReviewsPage> {
     } else if (loaded && summary.total == 0 && _ratingFilter == null) {
       body = const _EmptyBody();
     } else {
-      body = ListView(
+      // Built row by row: a cafe can have hundreds of reviews, each with
+      // photos, and only a screenful is ever looked at.
+      const leading = 3;
+      body = ListView.builder(
         padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          ReviewsSummaryHeader(
-            summary: summary,
-            ratingFilter: _ratingFilter,
-            onRatingTap: _onRatingTap,
-          ),
-          const Divider(height: 1, thickness: 1, color: ReviewTokens.border),
-          _Controls(
-            count: loaded ? reviews.length : null,
-            ratingFilter: _ratingFilter,
-            sortLabel: reviewSortLabel(_sort),
-            onClearFilter: _clearFilter,
-            onSortTap: _openSort,
-          ),
-          if (!loaded)
-            const _ListSkeleton()
-          else if (reviews.isEmpty)
-            _NoMatches(star: _ratingFilter, onShowAll: _clearFilter)
-          else
-            for (var i = 0; i < reviews.length; i++) ...[
+        itemCount:
+            leading + (loaded && reviews.isNotEmpty ? reviews.length : 1),
+        itemBuilder: (context, index) {
+          if (index == 0) {
+            return ReviewsSummaryHeader(
+              summary: summary,
+              ratingFilter: _ratingFilter,
+              onRatingTap: _onRatingTap,
+            );
+          }
+          if (index == 1) {
+            return const Divider(
+              height: 1,
+              thickness: 1,
+              color: ReviewTokens.border,
+            );
+          }
+          if (index == 2) {
+            return _Controls(
+              count: loaded ? reviews.length : null,
+              ratingFilter: _ratingFilter,
+              sortLabel: reviewSortLabel(_sort),
+              onClearFilter: _clearFilter,
+              onSortTap: _openSort,
+            );
+          }
+          if (!loaded) return const _ListSkeleton();
+          if (reviews.isEmpty) {
+            return _NoMatches(star: _ratingFilter, onShowAll: _clearFilter);
+          }
+
+          final i = index - leading;
+          final review = reviews[i];
+          return Column(
+            key: ValueKey(review.id),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               if (i > 0)
                 const Padding(
                   padding: EdgeInsets.symmetric(
@@ -269,20 +303,21 @@ class _ReviewsPageState extends State<ReviewsPage> {
               Padding(
                 padding: _rowPadding(
                   first: i == 0,
-                  own: reviews[i].userId == userId,
+                  own: review.userId == userId,
                 ),
                 child: ReviewRow(
-                  key: ValueKey(reviews[i].id),
-                  review: reviews[i],
-                  isOwn: reviews[i].userId == userId,
+                  key: ValueKey(review.id),
+                  review: review,
+                  isOwn: review.userId == userId,
                   currentUserId: userId,
                   cafeName: cafeName,
                   toastBottomOffset: toastOffset,
-                  onDeleteConfirmed: () => _deleteOwnReview(reviews[i]),
+                  onDeleteConfirmed: () => _deleteOwnReview(review),
                 ),
               ),
             ],
-        ],
+          );
+        },
       );
     }
 

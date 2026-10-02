@@ -15,6 +15,8 @@ import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_event.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
+import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart';
 import 'package:nook/utils/theme/theme.dart';
 
@@ -29,6 +31,7 @@ class _FakeGetReviews extends GetCafeReviewsUseCase {
 
   List<Review> reviews;
   Object? error;
+  int calls = 0;
 
   @override
   Future<List<Review>> call(
@@ -36,6 +39,7 @@ class _FakeGetReviews extends GetCafeReviewsUseCase {
     String sort = 'recommended',
     int? ratingFilter,
   }) async {
+    calls++;
     final failure = error;
     if (failure != null) throw failure;
     return reviews
@@ -85,6 +89,10 @@ class _Harness {
   late final BlockCubit blockCubit;
   final deleted = <String>[];
 
+  /// Set to open the page on a bloc that has already loaded, as it is when
+  /// reached from the cafe details page.
+  ReviewsBloc? sharedBloc;
+
   Future<void> pump(WidgetTester tester, {String? userId}) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
@@ -94,9 +102,12 @@ class _Harness {
       MultiBlocProvider(
         providers: [
           BlocProvider<BlockCubit>.value(value: blockCubit),
-          BlocProvider<ReviewsBloc>(
-            create: (_) => ReviewsBloc(getCafeReviewsUseCase: getReviews),
-          ),
+          if (sharedBloc case final bloc?)
+            BlocProvider<ReviewsBloc>.value(value: bloc)
+          else
+            BlocProvider<ReviewsBloc>(
+              create: (_) => ReviewsBloc(getCafeReviewsUseCase: getReviews),
+            ),
           BlocProvider<ReviewSubmitBloc>(create: (_) => _FakeSubmitBloc()),
         ],
         child: MaterialApp(
@@ -251,5 +262,42 @@ void main() {
     expect(find.text('4.0'), findsOneWidget);
     expect(find.text('1 review'), findsNWidgets(2));
     expect(find.text('Review text from ana.reyes'), findsNothing);
+  });
+
+  testWidgets('a rating row filters the rows already loaded', (tester) async {
+    final harness = _Harness(others);
+    await harness.pump(tester, userId: 'maria.c');
+    expect(harness.getReviews.calls, 1);
+    // Room for the filter chip beside the count in the test font.
+    tester.view.physicalSize = const Size(600, 844);
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel(RegExp('^4 star')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Review text from jp_dev'), findsOneWidget);
+    expect(find.text('Review text from ana.reyes'), findsNothing);
+    // The score still covers every review, and nothing was asked for again.
+    expect(find.text('2.5'), findsOneWidget);
+    expect(harness.getReviews.calls, 1);
+  });
+
+  testWidgets('opened over loaded reviews, the page does not ask again', (
+    tester,
+  ) async {
+    final harness = _Harness(others);
+    final bloc = ReviewsBloc(getCafeReviewsUseCase: harness.getReviews);
+    addTearDown(bloc.close);
+    bloc.add(const LoadReviewsRequested(cafeId: 'cafe'));
+    await bloc.stream.firstWhere((s) => s is ReviewsLoaded);
+    expect(harness.getReviews.calls, 1);
+
+    harness.sharedBloc = bloc;
+    await harness.pump(tester, userId: 'maria.c');
+
+    expect(find.text('Review text from jp_dev'), findsOneWidget);
+    expect(find.text('2.5'), findsOneWidget);
+    expect(find.text('Write a review'), findsOneWidget);
+    expect(harness.getReviews.calls, 1);
   });
 }
