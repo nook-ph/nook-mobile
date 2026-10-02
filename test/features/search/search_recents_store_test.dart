@@ -120,6 +120,32 @@ void main() {
       expect(await store.places(), isEmpty);
     });
 
+    test('each account has its own recents (S-7)', () async {
+      String? user;
+      final perUser = SearchRecentsStore(userId: () => user);
+
+      await perUser.addSearch('guest latte');
+      await perUser.addPlace(itPark);
+
+      user = 'user-a';
+      expect(await perUser.searches(), isEmpty);
+      expect(await perUser.places(), isEmpty);
+      await perUser.addSearch('matcha');
+      await perUser.addPlace(lahug);
+
+      user = 'user-b';
+      expect(await perUser.searches(), isEmpty);
+      expect(await perUser.places(), isEmpty);
+
+      user = 'user-a';
+      expect(await perUser.searches(), ['matcha']);
+      expect(await perUser.places(), [lahug]);
+
+      user = null;
+      expect(await perUser.searches(), ['guest latte']);
+      expect(await perUser.places(), [itPark]);
+    });
+
     test('corrupt stored data reads as empty', () async {
       SharedPreferences.setMockInitialValues({
         'search.recentPlaces': ['not json', '{"label":1}'],

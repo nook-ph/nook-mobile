@@ -135,6 +135,58 @@ class SearchErrorBlock extends StatelessWidget {
   }
 }
 
+/// Under the last result when the next page failed to load: what went wrong
+/// and the way to ask again. The rows above it stay.
+class SearchLoadMoreError extends StatelessWidget {
+  const SearchLoadMoreError({
+    super.key,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final ErrorInfo error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Flexible(
+            child: Text(
+              error.title,
+              style: SearchTokens.text(
+                context,
+                size: 12,
+                color: SearchTokens.muted,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Semantics(
+            button: true,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onRetry,
+              child: Text(
+                'Try again',
+                style: SearchTokens.text(
+                  context,
+                  size: 12,
+                  weight: FontWeight.w600,
+                  color: SearchTokens.brand,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The grey card above results that came back without a position: location
 /// is off or was never asked for, and no place is chosen.
 class SearchLocationOffCard extends StatelessWidget {

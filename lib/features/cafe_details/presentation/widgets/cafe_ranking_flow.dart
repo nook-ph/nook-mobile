@@ -163,6 +163,9 @@ class _CafeRankingFlowState extends State<CafeRankingFlow> {
     super.dispose();
   }
 
+  /// True while the rankings are being read for a bucket tap.
+  bool _loadingRankings = false;
+
   void _finish(RankingFlowOutcome outcome) {
     _outcome = outcome;
     Navigator.pop(context, outcome);
@@ -188,8 +191,24 @@ class _CafeRankingFlowState extends State<CafeRankingFlow> {
     );
   }
 
-  void _onBucketChosen(RankBucket bucket) {
+  Future<void> _onBucketChosen(RankBucket bucket) async {
+    if (_phase != _Phase.bucket || _loadingRankings) return;
     _track('rank_bucket_chosen', {'bucket': bucket.wire});
+
+    // Without the user's rankings there are no opponents, and the cafe would
+    // be saved at #1 with no comparisons. Read them first; give up if the
+    // read fails again rather than write a rank nobody chose.
+    if (!widget.cubit.state.loaded) {
+      _loadingRankings = true;
+      await widget.cubit.load();
+      if (!mounted) return;
+      _loadingRankings = false;
+      if (!widget.cubit.state.loaded) {
+        _finish(RankingFlowOutcome.failed);
+        return;
+      }
+    }
+
     final session = widget.cubit.startSession(widget.cafeId, bucket);
     if (session.isComplete) {
       // Nothing to compare against — first cafe in this bucket.
@@ -200,6 +219,9 @@ class _CafeRankingFlowState extends State<CafeRankingFlow> {
   }
 
   void _onComparisonPicked({required bool preferredTarget}) {
+    // The outgoing step stays tappable while it fades: a second tap must not
+    // answer again or start a second save.
+    if (_phase != _Phase.compare) return;
     final session = widget.cubit.state.session;
     if (session == null) return;
     _track('rank_comparison_answered', {
@@ -215,15 +237,27 @@ class _CafeRankingFlowState extends State<CafeRankingFlow> {
   }
 
   void _onTooClose() {
+    if (_phase != _Phase.compare) return;
+    final session = widget.cubit.state.session;
     _track('rank_skipped', {
-      'comparisons_answered': widget.cubit.state.session?.comparisonsAsked ?? 0,
+      'comparisons_answered': session?.comparisonsAsked ?? 0,
     });
-    _tooCloseTo = _opponentName;
+    // A skip keeps the current estimate, which is the top of what is left of
+    // the range, not necessarily beside the cafe on screen. Only say "next
+    // to" when that is where it lands.
+    final opponentPosition = session?.currentOpponentPosition;
+    final placed = session?.resolvedPosition;
+    final beside =
+        opponentPosition != null &&
+        placed != null &&
+        (placed == opponentPosition || placed == opponentPosition + 1);
+    _tooCloseTo = beside ? _opponentName : null;
     widget.cubit.skipComparisons();
     _commit();
   }
 
   Future<void> _commit() async {
+    if (_phase == _Phase.saving || _phase == _Phase.reveal) return;
     setState(() => _phase = _Phase.saving);
     final ranking = await widget.cubit.commitSession();
     if (!mounted) return;

@@ -18,8 +18,16 @@ TagEntity _tag(String id, String name, [String? category]) =>
 
 void main() {
   group('CafeOpenStatus', () {
-    // 2026-10-01 is a Thursday.
-    final morning = DateTime(2026, 10, 1, 9, 30);
+    // 2026-10-01 is a Thursday. Hours are Manila wall-clock times (UTC+8),
+    // so the instant is built from UTC and reads the same in any zone.
+    DateTime manila(int day, int hour, int minute) => DateTime.utc(
+      2026,
+      10,
+      day,
+      hour,
+      minute,
+    ).subtract(const Duration(hours: 8));
+    final morning = manila(1, 9, 30);
 
     test('is open inside today\'s hours, with the closing time', () {
       final status = CafeOpenStatus.resolve(_week('07:00', '22:00'), morning);
@@ -34,7 +42,7 @@ void main() {
     test('is closed outside today\'s hours, with the opening time', () {
       final status = CafeOpenStatus.resolve(
         _week('07:30', '22:00'),
-        DateTime(2026, 10, 1, 6, 0),
+        manila(1, 6, 0),
       );
 
       expect(status.isOpen, isFalse);
@@ -46,18 +54,9 @@ void main() {
     test('treats a closing time before the opening time as overnight', () {
       final hours = _week('18:00', '02:00');
 
-      expect(
-        CafeOpenStatus.resolve(hours, DateTime(2026, 10, 1, 23, 0)).isOpen,
-        isTrue,
-      );
-      expect(
-        CafeOpenStatus.resolve(hours, DateTime(2026, 10, 1, 1, 0)).isOpen,
-        isTrue,
-      );
-      expect(
-        CafeOpenStatus.resolve(hours, DateTime(2026, 10, 1, 12, 0)).isOpen,
-        isFalse,
-      );
+      expect(CafeOpenStatus.resolve(hours, manila(1, 23, 0)).isOpen, isTrue);
+      expect(CafeOpenStatus.resolve(hours, manila(1, 1, 0)).isOpen, isTrue);
+      expect(CafeOpenStatus.resolve(hours, manila(1, 12, 0)).isOpen, isFalse);
     });
 
     test('a day without hours is closed with no time to show', () {
@@ -96,6 +95,147 @@ void main() {
         CafeOpenStatus.formatRange(_week('07:00', '22:00'), 'monday'),
         '7:00 AM – 10:00 PM',
       );
+    });
+
+    group('overnight hours on only some days', () {
+      // Drip and Draft: Friday and Saturday 7:00-2:00, the rest 7:00-22:00.
+      // 2026-10-02 is a Friday, the 4th a Sunday.
+      final hours = {
+        ..._week('7:00', '22:00'),
+        'friday': {'open': '7:00', 'close': '2:00'},
+        'saturday': {'open': '7:00', 'close': '2:00'},
+      };
+
+      test('Sunday 01:00 is open on Saturday\'s span, until 2 AM', () {
+        final status = CafeOpenStatus.resolve(hours, manila(4, 1, 0));
+
+        expect(status.isOpen, isTrue);
+        expect(status.shortDetail, 'until 2 AM');
+        expect(status.rowDetail, 'Closes 2:00 AM');
+        expect(status.minutesUntilChange, 60);
+      });
+
+      test('Friday 01:00 is closed: Thursday shut at 10 PM', () {
+        final status = CafeOpenStatus.resolve(hours, manila(2, 1, 0));
+
+        expect(status.isOpen, isFalse);
+        expect(status.barText, 'Closed · opens 7 AM');
+      });
+
+      test('Saturday 01:40 closes soon, counted across midnight', () {
+        final status = CafeOpenStatus.resolve(hours, manila(3, 1, 40));
+
+        expect(status.closesSoon, isTrue);
+        expect(status.barText, 'Closes 2 AM · in 20 min');
+      });
+    });
+
+    group('the next opening', () {
+      // Closed on Mondays, like nine of the listed cafes.
+      final hours = {
+        ..._week('07:00', '22:00'),
+        'monday': {'open': '', 'close': '', 'closed': true},
+      };
+
+      test('after closing it is tomorrow\'s, and says so', () {
+        final status = CafeOpenStatus.resolve(hours, manila(1, 23, 0));
+
+        expect(status.shortDetail, 'opens 7 AM tomorrow');
+        expect(status.rowDetail, 'Opens 7:00 AM tomorrow');
+        expect(status.barText, 'Closed · opens 7 AM tomorrow');
+      });
+
+      test('Sunday night skips the closed Monday', () {
+        final status = CafeOpenStatus.resolve(hours, manila(4, 23, 0));
+
+        expect(status.isOpen, isFalse);
+        expect(status.shortDetail, 'opens 7 AM Tuesday');
+        expect(status.rowDetail, 'Opens 7:00 AM Tuesday');
+        expect(status.opensSoon, isFalse);
+      });
+
+      test('the closed day itself shows no time', () {
+        final status = CafeOpenStatus.resolve(hours, manila(5, 12, 0));
+
+        expect(status.isOpen, isFalse);
+        expect(status.label, 'Closed');
+        expect(status.shortDetail, isNull);
+        expect(CafeOpenStatus.formatRange(hours, 'monday'), 'Closed');
+      });
+
+      test('an opening just past midnight is still "soon"', () {
+        final late = {..._week('00:10', '18:00')};
+        final status = CafeOpenStatus.resolve(late, manila(1, 23, 50));
+
+        expect(status.opensSoon, isTrue);
+        expect(status.minutesUntilChange, 20);
+        expect(status.barText, 'Opens 12:10 AM · in 20 min');
+      });
+    });
+
+    group('agrees with the cards\' resolver', () {
+      test('"9:30" and "09:30" are the same time', () {
+        for (final open in ['9:30', '09:30']) {
+          final hours = _week(open, '21:00');
+          expect(
+            CafeOpenStatus.resolve(hours, manila(1, 9, 29)).isOpen,
+            isFalse,
+            reason: open,
+          );
+          final status = CafeOpenStatus.resolve(hours, manila(1, 9, 30));
+          expect(status.isOpen, isTrue, reason: open);
+          expect(
+            CafeOpenStatus.formatRange(hours, 'thursday'),
+            '9:30 AM – 9:00 PM',
+            reason: open,
+          );
+        }
+      });
+
+      test('00:00-00:00 all week is a placeholder: no claim at all', () {
+        final status = CafeOpenStatus.resolve(
+          _week('00:00', '00:00'),
+          manila(1, 12, 0),
+        );
+
+        expect(status.hasAnyHours, isFalse);
+        expect(status.isOpen, isFalse);
+      });
+
+      test('a malformed or empty close is not read as a time', () {
+        final hours = {
+          ..._week('10:00', '20:00'),
+          'thursday': {'open': '10:00', 'close': '21:0020:00'},
+          'friday': {'open': '10:00', 'close': ''},
+        };
+
+        expect(
+          CafeOpenStatus.resolve(hours, manila(1, 21, 10)).isOpen,
+          isFalse,
+        );
+        expect(CafeOpenStatus.hoursFor(hours, 'thursday'), isNull);
+        expect(CafeOpenStatus.hoursFor(hours, 'friday'), isNull);
+      });
+
+      test('the day and hour are Manila\'s, whatever the instant\'s zone', () {
+        final hours = {
+          'friday': {'open': '08:00', 'close': '18:00'},
+        };
+        // 00:30 UTC on Friday the 2nd is 08:30 on Friday in Manila.
+        final instant = DateTime.utc(2026, 10, 2, 0, 30);
+
+        expect(CafeOpenStatus.resolve(hours, instant).isOpen, isTrue);
+        expect(CafeOpenStatus.resolve(hours, instant.toLocal()).isOpen, isTrue);
+        // 17:30 UTC on Thursday is already 01:30 on Friday there.
+        expect(
+          CafeOpenStatus.todayKey(DateTime.utc(2026, 10, 1, 17, 30)),
+          'friday',
+        );
+      });
+
+      test('uses the same closing-soon threshold', () {
+        expect(CafeOpenStatus.soonThreshold, 30);
+      });
     });
   });
 

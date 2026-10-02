@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
@@ -231,12 +232,13 @@ class ProfileAvatar extends StatelessWidget {
           ? Image(image: local, fit: BoxFit.cover, width: size, height: size)
           : url.isEmpty
           ? initial
-          : Image.network(
-              url,
-              fit: BoxFit.cover,
+          : CafeCardImage(
+              imageUrl: url,
               width: size,
               height: size,
-              errorBuilder: (_, _, _) => initial,
+              // The avatar circle's own colour shows through while loading.
+              placeholder: const SizedBox.shrink(),
+              errorWidget: initial,
             ),
     );
   }

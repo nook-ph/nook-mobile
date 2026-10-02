@@ -153,6 +153,19 @@ class CafeHoursLocationSection extends StatelessWidget {
   final CafeDetailsResult cafe;
   final CafeTagGroups groups;
 
+  /// First path segments that are a kind of content, not an account.
+  static const _nonProfileSegments = {
+    'p',
+    'reel',
+    'reels',
+    'tv',
+    'stories',
+    'explore',
+  };
+
+  @visibleForTesting
+  static String? socialHandle(String rawValue) => _extractHandle(rawValue);
+
   static String? _extractHandle(String rawValue) {
     final trimmed = rawValue.trim();
     if (trimmed.isEmpty) return null;
@@ -167,10 +180,13 @@ class CafeHoursLocationSection extends StatelessWidget {
     if (parsed != null &&
         (parsed.hasScheme || parsed.host.isNotEmpty) &&
         parsed.pathSegments.isNotEmpty) {
-      handle = parsed.pathSegments.lastWhere(
+      // The profile is the first segment: ".../cafe/reels/" is still "cafe".
+      handle = parsed.pathSegments.firstWhere(
         (segment) => segment.trim().isNotEmpty,
         orElse: () => '',
       );
+      // A link to a post or a reel names no profile; the link itself opens.
+      if (_nonProfileSegments.contains(handle.toLowerCase())) return null;
       if (handle.isEmpty && parsed.queryParameters.isNotEmpty) {
         handle = parsed.queryParameters['id'];
       }
@@ -451,7 +467,7 @@ class _HoursRowState extends State<_HoursRow> {
     final textTheme = Theme.of(context).textTheme;
     final status = widget.status;
     final hours = widget.operatingHours;
-    final today = CafeOpenStatus.dayKey(DateTime.now());
+    final today = CafeOpenStatus.todayKey();
     final todayRange = CafeOpenStatus.formatRange(hours, today);
     final detail = status.rowDetail;
     final statusColor = CafeDetailsTokens.statusLabel(status);

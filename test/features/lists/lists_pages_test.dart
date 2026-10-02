@@ -7,6 +7,9 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/crawls/domain/use_cases/get_my_crawls_usecase.dart';
 import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
+import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/lists/bloc/lists_event.dart';
+import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
 import 'package:nook/features/lists/presentation/pages/list_page.dart';
 import 'package:nook/features/lists/presentation/utils/lists_format.dart';
@@ -14,9 +17,25 @@ import 'package:nook/features/lists/presentation/widgets/list_cafe_row.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/lists/presentation/widgets/ranked_been_list.dart';
+import 'package:nook/utils/theme/theme.dart';
 
 import '../crawls/crawl_fixtures.dart';
 import 'lists_fixtures.dart';
+
+/// Stands in for the app-wide [ListsBloc]: records events, lets the test push
+/// states.
+class _FakeListsBloc extends Bloc<ListsEvent, ListsState> implements ListsBloc {
+  _FakeListsBloc(super.initial) {
+    on<ListsEvent>((event, _) => events.add(event));
+  }
+
+  final List<ListsEvent> events = [];
+
+  void push(ListsState state) => emit(state);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   group('formatting', () {
@@ -339,6 +358,74 @@ void main() {
       await tester.pumpWidget(host(const ListDetailSkeleton()));
       expect(find.byType(ListsSkeleton), findsNWidgets(20));
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('List detail page', () {
+    Future<_FakeListsBloc> pump(
+      WidgetTester tester, {
+      required CafeList list,
+      required List<CafeSummary> cafes,
+    }) async {
+      usePhone(tester);
+      final ranking = rankingCubit(FakeRankingRepository());
+      addTearDown(ranking.close);
+      final lists = _FakeListsBloc(ListCafesLoaded(list, cafes));
+      addTearDown(lists.close);
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<CafeRankingCubit>.value(value: ranking),
+            BlocProvider<ListsBloc>.value(value: lists),
+          ],
+          // No listType, as a caller that does not know it would open it.
+          child: MaterialApp(
+            theme: TAppTheme.lightTheme,
+            home: ListDetailPage(listId: list.id, title: list.name),
+          ),
+        ),
+      );
+      await tester.pump();
+      return lists;
+    }
+
+    testWidgets('Been opened without its type is still the ranked diary', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        list: cafeList(id: 'been', name: 'Been', listType: 'been'),
+        cafes: [cafe('a', name: 'Tadaima')],
+      );
+
+      expect(find.byType(RankedBeenList), findsOneWidget);
+      // Plain rows carry the Remove menu, which would delete rank and note.
+      expect(find.byType(ListCafeRow), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('reloads its cafes when the list count moves under it', (
+      tester,
+    ) async {
+      final list = cafeList(id: 'l1', name: 'Study spots', cafeCount: 2);
+      final lists = await pump(
+        tester,
+        list: list,
+        cafes: [cafe('a'), cafe('b')],
+      );
+      expect(lists.events, isEmpty);
+
+      // Same count: an edit or a refresh, nothing to refetch.
+      lists.push(ListsLoaded([list]));
+      await tester.pump();
+      expect(lists.events, isEmpty);
+
+      // The cafe was un-saved from its own page.
+      lists.push(
+        ListsLoaded([cafeList(id: 'l1', name: 'Study spots', cafeCount: 1)]),
+      );
+      await tester.pump();
+      expect(lists.events.single, isA<LoadListCafes>());
     });
   });
 

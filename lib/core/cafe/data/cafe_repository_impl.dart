@@ -168,7 +168,8 @@ class CafeRepositoryImpl implements ICafeRepository {
         .map(
           (item) => Review(
             id: item.id,
-            cafeId: item.cafeId,
+            // The reviews RPC returns no cafe_id; every row is this cafe's.
+            cafeId: item.cafeId.isEmpty ? cafeId : item.cafeId,
             userId: item.userId,
             rating: item.rating,
             content: item.content,
@@ -272,6 +273,8 @@ class CafeRepositoryImpl implements ICafeRepository {
       content: content,
       imageUrls: imageUrls,
     );
+    // The cafe's rating and count just changed on the server.
+    store.bust(cafeId);
 
     return Review(
       id: inserted.id,
@@ -287,8 +290,11 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
-  Future<void> deleteReview(String reviewId) {
-    return remoteDataSource.deleteReview(reviewId);
+  Future<void> deleteReview(String reviewId) async {
+    await remoteDataSource.deleteReview(reviewId);
+    // Only the review id is known here, so every cached cafe is dropped
+    // rather than leaving one with a stale rating and count.
+    store.bustAll();
   }
 
   @override
@@ -526,10 +532,28 @@ class CafeRepositoryImpl implements ICafeRepository {
     for (final summary in summaries) {
       final existing = store.get(summary.id);
       if (existing != null) {
-        final updated = existing.copyWith(
-          details: existing.details.copyWithSummary(summary),
-        );
-        store.set(summary.id, updated);
+        final isSummarySeed =
+            existing.details.createdAt.millisecondsSinceEpoch == 0;
+        if (isSummarySeed) {
+          store.set(
+            summary.id,
+            existing.copyWith(
+              details: existing.details.copyWithSummary(summary),
+            ),
+          );
+        } else {
+          // A fully fetched bundle keeps its own tags (the summary's carry no
+          // category) and its age, so it still expires on schedule.
+          store.replace(
+            summary.id,
+            existing.copyWith(
+              details: existing.details.copyWithSummary(
+                summary,
+                keepTags: true,
+              ),
+            ),
+          );
+        }
         continue;
       }
 
@@ -607,7 +631,7 @@ class CafeRepositoryImpl implements ICafeRepository {
 }
 
 extension on CafeDetails {
-  CafeDetails copyWithSummary(CafeSummary summary) {
+  CafeDetails copyWithSummary(CafeSummary summary, {bool keepTags = false}) {
     return CafeDetails(
       id: id,
       createdAt: createdAt,
@@ -625,11 +649,14 @@ extension on CafeDetails {
       isNew: isNew,
       operatingHours: operatingHours,
       socialLinks: socialLinks,
-      tags: summary.tags
-          .map(
-            (name) => Tag(id: name, name: name, isFeatured: summary.isFeatured),
-          )
-          .toList(),
+      tags: keepTags
+          ? tags
+          : summary.tags
+                .map(
+                  (name) =>
+                      Tag(id: name, name: name, isFeatured: summary.isFeatured),
+                )
+                .toList(),
     );
   }
 }

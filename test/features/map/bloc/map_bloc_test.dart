@@ -21,6 +21,20 @@ const _viewport = MapViewport(
   zoom: 13,
 );
 
+/// A small pan: still inside the 20 km circle fetched around [_viewport].
+const _pannedViewport = MapViewport(
+  center: GeoPoint(lat: 10.3267, lng: 123.9007),
+  bounds: MapBounds(north: 10.34, east: 123.92, south: 10.31, west: 123.88),
+  zoom: 15,
+);
+
+/// Another town: outside the circle fetched around [_viewport].
+const _farViewport = MapViewport(
+  center: GeoPoint(lat: 11.0, lng: 124.0),
+  bounds: MapBounds(north: 11.05, east: 124.05, south: 10.95, west: 123.95),
+  zoom: 13,
+);
+
 /// Waits out the bloc's viewport debounce plus a little slack.
 Future<void> _settleDebounce() => Future<void>.delayed(
   MapBloc.viewportDebounce + const Duration(milliseconds: 150),
@@ -29,10 +43,11 @@ Future<void> _settleDebounce() => Future<void>.delayed(
 MapBloc _buildBloc({
   required _FakeViewportUseCase viewportUseCase,
   _FakeCardUseCase? cardUseCase,
+  _FakeFilterTagsUseCase? tagsUseCase,
 }) {
   return MapBloc(
     getCafeCardUseCase: cardUseCase ?? _FakeCardUseCase(),
-    getFilterTagsUseCase: _FakeFilterTagsUseCase(),
+    getFilterTagsUseCase: tagsUseCase ?? _FakeFilterTagsUseCase(),
     getCafesForViewportUseCase: viewportUseCase,
   );
 }
@@ -60,6 +75,28 @@ void main() {
       );
     },
   );
+
+  test('a failed filter-tags load leaves a loaded map alone (M-5)', () async {
+    final bloc = _buildBloc(
+      viewportUseCase: _FakeViewportUseCase(),
+      tagsUseCase: _FakeFilterTagsUseCase()..error = Exception('offline'),
+    );
+    addTearDown(bloc.close);
+    await _loadInitial(bloc);
+
+    final emitted = <MapState>[];
+    final sub = bloc.stream.listen(emitted.add);
+    addTearDown(sub.cancel);
+
+    bloc.add(LoadFilterTagsEvent());
+    await pumpEventQueue();
+
+    expect(emitted, isEmpty);
+    expect(
+      bloc.state,
+      isA<MapLoadedState>().having((s) => s.cafes, 'cafes', [_initialCafe]),
+    );
+  });
 
   test('viewport changes before the initial load are ignored', () async {
     final viewportUseCase = _FakeViewportUseCase();
@@ -156,8 +193,133 @@ void main() {
     expect(viewportUseCase.calls.last.viewport, _viewport);
   });
 
+  group('viewport already fetched', () {
+    test('a pan inside the fetched circle does not refetch', () async {
+      final viewportUseCase = _FakeViewportUseCase();
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+      expect(viewportUseCase.calls, hasLength(1));
+
+      bloc.add(MapViewportChangedEvent(_pannedViewport));
+      await _settleDebounce();
+
+      expect(viewportUseCase.calls, hasLength(1));
+      final state = bloc.state as MapLoadedState;
+      expect(state.cafes, [_viewportCafe]);
+      expect(state.isRefreshing, false);
+    });
+
+    test('a pan out of the fetched circle refetches', () async {
+      final viewportUseCase = _FakeViewportUseCase();
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+
+      bloc.add(MapViewportChangedEvent(_farViewport));
+      await _settleDebounce();
+
+      expect(viewportUseCase.calls, hasLength(2));
+      expect(viewportUseCase.calls.last.viewport, _farViewport);
+    });
+
+    test(
+      'a capped result may be incomplete, so the next pan refetches',
+      () async {
+        final viewportUseCase = _FakeViewportUseCase()
+          ..result = List.filled(
+            GetCafesForViewportUseCase.fetchCap,
+            _viewportCafe,
+          );
+        final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+        addTearDown(bloc.close);
+        await _loadInitial(bloc);
+        bloc.add(MapViewportChangedEvent(_viewport));
+        await _settleDebounce();
+
+        bloc.add(MapViewportChangedEvent(_pannedViewport));
+        await _settleDebounce();
+
+        expect(viewportUseCase.calls, hasLength(2));
+      },
+    );
+
+    test('a failed refetch leaves nothing to reuse', () async {
+      final viewportUseCase = _FakeViewportUseCase(failNext: true);
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+
+      bloc.add(MapViewportChangedEvent(_pannedViewport));
+      await _settleDebounce();
+
+      expect(viewportUseCase.calls, hasLength(2));
+      expect((bloc.state as MapLoadedState).cafes, [_viewportCafe]);
+    });
+
+    test('a new filter refetches the same viewport', () async {
+      final viewportUseCase = _FakeViewportUseCase();
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+
+      bloc.add(LoadMapDataEvent(filter: const CafeFilter(sort: 'top_rated')));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(viewportUseCase.calls, hasLength(2));
+
+      // And the pan after it is covered by that second fetch.
+      bloc.add(MapViewportChangedEvent(_pannedViewport));
+      await _settleDebounce();
+      expect(viewportUseCase.calls, hasLength(2));
+    });
+  });
+
   group('countFor', () {
     const filter = CafeFilter(tagNames: {'Free WiFi'});
+
+    test('the filter in force is counted from the cafes on screen', () async {
+      final viewportUseCase = _FakeViewportUseCase()
+        ..result = List.filled(4, _viewportCafe);
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+      expect(viewportUseCase.calls, hasLength(1));
+
+      expect(await bloc.countFor(const CafeFilter()), 4);
+      expect(viewportUseCase.calls, hasLength(1));
+    });
+
+    test('applying the counted draft reuses the counted rows', () async {
+      final viewportUseCase = _FakeViewportUseCase();
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+
+      const counted = CafeSummary(id: 'counted', name: 'Counted', rating: 3);
+      viewportUseCase.result = const [counted];
+      expect(await bloc.countFor(filter), 1);
+      expect(viewportUseCase.calls, hasLength(2));
+
+      bloc.add(LoadMapDataEvent(filter: filter));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(viewportUseCase.calls, hasLength(2));
+      final state = bloc.state as MapLoadedState;
+      expect(state.cafes, [counted]);
+      expect(state.isRefreshing, false);
+    });
 
     test('is null until the map has reported a viewport', () async {
       final viewportUseCase = _FakeViewportUseCase();
@@ -182,8 +344,9 @@ void main() {
       expect(viewportUseCase.calls.last.filter, filter);
       expect(viewportUseCase.calls.last.viewport, _viewport);
       // Counting a draft does not change the filter in force.
-      bloc.add(MapViewportChangedEvent(_viewport));
+      bloc.add(MapViewportChangedEvent(_farViewport));
       await _settleDebounce();
+      expect(viewportUseCase.calls.last.viewport, _farViewport);
       expect(viewportUseCase.calls.last.filter, const CafeFilter());
     });
 
@@ -259,8 +422,14 @@ class _FakeCardUseCase extends GetCafeCardUseCase {
 class _FakeFilterTagsUseCase extends GetFilterTagsUseCase {
   _FakeFilterTagsUseCase() : super(_StubTagsRepository());
 
+  Object? error;
+
   @override
-  Future<List<CafeTagsEntity>> call() async => const [];
+  Future<List<CafeTagsEntity>> call() async {
+    final e = error;
+    if (e != null) throw e;
+    return const [];
+  }
 }
 
 class _StubRepository implements ICafeRepository {

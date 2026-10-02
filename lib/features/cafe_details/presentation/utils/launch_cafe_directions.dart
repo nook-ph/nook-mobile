@@ -39,20 +39,6 @@ Future<void> launchCafeDirections(
     return;
   }
 
-  final mapAppMeta = _mapAppMetadata(platform);
-  unawaited(
-    analytics.track(
-      cafeId,
-      AnalyticsService.getDirections,
-      metadata: {
-        AnalyticsMetadataKeys.latitude: lat,
-        AnalyticsMetadataKeys.longitude: lng,
-        AnalyticsMetadataKeys.mapApp: mapAppMeta,
-        AnalyticsMetadataKeys.screen: 'cafe_details',
-      },
-    ),
-  );
-
   final label = details.name.isNotEmpty ? details.name : details.locationLabel;
   final launched = await MapsDirectionsLauncher.launchDirections(
     lat: lat,
@@ -61,8 +47,23 @@ Future<void> launchCafeDirections(
     platform: platform,
   );
 
-  if (!context.mounted) return;
   if (!launched) {
+    if (!context.mounted) return;
     showPrimaryToast(context, 'Unable to open map directions.');
+    return;
   }
+
+  // Counted only once a maps app actually opened.
+  unawaited(
+    analytics.track(
+      cafeId,
+      AnalyticsService.getDirections,
+      metadata: {
+        AnalyticsMetadataKeys.latitude: lat,
+        AnalyticsMetadataKeys.longitude: lng,
+        AnalyticsMetadataKeys.mapApp: _mapAppMetadata(platform),
+        AnalyticsMetadataKeys.screen: 'cafe_details',
+      },
+    ),
+  );
 }

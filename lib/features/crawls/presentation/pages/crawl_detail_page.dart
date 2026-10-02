@@ -11,6 +11,7 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/crawls/domain/crawl_stats.dart';
 import 'package:nook/features/crawls/domain/use_cases/enable_crawl_link_usecase.dart';
 import 'package:nook/features/crawls/domain/entities/crawl.dart';
+import 'package:nook/features/crawls/domain/entities/crawl_run.dart';
 import 'package:nook/features/crawls/domain/entities/crawl_exception.dart';
 import 'package:nook/features/crawls/domain/use_cases/archive_crawl_usecase.dart';
 import 'package:nook/features/crawls/domain/use_cases/get_crawl_by_code_usecase.dart';
@@ -118,7 +119,10 @@ class _CrawlDetailView extends StatelessWidget {
       );
       return;
     }
-    if (ReportCrawlCubit.alreadyReported(crawl.id)) {
+    if (ReportCrawlCubit.alreadyReported(
+      crawl.id,
+      reporterId: Supabase.instance.client.auth.currentUser?.id,
+    )) {
       _toast(context, 'You already reported this crawl.');
       return;
     }
@@ -155,6 +159,23 @@ class _CrawlDetailView extends StatelessWidget {
       );
       return;
     }
+
+    // Already part-way through this crawl: go back to that run rather than
+    // start a second, empty one alongside it.
+    final crawl = context.read<CrawlDetailCubit>().state.crawl;
+    final active = crawl == null
+        ? null
+        : activeRunFor(
+            context.read<MyCrawlsCubit>().state.crawls,
+            crawl.shareCode,
+          );
+    if (active != null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => CrawlRunPage(runId: active.runId)),
+      );
+      return;
+    }
+
     await context.read<CrawlDetailCubit>().startRun();
   }
 

@@ -71,6 +71,27 @@ void main() {
     );
   });
 
+  test('the "No name" placeholder is never text to edit or save', () {
+    expect(editableName('No name'), '');
+    expect(editableName('Sai'), 'Sai');
+
+    // Untouched, emptied, or the placeholder itself: nothing is written.
+    expect(profileNameToSave('', saved: ''), isNull);
+    expect(profileNameToSave('  ', saved: 'Sai'), isNull);
+    expect(profileNameToSave('No name', saved: ''), isNull);
+    expect(profileNameToSave('Sai', saved: 'Sai'), isNull);
+    expect(profileNameToSave(' Sai ', saved: 'Sai'), isNull);
+    // A real change is written, trimmed.
+    expect(profileNameToSave(' Simon ', saved: 'Sai'), 'Simon');
+    expect(profileNameToSave('Simon', saved: ''), 'Simon');
+  });
+
+  test('a case-only username change is recognised', () {
+    expect(isCaseOnlyUsernameChange('Saiimonn_', 'saiimonn_'), isTrue);
+    expect(isCaseOnlyUsernameChange('saiimonn_', 'saiimonn_'), isFalse);
+    expect(isCaseOnlyUsernameChange('sai_brews', 'saiimonn_'), isFalse);
+  });
+
   test('usernameCooldownDaysLeft counts down from 14 days', () {
     final now = DateTime(2026, 6, 15);
     expect(usernameCooldownDaysLeft(null, now: now), 0);

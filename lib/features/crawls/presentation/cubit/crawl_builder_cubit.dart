@@ -105,7 +105,7 @@ class CrawlBuilderCubit extends Cubit<CrawlBuilderState> {
   /// Adds [cafeId] as the next stop, or removes it. Returns false when the
   /// crawl is already full and nothing changed.
   bool toggle(String cafeId) {
-    if (state.status == CrawlBuilderStatus.submitting) return false;
+    if (_locked) return false;
     final ids = List<String>.from(state.selectedIds);
     if (ids.contains(cafeId)) {
       ids.remove(cafeId);
@@ -119,6 +119,9 @@ class CrawlBuilderCubit extends Cubit<CrawlBuilderState> {
 
   /// `ReorderableListView` semantics: [newIndex] is the slot before removal.
   void reorder(int oldIndex, int newIndex) {
+    // A drag during Create would put the state back to editing, re-enable
+    // the button and let a second, identical crawl be created.
+    if (_locked) return;
     final ids = List<String>.from(state.selectedIds);
     if (oldIndex < 0 || oldIndex >= ids.length) return;
     var target = newIndex > oldIndex ? newIndex - 1 : newIndex;
@@ -127,8 +130,13 @@ class CrawlBuilderCubit extends Cubit<CrawlBuilderState> {
     emit(state.copyWith(selectedIds: ids, status: CrawlBuilderStatus.editing));
   }
 
+  /// The stops are fixed while the crawl is being created, and once it is.
+  bool get _locked =>
+      state.status == CrawlBuilderStatus.submitting ||
+      state.status == CrawlBuilderStatus.created;
+
   Future<void> submit({required String title, String? sourceListId}) async {
-    if (state.status == CrawlBuilderStatus.submitting) return;
+    if (_locked) return;
     emit(state.copyWith(status: CrawlBuilderStatus.submitting));
     try {
       final crawl = await createCrawlUseCase(
@@ -143,9 +151,11 @@ class CrawlBuilderCubit extends Cubit<CrawlBuilderState> {
           'source': sourceListId == null ? 'scratch' : 'list',
         },
       );
+      if (isClosed) return;
       emit(state.copyWith(status: CrawlBuilderStatus.created, created: crawl));
     } catch (e, st) {
       debugPrint('[CrawlBuilder] submit failed: $e\n$st');
+      if (isClosed) return;
       emit(state.copyWith(status: CrawlBuilderStatus.failed, error: e));
     }
   }

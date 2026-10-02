@@ -31,38 +31,49 @@ class UploadRemoteDataSource {
   }) async {
     if (images.isEmpty) return const [];
 
-    final uploaded = <UploadedReviewImage>[];
-
-    for (int i = 0; i < images.length; i++) {
-      final file = images[i];
-      final contentType = _contentTypeFor(file);
-
-      final presign = await _requestPresign(
-        payload: {
-          'uploadType': 'review_image',
-          'cafeId': cafeId,
-          'slot': i,
-          'contentType': contentType,
-        },
-        accessToken: accessToken,
-      );
-
-      await _putToS3(
-        file: file,
-        uploadUrl: presign.uploadUrl,
-        contentType: contentType,
-      );
-
-      uploaded.add(
-        UploadedReviewImage(
-          objectKey: presign.objectKey,
-          publicUrl: presign.publicUrl,
+    // The photos go up side by side, so a review waits for its slowest
+    // photo rather than for all of them in turn. Future.wait keeps the
+    // order, and each result carries its slot.
+    return Future.wait([
+      for (int i = 0; i < images.length; i++)
+        _uploadReviewImage(
+          file: images[i],
+          cafeId: cafeId,
           slot: i,
+          accessToken: accessToken,
         ),
-      );
-    }
+    ]);
+  }
 
-    return uploaded;
+  Future<UploadedReviewImage> _uploadReviewImage({
+    required File file,
+    required String cafeId,
+    required int slot,
+    String? accessToken,
+  }) async {
+    final contentType = _contentTypeFor(file);
+
+    final presign = await _requestPresign(
+      payload: {
+        'uploadType': 'review_image',
+        'cafeId': cafeId,
+        'slot': slot,
+        'contentType': contentType,
+      },
+      accessToken: accessToken,
+    );
+
+    await _putToS3(
+      file: file,
+      uploadUrl: presign.uploadUrl,
+      contentType: contentType,
+    );
+
+    return UploadedReviewImage(
+      objectKey: presign.objectKey,
+      publicUrl: presign.publicUrl,
+      slot: slot,
+    );
   }
 
   // ── Avatar ─────────────────────────────────────────────────────────────────

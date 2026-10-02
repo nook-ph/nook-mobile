@@ -50,6 +50,22 @@ void main() {
     expect((bloc.events.single as AuthVerifyOtpEvent).token, '482913');
   });
 
+  testWidgets('"Go back" leaves once the pending signup is dropped', (
+    tester,
+  ) async {
+    await pumpPage(tester);
+    await tester.tap(find.text('Wrong email? Go back'));
+    await tester.pump();
+    // The router pins this route while the state is still pending, so the
+    // page must not navigate on the tap itself.
+    expect(bloc.events.single, isA<AuthSessionCheckEvent>());
+    expect(find.text('Enter your code'), findsOneWidget);
+
+    bloc.push(const AuthUnauthenticated());
+    await tester.pumpAndSettle();
+    expect(find.text('route:/login'), findsOneWidget);
+  });
+
   testWidgets('a wrong code sits under the boxes (F5)', (tester) async {
     await pumpPage(tester);
     bloc.push(

@@ -84,6 +84,11 @@ class AuthSessionCheckEvent extends AuthEvent {
   const AuthSessionCheckEvent();
 }
 
+/// Supabase reported `signedOut` and this bloc did not ask for it.
+class AuthSessionEndedEvent extends AuthEvent {
+  const AuthSessionEndedEvent();
+}
+
 class AuthUsernameSetEvent extends AuthEvent {
   final String username;
   const AuthUsernameSetEvent(this.username);

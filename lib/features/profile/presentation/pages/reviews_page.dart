@@ -40,7 +40,8 @@ class _ReviewsPageState extends State<ReviewsPage> {
     return BlocBuilder<ProfileCubit, ProfileState>(
       builder: (context, state) {
         final loaded = state is ProfileLoaded ? state : null;
-        final failed = state is ProfileError;
+        final failed =
+            state is ProfileError || (loaded?.reviewsFailed ?? false);
         return Scaffold(
           backgroundColor: ProfileTokens.surface,
           appBar: ProfileNavBar(

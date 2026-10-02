@@ -38,7 +38,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final DeleteAccountUseCase _deleteAccountUseCase;
   final GetCurrentSessionUseCase _getCurrentSessionUseCase;
   final ListsBloc listsBloc;
+  final Future<Map<String, dynamic>> Function(String userId) _fetchProfile;
   late final StreamSubscription<supabase.AuthState> _authStateSubscription;
+
+  /// True while this bloc is itself signing out. gotrue announces `signedOut`
+  /// before its request goes out; the handler that asked for it finishes the
+  /// job, so the stream listener must not start a second one.
+  bool _signingOut = false;
+
+  /// Set when the username gate let a user in without reading their profile.
+  /// The next token refresh runs the gate again.
+  bool _usernameUnverified = false;
 
   AuthBloc({
     required CheckEmailExistsUseCase checkEmailExistsUseCase,
@@ -52,7 +62,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required DeleteAccountUseCase deleteAccountUseCase,
     required GetCurrentSessionUseCase getCurrentSessionUseCase,
     required this.listsBloc,
-  }) : _checkEmailExistsUseCase = checkEmailExistsUseCase,
+    Stream<supabase.AuthState>? authStateChanges,
+    Future<Map<String, dynamic>> Function(String userId)? fetchProfile,
+  }) : _fetchProfile = fetchProfile ?? _fetchSupabaseProfile,
+       _checkEmailExistsUseCase = checkEmailExistsUseCase,
        _signUpWithEmailUseCase = signUpWithEmailUseCase,
        _signInWithEmailUseCase = signInWithEmailUseCase,
        _verifySignupOtpUseCase = verifySignupOtpUseCase,
@@ -75,9 +88,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthUsernameSetEvent>(_onUsernameSet);
     on<AuthPasswordRecoveryEvent>(_onPasswordRecovery);
     on<AuthSessionCheckEvent>(_onSessionCheck);
+    on<AuthSessionEndedEvent>(_onSessionEnded);
 
-    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
-        .listen(_onSupabaseAuthStateChange);
+    _authStateSubscription =
+        (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
+            .listen(_onSupabaseAuthStateChange);
   }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -87,9 +102,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
+    // Supabase stores addresses lowercased and `check_email_exists` compares
+    // exactly, so "Juan@gmail.com" would read as a new account.
+    final email = event.email.trim().toLowerCase();
     try {
-      final exists = await _checkEmailExistsUseCase(event.email);
-      emit(AuthEmailChecked(exists: exists, email: event.email));
+      final exists = await _checkEmailExistsUseCase(email);
+      emit(AuthEmailChecked(exists: exists, email: email));
     } on AuthException catch (e) {
       emit(AuthError(_mapAuthError(e)));
     } on PostgrestException catch (e) {
@@ -117,10 +135,57 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return;
     }
 
+    if (event == AuthChangeEvent.signedOut) {
+      if (_signingOut) return;
+      debugPrint('AuthBloc: trigger AuthSessionEndedEvent');
+      add(const AuthSessionEndedEvent());
+      return;
+    }
+
+    if (event == AuthChangeEvent.tokenRefreshed) {
+      if (_usernameUnverified && state is AuthAuthenticated) {
+        debugPrint('AuthBloc: re-run the username gate');
+        add(const AuthSessionCheckEvent());
+      }
+      return;
+    }
+
     if (event == AuthChangeEvent.signedIn) {
+      // Supabase reports the sign-in while the handler that asked for it is
+      // still running, and that handler runs the post-login gate itself. A
+      // second pass here would repeat the profile fetch, the PostHog
+      // identify and the lists load, and emit AuthAuthenticated twice. Only
+      // sign-ins nobody is handling (a deep link, say) are checked here.
+      final current = state;
+      final handledElsewhere =
+          current is AuthLoading ||
+          (current is AuthAwaitingEmailConfirmation && current.isVerifying) ||
+          (current is AuthAuthenticated &&
+              current.user.id == data.session?.user.id);
+      if (handledElsewhere) return;
+
       debugPrint('AuthBloc: trigger AuthSessionCheckEvent');
       add(const AuthSessionCheckEvent());
     }
+  }
+
+  /// The session ended without the user asking: revoked from another device,
+  /// or a refresh token the server no longer accepts.
+  Future<void> _onSessionEnded(
+    AuthSessionEndedEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (_getCurrentSessionUseCase() != null) return;
+    final current = state;
+    if (current is AuthUnauthenticated ||
+        current is AuthLoggedOut ||
+        current is AuthAccountDeleted ||
+        current is AuthAwaitingEmailConfirmation) {
+      return;
+    }
+    await _resetPosthogUser();
+    _clearListsSession();
+    emit(const AuthUnauthenticated());
   }
 
   Future<void> _onPasswordRecovery(
@@ -186,6 +251,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       _initListsSession();
       await _emitAuthSuccess(user, emit);
     } on AuthException catch (e) {
+      if (_isEmailNotConfirmed(e)) {
+        // The account was created but the code never entered (the app was
+        // closed on the code screen). Nothing else leads back there, so park
+        // the user on it again and send a fresh code.
+        emit(AuthAwaitingEmailConfirmation(email: event.email));
+        add(const AuthResendOtpEvent());
+        return;
+      }
       emit(AuthError(_mapAuthError(e)));
     } on PostgrestException catch (e) {
       emit(AuthError(_mapDatabaseError(e)));
@@ -327,35 +400,51 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignOutEvent event,
     Emitter<AuthState> emit,
   ) async {
+    final previous = state;
+    _signingOut = true;
     try {
       emit(AuthLoading());
       await _signOutUseCase();
-      await _resetPosthogUser();
-      _clearListsSession();
-      emit(const AuthLoggedOut());
-      emit(const AuthUnauthenticated());
-    } on AuthException catch (e) {
-      emit(AuthError(_mapAuthError(e)));
-    } on PostgrestException catch (e) {
-      emit(AuthError(_mapDatabaseError(e)));
-    } catch (_) {
-      emit(const AuthError('Connection failed. Check your internet.'));
+    } catch (e) {
+      // gotrue drops the local session before its request, so a failed
+      // request (offline, server error) still leaves this device signed out.
+      // Only a session that survived is a failed log out.
+      if (_getCurrentSessionUseCase() != null) {
+        _emitErrorKeepingSession(
+          emit,
+          previous,
+          e is AuthException
+              ? _mapAuthError(e)
+              : 'Connection failed. Check your internet.',
+        );
+        return;
+      }
+    } finally {
+      _signingOut = false;
     }
+    await _resetPosthogUser();
+    _clearListsSession();
+    emit(const AuthLoggedOut());
+    emit(const AuthUnauthenticated());
   }
 
   Future<void> _onDeleteAccount(
     AuthDeleteAccountEvent event,
     Emitter<AuthState> emit,
   ) async {
+    final previous = state;
     try {
       emit(AuthLoading());
       await _deleteAccountUseCase(password: event.password);
+      _signingOut = true;
       try {
         await _signOutUseCase();
       } on AuthException catch (e) {
         debugPrint('AuthBloc: post-delete signOut AuthException: ${e.message}');
       } catch (e) {
         debugPrint('AuthBloc: post-delete signOut error: $e');
+      } finally {
+        _signingOut = false;
       }
       await _resetPosthogUser();
       _clearListsSession();
@@ -368,19 +457,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           e.code == 'invalid_grant' ||
           e.message.toLowerCase().contains('invalid login credentials') ||
           e.message.toLowerCase().contains('invalid password');
-      emit(
-        AuthError(
-          isInvalidPassword ? 'Incorrect password. Please try again.' : mapped,
-        ),
+      _emitErrorKeepingSession(
+        emit,
+        previous,
+        isInvalidPassword ? 'Incorrect password. Please try again.' : mapped,
       );
     } on PostgrestException catch (e) {
-      emit(AuthError(_mapDatabaseError(e)));
+      _emitErrorKeepingSession(emit, previous, _mapDatabaseError(e));
     } on FunctionException catch (e) {
       debugPrint('AuthBloc: delete-user function error status=${e.status}');
-      emit(const AuthError('Account deletion failed. Please try again later.'));
+      _emitErrorKeepingSession(
+        emit,
+        previous,
+        'Account deletion failed. Please try again later.',
+      );
     } catch (e) {
       debugPrint('AuthBloc: delete account error: $e');
-      emit(const AuthError('Account deletion failed. Please try again later.'));
+      _emitErrorKeepingSession(
+        emit,
+        previous,
+        'Account deletion failed. Please try again later.',
+      );
     }
   }
 
@@ -388,6 +485,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthUsernameSetEvent event,
     Emitter<AuthState> emit,
   ) async {
+    final previous = state;
     emit(AuthLoading());
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -405,14 +503,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } on PostgrestException catch (e) {
       final msg = e.message.toLowerCase();
       if (msg.contains('invalid username format')) {
-        emit(const AuthError('Invalid username format.'));
+        _emitErrorKeepingSession(emit, previous, 'Invalid username format.');
       } else if (msg.contains('already taken')) {
-        emit(const AuthError('That username is already taken.'));
+        _emitErrorKeepingSession(
+          emit,
+          previous,
+          'That username is already taken.',
+        );
       } else {
-        emit(AuthError(_mapDatabaseError(e)));
+        debugPrint('AuthBloc: set_username error: ${e.message}');
+        _emitErrorKeepingSession(
+          emit,
+          previous,
+          'Failed to save username. Try again.',
+        );
       }
     } catch (_) {
-      emit(const AuthError('Failed to save username. Try again.'));
+      _emitErrorKeepingSession(
+        emit,
+        previous,
+        'Failed to save username. Try again.',
+      );
     }
   }
 
@@ -435,11 +546,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _emitAuthSuccess(User user, Emitter<AuthState> emit) async {
     try {
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('username, full_name, avatar_url')
-          .eq('id', user.id)
-          .single();
+      final profile = await _fetchProfileWithRetry(user.id);
+      _usernameUnverified = false;
 
       final username = profile['username'] as String?;
 
@@ -457,12 +565,57 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthAuthenticated(user));
       }
     } catch (_) {
+      // Still let the user in: a returning user who opens the app offline
+      // has to reach it. The gate runs again on the next token refresh.
       debugPrint('AuthBloc: emit AuthAuthenticated (profile fetch failed)');
+      _usernameUnverified = true;
       emit(AuthAuthenticated(user));
     }
   }
 
+  static const _profileFetchAttempts = 3;
+
+  /// A dropped request must not decide whether the username step is skipped,
+  /// so the profile read gets a couple of quick retries first.
+  Future<Map<String, dynamic>> _fetchProfileWithRetry(String userId) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _fetchProfile(userId);
+      } catch (_) {
+        if (attempt >= _profileFetchAttempts) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 300 * attempt));
+      }
+    }
+  }
+
+  static Future<Map<String, dynamic>> _fetchSupabaseProfile(String userId) {
+    return Supabase.instance.client
+        .from('profiles')
+        .select('username, full_name, avatar_url')
+        .eq('id', userId)
+        .single();
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /// Reports a failed action without losing the signed-in (or username-setup)
+  /// state it interrupted: the error is emitted for listeners, then the state
+  /// the router and the rest of the app key off is put back.
+  void _emitErrorKeepingSession(
+    Emitter<AuthState> emit,
+    AuthState previous,
+    String message,
+  ) {
+    emit(AuthError(message));
+    if (previous is AuthAuthenticated || previous is AuthNeedsUsername) {
+      emit(previous);
+    }
+  }
+
+  bool _isEmailNotConfirmed(AuthException exception) {
+    return exception.code?.toLowerCase() == 'email_not_confirmed' ||
+        exception.message.toLowerCase().contains('email not confirmed');
+  }
 
   void _initListsSession() => listsBloc.add(LoadUserLists());
 
@@ -544,7 +697,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (code == 'over_request_rate_limit' || message.contains('rate limit')) {
       return 'Too many attempts. Please wait a moment.';
     }
-    if (message.contains('network') || message.contains('connection')) {
+    // AuthRetryableFetchException is what gotrue throws when the request never
+    // got an answer; its message is the raw socket error.
+    if (exception is AuthRetryableFetchException ||
+        message.contains('network') ||
+        message.contains('connection') ||
+        message.contains('socketexception') ||
+        message.contains('failed host lookup')) {
       return 'Connection failed. Check your internet.';
     }
     return exception.message.isNotEmpty

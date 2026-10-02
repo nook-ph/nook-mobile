@@ -33,10 +33,10 @@ class _FakeFeed extends GetHomeFeedUseCase {
   Object? error;
 
   @override
-  Future<HomeFeedWithLocationMeta> call({int page = 0, int limit = 20}) async {
+  Stream<HomeFeedUpdate> watch({int page = 0, int limit = 20}) async* {
     final e = error;
     if (e != null) throw e;
-    return result;
+    yield (data: result, nearbyPending: false);
   }
 }
 
@@ -210,6 +210,43 @@ void main() {
 
       expect(emitted, hasLength(1));
       expect(emitted.single, isA<HomeLoadedState>());
+    });
+
+    test('a failed refresh keeps the loaded feed and reports why', () async {
+      final feed = _FakeFeed()
+        ..result = (
+          feed: (
+            nearby: <CafeSummary>[],
+            topRated: [_cafe('t1')],
+            trending: <CafeSummary>[],
+            newest: <CafeSummary>[],
+          ),
+          locationDenied: false,
+          locationServicesOff: false,
+        );
+      final bloc = HomeBloc(getHomeFeedUseCase: feed);
+      addTearDown(bloc.close);
+
+      bloc.add(LoadHomeDataEvent());
+      final loaded =
+          await bloc.stream.firstWhere((s) => s is HomeLoadedState)
+              as HomeLoadedState;
+      expect(loaded.refreshError, isNull);
+
+      final failure = Exception('down');
+      feed.error = failure;
+      bloc.add(LoadHomeDataEvent(refresh: true));
+      final after = await bloc.stream.first;
+
+      expect(after, isA<HomeLoadedState>());
+      after as HomeLoadedState;
+      expect(after.refreshError, same(failure));
+      expect(identical(after.topRatedCafes, loaded.topRatedCafes), isTrue);
+
+      // Reported once: the next emission no longer carries it.
+      bloc.add(HomeDismissLocationBannerEvent());
+      final next = await bloc.stream.first as HomeLoadedState;
+      expect(next.refreshError, isNull);
     });
 
     test(

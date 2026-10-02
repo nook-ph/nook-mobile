@@ -56,7 +56,8 @@ class CafeRemoteDataSource {
         params: {
           'p_lat': lat,
           'p_lng': lng,
-          'p_radius_meters': radiusMeters,
+          // The RPC's parameter is an integer; a double is a 400.
+          'p_radius_meters': radiusMeters.round(),
           'p_user_id': supabase.auth.currentUser?.id,
           'p_sort': sort,
           'p_tag_names': tags.isEmpty ? null : tags,
@@ -240,6 +241,11 @@ class CafeRemoteDataSource {
         ''');
       }
 
+      // The menu does not depend on the cafe row, so both go out together.
+      // A menu failure is only reported once the cafe itself has loaded.
+      final menuFuture = includeMenu ? _fetchMenuItemsByCafeId(cafeId) : null;
+      menuFuture?.ignore();
+
       final selectClause = fields.join(',');
       final response = await supabase
           .from('cafes')
@@ -248,8 +254,8 @@ class CafeRemoteDataSource {
           .single();
 
       final payload = Map<String, dynamic>.from(response);
-      if (includeMenu) {
-        payload['menu_items'] = await _fetchMenuItemsByCafeId(cafeId);
+      if (menuFuture != null) {
+        payload['menu_items'] = await menuFuture;
       }
 
       return CafeBundleModel.fromJson(
@@ -635,11 +641,13 @@ class CafeRemoteDataSource {
       final userId = _resolveUserId(null);
       final shouldUseCafeAsCover = await _isListEmpty(listId);
 
+      // Already saved is success: there is no UPDATE policy for a conflicting
+      // row to fall back on.
       await supabase.from('list_cafes').upsert({
         'list_id': listId,
         'cafe_id': cafeId,
         'added_by': userId,
-      });
+      }, ignoreDuplicates: true);
 
       if (shouldUseCafeAsCover) {
         final coverImageUrl = await _fetchCafeHeroImageUrl(cafeId);
@@ -1022,6 +1030,9 @@ class CafeRemoteDataSource {
           'description': trimmedDescription,
       });
     } on PostgrestException catch (e, st) {
+      // 23505: this user already reported this review (one report each, by
+      // unique index). The report is on file, which is what was asked for.
+      if (e.code == '23505') return;
       throw CafeFetchException(
         'Failed to report review "$reviewId".',
         cause: e,

@@ -13,10 +13,16 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
 
   final GetCafeReviewsUseCase getCafeReviewsUseCase;
 
+  /// Loads run concurrently and the state does not say which filter it is
+  /// for, so only the newest request may land: a slow filtered response
+  /// arriving after the filter was cleared is dropped.
+  int _latestRequest = 0;
+
   Future<void> _onLoadReviewsRequested(
     LoadReviewsRequested event,
     Emitter<ReviewsState> emit,
   ) async {
+    final request = ++_latestRequest;
     emit(const ReviewsLoading());
 
     try {
@@ -25,6 +31,7 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
         sort: event.sort,
         ratingFilter: event.ratingFilter,
       );
+      if (request != _latestRequest) return;
       emit(
         ReviewsLoaded(
           cafeId: event.cafeId,
@@ -32,6 +39,7 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
         ),
       );
     } catch (e) {
+      if (request != _latestRequest) return;
       emit(ReviewsError(e.toString(), error: e));
     }
   }

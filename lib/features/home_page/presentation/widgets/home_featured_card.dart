@@ -200,6 +200,8 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
   @override
   Widget build(BuildContext context) {
     final cafes = widget.cafes;
+    // A refresh can return fewer cafes than the page the pager was on.
+    if (_page >= cafes.length) _page = cafes.isEmpty ? 0 : cafes.length - 1;
     final cardWidth = ResponsiveCardSizes.featuredCardWidth(context);
     final imageHeight = ResponsiveCardSizes.featuredImageHeight(context);
     final viewportWidth =

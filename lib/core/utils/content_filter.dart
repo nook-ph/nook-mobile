@@ -35,7 +35,6 @@ class ContentFilter {
     'molest',
     'bestiality',
     'childporn',
-    'cp',
   ];
 
   /// Common leetspeak / obfuscation substitutions folded before matching.
@@ -64,31 +63,33 @@ class ContentFilter {
     return buffer.toString();
   }
 
-  /// True when the text spells something out letter-by-letter using separators
-  /// (e.g. "f a g g o t", "r.e.t.a.r.d") — the signature of deliberate evasion.
-  /// Only then do we de-space, so normal words ("grape", "Scunthorpe") are not
-  /// collapsed into false positives.
-  static bool _looksObfuscated(String text) {
-    return RegExp(r'(?:\b\w[\s._\-]+){3,}').hasMatch(text);
-  }
+  /// Runs of three or more single characters split by separators
+  /// ("f a g g o t", "r.e.t.a.r.d"): the signature of deliberate evasion.
+  static final RegExp _spelledOutRun = RegExp(
+    r'(?<![a-z0-9])[a-z0-9](?:[\s._\-]+[a-z0-9](?![a-z0-9])){2,}',
+  );
+
+  static final RegExp _separators = RegExp(r'[\s._\-]+');
 
   /// True if [text] contains any blocked term. Uses whole-word matching on the
-  /// normalised text (which also defeats leetspeak), plus a de-spaced pass that
-  /// only runs when the text looks deliberately obfuscated.
+  /// normalised text (which also defeats leetspeak), plus a de-spaced pass over
+  /// each spelled-out run. Only the run itself is collapsed, so ordinary prose
+  /// around an abbreviation ("2 a.m. and the spicy tuna") is never joined up
+  /// into a false positive.
   static bool containsObjectionable(String text) {
     if (text.trim().isEmpty) return false;
     final normalized = _normalize(text);
-    final obfuscated = _looksObfuscated(normalized);
-    final collapsed = obfuscated
-        ? normalized.replaceAll(RegExp(r'[\s._\-]+'), '')
-        : null;
+    final collapsedRuns = _spelledOutRun
+        .allMatches(normalized)
+        .map((match) => match.group(0)!.replaceAll(_separators, ''))
+        .toList(growable: false);
 
     for (final term in _blockedTerms) {
       // Whole-word match in the normalised text (word boundaries prevent
       // "grape" from matching "rape").
       if (RegExp('\\b$term\\b').hasMatch(normalized)) return true;
       // Only for deliberately spaced-out text, catch "f a g g o t" style.
-      if (collapsed != null && collapsed.contains(term)) return true;
+      if (collapsedRuns.any((run) => run.contains(term))) return true;
     }
     return false;
   }

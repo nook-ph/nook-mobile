@@ -20,6 +20,20 @@ class GetCafesForViewportUseCase {
 
   GetCafesForViewportUseCase(this.repository);
 
+  /// Whether a fetch for [fetched] already returned every cafe [next] can
+  /// show: both use the fixed circle, and all of [next] lies inside the
+  /// circle that was fetched. Only holds for a result under [fetchCap].
+  static bool covers({
+    required MapViewport fetched,
+    required MapViewport next,
+  }) {
+    if (viewportRadiusMeters(fetched) > radiusMeters) return false;
+    final reach =
+        haversineMeters(fetched.center, next.center) +
+        viewportRadiusMeters(next);
+    return reach <= radiusMeters;
+  }
+
   Future<List<CafeSummary>> call({
     required MapViewport viewport,
     CafeFilter filter = const CafeFilter(),

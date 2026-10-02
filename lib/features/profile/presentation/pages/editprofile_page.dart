@@ -8,6 +8,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/utils/compressed_image_target.dart';
 import 'package:nook/core/utils/content_filter.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
@@ -71,7 +72,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final profileState = context.read<ProfileCubit>().state;
     if (profileState is ProfileLoaded) {
-      _savedName = profileState.name;
+      // "No name" is the page's label for an empty name, not text to edit.
+      _savedName = editableName(profileState.name);
       _savedUsername = profileState.username;
       _savedBio = profileState.bio;
       _daysUntilUsernameUnlock = usernameCooldownDaysLeft(
@@ -109,6 +111,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _isAvailable = true;
         _isChecking = false;
         _validationError = null;
+      });
+      return;
+    }
+
+    // Changing only the case of your own username: the availability check
+    // would find your own row and call it taken.
+    if (isCaseOnlyUsernameChange(value, _savedUsername)) {
+      setState(() {
+        _isAvailable = true;
+        _isChecking = false;
+        _validationError = validateUsername(value);
       });
       return;
     }
@@ -171,8 +184,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         _usernameController.text.trim() != _savedUsername;
   }
 
+  /// A name that was there has been emptied. It cannot be saved as empty.
+  bool get _nameCleared =>
+      _nameController.text.trim().isEmpty && _savedName.trim().isNotEmpty;
+
   bool get _canSubmit {
-    if (_saving || !_isDirty) return false;
+    if (_saving || !_isDirty || _nameCleared) return false;
     return switch (_usernameStatus) {
       UsernameStatus.checking ||
       UsernameStatus.taken ||
@@ -184,16 +201,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // --- Avatar Logic ---
   static Future<File> _compressImage(File file) async {
     final filePath = file.path;
-    final ext = filePath.split('.').last.toLowerCase();
-    final targetPath = filePath.replaceAll('.$ext', '_compressed.$ext');
+    // Named for the format it is written in, and never the source path
+    // (which ".JPG" used to produce, and the compressor refuses).
+    final target = compressedImageTarget(filePath);
 
     final result = await FlutterImageCompress.compressAndGetFile(
       filePath,
-      targetPath,
+      target.path,
       quality: 80,
       minWidth: 512,
       minHeight: 512,
-      format: ext == 'png' ? CompressFormat.png : CompressFormat.jpeg,
+      format: target.isPng ? CompressFormat.png : CompressFormat.jpeg,
     );
 
     if (result == null) return file;
@@ -215,7 +233,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
     if (fromLibrary != true || !mounted) return;
 
-    final file = await (widget.pickPhoto ?? _pickFromLibrary)();
+    final File? file;
+    try {
+      file = await (widget.pickPhoto ?? _pickFromLibrary)();
+    } catch (e) {
+      // Denied photo access, an unreadable file or a failed compress.
+      debugPrint('[EditProfile] pick photo failed: $e');
+      if (!mounted) return;
+      _toastAboveBar('Could not use that photo. Please try another.');
+      return;
+    }
     if (file == null || !mounted) return;
     setState(() => _avatarFile = file);
   }
@@ -239,23 +266,32 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
+    if (_bioController.text.trim().runes.length > bioMaxCodePoints) {
+      _toastAboveBar('Your bio is too long. Please shorten it.');
+      return;
+    }
+
     final profileCubit = context.read<ProfileCubit>();
     final avatarBloc = context.read<AvatarUploadBloc>();
 
-    final name = _nameController.text.trim();
     final bio = _bioController.text.trim();
     final typedUsername = _usernameController.text.trim();
     final usernameToSave = typedUsername == _savedUsername
         ? null
         : typedUsername;
+    // Only what changed is written: an untouched (or absent) name stays as
+    // it is on the server.
+    final nameToSave = profileNameToSave(
+      _nameController.text,
+      saved: _savedName,
+    );
+    final bioToSave = bio == _savedBio.trim() ? null : bio;
 
     setState(() => _saving = true);
     try {
-      await profileCubit.editProfile(
-        name: name,
-        username: usernameToSave,
-        bio: bio,
-      );
+      if (nameToSave != null || bioToSave != null) {
+        await profileCubit.editProfile(name: nameToSave, bio: bioToSave);
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -264,12 +300,41 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
     if (!mounted) return;
 
-    // The text is saved now; if the photo fails, only the photo is left to
-    // retry.
+    // The name and bio are saved now. The username goes separately, so a
+    // name someone else took in the meantime does not throw them away too.
+    setState(() {
+      if (nameToSave != null) _savedName = nameToSave;
+      _savedBio = bio;
+    });
+
+    if (usernameToSave != null) {
+      try {
+        await profileCubit.editProfile(username: usernameToSave);
+      } catch (e) {
+        if (!mounted) return;
+        // set_username raises "Username already taken"; 23505 is the unique
+        // index on profiles.username underneath it.
+        final taken =
+            e is PostgrestException &&
+            (e.code == '23505' ||
+                e.message.toLowerCase().contains('already taken'));
+        setState(() {
+          _saving = false;
+          if (taken) _isAvailable = false;
+        });
+        _toastAboveBar(
+          taken
+              ? '@$usernameToSave is already taken.'
+              : 'Could not change your username. Please try again.',
+        );
+        return;
+      }
+      if (!mounted) return;
+    }
+
+    // If the photo fails, only the photo is left to retry.
     setState(() {
       _saving = false;
-      _savedName = name;
-      _savedBio = bio;
       if (usernameToSave != null) {
         _savedUsername = usernameToSave;
         _daysUntilUsernameUnlock = usernameCooldownDays;
@@ -346,6 +411,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   label: 'Name',
                                   controller: _nameController,
                                   enabled: !busy,
+                                  tone: _nameCleared
+                                      ? ProfileFieldTone.error
+                                      : ProfileFieldTone.normal,
+                                  helper: _nameCleared
+                                      ? const ProfileFieldHelper(
+                                          'Name cannot be empty',
+                                          kind: ProfileHelperKind.error,
+                                        )
+                                      : null,
                                   textCapitalization: TextCapitalization.words,
                                   textInputAction: TextInputAction.next,
                                 ),
@@ -395,10 +469,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ProfileTokens.gutter,
                       8,
                     ),
-                    child: ProfilePillButton(
-                      label: 'Save changes',
-                      busy: _saving,
-                      onTap: _canSubmit && !uploading ? _onSaveChanges : null,
+                    // Held while saving or uploading, like the bar's arrow:
+                    // leaving then would drop the result.
+                    child: PopScope(
+                      canPop: !busy,
+                      child: ProfilePillButton(
+                        label: 'Save changes',
+                        busy: _saving,
+                        onTap: _canSubmit && !uploading ? _onSaveChanges : null,
+                      ),
                     ),
                   ),
                 ],

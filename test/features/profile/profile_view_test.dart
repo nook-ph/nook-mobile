@@ -49,6 +49,36 @@ void main() {
     expect(listsBloc.events.whereType<LoadUserLists>(), hasLength(1));
   });
 
+  testWidgets('coming back to the tab refreshes without a remount', (
+    tester,
+  ) async {
+    final cubit = FakeProfileCubit(profile());
+    final active = ValueNotifier(true);
+    addTearDown(active.dispose);
+
+    await tester.pumpWidget(
+      profileHost(
+        page: ValueListenableBuilder<bool>(
+          valueListenable: active,
+          builder: (_, isActive, _) => ProfileView(isActive: isActive),
+        ),
+        cubit: cubit,
+      ),
+    );
+    await tester.pump();
+    final state = tester.state(find.byType(ProfileView));
+
+    active.value = false;
+    await tester.pump();
+    // Leaving the tab asks for nothing.
+    expect(cubit.loads, 0);
+
+    active.value = true;
+    await tester.pump();
+    expect(cubit.refreshes, 1);
+    expect(tester.state(find.byType(ProfileView)), same(state));
+  });
+
   testWidgets('loaded: handle, name, counts under the name and on the tabs', (
     tester,
   ) async {
@@ -187,6 +217,20 @@ void main() {
     );
     expect(find.text('Tadaima'), findsOneWidget);
     await letToastExpire(tester);
+  });
+
+  testWidgets('reviews that failed to load are not "No reviews yet"', (
+    tester,
+  ) async {
+    final cubit = FakeProfileCubit(profile(reviewsFailed: true));
+    await pump(tester, cubit: cubit);
+
+    expect(find.text('Could not load reviews.'), findsOneWidget);
+    expect(find.text('No reviews yet'), findsNothing);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(cubit.loads, 1);
   });
 
   group('Lists tab', () {
