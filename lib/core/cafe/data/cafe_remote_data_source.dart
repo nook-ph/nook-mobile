@@ -1022,6 +1022,9 @@ class CafeRemoteDataSource {
           'description': trimmedDescription,
       });
     } on PostgrestException catch (e, st) {
+      // 23505: this user already reported this review (one report each, by
+      // unique index). The report is on file, which is what was asked for.
+      if (e.code == '23505') return;
       throw CafeFetchException(
         'Failed to report review "$reviewId".',
         cause: e,
