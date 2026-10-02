@@ -1130,7 +1130,18 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
     await _requestLocationAccess();
   }
 
+  /// Geolocator and the map plugin both throw (a second permission request
+  /// while one is open, a platform error); a tap on recenter must not turn
+  /// that into an unhandled error.
   Future<void> _requestLocationAccess() async {
+    try {
+      await _requestLocationAccessUnguarded();
+    } catch (e) {
+      debugPrint('MapPage: location access failed: $e');
+    }
+  }
+
+  Future<void> _requestLocationAccessUnguarded() async {
     final permission = await Geolocator.checkPermission();
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
