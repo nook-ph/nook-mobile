@@ -296,13 +296,20 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     );
   }
 
+  /// Counts fetches. Only the query is debounced and switch-mapped; tags,
+  /// sort, place, refresh and load-more overlap freely, so a response is
+  /// applied only while its fetch is still the latest one.
+  int _fetchSeq = 0;
+
   Future<void> _fetchCafes(Emitter<SearchState> emit, {int? page}) async {
+    final request = ++_fetchSeq;
     try {
       final currentPage = page ?? state.page;
       const limit = _limit;
       final built = await _buildQuery(page: currentPage, limit: limit);
 
       final cafes = await searchCafesUseCase.call(built.query);
+      if (request != _fetchSeq) return;
 
       emit(
         state.copyWith(
@@ -326,6 +333,7 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     } catch (e, st) {
       debugPrint('SearchBloc: fetch cafes failed $e');
       debugPrint(st.toString());
+      if (request != _fetchSeq) return;
       emit(
         state.copyWith(
           status: SearchStatus.failure,
