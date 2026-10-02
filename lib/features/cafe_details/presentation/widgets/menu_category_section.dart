@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
-import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_item_variants_sheet.dart';
-// Assuming AdaptiveTap is imported from your common widgets folder
-// import 'package:nook/core/widgets/adaptive_tap.dart';
 
+/// "₱110.00", or "from ₱150.00" when the item's sizes differ in price.
+String menuPriceLabel(MenuItemEntity item) {
+  final min = item.minPrice;
+  final price = '₱${min.toStringAsFixed(2)}';
+  return item.hasVariants && item.maxPrice != min ? 'from $price' : price;
+}
+
+/// One menu category: its name, then one line per item with the price at the
+/// trailing edge. Items with sizes show a chevron and open the sizes sheet.
 class MenuCategorySection extends StatelessWidget {
   const MenuCategorySection({
     super.key,
@@ -22,24 +28,9 @@ class MenuCategorySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          categoryName,
-          style: context.textTheme.titleMediumSemi.copyWith(
-            color: Colors.black,
-          ),
-        ),
-        const Gap(14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (int i = 0; i < items.length; i++) ...[
-              _MenuItemRow(item: items[i]),
-              if (i < items.length - 1) const Gap(14),
-            ],
-          ],
-        ),
-        const Gap(24),
-        const Divider(color: Color(0xFFE0E0E0), thickness: 1, height: 1),
+        CafeSectionTitle(categoryName),
+        const SizedBox(height: 8),
+        for (final item in items) _MenuItemRow(item: item),
       ],
     );
   }
@@ -52,54 +43,60 @@ class _MenuItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // The visual content of the row
-    final Widget rowContent = Padding(
-      // Padding gives the AdaptiveTap ripple/fade room to breathe
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // The name once. The row carried a second Text below it styled as a
-          // subtitle but rendering `item.name` again, so every item on the
-          // menu printed its own name twice. MenuItemEntity has no
-          // description field for it to have meant.
-          Expanded(
-            child: Text(
-              item.name,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Colors.black,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Row(
-            children: [
-              Text(
-                '₱${item.displayPrice}',
-                style: context.textTheme.bodySmallMed.copyWith(
-                  color: Colors.black,
+    final textTheme = Theme.of(context).textTheme;
+    final row = ConstrainedBox(
+      // 44pt keeps a row with sizes a comfortable tap target.
+      constraints: const BoxConstraints(minHeight: 44),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              // Long names wrap; the price stays on the first line.
+              child: Text(
+                item.name,
+                style: textTheme.bodyMedium?.copyWith(
+                  fontSize: 14,
+                  color: CafeDetailsTokens.ink,
                 ),
               ),
-              if (item.hasVariants) ...[
-                const SizedBox(width: 6),
-                const Icon(Icons.chevron_right, size: 16, color: Colors.black),
-              ],
+            ),
+            const SizedBox(width: 16),
+            Text(
+              menuPriceLabel(item),
+              style: textTheme.bodyMedium?.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: CafeDetailsTokens.ink,
+              ),
+            ),
+            if (item.hasVariants) ...[
+              const SizedBox(width: 6),
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 16,
+                  color: CafeDetailsTokens.muted,
+                ),
+              ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
-    if (!item.hasVariants) {
-      return rowContent;
-    }
+    if (!item.hasVariants) return row;
 
-    return AdaptiveTap(
-      onTap: () => MenuItemVariantsSheet.show(context, item),
-      borderRadius: BorderRadius.circular(8),
-      child: rowContent,
+    return Semantics(
+      button: true,
+      hint: 'Shows sizes and prices',
+      child: AdaptiveTap(
+        onTap: () => MenuItemVariantsSheet.show(context, item),
+        borderRadius: BorderRadius.circular(8),
+        child: row,
+      ),
     );
   }
 }

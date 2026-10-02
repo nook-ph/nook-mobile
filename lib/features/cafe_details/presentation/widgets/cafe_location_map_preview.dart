@@ -79,7 +79,7 @@ class _CafeLocationMapPreviewState extends State<CafeLocationMapPreview> {
         SymbolOptions(
           geometry: LatLng(widget.lat, widget.lng),
           iconImage: imageId,
-          iconAnchor: 'bottom',
+          iconAnchor: 'center',
           iconSize: iconSize,
         ),
       );

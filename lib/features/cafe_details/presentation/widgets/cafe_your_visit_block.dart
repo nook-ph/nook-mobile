@@ -39,7 +39,6 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
   static const _score = Color(0xFF3A5A40);
   static const _ink = Color(0xFF0A0F0D);
   static const _muted = Color(0xFF767574);
-  static const _border = Color(0xFFE0E0E0);
 
   String? _note;
   bool _noteLoaded = false;
@@ -122,13 +121,16 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
             final note = _note;
             final hasNote = _noteLoaded && note != null && note.isNotEmpty;
 
+            // The top gap belongs to the block: it renders nothing unless the
+            // cafe is a Been, and an empty block must not leave a gap behind.
             return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
+              padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
                 decoration: BoxDecoration(
+                  color: const Color(0xFFF3F5F0),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _border),
+                  border: Border.all(color: const Color(0xFFA3B18A)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -143,7 +145,7 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
                     const SizedBox(height: 6),
                     if (ranking == null)
                       Text(
-                        'Been — not ranked yet.',
+                        'Been, not ranked yet.',
                         style: context.textTheme.bodyLarge?.copyWith(
                           color: _ink,
                         ),

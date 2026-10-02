@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
-import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 
+/// The sizes of one menu item with the price of each. Read-only: nothing is
+/// selected or ordered here.
 class MenuItemVariantsSheet extends StatelessWidget {
   const MenuItemVariantsSheet({super.key, required this.item});
 
@@ -15,47 +17,101 @@ class MenuItemVariantsSheet extends StatelessWidget {
 
     return showModalBottomSheet<void>(
       context: context,
-      useSafeArea: true,
-      isDismissible: true,
-      enableDrag: true,
-      showDragHandle: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      clipBehavior: Clip.antiAlias,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => MenuItemVariantsSheet(item: item),
     );
   }
 
-  String _formatPrice(double price) {
-    return '₱${price.toStringAsFixed(2)}';
-  }
+  static String _formatPrice(double price) => '₱${price.toStringAsFixed(2)}';
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            item.name,
-            style: context.textTheme.titleMediumSemi.copyWith(
-              color: Colors.black,
-            ),
+    final textTheme = Theme.of(context).textTheme;
+    final variants = item.variants;
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: CafeDetailsTokens.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      style: textTheme.bodyLarge?.copyWith(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: CafeDetailsTokens.ink,
+                      ),
+                    ),
+                  ),
+                  AdaptiveTap(
+                    onTap: () => Navigator.of(context).pop(),
+                    borderRadius: BorderRadius.circular(22),
+                    child: Semantics(
+                      button: true,
+                      label: 'Close',
+                      child: const SizedBox.square(
+                        dimension: 44,
+                        child: Icon(
+                          Icons.close,
+                          size: 22,
+                          color: CafeDetailsTokens.ink,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: variants.length,
+                  separatorBuilder: (_, _) => const Divider(
+                    color: CafeDetailsTokens.border,
+                    thickness: 1,
+                    height: 1,
+                  ),
+                  itemBuilder: (context, index) {
+                    final variant = variants[index];
+                    return _VariantRow(
+                      label: variant.label,
+                      isDefault: variant.isDefault,
+                      priceLabel: _formatPrice(
+                        variant.resolvedPrice(item.price),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-          const Gap(12),
-          for (final variant in item.variants) ...[
-            _VariantRow(
-              label: variant.label,
-              isDefault: variant.isDefault,
-              priceLabel: _formatPrice(variant.resolvedPrice(item.price)),
-            ),
-            const Gap(10),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -74,53 +130,61 @@ class _VariantRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Row(
-            children: [
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: isDefault ? FontWeight.w600 : FontWeight.w400,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              if (isDefault) ...[
-                const Gap(6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.black),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
                   child: Text(
-                    'Default',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontSize: 14,
+                      fontWeight: isDefault ? FontWeight.w500 : FontWeight.w400,
+                      color: CafeDetailsTokens.ink,
                     ),
                   ),
                 ),
+                if (isDefault) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: CafeDetailsTokens.tint,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'Default',
+                      style: textTheme.bodySmall?.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: CafeDetailsTokens.ink,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
-        Text(
-          priceLabel,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
+          const SizedBox(width: 16),
+          Text(
+            priceLabel,
+            style: textTheme.bodyMedium?.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: CafeDetailsTokens.ink,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

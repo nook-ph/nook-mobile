@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:gap/gap.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
-import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/pages/menu_full_page.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlight_card.dart';
 
 class MenuHighlights extends StatelessWidget {
@@ -28,13 +27,7 @@ class MenuHighlights extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Menu Highlights',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
-              ),
+              const CafeSectionTitle('Menu highlights'),
               AdaptiveTextButton(
                 onPressed: () {
                   Navigator.push(
@@ -42,7 +35,6 @@ class MenuHighlights extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (context) => MenuFullPage(
                         menuItems: cafe?.allMenuItems ?? [],
-                        highlights: cafe?.menuHighlights ?? [],
                         cafeName: cafe?.cafeDetails.name,
                       ),
                     ),
@@ -54,11 +46,10 @@ class MenuHighlights extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
-                  'See All',
+                  'See all',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                    decoration: TextDecoration.underline,
+                    color: CafeDetailsTokens.brand,
                   ),
                 ),
               ),
@@ -66,7 +57,7 @@ class MenuHighlights extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         SizedBox(
           height: MenuHighlightCard.listHeight,

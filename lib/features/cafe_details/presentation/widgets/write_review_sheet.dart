@@ -1,44 +1,72 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/preferences/review_draft_store.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/utils/content_filter.dart';
+import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_event.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/review_sheet_shell.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/reviews_logic.dart';
 import 'package:nook/injection_container.dart';
-import 'package:nook/core/preferences/review_draft_store.dart';
-import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/core/utils/toast_helper.dart';
-import 'package:nook/core/utils/content_filter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+/// Write a review, in two steps inside one sheet: one question and five
+/// stars first, then the sheet grows for the text and photos once a star is
+/// tapped.
 class WriteReviewSheet extends StatefulWidget {
-  const WriteReviewSheet({super.key, required this.cafeId});
+  const WriteReviewSheet({
+    super.key,
+    required this.cafeId,
+    this.cafeName,
+    this.cafeImageUrl,
+    this.reviewsBloc,
+  });
 
   final String cafeId;
+  final String? cafeName;
+  final String? cafeImageUrl;
 
-  static Future<void> show(BuildContext context, {required String cafeId}) {
+  /// The cafe's loaded reviews, used to tell whether the user already
+  /// reviewed it. The sheet lives in its own route, so it is passed in.
+  final ReviewsBloc? reviewsBloc;
+
+  static Future<void> show(
+    BuildContext context, {
+    required String cafeId,
+    String? cafeName,
+    String? cafeImageUrl,
+  }) {
     final submitBloc =
         context.read<ReviewSubmitBloc?>() ?? sl<ReviewSubmitBloc>();
+    final reviewsBloc = context.read<ReviewsBloc?>();
+    final detailsState = context.read<CafeDetailsBloc?>()?.state;
+    final cafe = detailsState is CafeDetailsLoaded
+        ? detailsState.data.cafeDetails
+        : null;
 
-    return showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+    return ReviewSheetShell.show<void>(
+      context,
       builder: (_) => BlocProvider.value(
         value: submitBloc,
-        child: WriteReviewSheet(cafeId: cafeId),
+        child: WriteReviewSheet(
+          cafeId: cafeId,
+          cafeName: cafeName ?? cafe?.name,
+          cafeImageUrl: cafeImageUrl ?? cafe?.featuredImageUrl,
+          reviewsBloc: reviewsBloc,
+        ),
       ),
     );
   }
@@ -47,15 +75,37 @@ class WriteReviewSheet extends StatefulWidget {
   State<WriteReviewSheet> createState() => _WriteReviewSheetState();
 }
 
+enum _DraftNote { none, saved, recovered }
+
 class _WriteReviewSheetState extends State<WriteReviewSheet> {
-  int _selectedRating = 0;
+  static const int _maxPhotos = 3;
+
+  int _rating = 0;
+
+  /// False until a star is tapped (or a draft is recovered): the sheet shows
+  /// only the question and the stars.
+  bool _composing = false;
   late final TextEditingController _reviewController;
-  final List<File?> _photos = <File?>[null, null, null];
+  final List<File> _photos = <File>[];
   final ImagePicker _imagePicker = ImagePicker();
   final ReviewDraftStore _draftStore = sl<ReviewDraftStore>();
   AppLifecycleListener? _appLifecycleListener;
-  bool _isSavingDraft = false;
-  bool _recoveredDraft = false;
+
+  _DraftNote _draftNote = _DraftNote.none;
+
+  /// When the recovered draft was last saved, for the banner.
+  DateTime? _recoveredAt;
+  Timer? _draftDebounce;
+  Future<void>? _saveInFlight;
+
+  /// Set the moment a submit succeeds. Nothing may save a draft after this,
+  /// or the review that was just posted would come back as a draft.
+  bool _submitted = false;
+
+  /// The last submit's failure, shown in the sheet until the next edit.
+  String? _submitError;
+  String? _textError;
+  String? _username;
 
   @override
   void initState() {
@@ -67,69 +117,123 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadDraft();
     });
-  }
-
-  @override
-  void didUpdateWidget(covariant WriteReviewSheet oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.cafeId != widget.cafeId) {
-      _reviewController.clear();
-      setState(() {
-        _selectedRating = 0;
-        _recoveredDraft = false;
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _loadDraft();
-      });
-    }
+    _loadUsername();
   }
 
   @override
   void dispose() {
+    _draftDebounce?.cancel();
     _appLifecycleListener?.dispose();
     _reviewController.dispose();
     super.dispose();
   }
 
-  Future<void> _saveDraft({bool showToast = false}) async {
-    if (_isSavingDraft) return;
-    if (_reviewController.text.trim().isEmpty && _selectedRating == 0) return;
-    _isSavingDraft = true;
+  Future<void> _loadUsername() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
     try {
-      await _draftStore.save(
-        widget.cafeId,
-        text: _reviewController.text,
-        rating: _selectedRating,
-      );
-      if (showToast && mounted) {
-        showPrimaryToast(context, 'Draft saved');
-      }
-    } finally {
-      _isSavingDraft = false;
+      final row = await Supabase.instance.client
+          .from('profiles')
+          .select('username')
+          .eq('id', userId)
+          .maybeSingle();
+      final username = (row?['username'] as String?)?.trim();
+      if (!mounted || username == null || username.isEmpty) return;
+      setState(() => _username = username);
+    } catch (_) {
+      // The line is informative only; leave it out when it cannot load.
     }
+  }
+
+  Future<void> _saveDraft() async {
+    if (_submitted) return;
+    if (_reviewController.text.trim().isEmpty && _rating == 0) return;
+    // One save at a time; a newer one waits for the one in flight.
+    await _saveInFlight;
+    if (_submitted) return;
+    final save = _draftStore.save(
+      widget.cafeId,
+      text: _reviewController.text,
+      rating: _rating,
+    );
+    _saveInFlight = save;
+    try {
+      await save;
+    } finally {
+      if (identical(_saveInFlight, save)) _saveInFlight = null;
+    }
+    if (mounted && !_submitted) {
+      setState(() => _draftNote = _DraftNote.saved);
+    }
+  }
+
+  void _scheduleDraftSave() {
+    _draftDebounce?.cancel();
+    _draftDebounce = Timer(const Duration(milliseconds: 800), _saveDraft);
   }
 
   Future<void> _loadDraft() async {
     final draft = await _draftStore.load(widget.cafeId);
-    if (!mounted || draft == null) return;
-    if (_recoveredDraft) return;
+    if (!mounted || draft == null || _composing) return;
+    if (draft.text.trim().isEmpty && draft.rating == 0) return;
 
     _reviewController.value = TextEditingValue(
       text: draft.text,
       selection: TextSelection.collapsed(offset: draft.text.length),
     );
     setState(() {
-      _selectedRating = draft.rating;
-      _recoveredDraft = true;
+      _rating = draft.rating;
+      _composing = true;
+      _draftNote = _DraftNote.recovered;
+      _recoveredAt = draft.updatedAt;
     });
-    showPrimaryToast(context, 'Draft recovered');
+  }
+
+  /// "Start over" on the recovered-draft banner: throws the draft away and
+  /// goes back to the first step.
+  Future<void> _startOver() async {
+    _draftDebounce?.cancel();
+    try {
+      await _saveInFlight;
+    } catch (_) {
+      // The clear below is what matters.
+    }
+    await _draftStore.clear(widget.cafeId);
+    if (!mounted) return;
+    _reviewController.clear();
+    setState(() {
+      _rating = 0;
+      _photos.clear();
+      _composing = false;
+      _draftNote = _DraftNote.none;
+      _recoveredAt = null;
+      _submitError = null;
+      _textError = null;
+    });
   }
 
   void _handleAppLifecycle(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
-      _saveDraft(showToast: true);
+      _draftDebounce?.cancel();
+      _saveDraft();
     }
+  }
+
+  /// A posted review must not survive as a draft: stop pending saves, let
+  /// any save already running finish, then clear, and only then close.
+  Future<void> _finishSubmitted() async {
+    _submitted = true;
+    _draftDebounce?.cancel();
+    try {
+      await _saveInFlight;
+    } catch (_) {
+      // The clear below is what matters.
+    }
+    await _draftStore.clear(widget.cafeId);
+    if (!mounted) return;
+    showPrimaryToast(context, 'Review posted');
+    Navigator.of(context).pop();
   }
 
   Future<File> _compressImage(File file) async {
@@ -151,8 +255,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
   }
 
   Future<void> _pickPhoto() async {
-    final nextIndex = _photos.indexWhere((f) => f == null);
-    if (nextIndex == -1) return;
+    if (_photos.length >= _maxPhotos) return;
 
     final XFile? picked = await _imagePicker.pickImage(
       source: ImageSource.gallery,
@@ -160,53 +263,33 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     if (picked == null) return;
 
     final file = await _compressImage(File(picked.path));
-
+    if (!mounted || _photos.length >= _maxPhotos) return;
     setState(() {
-      _photos[nextIndex] = file;
+      _photos.add(file);
+      _submitError = null;
     });
   }
 
-  Widget _buildPhotosRow(bool isSubmitting) {
-    final filled = _photos.whereType<File>().toList();
-    final showAddButton = filled.length < 3;
-
-    final items = <Widget>[
-      for (int i = 0; i < filled.length; i++) ...[
-        if (i > 0) const SizedBox(width: 10),
-        Expanded(
-          child: _PhotoThumbnail(
-            file: filled[i],
-            onRemove: isSubmitting
-                ? null
-                : () {
-                    setState(() {
-                      final indexToRemove = _photos.indexOf(filled[i]);
-                      if (indexToRemove != -1) {
-                        _photos[indexToRemove] = null;
-                      }
-                    });
-                  },
-          ),
-        ),
-      ],
-      if (showAddButton) ...[
-        if (filled.isNotEmpty) const SizedBox(width: 10),
-        Expanded(
-          child: _AddPhotoButton(onTap: isSubmitting ? null : _pickPhoto),
-        ),
-      ],
-      // Fill remaining space with invisible expanded slots so items always
-      // take equal widths regardless of how many are shown.
-      for (int i = filled.length + (showAddButton ? 1 : 0); i < 3; i++) ...[
-        const SizedBox(width: 10),
-        const Expanded(child: SizedBox.shrink()),
-      ],
-    ];
-
-    return Row(children: items);
+  void _setRating(int rating) {
+    setState(() {
+      _rating = rating;
+      _composing = true;
+      _submitError = null;
+    });
+    _scheduleDraftSave();
   }
 
-  String _ratingLabel(int rating) {
+  void _onTextChanged(String _) {
+    if (_submitError != null || _textError != null) {
+      setState(() {
+        _submitError = null;
+        _textError = null;
+      });
+    }
+    _scheduleDraftSave();
+  }
+
+  static String _ratingLabel(int rating) {
     switch (rating) {
       case 1:
         return 'Terrible';
@@ -223,47 +306,32 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     }
   }
 
-  Future<void> _submitReview(BuildContext context) async {
+  Future<void> _submitReview() async {
     FocusManager.instance.primaryFocus?.unfocus();
-
-    if (_selectedRating == 0) {
-      showPrimaryToast(context, 'Please select a rating before submitting.');
-      return;
-    }
+    if (_rating == 0) return;
 
     if (ContentFilter.containsObjectionable(_reviewController.text)) {
-      showPrimaryToast(context, ContentFilter.rejectionMessage);
+      setState(() => _textError = ContentFilter.rejectionMessage);
       return;
     }
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        context.push('/login');
-      }
+      Navigator.of(context).pop();
+      context.push('/login');
       return;
     }
 
-    final reviewsBloc = context.read<ReviewsBloc?>();
-    if (reviewsBloc != null) {
-      final reviewsState = reviewsBloc.state;
-      if (reviewsState is ReviewsLoaded) {
-        final hasAlreadyReviewed = reviewsState.reviews.any(
-          (review) => review.userId == user.id,
-        );
-
-        if (hasAlreadyReviewed) {
-          showPrimaryToast(
-            context,
-            'You already submitted a review for this cafe.',
-          );
-          return;
-        }
-      }
+    final reviewsState = widget.reviewsBloc?.state;
+    if (reviewsState is ReviewsLoaded &&
+        reviewsState.reviews.any((review) => review.userId == user.id)) {
+      setState(
+        () => _submitError = 'You already submitted a review for this cafe.',
+      );
+      return;
     }
 
-    final selectedPhotos = _photos.whereType<File>().toList(growable: false);
+    setState(() => _submitError = null);
     final submitBloc = context.read<ReviewSubmitBloc>();
 
     String? accessToken =
@@ -281,9 +349,9 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       SubmitReviewRequested(
         cafeId: widget.cafeId,
         userId: user.id,
-        rating: _selectedRating,
+        rating: _rating,
         content: _reviewController.text,
-        photos: selectedPhotos,
+        photos: List<File>.unmodifiable(_photos),
         accessToken: accessToken,
       ),
     );
@@ -294,13 +362,10 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     return BlocConsumer<ReviewSubmitBloc, ReviewSubmitState>(
       listener: (context, state) {
         if (state is ReviewSubmitSuccess) {
-          unawaited(_draftStore.clear(widget.cafeId));
-          Navigator.of(context).pop();
-          showPrimaryToast(context, 'Review submitted successfully.');
+          unawaited(_finishSubmitted());
         }
-
         if (state is ReviewSubmitError) {
-          showPrimaryToast(context, state.message);
+          setState(() => _submitError = state.message);
         }
       },
       builder: (context, state) {
@@ -310,184 +375,452 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
           canPop: true,
           onPopInvokedWithResult: (didPop, _) {
             if (!didPop) return;
+            _draftDebounce?.cancel();
             unawaited(_saveDraft());
           },
-          child: SingleChildScrollView(
-            padding: EdgeInsets.only(
-              left: 24,
-              right: 24,
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: AdaptiveTap(
-                    onTap: () => Navigator.of(context).maybePop(),
-                    child: const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Icon(Icons.close, color: Colors.black, size: 24),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  'How was your visit?',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    final bool isFilled = index < _selectedRating;
-                    return AdaptiveTap(
-                      onTap: isSubmitting
-                          ? null
-                          : () {
-                              setState(() {
-                                _selectedRating = index + 1;
-                              });
-                            },
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Icon(
-                          Icons.star_rounded,
-                          size: 48,
-                          color: isFilled
-                              ? const Color(0xFF344E41)
-                              : const Color(0xFFCCCCCC),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 22,
-                  child: Center(
-                    child: _selectedRating == 0
-                        ? const SizedBox.shrink()
-                        : Text(
-                            _ratingLabel(_selectedRating),
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.black,
-                                ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Share your experience...',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _reviewController,
-                  maxLines: 6,
-                  minLines: 6,
-                  enabled: !isSubmitting,
-                  decoration: InputDecoration(
-                    hintText:
-                        'Tell us about the atmosphere, the coffee, and the service...',
-                    hintStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFFBDBDBD),
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF2F2F2),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Add photos (Max 3)',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      'Optional',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF9E9E9E),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildPhotosRow(isSubmitting),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  child: AdaptiveElevatedButton(
-                    onPressed: isSubmitting
-                        ? null
-                        : () => _submitReview(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF344E41),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                    ),
-                    child: isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Submit Review',
-                                style: Theme.of(context).textTheme.bodyLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                              ),
-                              const SizedBox(width: 8),
-                              const Icon(
-                                Icons.arrow_forward,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-              ],
+          child: ReviewSheetShell(
+            title: _composing ? 'Your review' : null,
+            onClose: () => Navigator.of(context).maybePop(),
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              alignment: Alignment.topCenter,
+              child: _composing
+                  ? _compose(context, isSubmitting)
+                  : _rate(context),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _rate(BuildContext context) {
+    final name = widget.cafeName;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CafeThumb(imageUrl: widget.cafeImageUrl, size: 64),
+          if (name != null && name.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              name,
+              style: context.textTheme.bodySmall?.copyWith(
+                color: ReviewTokens.muted,
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'How was your visit?',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: ReviewTokens.ink,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _StarInput(rating: _rating, size: 36, onChanged: _setRating),
+          const SizedBox(height: 4),
+          Text(
+            'Tap a star to rate',
+            style: context.textTheme.bodySmall?.copyWith(
+              color: ReviewTokens.muted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _compose(BuildContext context, bool isSubmitting) {
+    final name = widget.cafeName;
+    final username = _username;
+    final submitError = _submitError;
+    final textError = _textError;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            _CafeThumb(imageUrl: widget.cafeImageUrl, size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (name != null && name.isNotEmpty)
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.textTheme.bodyMediumMed.copyWith(
+                        color: ReviewTokens.ink,
+                        fontSize: 14,
+                      ),
+                    ),
+                  Text(
+                    username == null
+                        ? 'Posting publicly'
+                        : 'Posting publicly as $username',
+                    style: context.textTheme.bodySmall?.copyWith(
+                      color: ReviewTokens.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (submitError != null) ...[
+          const SizedBox(height: 14),
+          _Banner(
+            color: ReviewTokens.danger.withValues(alpha: 0.08),
+            child: Text(
+              submitError,
+              style: context.textTheme.bodySmall?.copyWith(
+                color: ReviewTokens.danger,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ] else if (_draftNote == _DraftNote.recovered) ...[
+          const SizedBox(height: 14),
+          _Banner(
+            color: ReviewTokens.tint,
+            action: isSubmitting ? null : _startOver,
+            actionLabel: 'Start over',
+            child: Text(
+              draftRecoveredLabel(_recoveredAt),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: ReviewTokens.ink,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+        // The stars are 44pt targets around 30pt glyphs, which supplies the
+        // rest of the 14 gap above and below.
+        const SizedBox(height: 7),
+        Row(
+          children: [
+            _StarInput(
+              rating: _rating,
+              size: 30,
+              onChanged: isSubmitting ? null : _setRating,
+            ),
+            if (_rating != 0) ...[
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _ratingLabel(_rating),
+                  style: context.textTheme.bodyMediumMed.copyWith(
+                    color: ReviewTokens.brand,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (_rating == 0) ...[
+          Text(
+            'Pick a star rating to post your review',
+            style: context.textTheme.bodySmall?.copyWith(
+              color: ReviewTokens.danger,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 14),
+        ] else
+          const SizedBox(height: 7),
+        TextField(
+          controller: _reviewController,
+          maxLines: 6,
+          minLines: 6,
+          enabled: !isSubmitting,
+          onChanged: _onTextChanged,
+          textCapitalization: TextCapitalization.sentences,
+          cursorColor: ReviewTokens.brand,
+          style: context.textTheme.bodyMedium?.copyWith(
+            color: ReviewTokens.ink,
+            fontSize: 14,
+            height: 1.45,
+          ),
+          decoration: InputDecoration(
+            hintText:
+                'Tell us about the atmosphere, the coffee, and the service...',
+            hintStyle: context.textTheme.bodyMedium?.copyWith(
+              color: ReviewTokens.muted,
+              fontSize: 14,
+            ),
+            filled: true,
+            fillColor: ReviewTokens.surface,
+            contentPadding: const EdgeInsets.all(14),
+            enabledBorder: _fieldBorder(
+              textError == null ? ReviewTokens.border : ReviewTokens.danger,
+              textError == null ? 1 : 1.5,
+            ),
+            disabledBorder: _fieldBorder(ReviewTokens.border, 1),
+            focusedBorder: _fieldBorder(
+              textError == null ? ReviewTokens.ink : ReviewTokens.danger,
+              1.5,
+            ),
+          ),
+        ),
+        if (textError != null) ...[
+          const SizedBox(height: 6),
+          _InlineError(message: textError),
+        ],
+        if (_draftNote == _DraftNote.saved) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.check, size: 14, color: ReviewTokens.muted),
+              const SizedBox(width: 6),
+              Text(
+                'Draft saved',
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: ReviewTokens.muted,
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Text(
+              'Photos',
+              style: context.textTheme.bodyMediumMed.copyWith(
+                color: ReviewTokens.ink,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              photoCountLabel(_photos.length, _maxPhotos),
+              style: context.textTheme.bodySmall?.copyWith(
+                color: ReviewTokens.muted,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            for (final photo in _photos) ...[
+              _PhotoThumbnail(
+                file: photo,
+                onRemove: isSubmitting
+                    ? null
+                    : () => setState(() {
+                        _photos.remove(photo);
+                        _submitError = null;
+                      }),
+              ),
+              const SizedBox(width: 10),
+            ],
+            if (_photos.length < _maxPhotos)
+              _AddPhotoButton(onTap: isSubmitting ? null : _pickPhoto),
+          ],
+        ),
+        const SizedBox(height: 14),
+        ReviewPrimaryButton(
+          label: submitError == null ? 'Submit review' : 'Try again',
+          busy: isSubmitting,
+          busyLabel: 'Posting…',
+          onTap: _rating == 0 ? null : _submitReview,
+        ),
+      ],
+    );
+  }
+
+  static OutlineInputBorder _fieldBorder(Color color, double width) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: color, width: width),
+      );
+}
+
+/// A tinted line under the cafe row: the submit error, or the recovered
+/// draft with its "Start over".
+class _Banner extends StatelessWidget {
+  const _Banner({
+    required this.color,
+    required this.child,
+    this.action,
+    this.actionLabel,
+  });
+
+  final Color color;
+  final Widget child;
+  final VoidCallback? action;
+  final String? actionLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = actionLabel;
+    return Container(
+      padding: EdgeInsets.fromLTRB(12, 0, label == null ? 12 : 2, 0),
+      constraints: const BoxConstraints(minHeight: 42),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: child,
+            ),
+          ),
+          if (label != null)
+            AdaptiveTap(
+              onTap: action,
+              borderRadius: BorderRadius.circular(12),
+              child: Semantics(
+                button: true,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 42),
+                  child: Center(
+                    widthFactor: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        label,
+                        style: context.textTheme.bodySmall?.copyWith(
+                          color: ReviewTokens.brand,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineError extends StatelessWidget {
+  const _InlineError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 1),
+          child: Icon(
+            Icons.error_outline,
+            size: 14,
+            color: ReviewTokens.danger,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            message,
+            style: context.textTheme.bodySmall?.copyWith(
+              color: ReviewTokens.danger,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Five tappable stars. Each is a 44pt target regardless of [size].
+class _StarInput extends StatelessWidget {
+  const _StarInput({
+    required this.rating,
+    required this.size,
+    required this.onChanged,
+  });
+
+  final int rating;
+  final double size;
+  final ValueChanged<int>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final change = onChanged;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var star = 1; star <= 5; star++)
+          AdaptiveTap(
+            onTap: change == null ? null : () => change(star),
+            borderRadius: BorderRadius.circular(22),
+            child: Semantics(
+              button: true,
+              selected: star <= rating,
+              label: star == 1 ? '1 star' : '$star stars',
+              excludeSemantics: true,
+              child: SizedBox(
+                width: size + 8,
+                height: 44,
+                child: Icon(
+                  star <= rating ? Icons.star : Icons.star_border,
+                  size: size,
+                  color: star <= rating
+                      ? ReviewTokens.star
+                      : const Color(0xFFC4C4C4),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _CafeThumb extends StatelessWidget {
+  const _CafeThumb({required this.imageUrl, required this.size});
+
+  final String? imageUrl;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      color: const Color(0xFFDAD7CD),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.local_cafe_outlined,
+        size: size * 0.45,
+        color: ReviewTokens.brand,
+      ),
+    );
+    final url = imageUrl?.trim() ?? '';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox.square(
+        dimension: size,
+        child: url.isEmpty
+            ? fallback
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+              ),
+      ),
     );
   }
 }
@@ -500,8 +833,8 @@ class _PhotoThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 100,
+    return SizedBox.square(
+      dimension: 80,
       child: Stack(
         children: [
           Positioned.fill(
@@ -511,18 +844,30 @@ class _PhotoThumbnail extends StatelessWidget {
             ),
           ),
           Positioned(
-            top: 6,
-            right: 6,
+            top: 0,
+            right: 0,
             child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: onRemove,
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
+              child: Semantics(
+                button: true,
+                label: 'Remove photo',
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                  ),
                 ),
-                child: const Icon(Icons.close, color: Colors.white, size: 14),
               ),
             ),
           ),
@@ -541,27 +886,29 @@ class _AddPhotoButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return AdaptiveTap(
       onTap: onTap,
-      child: SizedBox(
-        // iOS wraps taps in a CupertinoButton whose Align gives the child loose
-        // width constraints, so an unconstrained-width child shrink-wraps to its
-        // contents. Pin the width to fill the Expanded slot on both platforms.
-        width: double.infinity,
-        height: 100,
-        child: CustomPaint(
-          painter: const _DashedBorderPainter(),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.add, size: 22, color: Color(0xFF9E9E9E)),
-              const SizedBox(height: 6),
-              Text(
-                'Add photo',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w400,
-                  color: const Color(0xFF9E9E9E),
+      borderRadius: BorderRadius.circular(12),
+      child: Semantics(
+        button: true,
+        label: 'Add photo',
+        excludeSemantics: true,
+        child: SizedBox.square(
+          dimension: 80,
+          child: CustomPaint(
+            painter: const _DashedBorderPainter(),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.add, size: 18, color: ReviewTokens.mutedIcon),
+                const SizedBox(height: 2),
+                Text(
+                  'Add',
+                  style: context.textTheme.bodySmall?.copyWith(
+                    color: ReviewTokens.muted,
+                    fontSize: 10,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -574,9 +921,9 @@ class _DashedBorderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const color = Color(0xFFBDBDBD);
+    const color = Color(0xFFC4C4C4);
     const strokeWidth = 1.5;
-    const dashWidth = 6.0;
+    const dashWidth = 4.0;
     const dashSpace = 4.0;
     const radius = 12.0;
 

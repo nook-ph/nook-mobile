@@ -392,7 +392,7 @@ class _BucketStep extends StatelessWidget {
         // hesitate on a screen that is otherwise entirely optional.
         if (!_isRerank)
           Text(
-            'Already saved to Been — this just ranks it.',
+            'Already saved to Been. This just ranks it.',
             textAlign: TextAlign.center,
             style: context.textTheme.bodySmall?.copyWith(
               color: const Color(0xFF767574),

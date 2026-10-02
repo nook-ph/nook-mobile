@@ -5,10 +5,19 @@ class HeroImageSlider extends StatefulWidget {
     super.key,
     required this.images,
     required this.isLoading,
+    this.bottomInset = 0,
+    this.onImageTap,
   });
+
+  /// Opens the full-screen viewer at the tapped photo.
+  final void Function(int index)? onImageTap;
 
   final List<String> images;
   final bool isLoading;
+
+  /// How much of the photo's bottom edge the sheet covers; the counter is
+  /// lifted by this much so it stays visible above the sheet's lip.
+  final double bottomInset;
 
   @override
   State<HeroImageSlider> createState() => _HeroImageSliderState();
@@ -38,7 +47,7 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
       return Container(
         height: _height,
         width: double.infinity,
-        color: Colors.grey[300],
+        color: const Color(0xFFDCDCDC),
       );
     }
 
@@ -62,11 +71,11 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
                 });
               },
               itemBuilder: (context, index) {
-                return Image.network(
+                final image = Image.network(
                   displayImages[index],
                   fit: BoxFit.cover,
                   width: double.infinity,
-                  errorBuilder: (_, __, ___) {
+                  errorBuilder: (_, _, _) {
                     return Container(
                       color: Colors.grey[300],
                       alignment: Alignment.center,
@@ -77,6 +86,19 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
                     );
                   },
                 );
+                final onTap = widget.onImageTap;
+                if (onTap == null) return image;
+                return Semantics(
+                  button: true,
+                  label:
+                      'Photo ${index + 1} of ${displayImages.length}. '
+                      'Opens full screen.',
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onTap(index),
+                    child: image,
+                  ),
+                );
               },
             )
           else
@@ -85,27 +107,44 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
               width: double.infinity,
               color: Colors.grey[300],
               alignment: Alignment.center,
-              child: const Icon(Icons.image_outlined, color: Color(0xFF9E9E9E)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.image_outlined, color: Color(0xFF9E9E9E)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'No photos yet',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF767574),
+                    ),
+                  ),
+                ],
+              ),
             ),
 
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${_currentIndex + 1}/$total',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+          // No counter without photos: "1 / 1" over a placeholder says nothing.
+          if (hasImages)
+            Positioned(
+              bottom: 16 + widget.bottomInset,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.55),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${_currentIndex + 1} / $total',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

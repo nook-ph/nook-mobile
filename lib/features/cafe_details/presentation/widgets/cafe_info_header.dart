@@ -1,274 +1,164 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:nook/core/location/device_location.dart';
-import 'package:nook/core/presentation/widgets/cafe_distance_label.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-class CafeInfoHeader extends StatefulWidget {
-  final CafeDetailsResult? cafe;
+/// The top of the details sheet: name, area, and one status line carrying
+/// the three facts that decide a visit: rating, open or closed, distance.
+class CafeInfoHeader extends StatelessWidget {
   const CafeInfoHeader({super.key, required this.cafe});
 
-  @override
-  State<CafeInfoHeader> createState() => _CafeInfoHeaderState();
-}
+  final CafeDetailsResult cafe;
 
-class _CafeInfoHeaderState extends State<CafeInfoHeader> {
-  String? _distanceText;
-
-  static const List<String> _orderedDays = [
-    'sunday',
-    'monday',
-    'tuesday',
-    'wednesday',
-    'thursday',
-    'friday',
-    'saturday',
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchDistance();
-  }
-
-  @override
-  void didUpdateWidget(covariant CafeInfoHeader oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.cafe?.cafeDetails.id != widget.cafe?.cafeDetails.id) {
-      _fetchDistance();
-    }
-  }
-
-  /// Shares [DeviceLocation] with every card in the app rather than resolving
-  /// its own fix — this used `getLastKnownPosition` while cards showed a
-  /// server distance measured from the map centre, so the same cafe reported
-  /// two different numbers. The formatter also drops absurd readings.
-  Future<void> _fetchDistance() async {
-    final cafe = widget.cafe?.cafeDetails;
-    if (cafe == null) return;
-    final position = await DeviceLocation.instance.ensure();
-    if (position == null || !mounted) return;
-    final text = formatDistanceMeters(
-      Geolocator.distanceBetween(
-        position.latitude,
-        position.longitude,
-        cafe.lat,
-        cafe.lng,
-      ),
-    );
-    if (mounted) setState(() => _distanceText = text);
-  }
-
-  String _formatDisplayTime(TimeOfDay time) {
-    final hour24 = time.hour;
-    final minuteText = time.minute.toString().padLeft(2, '0');
-    final period = hour24 >= 12 ? 'PM' : 'AM';
-    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
-    return '$hour12:$minuteText $period';
-  }
-
-  TimeOfDay? _parseTime(String? value) {
-    if (value == null || value.isEmpty) return null;
-    final parts = value.split(':');
-    if (parts.length < 2) return null;
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return null;
-    return TimeOfDay(hour: hour, minute: minute);
-  }
-
-  int _toMinutes(TimeOfDay time) => (time.hour * 60) + time.minute;
-
-  String _locationText(CafeDetailsResult? cafe) {
-    final details = cafe?.cafeDetails;
-    if (details == null) return '';
-    final parts = [details.neighborhood, details.city]
-        .where((value) => value.trim().isNotEmpty)
-        .map((value) => value.trim())
-        .toList();
-    return parts.join(', ');
-  }
-
-  ({bool isOpen, TimeOfDay? closeTime, TimeOfDay? openTime}) _buildStatus(
-    Map<String, dynamic> operatingHours,
-  ) {
-    final now = DateTime.now();
-    final nowMinutes = (now.hour * 60) + now.minute;
-    final dayKey = now.weekday == DateTime.sunday
-        ? 'sunday'
-        : _orderedDays[now.weekday];
-    final dayHoursRaw = operatingHours[dayKey];
-    final dayHours = dayHoursRaw is Map
-        ? Map<String, dynamic>.from(dayHoursRaw)
-        : <String, dynamic>{};
-    final openTime = _parseTime(dayHours['open']?.toString());
-    final closeTime = _parseTime(dayHours['close']?.toString());
-    if (openTime == null || closeTime == null) {
-      return (isOpen: false, closeTime: null, openTime: null);
-    }
-    final openMinutes = _toMinutes(openTime);
-    final closeMinutes = _toMinutes(closeTime);
-    final isOvernight = closeMinutes <= openMinutes;
-    final isOpen = isOvernight
-        ? (nowMinutes >= openMinutes || nowMinutes < closeMinutes)
-        : (nowMinutes >= openMinutes && nowMinutes < closeMinutes);
-    return (isOpen: isOpen, closeTime: closeTime, openTime: openTime);
-  }
+  static String locationText(String neighborhood, String city) => [
+    neighborhood,
+    city,
+  ].map((v) => v.trim()).where((v) => v.isNotEmpty).join(', ');
 
   @override
   Widget build(BuildContext context) {
-    final operatingHours = widget.cafe?.cafeDetails.operatingHours ?? {};
-    final locationText = _locationText(widget.cafe);
-    final status = _buildStatus(operatingHours);
-    final dotColor = status.isOpen
-        ? const Color(0xFF0F893E)
-        : const Color(0xFFD11A17);
-    final statusColor = status.isOpen
-        ? const Color(0xFF344E41)
-        : const Color(0xFFDD5C5C);
-    final statusText = status.isOpen ? 'OPEN NOW' : 'CLOSED';
-    final statusDetail = status.isOpen
-        ? (status.closeTime != null
-              ? 'Closes at ${_formatDisplayTime(status.closeTime!)}'
-              : null)
-        : (status.openTime != null
-              ? 'Opens at ${_formatDisplayTime(status.openTime!)}'
-              : null);
+    final details = cafe.cafeDetails;
+    final textTheme = Theme.of(context).textTheme;
+    final location = locationText(details.neighborhood, details.city);
+    final status = CafeOpenStatus.resolve(
+      details.operatingHours,
+      DateTime.now(),
+    );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
+      padding: const EdgeInsets.symmetric(horizontal: CafeDetailsTokens.gutter),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Makes the column as wide as the page so its lines centre on it.
+          const SizedBox(width: double.infinity),
           Text(
-            widget.cafe?.cafeDetails.name ?? 'Cafe Name',
-            style: Theme.of(context).textTheme.titleLargeSemi,
+            details.name,
+            textAlign: TextAlign.center,
+            style: textTheme.titleLargeSemi.copyWith(
+              fontWeight: FontWeight.w600,
+              color: CafeDetailsTokens.ink,
+            ),
           ),
-          const SizedBox(height: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // A catalog this young means most cafes have no reviews, and
-              // "0.0" beside five empty stars reads as a bad cafe rather than
-              // a new one — while competing with the user's own score for the
-              // same glance. Nothing to average, nothing to show.
-              if ((widget.cafe?.cafeDetails.reviewCount ?? 0) == 0)
-                Text(
-                  'No reviews yet',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF767574),
-                  ),
-                )
-              else
-                Row(
-                  children: [
-                    Text(
-                      (widget.cafe?.cafeDetails.rating ?? 0).toStringAsFixed(1),
-                      style: Theme.of(context).textTheme.bodyLargeMed,
-                    ),
-                    const SizedBox(width: 4),
-                    RatingBarIndicator(
-                      rating: (widget.cafe?.cafeDetails.rating ?? 0).toDouble(),
-                      itemBuilder: (context, index) => Icon(
-                        PhosphorIconsFill.star,
-                        color: Theme.of(context).colorScheme.primary60,
-                        size: 14,
-                      ),
-                      itemCount: 5,
-                      itemSize: 16,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '(${widget.cafe?.cafeDetails.reviewCount} reviews)',
-                      style: Theme.of(context).textTheme.bodyLarge!.copyWith(
-                        color: Theme.of(context).colorScheme.gray,
-                      ),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 4),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  if (_distanceText != null) ...[
-                    Text(
-                      _distanceText!,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF868584),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF868584),
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Flexible(
-                    child: Text(
-                      locationText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF868584),
-                      ),
-                    ),
-                  ),
-                ],
+          if (location.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              location,
+              textAlign: TextAlign.center,
+              style: textTheme.bodyLarge?.copyWith(
+                color: CafeDetailsTokens.muted,
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: dotColor,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    statusText,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: statusColor,
-                    ),
-                  ),
-                  if (statusDetail != null) ...[
-                    const SizedBox(width: 8),
-                    Text(
-                      '|',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF868584),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      statusDetail,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w400,
-                        color: const Color(0xFF868584),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          CafeDistanceBuilder(
+            lat: details.lat,
+            lng: details.lng,
+            builder: (context, distance) => _StatusLine(
+              rating: details.rating,
+              reviewCount: details.reviewCount,
+              status: status,
+              distance: distance,
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StatusLine extends StatelessWidget {
+  const _StatusLine({
+    required this.rating,
+    required this.reviewCount,
+    required this.status,
+    required this.distance,
+  });
+
+  final double rating;
+  final int reviewCount;
+  final CafeOpenStatus status;
+  final String? distance;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final regular = textTheme.bodyLarge?.copyWith(
+      color: CafeDetailsTokens.muted,
+    );
+    final strong = textTheme.bodyLargeMed.copyWith(
+      fontWeight: FontWeight.w600,
+      color: CafeDetailsTokens.ink,
+    );
+    final detail = status.shortDetail;
+
+    final parts = <Widget>[
+      // A catalog this young means most cafes have no reviews, and "0.0"
+      // beside a star reads as a bad cafe rather than a new one.
+      if (reviewCount == 0)
+        Text(
+          'No reviews yet',
+          style: strong.copyWith(color: CafeDetailsTokens.muted),
+        )
+      else
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              PhosphorIconsFill.star,
+              size: 14,
+              color: CafeDetailsTokens.star,
+            ),
+            const SizedBox(width: 5),
+            Text(rating.toStringAsFixed(1), style: strong),
+            const SizedBox(width: 5),
+            Text('($reviewCount)', style: regular),
+          ],
+        ),
+      // A listing with no hours at all makes no open-or-closed claim.
+      if (status.hasAnyHours)
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: CafeDetailsTokens.statusDot(status),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              status.label,
+              style: strong.copyWith(
+                color: CafeDetailsTokens.statusLabel(status),
+              ),
+            ),
+            if (detail != null) ...[
+              const SizedBox(width: 5),
+              Text(detail, style: regular),
+            ],
+          ],
+        ),
+      if (distance != null)
+        Text(distance!, style: regular?.copyWith(color: CafeDetailsTokens.ink)),
+    ];
+
+    // A Wrap, so a long line breaks between facts at large text sizes
+    // instead of clipping one of them.
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        for (var i = 0; i < parts.length; i++) ...[
+          if (i > 0) Text('·', style: regular),
+          parts[i],
+        ],
+      ],
     );
   }
 }
