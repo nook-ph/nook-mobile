@@ -7,9 +7,46 @@ import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:nook/features/cafe_details/data/models/cafe_details_model.dart';
 
 /// Nothing here reaches the network: every test works on the store alone.
 class _UnusedRemote implements CafeRemoteDataSource {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+/// Accepts review writes, or throws when [fail] is set.
+class _ReviewRemote implements CafeRemoteDataSource {
+  _ReviewRemote({this.fail = false});
+
+  final bool fail;
+
+  @override
+  Future<ReviewModel> insertReview({
+    required String cafeId,
+    required String userId,
+    required int rating,
+    required String content,
+    List<String> imageUrls = const [],
+  }) async {
+    if (fail) throw Exception('offline');
+    return ReviewModel(
+      id: 'r1',
+      cafeId: cafeId,
+      userId: userId,
+      rating: rating,
+      content: content,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+  }
+
+  @override
+  Future<void> deleteReview(String reviewId) async {
+    if (fail) throw Exception('offline');
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
@@ -152,6 +189,57 @@ void main() {
       expect(details.createdAt.millisecondsSinceEpoch, 0);
       expect(details.tags.map((tag) => tag.name), ['Quiet']);
       expect(details.rating, 4.6);
+    });
+  });
+
+  group('reviews bust the cache', () {
+    CafeBundle full() => CafeBundle(
+      details: _details(createdAt: DateTime(2025)),
+      menu: const [],
+      reviews: const [],
+    );
+
+    test('posting a review drops that cafe\'s bundle', () async {
+      final store = CafeStore()
+        ..set('cafe-1', full())
+        ..set('cafe-2', full());
+      final repository = CafeRepositoryImpl(_ReviewRemote(), store);
+
+      await repository.addCafeReview(
+        cafeId: 'cafe-1',
+        userId: 'u1',
+        rating: 5,
+        content: 'Lovely',
+      );
+
+      expect(store.get('cafe-1'), isNull);
+      expect(store.get('cafe-2'), isNotNull);
+    });
+
+    test('a failed post leaves the cache alone', () async {
+      final store = CafeStore()..set('cafe-1', full());
+      final repository = CafeRepositoryImpl(_ReviewRemote(fail: true), store);
+
+      await expectLater(
+        repository.addCafeReview(
+          cafeId: 'cafe-1',
+          userId: 'u1',
+          rating: 5,
+          content: 'Lovely',
+        ),
+        throwsException,
+      );
+
+      expect(store.get('cafe-1'), isNotNull);
+    });
+
+    test('deleting a review drops the cached cafes', () async {
+      final store = CafeStore()..set('cafe-1', full());
+      final repository = CafeRepositoryImpl(_ReviewRemote(), store);
+
+      await repository.deleteReview('r1');
+
+      expect(store.get('cafe-1'), isNull);
     });
   });
 

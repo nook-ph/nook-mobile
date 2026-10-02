@@ -273,6 +273,8 @@ class CafeRepositoryImpl implements ICafeRepository {
       content: content,
       imageUrls: imageUrls,
     );
+    // The cafe's rating and count just changed on the server.
+    store.bust(cafeId);
 
     return Review(
       id: inserted.id,
@@ -288,8 +290,11 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
-  Future<void> deleteReview(String reviewId) {
-    return remoteDataSource.deleteReview(reviewId);
+  Future<void> deleteReview(String reviewId) async {
+    await remoteDataSource.deleteReview(reviewId);
+    // Only the review id is known here, so every cached cafe is dropped
+    // rather than leaving one with a stale rating and count.
+    store.bustAll();
   }
 
   @override
