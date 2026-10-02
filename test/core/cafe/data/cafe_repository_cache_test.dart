@@ -98,28 +98,31 @@ void main() {
       repository = CafeRepositoryImpl(_UnusedRemote(), store);
     });
 
-    test('keeps a full bundle\'s tags and refreshes its summary fields', () async {
-      const amenity = Tag(id: 't1', name: 'Wifi', category: 'amenities');
-      const payment = Tag(id: 't2', name: 'GCash', category: 'payments');
-      store.set(
-        'cafe-1',
-        CafeBundle(
-          details: _details(
-            createdAt: DateTime(2025),
-            tags: const [amenity, payment],
+    test(
+      'keeps a full bundle\'s tags and refreshes its summary fields',
+      () async {
+        const amenity = Tag(id: 't1', name: 'Wifi', category: 'amenities');
+        const payment = Tag(id: 't2', name: 'GCash', category: 'payments');
+        store.set(
+          'cafe-1',
+          CafeBundle(
+            details: _details(
+              createdAt: DateTime(2025),
+              tags: const [amenity, payment],
+            ),
+            menu: const [],
+            reviews: const [],
           ),
-          menu: const [],
-          reviews: const [],
-        ),
-      );
+        );
 
-      await repository.warmCache(const [_summary]);
+        await repository.warmCache(const [_summary]);
 
-      final details = store.get('cafe-1')!.details;
-      expect(details.tags, const [amenity, payment]);
-      expect(details.rating, 4.6);
-      expect(details.reviewCount, 12);
-    });
+        final details = store.get('cafe-1')!.details;
+        expect(details.tags, const [amenity, payment]);
+        expect(details.rating, 4.6);
+        expect(details.reviewCount, 12);
+      },
+    );
 
     test('does not renew a full bundle\'s TTL', () async {
       store.set(
