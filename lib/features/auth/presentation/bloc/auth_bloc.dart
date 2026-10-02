@@ -405,6 +405,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthDeleteAccountEvent event,
     Emitter<AuthState> emit,
   ) async {
+    final previous = state;
     try {
       emit(AuthLoading());
       await _deleteAccountUseCase(password: event.password);
@@ -429,19 +430,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           e.code == 'invalid_grant' ||
           e.message.toLowerCase().contains('invalid login credentials') ||
           e.message.toLowerCase().contains('invalid password');
-      emit(
-        AuthError(
-          isInvalidPassword ? 'Incorrect password. Please try again.' : mapped,
-        ),
+      _emitErrorKeepingSession(
+        emit,
+        previous,
+        isInvalidPassword ? 'Incorrect password. Please try again.' : mapped,
       );
     } on PostgrestException catch (e) {
-      emit(AuthError(_mapDatabaseError(e)));
+      _emitErrorKeepingSession(emit, previous, _mapDatabaseError(e));
     } on FunctionException catch (e) {
       debugPrint('AuthBloc: delete-user function error status=${e.status}');
-      emit(const AuthError('Account deletion failed. Please try again later.'));
+      _emitErrorKeepingSession(
+        emit,
+        previous,
+        'Account deletion failed. Please try again later.',
+      );
     } catch (e) {
       debugPrint('AuthBloc: delete account error: $e');
-      emit(const AuthError('Account deletion failed. Please try again later.'));
+      _emitErrorKeepingSession(
+        emit,
+        previous,
+        'Account deletion failed. Please try again later.',
+      );
     }
   }
 
@@ -449,6 +458,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthUsernameSetEvent event,
     Emitter<AuthState> emit,
   ) async {
+    final previous = state;
     emit(AuthLoading());
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -466,14 +476,27 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } on PostgrestException catch (e) {
       final msg = e.message.toLowerCase();
       if (msg.contains('invalid username format')) {
-        emit(const AuthError('Invalid username format.'));
+        _emitErrorKeepingSession(emit, previous, 'Invalid username format.');
       } else if (msg.contains('already taken')) {
-        emit(const AuthError('That username is already taken.'));
+        _emitErrorKeepingSession(
+          emit,
+          previous,
+          'That username is already taken.',
+        );
       } else {
-        emit(AuthError(_mapDatabaseError(e)));
+        debugPrint('AuthBloc: set_username error: ${e.message}');
+        _emitErrorKeepingSession(
+          emit,
+          previous,
+          'Failed to save username. Try again.',
+        );
       }
     } catch (_) {
-      emit(const AuthError('Failed to save username. Try again.'));
+      _emitErrorKeepingSession(
+        emit,
+        previous,
+        'Failed to save username. Try again.',
+      );
     }
   }
 
