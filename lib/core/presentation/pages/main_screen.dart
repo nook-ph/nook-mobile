@@ -7,7 +7,6 @@ import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/features/home_page/presentation/pages/home_page.dart';
 import 'package:nook/features/lists/presentation/pages/list_page.dart';
 import 'package:nook/features/map/presentation/pages/map_page.dart';
-import 'package:nook/features/profile/presentation/pages/profile_page.dart';
 import 'package:nook/features/profile/presentation/pages/profile_pagev2.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

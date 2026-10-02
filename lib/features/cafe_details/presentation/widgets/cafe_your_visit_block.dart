@@ -96,10 +96,9 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
         await _openNoteSheet();
       case RankingFlowOutcome.completedViewList:
         await openBeenList(context);
-      case RankingFlowOutcome.completed ||
-          RankingFlowOutcome.skipped ||
-          RankingFlowOutcome.failed ||
-          null:
+      case RankingFlowOutcome.failed:
+        showRankingFailedToast(context);
+      case RankingFlowOutcome.completed || RankingFlowOutcome.skipped || null:
         break;
     }
   }

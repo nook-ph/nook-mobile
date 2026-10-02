@@ -65,12 +65,12 @@ class AvatarUploadBloc extends Bloc<AvatarUploadEvent, AvatarUploadState> {
       return 'Please sign in to update your avatar.';
     }
     if (message.contains('upload') || message.contains('s3')) {
-      return 'Image upload failed. Please try again.';
+      return 'Could not upload your photo. Please try again.';
     }
     if (error is TimeoutException || message.contains('timed out')) {
       return 'Upload timed out. Please check your connection and try again.';
     }
 
-    return 'Unable to update your avatar right now. Please try again.';
+    return 'Could not upload your photo. Please try again.';
   }
 }

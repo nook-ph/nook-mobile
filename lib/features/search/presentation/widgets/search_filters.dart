@@ -85,15 +85,24 @@ class SearchFiltersRow extends StatelessWidget {
 }
 
 /// Bottom-sheet frame shared by the sort and filter sheets: 24pt corners,
-/// grabber, title with close.
+/// grabber, title with a 32pt close, [gap] between the blocks.
 class SearchSheetFrame extends StatelessWidget {
-  const SearchSheetFrame({super.key, required this.title, required this.child});
+  const SearchSheetFrame({
+    super.key,
+    required this.title,
+    required this.child,
+    this.gap = 18,
+  });
 
   final String title;
   final Widget child;
 
+  /// Between grabber, title and content: 4 in "Sort by", 18 in "Filters".
+  final double gap;
+
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
     return Container(
       decoration: const BoxDecoration(
         color: SearchTokens.surface,
@@ -101,9 +110,10 @@ class SearchSheetFrame extends StatelessWidget {
       ),
       padding: EdgeInsets.fromLTRB(
         20,
-        10,
+        8,
         20,
-        16 + MediaQuery.viewPaddingOf(context).bottom,
+        // 34 under the content, which is the home-indicator area.
+        bottomInset > 26 ? bottomInset + 8 : 34,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -119,7 +129,8 @@ class SearchSheetFrame extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          // The grabber's own 4 below it, then the gap.
+          SizedBox(height: 4 + gap),
           Row(
             children: [
               Expanded(
@@ -139,16 +150,19 @@ class SearchSheetFrame extends StatelessWidget {
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: () => Navigator.of(context).pop(),
-                  child: const Icon(
-                    LucideIcons.x,
-                    size: 20,
-                    color: SearchTokens.ink,
+                  child: const SizedBox.square(
+                    dimension: 32,
+                    child: Icon(
+                      LucideIcons.x,
+                      size: 22,
+                      color: SearchTokens.ink,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: gap),
           Flexible(child: child),
         ],
       ),
@@ -164,10 +178,12 @@ Future<String?> showSearchSortSheet(BuildContext context, String current) {
     barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) => SearchSheetFrame(
       title: 'Sort by',
+      gap: 4,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final (id, label) in kSearchSorts)
+          for (final (id, label) in kSearchSorts) ...[
+            if (id != kSearchSorts.first.$1) const SizedBox(height: 4),
             AdaptiveTap(
               onTap: () => Navigator.of(context).pop(id),
               child: Padding(
@@ -195,6 +211,7 @@ Future<String?> showSearchSortSheet(BuildContext context, String current) {
                 ),
               ),
             ),
+          ],
         ],
       ),
     ),
@@ -321,7 +338,7 @@ class _TagsSheetState extends State<_TagsSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     section('Best for', _allBestFor),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
                     section('Amenities', _allAmenities),
                   ],
                 ),

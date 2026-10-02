@@ -1,31 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
-import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/core/extensions/extensions.dart';
-import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
-import 'package:nook/core/widgets/error/section_empty_widget.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
-import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
-import 'package:nook/features/lists/presentation/widgets/create_list_dialog.dart';
-import 'package:nook/core/utils/toast_helper.dart';
-import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
 import 'package:nook/features/profile/presentation/pages/settings_page.dart';
-import 'package:nook/features/profile/presentation/widgets/review_card.dart';
+import 'package:nook/features/profile/presentation/profile_logic.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_lists_tab.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_review_sheets.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_reviews_tab.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/injection_container.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
+/// The Profile tab. Creates the profile's blocs and hands over to
+/// [ProfileView], which draws every state.
 class ProfileRedesignPage extends StatelessWidget {
   const ProfileRedesignPage({super.key});
 
@@ -42,6 +43,7 @@ class ProfileRedesignPage extends StatelessWidget {
           )..loadProfile(),
         ),
         BlocProvider(create: (_) => sl<AvatarUploadBloc>()),
+        BlocProvider.value(value: sl<ListsBloc>()),
       ],
       child: BlocListener<AuthBloc, AuthState>(
         listenWhen: (previous, current) =>
@@ -51,755 +53,253 @@ class ProfileRedesignPage extends StatelessWidget {
         listener: (context, state) {
           context.read<ProfileCubit>().clear();
         },
-        child: DefaultTabController(
-          length: 2,
-          child: Scaffold(
-            backgroundColor: Colors.white,
-            appBar: AppBar(
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
-              elevation: 0,
-              centerTitle: false,
-              title: BlocBuilder<ProfileCubit, ProfileState>(
-                builder: (context, state) {
-                  final username = state is ProfileLoaded
-                      ? state.username
-                      : '...';
-                  return Text(
-                    '@$username',
-                    style: context.textTheme.titleMediumSemi.copyWith(
-                      color: const Color(0xFF344E41),
-                    ),
-                  );
-                },
-              ),
-              actions: [
-                AdaptiveTap(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const SettingsPage()),
-                    );
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Icon(PhosphorIcons.gearSix(), color: Colors.black87),
-                  ),
-                ),
-              ],
-            ),
-            body: BlocBuilder<ProfileCubit, ProfileState>(
-              builder: (context, state) {
-                final isLoading =
-                    state is ProfileLoading || state is ProfileInitial;
-                final name = state is ProfileLoaded ? state.name : 'No Name';
-                final avatarUrl = state is ProfileLoaded ? state.avatarUrl : '';
-                final bio = state is ProfileLoaded ? state.bio : '';
-                final username = state is ProfileLoaded ? state.username : '';
-                final isReviewsLoading = isLoading;
-                final writtenReviews = state is ProfileLoaded
-                    ? state.reviews
-                    : const <WrittenReview>[];
-                final visibleReviews = writtenReviews.take(4).toList();
-
-                return NestedScrollView(
-                  headerSliverBuilder: (context, _) => [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 16),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 22),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 64,
-                                      height: 64,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Color(0xFFF5F5F5),
-                                      ),
-                                      clipBehavior: Clip.antiAlias,
-                                      child:
-                                          (avatarUrl != null &&
-                                              avatarUrl.isNotEmpty)
-                                          ? Image.network(
-                                              avatarUrl,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, _, __) =>
-                                                  Icon(
-                                                    PhosphorIcons.user(),
-                                                    size: 32,
-                                                    color: Colors.grey,
-                                                  ),
-                                            )
-                                          : Icon(
-                                              PhosphorIcons.user(),
-                                              size: 32,
-                                              color: Colors.grey,
-                                            ),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            name,
-                                            style: context
-                                                .textTheme
-                                                .titleMediumSemi
-                                                .copyWith(
-                                                  color: Colors.black,
-                                                  letterSpacing: -0.5,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (bio != null && bio.isNotEmpty) ...[
-                                  const SizedBox(height: 14),
-                                  Text(
-                                    bio,
-                                    style: context.textTheme.bodySmall!
-                                        .copyWith(
-                                          color: Colors.black87,
-                                          height: 1.4,
-                                        ),
-                                  ),
-                                ],
-                                const SizedBox(height: 14),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: AdaptiveOutlinedButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => MultiBlocProvider(
-                                            providers: [
-                                              BlocProvider.value(
-                                                value: context
-                                                    .read<ProfileCubit>(),
-                                              ),
-                                              BlocProvider.value(
-                                                value: context
-                                                    .read<AvatarUploadBloc>(),
-                                              ),
-                                            ],
-                                            child: const EditProfilePage(),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      side: const BorderSide(
-                                        color: Color(0xFF344E41),
-                                        width: 1,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      foregroundColor: const Color(0xFF344E41),
-                                    ),
-                                    child: Text(
-                                      'Edit Profile',
-                                      style: context.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            color: const Color(0xFF344E41),
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                        ],
-                      ),
-                    ),
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _StickyTabBarDelegate(
-                        child: Theme(
-                          data: Theme.of(context).copyWith(
-                            tabBarTheme: const TabBarThemeData(
-                              dividerColor: Colors.transparent,
-                              splashFactory: NoSplash.splashFactory,
-                            ),
-                          ),
-                          child: ColoredBox(
-                            color: Colors.white,
-                            child: TabBar(
-                              isScrollable: true,
-                              tabAlignment: TabAlignment.center,
-                              indicatorColor: Color(0xFF344E41),
-                              indicatorWeight: 3,
-
-                              indicatorSize: TabBarIndicatorSize.label,
-                              labelColor: Color(0xFF344E41),
-                              unselectedLabelColor: Colors.grey,
-                              dividerColor: Color(0xFFE0E0E0),
-                              labelStyle: context.textTheme.bodySmallMed,
-                              unselectedLabelStyle:
-                                  context.textTheme.bodySmallMed,
-                              tabs: [
-                                Tab(text: 'Reviews'),
-                                Tab(text: 'Lists'),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  body: TabBarView(
-                    children: [
-                      // ── Reviews Tab ──
-                      _ReviewsTab(
-                        isReviewsLoading: isReviewsLoading,
-                        visibleReviews: visibleReviews,
-                        username: username,
-                        avatarUrl: avatarUrl ?? '',
-                      ),
-
-                      const _CollectionsTab(),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
+        child: const ProfileView(),
       ),
     );
   }
 }
 
-// ── Reviews Tab Widget ────────────────────────────────────────────────────────
-
-class _ReviewsTab extends StatelessWidget {
-  final bool isReviewsLoading;
-  final List<WrittenReview> visibleReviews;
-  final String username;
-  final String avatarUrl;
-
-  const _ReviewsTab({
-    required this.isReviewsLoading,
-    required this.visibleReviews,
-    required this.username,
-    required this.avatarUrl,
-  });
+/// The profile screen for whatever [ProfileCubit] reports: loading, loaded,
+/// failed or signed out. Reads the lists from [ListsBloc] for the counts and
+/// the Lists tab.
+class ProfileView extends StatefulWidget {
+  const ProfileView({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 20),
-
-          if (isReviewsLoading)
-            Skeletonizer(
-              enabled: true,
-              effect: const PulseEffect(),
-              child: IgnorePointer(
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 22),
-                  itemCount: 3,
-                  separatorBuilder: (_, __) => const SizedBox(height: 14),
-                  itemBuilder: (_, __) => const ReviewCard(
-                    username: 'username',
-                    cafeReviewed: 'Cafe name placeholder',
-                    date: '00/00/00',
-                    rating: 4.5,
-                    reviewText:
-                        'Review body placeholder text for skeleton layout while loading.',
-                    photos: [],
-                  ),
-                ),
-              ),
-            )
-          else if (visibleReviews.isEmpty)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(22, 8, 22, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: SectionEmptyWidget(
-                  title: 'No reviews yet',
-                  subtitle: 'When you share reviews, they will appear here.',
-                  icon: Icons.chat_bubble_outline,
-                ),
-              ),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 22),
-              itemCount: visibleReviews.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 14),
-              itemBuilder: (context, index) {
-                final review = visibleReviews[index];
-                return ReviewCard(
-                  isOwner: true,
-                  username: username,
-                  avatarUrl: avatarUrl,
-                  cafeReviewed: review.cafeName,
-                  date: _formatReviewDate(review.createdAt),
-                  rating: review.rating.toDouble(),
-                  reviewText: review.content,
-                  photos: review.imageUrls,
-                  onDelete: () async {
-                    final cubit = context.read<ProfileCubit>();
-                    await cubit.deleteReview(review.id);
-                    if (!context.mounted) return;
-                    showPrimaryToast(context, 'Review deleted');
-                  },
-                );
-              },
-            ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
+  State<ProfileView> createState() => _ProfileViewState();
 }
 
-// ── Sticky Tab Bar Delegate ───────────────────────────────────────────────────
-
-class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
-
-  const _StickyTabBarDelegate({required this.child});
-
-  @override
-  double get minExtent => kToolbarHeight - 8;
-
-  @override
-  double get maxExtent => kToolbarHeight - 8;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) => child;
-
-  @override
-  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) =>
-      child != oldDelegate.child;
-}
-
-// ── See More Link ─────────────────────────────────────────────────────────────
-
-class _SeeMoreLink extends StatefulWidget {
-  final VoidCallback? onTap;
-
-  const _SeeMoreLink({this.onTap});
-
-  @override
-  State<_SeeMoreLink> createState() => _SeeMoreLinkState();
-}
-
-class _SeeMoreLinkState extends State<_SeeMoreLink> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: AdaptiveTap(
-        onTap: widget.onTap,
-        child: Text(
-          'see more >',
-          style: context.textTheme.bodySmall!.copyWith(
-            color: const Color(0xFF4CAF50),
-            decoration: _hovered
-                ? TextDecoration.underline
-                : TextDecoration.none,
-            decorationColor: const Color(0xFF4CAF50),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-String _formatReviewDate(DateTime date) {
-  final mm = date.month.toString().padLeft(2, '0');
-  final dd = date.day.toString().padLeft(2, '0');
-  final yy = (date.year % 100).toString().padLeft(2, '0');
-  return '$mm/$dd/$yy';
-}
-
-class _CollectionsTab extends StatefulWidget {
-  const _CollectionsTab();
-
-  @override
-  State<_CollectionsTab> createState() => _CollectionsTabState();
-}
-
-class _CollectionsTabState extends State<_CollectionsTab> {
-  late final ListsBloc _listsBloc;
-  bool _isCreating = false;
-  String? _pendingCreateName;
-
+class _ProfileViewState extends State<ProfileView> {
   @override
   void initState() {
     super.initState();
-    _listsBloc = sl<ListsBloc>()..add(LoadUserLists());
+    // The header shows the list count, so the lists load with the profile
+    // rather than when the Lists tab is first opened.
+    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated) {
+      context.read<ListsBloc>().add(LoadUserLists());
+    }
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SettingsPage()),
+    );
+  }
+
+  void _openEdit() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider.value(value: context.read<ProfileCubit>()),
+            BlocProvider.value(value: context.read<AvatarUploadBloc>()),
+          ],
+          child: const EditProfilePage(),
+        ),
+      ),
+    );
+  }
+
+  void _openReviews() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BlocProvider.value(
+          value: context.read<ProfileCubit>(),
+          child: const ReviewsPage(),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _listsBloc,
-      child: BlocListener<ListsBloc, ListsState>(
-        listenWhen: (previous, current) => current is ListsLoaded,
-        listener: (context, state) {
-          if (state is ListsLoaded && _pendingCreateName != null) {
-            showPrimaryToast(context, 'List created.');
-            _pendingCreateName = null;
-          }
-        },
-        child: BlocBuilder<ListsBloc, ListsState>(
+    return Scaffold(
+      backgroundColor: ProfileTokens.surface,
+      body: SafeArea(
+        bottom: false,
+        child: BlocBuilder<ProfileCubit, ProfileState>(
           builder: (context, state) {
-            final lists = state is ListsLoaded
-                ? state.lists
-                : _listsBloc.userLists;
-            // Every list the user has, same as the Saved tab. Filtering out
-            // `isDefault` hid Favorites here while Saved kept showing it, so
-            // the two screens disagreed about how many lists existed — and it
-            // hid it while still showing the other two system lists.
-            final regularLists = lists.toList(growable: false);
-            final isLoading = state is ListsLoading && lists.isEmpty;
-            final isError = state is ListsError && lists.isEmpty;
-
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-
-                    // TikTok-style Create Collection Row
-                    InkWell(
-                      onTap: _isCreating
-                          ? null
-                          : () => _showCreateListDialog(context),
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 12.0,
-                          horizontal: 4.0,
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.add,
-                              size: 22,
-                              color: Colors.black87,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Create new list',
-                                style: context.textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                            const Icon(
-                              Icons.chevron_right,
-                              size: 22,
-                              color: Colors.black54,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    if (regularLists.isEmpty && !isError)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 48,
-                          horizontal: 24,
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Save your favourite cafes into lists.',
-                            textAlign: TextAlign.center,
-                            style: context.textTheme.bodySmall!.copyWith(
-                              color: Colors.black45,
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                      )
-                    else if (isError)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 40),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.wifi_off_outlined,
-                                size: 36,
-                                color: Colors.black26,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Could not load lists.',
-                                style: context.textTheme.bodySmall!.copyWith(
-                                  color: Colors.black54,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              AdaptiveTextButton(
-                                onPressed: () =>
-                                    _listsBloc.add(LoadUserLists()),
-                                child: Text(
-                                  'Retry',
-                                  style: context.textTheme.bodyMedium,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              childAspectRatio: 0.95,
-                            ),
-                        itemCount: regularLists.length,
-                        itemBuilder: (context, index) {
-                          final list = regularLists[index];
-                          return _CollectionGridTile(
-                            title: list.name,
-                            // System lists carry no coverImageUrl, which left
-                            // Been and Want to Try as blank grey tiles here
-                            // while the Saved tab showed real thumbnails for
-                            // the same lists. Same fallback, same source.
-                            imageUrl:
-                                list.coverImageUrl?.trim().isNotEmpty == true
-                                ? list.coverImageUrl
-                                : _listsBloc.listPreviews[list.id]?.firstOrNull,
-                            cafeCount: list.cafeCount,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ListDetailPage(
-                                  listId: list.id,
-                                  title: list.name,
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            );
+            if (state is ProfileUnauthenticated) return _signedOut();
+            if (state is ProfileError) return _failed(state.error);
+            return _profile(state);
           },
         ),
       ),
     );
   }
 
-  Future<void> _showCreateListDialog(BuildContext context) async {
-    final input = await showDialog<CreateListInput>(
-      context: context,
-      builder: (_) => const CreateListDialog(),
-    );
-
-    if (input == null || !mounted) return;
-
-    setState(() => _isCreating = true);
-    _pendingCreateName = input.name;
-    _listsBloc.add(
-      CreateList(
-        name: input.name,
-        description: input.description,
-        isPublic: false,
-      ),
+  /// The guest branch: say what an account is for and link to sign-in.
+  Widget _signedOut() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const ProfileTopBar(title: 'Profile', brand: false),
+        Expanded(
+          child: SingleChildScrollView(
+            child: ProfileMessage(
+              icon: LucideIcons.user,
+              title: 'Sign in to see your profile',
+              subtitle:
+                  'Keep your reviews, lists and the places you have been in '
+                  'one place.',
+              actionLabel: 'Sign in or create account',
+              actionStyle: ProfilePillStyle.brand,
+              wideAction: true,
+              onAction: () => context.push('/login'),
+              top: 150,
+            ),
+          ),
+        ),
+      ],
     );
   }
-}
 
-// ── Real collection tile ──────────────────────────────────────────────────────
+  Widget _failed(Object error) {
+    final info = AppErrorCopy.fromException(error);
+    final signedOut = info.type == ErrorType.sessionExpired;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ProfileTopBar(
+          title: 'Profile',
+          brand: false,
+          onSettings: _openSettings,
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            child: signedOut
+                ? ProfileMessage.error(
+                    title: info.title,
+                    subtitle: info.subtitle,
+                    actionLabel: 'Sign in',
+                    onAction: () => context.push('/login'),
+                    top: 180,
+                  )
+                : ProfileMessage.error(
+                    title: 'Something went wrong',
+                    subtitle:
+                        'We could not load your profile. Check your '
+                        'connection and try again.',
+                    onAction: () => context.read<ProfileCubit>().loadProfile(),
+                    top: 180,
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
 
-class _CollectionGridTile extends StatelessWidget {
-  final String title;
-  final String? imageUrl;
-  final int cafeCount;
-  final VoidCallback onTap;
+  Widget _profile(ProfileState state) {
+    final loaded = state is ProfileLoaded ? state : null;
+    final reviews = loaded?.reviews ?? const <WrittenReview>[];
 
-  const _CollectionGridTile({
-    required this.title,
-    required this.imageUrl,
-    required this.cafeCount,
-    required this.onTap,
-  });
+    return BlocBuilder<ListsBloc, ListsState>(
+      builder: (context, listsState) {
+        final bloc = context.read<ListsBloc>();
+        final lists = listsState is ListsLoaded
+            ? listsState.lists
+            : bloc.userLists;
+        // Unknown until the lists have loaded at least once.
+        final listCount = listsState is ListsLoaded || lists.isNotEmpty
+            ? lists.length
+            : null;
 
-  @override
-  Widget build(BuildContext context) {
-    final hasImage = imageUrl?.trim().isNotEmpty == true;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (hasImage)
-              CafeCardImage(imageUrl: imageUrl!.trim())
-            else
-              _buildPlaceholderBg(),
-            // gradient + labels
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Color(0xDD000000), Colors.transparent],
+        return DefaultTabController(
+          length: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ProfileTopBar(
+                title: loaded == null ? '@…' : '@${loaded.username}',
+                onSettings: _openSettings,
+              ),
+              Expanded(
+                child: Builder(
+                  builder: (context) => NestedScrollView(
+                    headerSliverBuilder: (context, _) => [
+                      SliverToBoxAdapter(
+                        child: loaded == null
+                            ? const ProfileHeaderSkeleton()
+                            : ProfileHeader(
+                                name: loaded.name,
+                                avatarUrl: loaded.avatarUrl,
+                                bio: loaded.bio,
+                                countsLine: profileCountsLine(
+                                  reviews: reviews.length,
+                                  lists: listCount,
+                                ),
+                                onEdit: _openEdit,
+                              ),
+                      ),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _PinnedTabs(
+                          height: ProfileTabs.heightFor(
+                            MediaQuery.textScalerOf(context),
+                          ),
+                          child: ProfileTabs(
+                            controller: DefaultTabController.of(context),
+                            tabs: [
+                              ProfileTabData(
+                                'Reviews',
+                                count: loaded == null ? null : reviews.length,
+                              ),
+                              ProfileTabData(
+                                'Lists',
+                                count: loaded == null ? null : listCount,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    body: TabBarView(
+                      children: [
+                        ProfileReviewsTab(
+                          loading: loaded == null,
+                          reviews: reviews,
+                          onMore: (review) =>
+                              showProfileReviewOptions(context, review),
+                          onSeeAll: _openReviews,
+                        ),
+                        const ProfileListsTab(),
+                      ],
+                    ),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.bodySmallMed.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$cafeCount ${cafeCount == 1 ? 'place' : 'places'}',
-                      style: context.textTheme.bodySmall!.copyWith(
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ],
-                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderBg() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFE8E8E8), Color(0xFF9E9E9E)],
-        ),
-      ),
-      child: const Center(
-        child: Icon(Icons.coffee, color: Color(0xFFBDBDBD), size: 36),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-class _CollectionPlaceholderTile extends StatelessWidget {
-  final String label;
+/// Keeps [ProfileTabs] pinned under the top bar while the tab scrolls.
+class _PinnedTabs extends SliverPersistentHeaderDelegate {
+  const _PinnedTabs({required this.child, required this.height});
 
-  const _CollectionPlaceholderTile({required this.label});
+  final Widget child;
+  final double height;
 
   @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F0F0),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.local_cafe_outlined,
-              size: 40,
-              color: Color(0xFFCCCCCC),
-            ),
-          ),
+  double get minExtent => height;
 
-          //  ── Bottom gradient + label ──
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(10, 24, 10, 10),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [Color(0xCC000000), Colors.transparent],
-                ),
-              ),
-              child: Text(
-                label,
-                style: context.textTheme.bodySmallMed.copyWith(
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => SizedBox.expand(child: child);
+
+  @override
+  bool shouldRebuild(_PinnedTabs oldDelegate) =>
+      child != oldDelegate.child || height != oldDelegate.height;
 }

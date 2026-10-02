@@ -16,6 +16,7 @@ import 'package:nook/features/search/presentation/widgets/search_idle_view.dart'
 import 'package:nook/features/search/presentation/widgets/search_origin_sheet.dart';
 import 'package:nook/features/search/presentation/widgets/search_rows.dart';
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) async {
@@ -293,6 +294,216 @@ void main() {
     });
   });
 
+  group('loading', () {
+    testWidgets('a count bar, then five rows of a square and four bars', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: SearchResultsSkeleton(),
+        ),
+      );
+      final bone = find.byWidgetPredicate((w) => w is Bone);
+      // 1 count bar + 5 x (photo + 4 bars).
+      expect(bone, findsNWidgets(26));
+      final sizes = bone.evaluate().map((e) => e.size).toList();
+      expect(sizes.first, const Size(110, 12));
+      expect(sizes.sublist(1, 6), const [
+        Size(76, 76),
+        Size(150, 14),
+        Size(110, 10),
+        Size(90, 10),
+        Size(170, 10),
+      ]);
+      // Rows are 76 + 14 above and below, with no divider between them.
+      expect(find.byType(SearchDivider), findsNothing);
+      final photos = bone
+          .evaluate()
+          .where((e) => e.size == const Size(76, 76))
+          .map(
+            (e) => (e.renderObject! as RenderBox).localToGlobal(Offset.zero).dy,
+          )
+          .toList();
+      expect(photos[1] - photos[0], 104);
+    });
+  });
+
+  group('filters row', () {
+    Future<void> row(
+      WidgetTester tester, {
+      String sort = 'nearby',
+      bool openNow = false,
+      Set<String> tags = const {},
+      VoidCallback? onSort,
+      VoidCallback? onOpenNow,
+      ValueChanged<String>? onTag,
+    }) => pump(
+      tester,
+      SearchFiltersRow(
+        sort: sort,
+        openNow: openNow,
+        tags: tags,
+        onAllFilters: () {},
+        onSort: onSort ?? () {},
+        onOpenNow: onOpenNow ?? () {},
+        onTag: onTag ?? (_) {},
+      ),
+    );
+
+    testWidgets('all filters, then sort, "Open now", then tags', (
+      tester,
+    ) async {
+      await row(tester);
+      final labels = tester
+          .widgetList<SearchChip>(find.byType(SearchChip))
+          .map((c) => c.label ?? c.semanticLabel)
+          .toList();
+      // The row scrolls; the chips past the screen edge are not built.
+      expect(labels.take(4), [
+        'All filters',
+        'Nearest',
+        'Open now',
+        kSearchQuickTags.first,
+      ]);
+    });
+
+    testWidgets('sort is filled, chosen tags are filled and come first', (
+      tester,
+    ) async {
+      await row(tester, sort: 'top_rated', tags: {'Pet Friendly'});
+      expect(
+        tester
+            .widget<SearchChip>(find.widgetWithText(SearchChip, 'Open now'))
+            .selected,
+        isFalse,
+      );
+      final chips = tester
+          .widgetList<SearchChip>(find.byType(SearchChip))
+          .toList();
+      expect(chips[1].label, 'Top rated');
+      expect(chips[1].selected, isTrue);
+      expect(chips[2].label, 'Open now');
+      expect(chips[3].label, 'Pet Friendly');
+      expect(chips[3].selected, isTrue);
+    });
+
+    testWidgets('"Open now" fills when on', (tester) async {
+      await row(tester, openNow: true);
+      expect(
+        tester
+            .widget<SearchChip>(find.widgetWithText(SearchChip, 'Open now'))
+            .selected,
+        isTrue,
+      );
+    });
+
+    testWidgets('taps reach sort, "Open now" and the tag', (tester) async {
+      var sorts = 0;
+      var opens = 0;
+      final tapped = <String>[];
+      await row(
+        tester,
+        onSort: () => sorts++,
+        onOpenNow: () => opens++,
+        onTag: tapped.add,
+      );
+      await tester.tap(find.text('Open now'));
+      expect(opens, 1);
+      await tester.tap(find.text('Nearest'));
+      await tester.ensureVisible(find.text('Free WiFi'));
+      await tester.pump();
+      await tester.tap(find.text('Free WiFi'));
+      expect(sorts, 1);
+      expect(tapped, ['Free WiFi']);
+    });
+  });
+
+  group('sort sheet', () {
+    Future<void> open(
+      WidgetTester tester,
+      String current,
+      ValueChanged<String?> onClosed,
+    ) async {
+      await pump(
+        tester,
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () async =>
+                onClosed(await showSearchSortSheet(context, current)),
+            child: const Text('open'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the four sorts get_cafes accepts, the current one ticked', (
+      tester,
+    ) async {
+      await open(tester, 'top_rated', (_) {});
+      expect(find.text('Sort by'), findsOneWidget);
+      for (final label in ['Nearest', 'Top rated', 'Trending', 'Newest']) {
+        expect(find.text(label), findsOneWidget);
+      }
+      expect(kSearchSorts.map((s) => s.$1), [
+        'nearby',
+        'top_rated',
+        'trending',
+        'newest',
+      ]);
+      expect(find.byIcon(LucideIcons.check), findsOneWidget);
+      expect(
+        tester.getCenter(find.byIcon(LucideIcons.check)).dy,
+        moreOrLessEquals(tester.getCenter(find.text('Top rated')).dy),
+      );
+    });
+
+    testWidgets('a tap returns the sort id; close returns nothing', (
+      tester,
+    ) async {
+      String? picked = 'unset';
+      await open(tester, 'nearby', (v) => picked = v);
+      await tester.tap(find.text('Newest'));
+      await tester.pumpAndSettle();
+      expect(picked, 'newest');
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(LucideIcons.x));
+      await tester.pumpAndSettle();
+      expect(picked, isNull);
+    });
+
+    testWidgets('8 above the grabber, 32pt close, rows 4 apart', (
+      tester,
+    ) async {
+      await open(tester, 'nearby', (_) {});
+      final sheet = tester.getRect(find.byType(SearchSheetFrame));
+      final title = tester.getRect(find.text('Sort by'));
+      final close = tester.getRect(
+        find
+            .ancestor(
+              of: find.byIcon(LucideIcons.x),
+              matching: find.byType(SizedBox),
+            )
+            .first,
+      );
+      expect(close.size, const Size(32, 32));
+      // 8 + grabber 4 + its 4 + gap 4.
+      expect(close.top - sheet.top, 20);
+      expect(title.left, 20);
+      final nearest = tester.getRect(find.text('Nearest'));
+      final topRated = tester.getRect(find.text('Top rated'));
+      // 13 below one label, 4 between rows, 13 above the next.
+      expect(topRated.top - nearest.bottom, 30);
+      // 4 under the header, then the row's own 13.
+      expect(nearest.top - close.bottom, 17);
+    });
+  });
+
   group('all filters sheet', () {
     Future<void> open(
       WidgetTester tester, {
@@ -359,6 +570,7 @@ void main() {
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       expect(find.text('Show 10 cafes'), findsOneWidget);
 
+      await tester.ensureVisible(find.text('Power Outlets'));
       await tester.tap(find.text('Power Outlets'));
       await tester.pump();
       expect(find.text('Apply'), findsOneWidget);

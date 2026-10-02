@@ -43,11 +43,10 @@ List<InlineSpan> highlightSpans(String text, String query, TextStyle base) {
 }
 
 class _Photo extends StatelessWidget {
-  const _Photo({required this.cafe, required this.size, this.skeleton = false});
+  const _Photo({required this.cafe, required this.size});
 
   final CafeSummary cafe;
   final double size;
-  final bool skeleton;
 
   @override
   Widget build(BuildContext context) {
@@ -55,11 +54,7 @@ class _Photo extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: SizedBox.square(
         dimension: size,
-        child: Skeleton.replace(
-          replace: skeleton,
-          replacement: const ColoredBox(color: SearchTokens.field),
-          child: CafeCardImage(imageUrl: _imageUrl(cafe)),
-        ),
+        child: CafeCardImage(imageUrl: _imageUrl(cafe)),
       ),
     );
   }
@@ -146,10 +141,9 @@ class SearchMatchRow extends StatelessWidget {
 /// A result: 76pt photo, then name and distance, rating and area, open
 /// status, tags. 14pt above and below.
 class SearchResultRow extends StatelessWidget {
-  const SearchResultRow({super.key, required this.cafe, this.skeleton = false});
+  const SearchResultRow({super.key, required this.cafe});
 
   final CafeSummary cafe;
-  final bool skeleton;
 
   static const int _maxTags = 3;
 
@@ -165,7 +159,7 @@ class SearchResultRow extends StatelessWidget {
       size: 12,
       weight: FontWeight.w600,
     );
-    final open = skeleton ? null : MapOpenLine.resolve(cafe.operatingHours);
+    final open = MapOpenLine.resolve(cafe.operatingHours);
     final tags = cafe.tags.take(_maxTags).join(' · ');
     final distance = searchDistanceLabel(cafe.distanceMeters);
     final rated = cafe.reviewCount > 0;
@@ -176,13 +170,13 @@ class SearchResultRow extends StatelessWidget {
     ].join(' · ');
 
     return AdaptiveTap(
-      onTap: skeleton ? null : () => context.push('/cafe/${cafe.id}'),
+      onTap: () => context.push('/cafe/${cafe.id}'),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Photo(cafe: cafe, size: 76, skeleton: skeleton),
+            _Photo(cafe: cafe, size: 76),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -269,6 +263,71 @@ class SearchResultRow extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Results while they load: a count bar, then [rows] rows of a 76pt square
+/// and four bars, in the shape of [SearchResultRow] without its dividers.
+class SearchResultsSkeleton extends StatelessWidget {
+  const SearchResultsSkeleton({super.key, this.rows = 5});
+
+  final int rows;
+
+  static const _radius = BorderRadius.all(Radius.circular(6));
+
+  /// Width and height of the name, rating, open-status and tags bars.
+  static const _bars = [
+    (150.0, 14.0),
+    (110.0, 10.0),
+    (90.0, 10.0),
+    (170.0, 10.0),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Loading results',
+      child: Skeletonizer.zone(
+        effect: const PulseEffect(
+          from: SearchTokens.field,
+          to: Color(0xFFF6F6F6),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 14),
+              child: Bone(width: 110, height: 12, borderRadius: _radius),
+            ),
+            for (var i = 0; i < rows; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Row(
+                  children: [
+                    const Bone.square(
+                      size: 76,
+                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          for (final (j, (w, h)) in _bars.indexed) ...[
+                            if (j > 0) const SizedBox(height: 10),
+                            Bone(width: w, height: h, borderRadius: _radius),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

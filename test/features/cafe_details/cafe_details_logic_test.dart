@@ -207,7 +207,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('keeps the score out of the Been pill', (tester) async {
+    testWidgets('a ranked Been pill carries the score, not the rank', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         host(
           CafeStatusControl(
@@ -221,8 +223,29 @@ void main() {
         ),
       );
 
-      expect(find.text('Been'), findsOneWidget);
+      expect(find.text('Been · 8.7'), findsOneWidget);
       expect(find.text('Want to Try'), findsOneWidget);
+      expect(find.textContaining('#3 of 12'), findsNothing);
+      // Still announced by its name.
+      expect(find.bySemanticsLabel('Been'), findsOneWidget);
+    });
+
+    testWidgets('the score stays off the pill until the cafe is Been', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          CafeStatusControl(
+            fill: true,
+            status: CafeStatus.wantToTry,
+            score: '8.7',
+            onTapBeen: () {},
+            onTapWantToTry: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('Been'), findsOneWidget);
       expect(find.textContaining('8.7'), findsNothing);
     });
 

@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nook/core/extensions/extensions.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
-import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/core/utils/toast_helper.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
-import 'package:nook/features/profile/presentation/widgets/review_card.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:nook/features/profile/presentation/profile_logic.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_review_row.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_review_sheets.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_sheet.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 
+/// "Your reviews": everything the signed-in user has written, filtered by
+/// star rating and sorted. Reads the reviews from the [ProfileCubit] above
+/// it, so a delete here is gone from the profile too.
 class ReviewsPage extends StatefulWidget {
   const ReviewsPage({super.key});
 
@@ -16,283 +22,260 @@ class ReviewsPage extends StatefulWidget {
 }
 
 class _ReviewsPageState extends State<ReviewsPage> {
-  int? _selectedStar;
-  String _sortBy = 'Most Recent';
+  /// Null shows every rating.
+  int? _rating;
+  ProfileReviewSort _sort = ProfileReviewSort.mostRecent;
 
-  final List<String> _sortOptions = [
-    'Most Recent',
-    'Oldest',
-    'Highest Rated',
-    'Lowest Rated',
-  ];
-
-  List<WrittenReview> _getFiltered(List<WrittenReview> all) {
-    List<WrittenReview> result = [...all];
-
-    if (_selectedStar != null) {
-      result = result.where((r) {
-        final rating = r.rating.toDouble();
-        return rating >= _selectedStar! && rating < _selectedStar! + 1;
-      }).toList();
-    }
-
-    if (_sortBy == 'Highest Rated') {
-      result.sort((a, b) => b.rating.compareTo(a.rating));
-    } else if (_sortBy == 'Lowest Rated') {
-      result.sort((a, b) => a.rating.compareTo(b.rating));
-    } else if (_sortBy == 'Oldest') {
-      result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    } else {
-      result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    }
-
-    return result;
+  Future<void> _pickSort() async {
+    final picked = await ProfileSheet.show<ProfileReviewSort>(
+      context,
+      builder: (_) => ProfileReviewSortSheet(selected: _sort),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _sort = picked);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: Transform.scale(
-          scaleX: -1,
-          child: AdaptiveTap(
-            onTap: () => Navigator.pop(context),
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Icon(Icons.chevron_right, color: Colors.black, size: 28),
-            ),
+    return BlocBuilder<ProfileCubit, ProfileState>(
+      builder: (context, state) {
+        final loaded = state is ProfileLoaded ? state : null;
+        final failed = state is ProfileError;
+        return Scaffold(
+          backgroundColor: ProfileTokens.surface,
+          appBar: ProfileNavBar(
+            title: 'Your reviews',
+            subtitle: loaded == null
+                ? null
+                : reviewCountLabel(loaded.reviews.length),
           ),
-        ),
-        title: Text('Reviews', style: context.textTheme.titleMediumSemi),
-      ),
-      body: BlocBuilder<ProfileCubit, ProfileState>(
-        builder: (context, profileState) {
-          // Filter controls are always shown
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 12, 22, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _StarChip(
-                            label: 'All',
-                            selected: _selectedStar == null,
-                            onTap: () => setState(() => _selectedStar = null),
-                          ),
-                          const SizedBox(width: 8),
-                          ...List.generate(5, (i) {
-                            final star = 5 - i;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: _StarChip(
-                                label: '$star ★',
-                                selected: _selectedStar == star,
-                                onTap: () =>
-                                    setState(() => _selectedStar = star),
-                              ),
-                            );
-                          }),
-                        ],
-                      ),
+          body: SafeArea(
+            top: false,
+            child: failed
+                ? SingleChildScrollView(
+                    child: ProfileMessage.error(
+                      title: 'Could not load reviews.',
+                      subtitle: 'Check your connection and try again.',
+                      onAction: () =>
+                          context.read<ProfileCubit>().loadProfile(),
+                      top: 180,
                     ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Text(
-                          'Sort by:',
-                          style: context.textTheme.bodySmall!.copyWith(
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFE0E0E0)),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _sortBy,
-                              isDense: true,
-                              dropdownColor: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              style: context.textTheme.bodySmallMed.copyWith(
-                                color: Colors.black87,
-                              ),
-                              icon: const Icon(
-                                Icons.keyboard_arrow_down,
-                                size: 18,
-                                color: Colors.black54,
-                              ),
-                              items: _sortOptions.map((option) {
-                                return DropdownMenuItem(
-                                  value: option,
-                                  child: Text(
-                                    option,
-                                    style: context.textTheme.bodySmallMed
-                                        .copyWith(color: Colors.black87),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _sortBy = val);
-                                }
-                              },
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                  ],
-                ),
-              ),
-              Expanded(child: _buildBody(profileState)),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildBody(ProfileState profileState) {
-    // Loading
-    if (profileState is ProfileLoading || profileState is ProfileInitial) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // Error
-    if (profileState is ProfileError) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-              const SizedBox(height: 12),
-              Text(
-                'Could not load reviews.',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: Colors.grey[800]),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              AdaptiveTextButton(
-                onPressed: () => context.read<ProfileCubit>().loadProfile(),
-                child: Text('Retry', style: context.textTheme.bodyMedium),
-              ),
-            ],
+                  )
+                : _content(loaded),
           ),
-        ),
-      );
-    }
-
-    // Loaded
-    if (profileState is! ProfileLoaded) return const SizedBox.shrink();
-
-    final username = profileState.username;
-    final avatarUrl = profileState.avatarUrl;
-    final reviews = _getFiltered(profileState.reviews);
-
-    if (reviews.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.rate_review_outlined,
-              size: 48,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'No reviews found.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(22, 16, 22, 32),
-      itemCount: reviews.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 14),
-      itemBuilder: (context, index) {
-        final review = reviews[index];
-        return ReviewCard(
-          isOwner: true,
-          username: username,
-          avatarUrl: avatarUrl,
-          cafeReviewed: review.cafeName,
-          date: _formatReviewDate(review.createdAt),
-          rating: review.rating.toDouble(),
-          reviewText: review.content,
-          photos: review.imageUrls,
-          onDelete: () async {
-            final cubit = context.read<ProfileCubit>();
-            await cubit.deleteReview(review.id);
-            if (!context.mounted) return;
-            showPrimaryToast(context, 'Review deleted');
-          },
         );
       },
     );
   }
+
+  /// The filter and sort controls over the list. [loaded] is null while the
+  /// profile loads.
+  Widget _content(ProfileLoaded? loaded) {
+    final shown = loaded == null
+        ? null
+        : filterAndSortReviews(loaded.reviews, rating: _rating, sort: _sort);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(
+            ProfileTokens.gutter,
+            8,
+            ProfileTokens.gutter,
+            12,
+          ),
+          child: Row(
+            children: [
+              _RatingChip(
+                selected: _rating == null,
+                onTap: () => setState(() => _rating = null),
+              ),
+              for (var stars = 5; stars >= 1; stars--) ...[
+                const SizedBox(width: 8),
+                _RatingChip(
+                  stars: stars,
+                  selected: _rating == stars,
+                  onTap: () => setState(() => _rating = stars),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const ProfileDivider(),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: ProfileTokens.gutter,
+            vertical: 12,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  shown == null ? 'Loading…' : reviewCountLabel(shown.length),
+                  style: ProfileTokens.text(14, weight: FontWeight.w600),
+                ),
+              ),
+              _SortButton(label: _sort.label, onTap: _pickSort),
+            ],
+          ),
+        ),
+        Expanded(child: _list(loaded, shown)),
+      ],
+    );
+  }
+
+  Widget _list(ProfileLoaded? loaded, List<WrittenReview>? shown) {
+    if (loaded == null || shown == null) {
+      return const SingleChildScrollView(
+        physics: NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(
+          ProfileTokens.gutter,
+          8,
+          ProfileTokens.gutter,
+          24,
+        ),
+        child: ProfileReviewSkeleton(count: 4),
+      );
+    }
+
+    if (loaded.reviews.isEmpty) {
+      return const SingleChildScrollView(
+        child: ProfileMessage(
+          icon: LucideIcons.star,
+          title: 'No reviews yet',
+          subtitle: 'When you share reviews, they will appear here.',
+          top: 80,
+        ),
+      );
+    }
+
+    final rating = _rating;
+    if (shown.isEmpty) {
+      return SingleChildScrollView(
+        child: ProfileMessage(
+          icon: LucideIcons.star,
+          title: 'No reviews found.',
+          subtitle: rating == null ? null : 'You have no $rating-star reviews.',
+          actionLabel: 'Show all',
+          onAction: () => setState(() => _rating = null),
+          top: 80,
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        ProfileTokens.gutter,
+        4,
+        ProfileTokens.gutter,
+        60,
+      ),
+      child: ProfileReviewList(
+        reviews: shown,
+        onMore: (review) => showProfileReviewOptions(context, review),
+      ),
+    );
+  }
 }
 
-String _formatReviewDate(DateTime date) {
-  final mm = date.month.toString().padLeft(2, '0');
-  final dd = date.day.toString().padLeft(2, '0');
-  final yy = (date.year % 100).toString().padLeft(2, '0');
-  return '$mm/$dd/$yy';
-}
+/// A rating filter pill: "All", or a number beside a star. Brand fill when
+/// [selected], outlined otherwise.
+class _RatingChip extends StatelessWidget {
+  const _RatingChip({required this.selected, required this.onTap, this.stars});
 
-class _StarChip extends StatelessWidget {
-  final String label;
+  /// Null is the "All" chip.
+  final int? stars;
   final bool selected;
   final VoidCallback onTap;
 
-  const _StarChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+  @override
+  Widget build(BuildContext context) {
+    final count = stars;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: count == null ? 'All ratings' : '$count stars',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected ? ProfileTokens.brand : null,
+            borderRadius: BorderRadius.circular(100),
+            // The same 1pt on both, so selecting a chip does not move it.
+            border: Border.all(
+              color: selected ? ProfileTokens.brand : ProfileTokens.border,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                count == null ? 'All' : '$count',
+                style: ProfileTokens.text(
+                  12,
+                  weight: FontWeight.w500,
+                  color: selected ? ProfileTokens.surface : ProfileTokens.ink,
+                ),
+              ),
+              if (count != null) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.star,
+                  size: 12,
+                  color: selected ? ProfileTokens.surface : ProfileTokens.star,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The outlined pill that names the current order and opens the sort sheet.
+class _SortButton extends StatelessWidget {
+  const _SortButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return AdaptiveTap(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF344E41) : const Color(0xFFF0F0F0),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: context.textTheme.bodySmallMed.copyWith(
-            color: selected ? Colors.white : Colors.black87,
+    return Semantics(
+      button: true,
+      label: 'Sort by $label',
+      excludeSemantics: true,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: ProfileTokens.surface,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: ProfileTokens.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: ProfileTokens.text(12, weight: FontWeight.w500),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                LucideIcons.chevronDown,
+                size: 14,
+                color: ProfileTokens.ink,
+              ),
+            ],
           ),
         ),
       ),
