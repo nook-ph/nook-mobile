@@ -62,9 +62,16 @@ class _ListDetailPageState extends State<ListDetailPage> {
   /// The cafe an Undo is putting back, so the reload can say it is back.
   CafeSummary? _restoring;
 
+  /// An edit is in flight, so the reload can say it was saved.
+  bool _editing = false;
+
+  /// App-wide, and held so the Undo toast still works once this page is gone.
+  late final ListsBloc _listsBloc;
+
   @override
   void initState() {
     super.initState();
+    _listsBloc = context.read<ListsBloc>();
     final state = context.read<ListsBloc>().state;
     if (state is ListCafesLoaded && state.list.id == widget.listId) {
       _cachedCafes = state.cafes;
@@ -152,7 +159,8 @@ class _ListDetailPageState extends State<ListDetailPage> {
         isPublic: list.isPublic,
       ),
     );
-    showPrimaryToast(context, 'List updated.');
+    // "List updated." waits for the reload that proves it.
+    _editing = true;
   }
 
   Future<void> _confirmDelete(ListsBloc bloc, CafeList list) async {
@@ -194,18 +202,21 @@ class _ListDetailPageState extends State<ListDetailPage> {
     );
   }
 
+  /// Runs from the toast, which can outlive this page: no context lookups.
   void _undoRemove(CafeSummary cafe) {
     _restoring = cafe;
     _removing = null;
-    context.read<ListsBloc>().add(
-      AddCafeToList(listId: widget.listId, cafeId: cafe.id),
-    );
+    _listsBloc.add(AddCafeToList(listId: widget.listId, cafeId: cafe.id));
   }
 
   void _onListsState(BuildContext context, ListsState state) {
     // An edit reloads the user's lists, not this list's cafes: pick the new
     // name and description up from there.
     if (state is ListsLoaded) {
+      if (_editing) {
+        _editing = false;
+        showPrimaryToast(context, 'List updated.');
+      }
       for (final list in state.lists) {
         if (list.id != widget.listId) continue;
         setState(() => _cachedList = list);
@@ -222,9 +233,11 @@ class _ListDetailPageState extends State<ListDetailPage> {
     if (state is ListsError) {
       // A failed remove or undo must not leave a stale toast armed.
       final failed = _removing ?? _restoring;
+      final editFailed = _editing;
       _removing = null;
       _restoring = null;
-      if (failed != null && _cachedCafes != null) {
+      _editing = false;
+      if ((failed != null || editFailed) && _cachedCafes != null) {
         showPrimaryToast(context, "Couldn't update. Please try again.");
       }
       return;
