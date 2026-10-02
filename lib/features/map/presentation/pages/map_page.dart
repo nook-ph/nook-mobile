@@ -1174,7 +1174,9 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
       if (await Geolocator.isLocationServiceEnabled()) {
         await _enterTrackingMode();
         if (!mounted) return;
-        _mapBloc?.add(LoadMapDataEvent(filter: _initialFilter));
+        // The filter in force now, not the one captured when the app
+        // started: the chips still show whatever the user has since chosen.
+        _mapBloc?.add(LoadMapDataEvent(filter: sl<FilterCubit>().state));
       }
     }
   }
