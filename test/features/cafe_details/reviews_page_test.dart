@@ -17,6 +17,7 @@ import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_event.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
+import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart';
 import 'package:nook/utils/theme/theme.dart';
 
@@ -74,6 +75,8 @@ class _FakeSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState>
     implements ReviewSubmitBloc {
   _FakeSubmitBloc() : super(const ReviewSubmitInitial());
 
+  void push(ReviewSubmitState state) => emit(state);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -108,6 +111,7 @@ class _Harness {
   }
 
   final _FakeGetReviews getReviews;
+  final submitBloc = _FakeSubmitBloc();
   late final BlockCubit blockCubit;
   final deleted = <String>[];
 
@@ -123,7 +127,7 @@ class _Harness {
           BlocProvider<ReviewsBloc>(
             create: (_) => ReviewsBloc(getCafeReviewsUseCase: getReviews),
           ),
-          BlocProvider<ReviewSubmitBloc>(create: (_) => _FakeSubmitBloc()),
+          BlocProvider<ReviewSubmitBloc>.value(value: submitBloc),
         ],
         child: MaterialApp(
           theme: TAppTheme.lightTheme,
@@ -277,6 +281,47 @@ void main() {
     expect(find.text('4.0'), findsOneWidget);
     expect(find.text('1 review'), findsNWidgets(2));
     expect(find.text('Review text from ana.reyes'), findsNothing);
+  });
+
+  testWidgets('posting while a rating filter is on still updates the totals', (
+    tester,
+  ) async {
+    final harness = _Harness(others);
+    await harness.pump(tester, userId: 'maria.c');
+
+    // The test font is far wider than Poppins: give the count, the filter
+    // chip and the sort pill the room they have on a phone.
+    tester.view.physicalSize = const Size(600, 844);
+    await tester.pump();
+
+    // Filter to 1 star: one of the two reviews.
+    await tester.tap(find.bySemanticsLabel(RegExp('^1 star, 1 review')));
+    await tester.pumpAndSettle();
+    expect(find.text('Write a review'), findsOneWidget);
+
+    // The user posts a 5-star review; the server now has three.
+    final mine = _review('r1', 'maria.c', 5);
+    harness.getReviews.reviews = [...others, mine];
+    harness.submitBloc.push(
+      ReviewSubmitSuccess(
+        review: ReviewEntity(
+          id: mine.id,
+          cafeId: mine.cafeId,
+          userId: mine.userId,
+          rating: mine.rating,
+          content: mine.content,
+          createdAt: mine.createdAt,
+          updatedAt: mine.updatedAt,
+          name: mine.name,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The filter stays, the totals move, and a second review is not offered.
+    expect(find.bySemanticsLabel(RegExp('^5 star, 1 review')), findsOneWidget);
+    expect(find.text('3 reviews'), findsOneWidget);
+    expect(find.text('Write a review'), findsNothing);
   });
 
   testWidgets('reporting files the page\'s cafe id when the review has none', (

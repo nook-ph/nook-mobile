@@ -335,7 +335,16 @@ class _ReviewsPageState extends State<ReviewsPage> {
         listeners: [
           BlocListener<ReviewSubmitBloc, ReviewSubmitState>(
             listener: (context, state) {
-              if (state is ReviewSubmitSuccess) _load();
+              if (state is! ReviewSubmitSuccess) return;
+              // With a rating filter on, the reload is filtered and never
+              // refreshes the totals: add the new review to them here.
+              final all = _allReviews;
+              if (_ratingFilter != null &&
+                  all != null &&
+                  !all.any((r) => r.id == state.review.id)) {
+                setState(() => _allReviews = [state.review, ...all]);
+              }
+              _load();
             },
           ),
           BlocListener<ReviewsBloc, ReviewsState>(listener: _onReviewsChanged),
