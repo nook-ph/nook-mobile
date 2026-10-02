@@ -100,7 +100,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       showAuthToast(context, 'Password updated successfully', success: true);
       // Let the AuthBloc re-evaluate session, then router redirect handles
       // navigation.
-      context.read<AuthBloc>().add(const AuthSessionCheckEvent());
+      final authBloc = context.read<AuthBloc>();
+      final isRecoveryFlow = authBloc.state is AuthPasswordRecovery;
+      authBloc.add(const AuthSessionCheckEvent());
+      // Opened from Settings the state is already AuthAuthenticated, so the
+      // re-check emits nothing new and no redirect follows.
+      if (!isRecoveryFlow && context.canPop()) context.pop();
     } on AuthException catch (e) {
       if (mounted) showAuthToast(context, e.message);
     } catch (_) {
