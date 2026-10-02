@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/delete_review_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
+import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/use_cases/update_profile_usecase.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -41,14 +42,22 @@ class ProfileCubit extends Cubit<ProfileState> {
           .eq('id', user.id)
           .maybeSingle();
 
-      final reviewsFuture = _getReviewsWrittenByUser(
-        user.id,
-      ).catchError((Object error, StackTrace stackTrace) => <WrittenReview>[]);
+      // A failed reviews read must not take the profile down with it, but it
+      // is not "no reviews" either: the state says which it was.
+      var reviewsFailed = false;
+      final reviewsFuture = _getReviewsWrittenByUser(user.id).catchError((
+        Object error,
+        StackTrace stackTrace,
+      ) {
+        reviewsFailed = true;
+        return <WrittenReview>[];
+      });
 
       final outcomes = await Future.wait<dynamic>([
         profileFuture,
         reviewsFuture,
       ]);
+      if (isClosed) return;
 
       final row = outcomes[0];
       final reviews = outcomes[1] as List<WrittenReview>;
@@ -58,7 +67,7 @@ class ProfileCubit extends Cubit<ProfileState> {
       final name =
           (map['full_name'] as String?) ??
           (user.userMetadata?['full_name'] as String?) ??
-          'No name';
+          noNamePlaceholder;
 
       final username =
           (map['username'] as String?) ??
@@ -89,9 +98,11 @@ class ProfileCubit extends Cubit<ProfileState> {
           avatarUrl: avatarUrl,
           lastUsernameChange: lastUsernameChange,
           reviews: reviews,
+          reviewsFailed: reviewsFailed,
         ),
       );
     } catch (e) {
+      if (isClosed) return;
       emit(ProfileError(e));
     }
   }
@@ -106,6 +117,13 @@ class ProfileCubit extends Cubit<ProfileState> {
 
     if (currentState is! ProfileLoaded) return;
 
+    // "No name" is what the page shows for an empty full_name; it and an
+    // emptied field are never written.
+    final trimmedName = name?.trim() ?? '';
+    name = trimmedName.isEmpty || trimmedName == noNamePlaceholder
+        ? null
+        : trimmedName;
+
     try {
       await _updateProfileUseCase.call(
         userId: currentState.userId,
@@ -114,6 +132,7 @@ class ProfileCubit extends Cubit<ProfileState> {
         bio: bio,
         avatarUrl: avatarUrl,
       );
+      if (isClosed) return;
 
       final newLastChange = username != null
           ? DateTime.now()
@@ -129,6 +148,7 @@ class ProfileCubit extends Cubit<ProfileState> {
           userId: currentState.userId,
           lastUsernameChange: newLastChange,
           reviews: currentState.reviews,
+          reviewsFailed: currentState.reviewsFailed,
         ),
       );
     } catch (e) {
@@ -149,6 +169,7 @@ class ProfileCubit extends Cubit<ProfileState> {
     } catch (e) {
       rethrow;
     }
+    if (isClosed) return;
 
     final updatedReviews = currentState.reviews
         .where((r) => r.id != reviewId)
@@ -196,6 +217,10 @@ class ProfileLoaded extends ProfileState {
   final DateTime? lastUsernameChange;
   final List<WrittenReview> reviews;
 
+  /// The reviews could not be read: [reviews] is empty because of that, not
+  /// because the user has written none.
+  final bool reviewsFailed;
+
   const ProfileLoaded({
     required this.name,
     required this.username,
@@ -205,6 +230,7 @@ class ProfileLoaded extends ProfileState {
     this.avatarUrl,
     this.lastUsernameChange,
     this.reviews = const [],
+    this.reviewsFailed = false,
   });
 
   @override
@@ -217,6 +243,7 @@ class ProfileLoaded extends ProfileState {
     avatarUrl,
     lastUsernameChange,
     reviews,
+    reviewsFailed,
   ];
 }
 

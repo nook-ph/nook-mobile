@@ -189,6 +189,20 @@ void main() {
     await letToastExpire(tester);
   });
 
+  testWidgets('reviews that failed to load are not "No reviews yet"', (
+    tester,
+  ) async {
+    final cubit = FakeProfileCubit(profile(reviewsFailed: true));
+    await pump(tester, cubit: cubit);
+
+    expect(find.text('Could not load reviews.'), findsOneWidget);
+    expect(find.text('No reviews yet'), findsNothing);
+
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(cubit.loads, 1);
+  });
+
   group('Lists tab', () {
     Future<void> openLists(WidgetTester tester) async {
       await tester.tap(find.text('Lists'));

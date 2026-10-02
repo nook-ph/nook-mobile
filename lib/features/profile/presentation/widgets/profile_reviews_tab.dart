@@ -15,10 +15,16 @@ class ProfileReviewsTab extends StatelessWidget {
     required this.onMore,
     required this.onSeeAll,
     this.loading = false,
+    this.failed = false,
+    this.onRetry,
   });
 
   final List<WrittenReview> reviews;
   final bool loading;
+
+  /// The reviews could not be read; an empty list would be a false "none".
+  final bool failed;
+  final VoidCallback? onRetry;
 
   /// Opens the options for one review.
   final ValueChanged<WrittenReview> onMore;
@@ -41,6 +47,17 @@ class ProfileReviewsTab extends StatelessWidget {
           24,
         ),
         child: ProfileReviewSkeleton(),
+      );
+    }
+
+    if (failed) {
+      return SingleChildScrollView(
+        child: ProfileMessage.error(
+          title: 'Could not load reviews.',
+          subtitle: 'Check your connection and try again.',
+          actionStyle: ProfilePillStyle.outlined,
+          onAction: onRetry,
+        ),
       );
     }
 
