@@ -32,6 +32,7 @@ class SearchFiltersRow extends StatelessWidget {
     required this.onSort,
     required this.onOpenNow,
     required this.onTag,
+    this.showOpenNow = true,
   });
 
   final String sort;
@@ -41,6 +42,9 @@ class SearchFiltersRow extends StatelessWidget {
   final VoidCallback onSort;
   final VoidCallback onOpenNow;
   final ValueChanged<String> onTag;
+
+  /// False while the results carry no opening hours to filter on.
+  final bool showOpenNow;
 
   @override
   Widget build(BuildContext context) {
@@ -68,8 +72,10 @@ class SearchFiltersRow extends StatelessWidget {
             semanticLabel: 'Sort: ${searchSortLabel(sort)}',
             onTap: onSort,
           ),
-          const SizedBox(width: 8),
-          SearchChip(label: 'Open now', selected: openNow, onTap: onOpenNow),
+          if (showOpenNow) ...[
+            const SizedBox(width: 8),
+            SearchChip(label: 'Open now', selected: openNow, onTap: onOpenNow),
+          ],
           for (final tag in quick) ...[
             const SizedBox(width: 8),
             SearchChip(

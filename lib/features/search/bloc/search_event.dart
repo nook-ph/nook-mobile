@@ -32,7 +32,13 @@ class SearchSortChanged extends SearchEvent {
 }
 
 class SearchLoadMore extends SearchEvent {
-  const SearchLoadMore();
+  /// The user asked again after a page failed. The list's own request, sent
+  /// from every build near its end, does not retry a failure.
+  final bool retry;
+  const SearchLoadMore({this.retry = false});
+
+  @override
+  List<Object?> get props => [retry];
 }
 
 class SearchRefresh extends SearchEvent {

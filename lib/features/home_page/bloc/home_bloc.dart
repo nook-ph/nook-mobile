@@ -68,6 +68,13 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         firstStep = false;
       }
     } catch (e) {
+      // A refresh that fails keeps the feed it was refreshing; only the
+      // failure is reported.
+      final current = state;
+      if (event.refresh && current is HomeLoadedState) {
+        emit(current.copyWith(refreshError: e));
+        return;
+      }
       emit(HomeError(e));
     }
   }

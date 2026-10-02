@@ -186,11 +186,16 @@ class SupabaseAuthRemoteDataSource {
   }
 
   Future<void> signOut() async {
-    await _client.auth.signOut(scope: SignOutScope.global);
     try {
-      await GoogleSignIn.instance.signOut();
-    } catch (_) {
-      // GoogleSignIn may not be initialized if the user never signed in with Google.
+      await _client.auth.signOut(scope: SignOutScope.global);
+    } finally {
+      // The local session is gone even when the request above fails, so the
+      // Google account has to be released either way.
+      try {
+        await GoogleSignIn.instance.signOut();
+      } catch (_) {
+        // GoogleSignIn may not be initialized if the user never signed in with Google.
+      }
     }
   }
 

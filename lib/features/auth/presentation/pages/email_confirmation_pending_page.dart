@@ -29,6 +29,10 @@ class _EmailConfirmationPendingScreenState
   String? _codeError;
   AuthAwaitingEmailConfirmation? _previous;
 
+  /// Set by "Go back". The router pins this route while the signup is
+  /// pending, so leaving waits for the bloc to drop that state.
+  String? _leavingWithEmail;
+
   @override
   void dispose() {
     _cooldownTimer?.cancel();
@@ -60,8 +64,8 @@ class _EmailConfirmationPendingScreenState
   }
 
   void _goBackToSignup(String email) {
+    _leavingWithEmail = email;
     context.read<AuthBloc>().add(const AuthSessionCheckEvent());
-    context.go('/login', extra: email);
   }
 
   void _onCodeChanged(String _) {
@@ -77,9 +81,15 @@ class _EmailConfirmationPendingScreenState
         // The listener only receives the new state; keep the one before it
         // so a finished verify can be told from a finished resend.
         _previous = prev is AuthAwaitingEmailConfirmation ? prev : null;
-        return curr is AuthAwaitingEmailConfirmation;
+        return curr is AuthAwaitingEmailConfirmation ||
+            curr is AuthUnauthenticated;
       },
       listener: (context, state) {
+        if (state is AuthUnauthenticated) {
+          final email = _leavingWithEmail;
+          if (email != null) context.go('/login', extra: email);
+          return;
+        }
         if (state is! AuthAwaitingEmailConfirmation) return;
         // Start the cooldown off the bloc's counter rather than off the tap, so
         // it only runs when the email actually went out.
