@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:go_router/go_router.dart';
@@ -815,11 +816,7 @@ class _CafeThumb extends StatelessWidget {
         dimension: size,
         child: url.isEmpty
             ? fallback
-            : Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => fallback,
-              ),
+            : CafeCardImage(imageUrl: url, errorWidget: fallback),
       ),
     );
   }

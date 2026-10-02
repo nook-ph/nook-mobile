@@ -7,10 +7,12 @@ class GetCafeDetailsUseCase {
   GetCafeDetailsUseCase(this.repository);
 
   Future<CafeBundle> call(String cafeId) async {
+    // No reviews: the details page reads them from ReviewsBloc, which asks
+    // get_reviews_with_vote_status for the same rows plus the vote state.
     final bundle = await repository.getCafeBundleById(
       cafeId,
       includeMenu: true,
-      includeReviews: true,
+      includeReviews: false,
     );
 
     final latestReviews = bundle.reviews == null

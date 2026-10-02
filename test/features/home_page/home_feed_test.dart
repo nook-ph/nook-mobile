@@ -33,10 +33,10 @@ class _FakeFeed extends GetHomeFeedUseCase {
   Object? error;
 
   @override
-  Future<HomeFeedWithLocationMeta> call({int page = 0, int limit = 20}) async {
+  Stream<HomeFeedUpdate> watch({int page = 0, int limit = 20}) async* {
     final e = error;
     if (e != null) throw e;
-    return result;
+    yield (data: result, nearbyPending: false);
   }
 }
 

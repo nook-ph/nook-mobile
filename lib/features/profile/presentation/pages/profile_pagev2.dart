@@ -28,7 +28,10 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 /// The Profile tab. Creates the profile's blocs and hands over to
 /// [ProfileView], which draws every state.
 class ProfileRedesignPage extends StatelessWidget {
-  const ProfileRedesignPage({super.key});
+  const ProfileRedesignPage({super.key, this.isActive = true});
+
+  /// Whether the Profile tab is the one on screen. See [ProfileView.isActive].
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +56,7 @@ class ProfileRedesignPage extends StatelessWidget {
         listener: (context, state) {
           context.read<ProfileCubit>().clear();
         },
-        child: const ProfileView(),
+        child: ProfileView(isActive: isActive),
       ),
     );
   }
@@ -63,7 +66,12 @@ class ProfileRedesignPage extends StatelessWidget {
 /// failed or signed out. Reads the lists from [ListsBloc] for the counts and
 /// the Lists tab.
 class ProfileView extends StatefulWidget {
-  const ProfileView({super.key});
+  const ProfileView({super.key, this.isActive = true});
+
+  /// Whether the Profile tab is the one on screen. Coming back to it reloads
+  /// the profile behind what is already shown, so a review written elsewhere
+  /// turns up without the page, its scroll position or its tab being reset.
+  final bool isActive;
 
   @override
   State<ProfileView> createState() => _ProfileViewState();
@@ -74,9 +82,21 @@ class _ProfileViewState extends State<ProfileView> {
   void initState() {
     super.initState();
     // The header shows the list count, so the lists load with the profile
-    // rather than when the Lists tab is first opened.
-    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated) {
-      context.read<ListsBloc>().add(LoadUserLists());
+    // rather than when the Lists tab is first opened. Sign-in loads them
+    // too, so they are usually here already (or on their way).
+    final listsBloc = context.read<ListsBloc>();
+    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated &&
+        listsBloc.userLists.isEmpty &&
+        listsBloc.state is! ListsLoading) {
+      listsBloc.add(LoadUserLists());
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfileView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) {
+      context.read<ProfileCubit>().loadProfile(refresh: true);
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:nook/core/cafe/domain/cafe_list_display_title.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/use_cases/create_list_usecase.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
@@ -17,9 +18,16 @@ class ResolveQuickSaveListUseCase {
   final LastSavedListStore lastSavedListStore;
   final CreateListUseCase createListUseCase;
 
-  Future<ResolvedQuickSaveList> call(String userId) async {
+  /// [knownLists] are the user's lists when the caller already holds them;
+  /// they are fetched otherwise.
+  Future<ResolvedQuickSaveList> call(
+    String userId, {
+    List<CafeList> knownLists = const [],
+  }) async {
     debugPrint('[ResolveQuickSave] start userId=$userId');
-    final lists = await repository.getUserLists();
+    final lists = knownLists.isNotEmpty
+        ? knownLists
+        : await repository.getUserLists();
     debugPrint(
       '[ResolveQuickSave] getUserLists count=${lists.length} '
       'ids=${lists.map((l) => l.id).join(",")}',
@@ -39,6 +47,17 @@ class ResolveQuickSaveListUseCase {
       debugPrint(
         '[ResolveQuickSave] stored id not in user lists, fall through',
       );
+    }
+
+    // The rows carry the default flag; only ask when none of them has it.
+    for (final list in lists) {
+      if (list.isDefault) {
+        debugPrint('[ResolveQuickSave] branch: default flagged in list rows');
+        return ResolvedQuickSaveList(
+          listId: list.id,
+          displayTitle: cafeListDisplayTitle(list),
+        );
+      }
     }
 
     try {

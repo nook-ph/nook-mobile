@@ -23,29 +23,50 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     }
 
     try {
-      final out = await getHomeFeedUseCase.call();
+      // Cafes already announced in this load, so the page asks for each
+      // cafe's status once.
+      var announced = <String>{};
+      var firstStep = true;
 
-      final featured = _buildFeatured(out.feed);
-      final allEmpty =
-          featured.isEmpty &&
-          out.feed.nearby.isEmpty &&
-          out.feed.newest.isEmpty &&
-          out.feed.trending.isEmpty &&
-          out.feed.topRated.isEmpty;
+      await for (final update in getHomeFeedUseCase.watch()) {
+        if (emit.isDone) return;
+        final out = update.data;
 
-      emit(
-        HomeLoadedState(
+        // The early step of a refresh has no "Near you" yet. The one on
+        // screen stays until its replacement arrives.
+        final current = state;
+        final nearby =
+            update.nearbyPending && event.refresh && current is HomeLoadedState
+            ? current.nearbyCafes
+            : out.feed.nearby;
+
+        final featured = _buildFeatured(out.feed, nearby);
+        final allEmpty =
+            featured.isEmpty &&
+            nearby.isEmpty &&
+            out.feed.newest.isEmpty &&
+            out.feed.trending.isEmpty &&
+            out.feed.topRated.isEmpty;
+
+        final loaded = HomeLoadedState(
           featuredCafes: featured,
-          nearbyCafes: out.feed.nearby,
+          nearbyCafes: nearby,
           newestCafes: out.feed.newest,
           trendingCafes: out.feed.trending,
           topRatedCafes: out.feed.topRated,
           locationDenied: out.locationDenied,
           locationServicesOff: out.locationServicesOff,
-          locationBannerDismissed: false,
+          // Dismissed between the two steps of one load: stays dismissed.
+          locationBannerDismissed:
+              !firstStep &&
+              current is HomeLoadedState &&
+              current.locationBannerDismissed,
           allEmpty: allEmpty,
-        ),
-      );
+        );
+        emit(loaded.copyWith(newCafeIds: loaded.cafeIds.difference(announced)));
+        announced = loaded.cafeIds;
+        firstStep = false;
+      }
     } catch (e) {
       emit(HomeError(e));
     }
@@ -61,14 +82,12 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     }
   }
 
-  List<CafeSummary> _buildFeatured(HomeFeedResult result) {
+  List<CafeSummary> _buildFeatured(
+    HomeFeedResult result,
+    List<CafeSummary> nearby,
+  ) {
     final seenIds = <String>{};
-    return [
-          ...result.newest,
-          ...result.trending,
-          ...result.topRated,
-          ...result.nearby,
-        ]
+    return [...result.newest, ...result.trending, ...result.topRated, ...nearby]
         .where((summary) => summary.isFeatured)
         .where((summary) => seenIds.add(summary.id))
         .toList();

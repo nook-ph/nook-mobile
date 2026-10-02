@@ -74,13 +74,16 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
 
     emit(ListsLoading());
     try {
-      final results = await Future.wait([
-        repository.getDefaultListId(),
-        getUserListsUseCase(),
-      ]);
-
-      defaultListId = results[0] as String?;
-      final lists = (results[1] as List).cast<CafeList>();
+      // Each row says whether it is the default list, so the default's id
+      // needs no query of its own.
+      final lists = await getUserListsUseCase();
+      defaultListId = null;
+      for (final list in lists) {
+        if (list.isDefault) {
+          defaultListId = list.id;
+          break;
+        }
+      }
       userLists = lists;
       listPreviews = await _loadPreviews(lists);
 

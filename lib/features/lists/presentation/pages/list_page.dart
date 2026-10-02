@@ -38,7 +38,12 @@ class _ListsPageState extends State<ListsPage> {
   @override
   void initState() {
     super.initState();
-    context.read<ListsBloc>().add(LoadUserLists());
+    // Sign-in loads the lists, and every change to one reloads them, so they
+    // are usually here already (or on their way).
+    final listsBloc = context.read<ListsBloc>();
+    if (listsBloc.userLists.isEmpty && listsBloc.state is! ListsLoading) {
+      listsBloc.add(LoadUserLists());
+    }
     context.read<MyCrawlsCubit>().load();
   }
 

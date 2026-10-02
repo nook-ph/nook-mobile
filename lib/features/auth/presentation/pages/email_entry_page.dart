@@ -183,6 +183,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                   'assets/logos/logoT.png',
                   width: 110,
                   height: 37,
+                  cacheWidth: (110 * MediaQuery.devicePixelRatioOf(context))
+                      .ceil(),
                   fit: BoxFit.contain,
                   alignment: Alignment.centerLeft,
                 ),
@@ -234,6 +236,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                 'assets/logos/googleLogo.png',
                 width: 18,
                 height: 18,
+                cacheWidth: (18 * MediaQuery.devicePixelRatioOf(context))
+                    .ceil(),
               ),
               loading: pending == _Pending.google,
               onPressed: providersEnabled

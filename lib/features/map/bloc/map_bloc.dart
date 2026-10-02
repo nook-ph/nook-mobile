@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/geo.dart';
 import 'package:nook/features/map/domain/entities/cafe_tags_entity.dart';
@@ -55,12 +56,37 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   Future<int?> countFor(CafeFilter filter) async {
     final viewport = _lastViewport;
     if (viewport == null) return null;
+
+    // The draft is what the map already shows (the sheet has just opened, or
+    // a change was undone): the answer is on screen.
+    final shown = _shown;
+    final loaded = state;
+    if (loaded is MapLoadedState &&
+        !loaded.isRefreshing &&
+        shown != null &&
+        shown.viewport == viewport &&
+        shown.filter == filter) {
+      return loaded.cafes.length;
+    }
+
     final cafes = await getCafesForViewportUseCase
         .call(viewport: viewport, filter: filter)
         .timeout(_mapLoadTimeout);
+    _counted = (viewport: viewport, filter: filter, cafes: cafes);
     if (cafes.length >= GetCafesForViewportUseCase.fetchCap) return null;
     return cafes.length;
   }
+
+  /// The rows the last [countFor] fetched. Applying that draft asks for the
+  /// same viewport and filter, so the fetch reuses these rather than running
+  /// the query a second time.
+  ({MapViewport viewport, CafeFilter filter, List<CafeSummary> cafes})?
+  _counted;
+
+  /// What the cafes on screen were fetched for. Null when they came from the
+  /// initial load, or when the result hit the fetch cap and may be missing
+  /// cafes from its own area.
+  ({MapViewport viewport, CafeFilter filter})? _shown;
 
   /// Monotonic fetch counter; responses that don't match the latest id are
   /// stale (a newer fetch started while they were in flight) and get dropped.
@@ -85,6 +111,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     }
 
     emit(MapLoadingState());
+    _shown = null;
     final fetchId = ++_fetchId;
     try {
       final result = await getCafeCardUseCase
@@ -124,7 +151,22 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     _lastViewport = event.viewport;
     // Viewport fetches only refresh an already-loaded map; the initial load
     // (and its error handling) belongs to LoadMapDataEvent.
-    if (state is! MapLoadedState) return;
+    final loaded = state;
+    if (loaded is! MapLoadedState) return;
+
+    // A pan or zoom that stays inside the circle already fetched shows the
+    // same cafes; asking again would only repeat the answer.
+    final shown = _shown;
+    if (shown != null &&
+        shown.filter == _filter &&
+        GetCafesForViewportUseCase.covers(
+          fetched: shown.viewport,
+          next: event.viewport,
+        )) {
+      // This event may have cancelled a fetch that had the chip up.
+      if (loaded.isRefreshing) emit(loaded.copyWith(isRefreshing: false));
+      return;
+    }
     await _fetchViewport(event.viewport, emit);
   }
 
@@ -134,16 +176,28 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   ) async {
     final loaded = state as MapLoadedState;
     final fetchId = ++_fetchId;
+    final filter = _filter;
     emit(loaded.copyWith(isRefreshing: true));
 
     try {
-      final cafes = await getCafesForViewportUseCase
-          .call(viewport: viewport, filter: _filter)
-          .timeout(
-            _mapLoadTimeout,
-            onTimeout: () => throw TimeoutException('Map refresh timed out'),
-          );
+      final counted = _counted;
+      _counted = null;
+      final cafes =
+          counted != null &&
+              counted.viewport == viewport &&
+              counted.filter == filter
+          ? counted.cafes
+          : await getCafesForViewportUseCase
+                .call(viewport: viewport, filter: filter)
+                .timeout(
+                  _mapLoadTimeout,
+                  onTimeout: () =>
+                      throw TimeoutException('Map refresh timed out'),
+                );
       if (fetchId != _fetchId || emit.isDone) return;
+      _shown = cafes.length < GetCafesForViewportUseCase.fetchCap
+          ? (viewport: viewport, filter: filter)
+          : null;
       emit(loaded.copyWith(cafes: cafes, isRefreshing: false));
     } catch (_) {
       // Keep the previous list on refetch errors (webapp behavior); just

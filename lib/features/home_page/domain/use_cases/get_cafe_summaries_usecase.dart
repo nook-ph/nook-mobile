@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/location/device_location.dart';
 
 typedef HomeFeedResult = ({
   List<CafeSummary> nearby,
@@ -21,25 +22,39 @@ typedef HomeFeedWithLocationMeta = ({
   bool locationServicesOff,
 });
 
-typedef _ResolvedLocation = ({
-  Position? position,
-  bool locationDenied,
-  bool servicesOff,
-});
+/// One step of a home load. [nearbyPending] marks the early step: the
+/// location-free sections are in, the position (and so "Near you") is not.
+typedef HomeFeedUpdate = ({HomeFeedWithLocationMeta data, bool nearbyPending});
 
 class GetHomeFeedUseCase {
   final ICafeRepository repository;
+  final Future<LocationAccess> Function() _locationAccess;
+  final Future<Position?> Function() _firstPosition;
 
-  GetHomeFeedUseCase(this.repository);
+  GetHomeFeedUseCase(
+    this.repository, {
+    Future<LocationAccess> Function()? locationAccess,
+    Future<Position?> Function()? firstPosition,
+  }) : _locationAccess = locationAccess ?? DeviceLocation.instance.access,
+       _firstPosition = firstPosition ?? DeviceLocation.instance.first;
+
+  /// The whole feed in one answer. See [watch] for the staged version.
+  Future<HomeFeedWithLocationMeta> call({int page = 0, int limit = 20}) async {
+    return (await watch(page: page, limit: limit).last).data;
+  }
 
   /// Each section is fetched on its own, so one failing leaves the others on
   /// screen. When every section that was asked for failed there is no feed to
-  /// show, and the first error is rethrown: an empty result then always means
+  /// show, and the first error is thrown: an empty result then always means
   /// "loaded, and there is nothing", never "everything broke".
-  Future<HomeFeedWithLocationMeta> call({int page = 0, int limit = 20}) async {
+  ///
+  /// A position can take seconds, and three of the four sections do not need
+  /// one. When they arrive before it they are handed over on their own, and
+  /// the full feed follows once "Near you" has been fetched (or ruled out).
+  Stream<HomeFeedUpdate> watch({int page = 0, int limit = 20}) async* {
     final failures = <Object>[];
     var attempted = 3;
-    final locFuture = _resolveLocation();
+    final accessFuture = _readAccess();
     final topRatedFuture = _safeFetch(
       label: 'top_rated',
       failures: failures,
@@ -74,31 +89,62 @@ class GetHomeFeedUseCase {
       ),
     );
 
-    final results = await Future.wait<dynamic>([
-      locFuture,
+    // "Near you" starts the moment there is a position, alongside the other
+    // sections rather than after them.
+    Position? position;
+    var positionResolved = false;
+    final nearbyFuture = accessFuture.then((access) async {
+      if (!access.servicesOff && !access.denied) {
+        position = await _readPosition();
+      }
+      positionResolved = true;
+      final at = position;
+      if (at == null) return <CafeSummary>[];
+      return _safeFetch(
+        label: 'nearby',
+        failures: failures,
+        query: CafeQuery(
+          sort: 'nearby',
+          lat: at.latitude,
+          lng: at.longitude,
+          page: page,
+          limit: limit,
+        ),
+      );
+    });
+
+    final access = await accessFuture;
+    final sections = await Future.wait([
       topRatedFuture,
       trendingFuture,
       newestFuture,
     ]);
-    final loc = results[0] as _ResolvedLocation;
-    final topRated = results[1] as List<CafeSummary>;
-    final trending = results[2] as List<CafeSummary>;
-    final newest = results[3] as List<CafeSummary>;
+    final topRated = sections[0];
+    final trending = sections[1];
+    final newest = sections[2];
 
-    if (loc.position != null) attempted++;
-    final nearby = loc.position == null
-        ? <CafeSummary>[]
-        : await _safeFetch(
-            label: 'nearby',
-            failures: failures,
-            query: CafeQuery(
-              sort: 'nearby',
-              lat: loc.position?.latitude,
-              lng: loc.position?.longitude,
-              page: page,
-              limit: limit,
-            ),
-          );
+    // Still waiting on a fix: show what there is. With the position already
+    // in, "Near you" is one round trip behind at most, and waiting for it
+    // saves the feed from shifting under the reader.
+    if (!positionResolved && sections.any((cafes) => cafes.isNotEmpty)) {
+      await repository.warmCache([...topRated, ...trending, ...newest]);
+      yield (
+        data: (
+          feed: (
+            nearby: <CafeSummary>[],
+            topRated: topRated,
+            trending: trending,
+            newest: newest,
+          ),
+          locationDenied: access.deniedForever,
+          locationServicesOff: access.servicesOff,
+        ),
+        nearbyPending: true,
+      );
+    }
+
+    final nearby = await nearbyFuture;
+    if (position != null) attempted++;
 
     if (failures.length >= attempted) {
       throw failures.first;
@@ -118,10 +164,13 @@ class GetHomeFeedUseCase {
       ...newest,
     ]);
 
-    return (
-      feed: feed,
-      locationDenied: loc.locationDenied,
-      locationServicesOff: loc.servicesOff,
+    yield (
+      data: (
+        feed: feed,
+        locationDenied: access.deniedForever,
+        locationServicesOff: access.servicesOff,
+      ),
+      nearbyPending: false,
     );
   }
 
@@ -138,35 +187,19 @@ class GetHomeFeedUseCase {
     }
   }
 
-  Future<_ResolvedLocation> _resolveLocation() async {
+  Future<LocationAccess> _readAccess() async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return (position: null, locationDenied: false, servicesOff: true);
-      }
-
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.unableToDetermine) {
-        return (
-          position: null,
-          locationDenied: permission == LocationPermission.deniedForever,
-          servicesOff: false,
-        );
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          distanceFilter: 100,
-        ),
-      ).timeout(const Duration(seconds: 4));
-      return (position: position, locationDenied: false, servicesOff: false);
-    } on TimeoutException {
-      return (position: null, locationDenied: false, servicesOff: false);
+      return await _locationAccess();
     } catch (_) {
-      return (position: null, locationDenied: false, servicesOff: false);
+      return (servicesOff: false, denied: true, deniedForever: false);
+    }
+  }
+
+  Future<Position?> _readPosition() async {
+    try {
+      return await _firstPosition();
+    } catch (_) {
+      return null;
     }
   }
 }

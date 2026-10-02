@@ -48,6 +48,69 @@ void main() {
     },
   );
 
+  group('covers', () {
+    MapViewport moved(MapViewport viewport, double meters) {
+      final dLat = meters * degPerMeterLat;
+      return MapViewport(
+        center: GeoPoint(
+          lat: viewport.center.lat + dLat,
+          lng: viewport.center.lng,
+        ),
+        bounds: MapBounds(
+          north: viewport.bounds.north + dLat,
+          east: viewport.bounds.east,
+          south: viewport.bounds.south + dLat,
+          west: viewport.bounds.west,
+        ),
+        zoom: viewport.zoom,
+      );
+    }
+
+    test('a view that stays inside the fetched circle is covered', () {
+      final fetched = viewportWithRadius(5000);
+      expect(
+        GetCafesForViewportUseCase.covers(fetched: fetched, next: fetched),
+        isTrue,
+      );
+      expect(
+        GetCafesForViewportUseCase.covers(
+          fetched: fetched,
+          next: moved(fetched, 10000),
+        ),
+        isTrue,
+      );
+    });
+
+    test('a view that reaches past the fetched circle is not', () {
+      final fetched = viewportWithRadius(5000);
+      // 16 km away with a 5 km reach: 21 km from the fetched centre.
+      expect(
+        GetCafesForViewportUseCase.covers(
+          fetched: fetched,
+          next: moved(fetched, 16000),
+        ),
+        isFalse,
+      );
+      expect(
+        GetCafesForViewportUseCase.covers(
+          fetched: fetched,
+          next: viewportWithRadius(50000),
+        ),
+        isFalse,
+      );
+    });
+
+    test('a bounds fetch covers nothing: it was never a circle', () {
+      expect(
+        GetCafesForViewportUseCase.covers(
+          fetched: viewportWithRadius(50000),
+          next: viewportWithRadius(5000),
+        ),
+        isFalse,
+      );
+    });
+  });
+
   test('fetches the exact bounds when zoomed out beyond the radius', () async {
     final repo = _RecordingRepository();
     final useCase = GetCafesForViewportUseCase(repo);

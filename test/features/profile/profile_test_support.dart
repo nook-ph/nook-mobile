@@ -23,6 +23,7 @@ class FakeProfileCubit extends Cubit<ProfileState> implements ProfileCubit {
   FakeProfileCubit(super.initialState);
 
   int loads = 0;
+  int refreshes = 0;
   final List<String> deleted = [];
   final List<({String? name, String? username, String? bio})> edits = [];
 
@@ -32,7 +33,10 @@ class FakeProfileCubit extends Cubit<ProfileState> implements ProfileCubit {
   void push(ProfileState state) => emit(state);
 
   @override
-  Future<void> loadProfile() async => loads++;
+  Future<void> loadProfile({bool refresh = false}) async {
+    loads++;
+    if (refresh) refreshes++;
+  }
 
   @override
   void clear() => emit(const ProfileUnauthenticated());
