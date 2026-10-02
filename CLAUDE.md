@@ -53,4 +53,6 @@ presentation/  # bloc (or cubit), pages, widgets
 
 ## Note
 
-Schema tables for **crawls**, **drops**, and **achievements** exist in `DB.md`/admin tooling but are **not** exposed in the mobile client yet (see `docs/overview.md` §9). Don't assume client code exists for them.
+Schema tables for the event-style **crawls** (`crawls`, `crawl_*`), **drops**, and **achievements** exist in `DB.md`/admin tooling but are **not** exposed in the mobile client (see `docs/overview.md` §9). Don't assume client code exists for them.
+
+**Community crawls** are a separate, shipped-in-code feature: `lib/features/crawls/`, backed by the `community_crawl*` tables and RPCs (spec: `nook-supabase/docs/COMMUNITY_CRAWLS.md`). Every write goes through an RPC; a stamp is only ever awarded by the server's GPS check.

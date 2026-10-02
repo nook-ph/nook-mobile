@@ -1,0 +1,10 @@
+build/
+.dart_tool/
+android/
+ios/
+web/
+linux/
+macos/
+windows/
+docs/
+*.md
