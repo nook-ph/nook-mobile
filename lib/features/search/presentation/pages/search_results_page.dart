@@ -21,15 +21,20 @@ import 'package:nook/injection_container.dart';
 /// "12 cafes near you", "8 cafes near IT Park · distances from IT Park", or
 /// "12 cafes · sorted by rating" when there was no position to be near and
 /// the results fell back to rating ([byRating]).
+///
+/// [showsDistances] is false when the rows carry no distance (`get_cafes`
+/// only measures for the "Nearest" sort); the line then promises neither
+/// nearness nor distances.
 String searchCountLine(
   int count,
   SearchOrigin? origin,
   bool hasPosition, {
   bool byRating = false,
+  bool showsDistances = true,
 }) {
   final cafes = count == 1 ? '1 cafe' : '$count cafes';
-  if (origin == null) {
-    if (hasPosition) return '$cafes near you';
+  if (origin == null || !showsDistances) {
+    if (hasPosition && showsDistances) return '$cafes near you';
     return byRating ? '$cafes · sorted by rating' : cafes;
   }
   if (origin.isPin) return '$cafes near your pin · distances from the pin';
@@ -431,6 +436,7 @@ class _Results extends StatelessWidget {
                     state.origin,
                     state.hasPosition,
                     byRating: state.shownSort == 'top_rated',
+                    showsDistances: cafes.any((c) => c.distanceMeters != null),
                   ),
                   style: SearchTokens.text(
                     context,

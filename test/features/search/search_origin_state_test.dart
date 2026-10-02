@@ -151,6 +151,20 @@ void main() {
         searchCountLine(3, pin, true),
         '3 cafes near your pin · distances from the pin',
       );
+      // Rows without distances (any sort but "Nearest"): nothing is said
+      // about nearness or where distances are from.
+      expect(
+        searchCountLine(12, null, true, showsDistances: false),
+        '12 cafes',
+      );
+      expect(
+        searchCountLine(12, null, true, byRating: true, showsDistances: false),
+        '12 cafes · sorted by rating',
+      );
+      expect(
+        searchCountLine(8, itPark, true, showsDistances: false),
+        '8 cafes',
+      );
     });
 
     test('no results line', () {
