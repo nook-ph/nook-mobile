@@ -38,6 +38,10 @@ class SearchState extends Equatable {
   /// by rating instead.
   final bool sortFellBack;
 
+  /// The next page failed to load. The rows already shown stay, with a retry
+  /// under them; [lastError] says why.
+  final bool loadMoreFailed;
+
   const SearchState({
     this.status = SearchStatus.initial,
     this.cafes = const [],
@@ -54,6 +58,7 @@ class SearchState extends Equatable {
     this.hasPosition = false,
     this.location = SearchLocationStatus.available,
     this.sortFellBack = false,
+    this.loadMoreFailed = false,
   });
 
   /// The sort the results are really in, for the sort chip and sheet.
@@ -97,6 +102,7 @@ class SearchState extends Equatable {
     bool? hasPosition,
     SearchLocationStatus? location,
     bool? sortFellBack,
+    bool? loadMoreFailed,
   }) {
     return SearchState(
       status: status ?? this.status,
@@ -115,6 +121,7 @@ class SearchState extends Equatable {
       hasPosition: hasPosition ?? this.hasPosition,
       location: location ?? this.location,
       sortFellBack: sortFellBack ?? this.sortFellBack,
+      loadMoreFailed: loadMoreFailed ?? this.loadMoreFailed,
     );
   }
 
@@ -135,5 +142,6 @@ class SearchState extends Equatable {
     hasPosition,
     location,
     sortFellBack,
+    loadMoreFailed,
   ];
 }

@@ -451,6 +451,15 @@ class _Results extends StatelessWidget {
             children: [
               if (i > 0) const SearchDivider(),
               SearchResultRow(cafe: cafes[i]),
+              if (state.loadMoreFailed && i == cafes.length - 1)
+                SearchLoadMoreError(
+                  error: AppErrorCopy.fromException(
+                    state.lastError ?? Exception('Search failed'),
+                  ),
+                  onRetry: () => context.read<SearchBloc>().add(
+                    const SearchLoadMore(retry: true),
+                  ),
+                ),
             ],
           );
         },
