@@ -95,9 +95,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
+    // Supabase stores addresses lowercased and `check_email_exists` compares
+    // exactly, so "Juan@gmail.com" would read as a new account.
+    final email = event.email.trim().toLowerCase();
     try {
-      final exists = await _checkEmailExistsUseCase(event.email);
-      emit(AuthEmailChecked(exists: exists, email: event.email));
+      final exists = await _checkEmailExistsUseCase(email);
+      emit(AuthEmailChecked(exists: exists, email: email));
     } on AuthException catch (e) {
       emit(AuthError(_mapAuthError(e)));
     } on PostgrestException catch (e) {
