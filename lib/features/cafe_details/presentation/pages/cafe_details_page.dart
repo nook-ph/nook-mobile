@@ -630,14 +630,21 @@ class _SavedButtonState extends State<_SavedButton> {
       return;
     }
 
+    // The bookmark fills at once and empties again if the save fails.
     _savedStateRequest++;
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _isSaved = true;
+    });
 
     try {
       final listsBloc = context.read<ListsBloc>();
       final userId = session.user.id;
 
-      final quickSave = await sl<ResolveQuickSaveListUseCase>()(userId);
+      final quickSave = await sl<ResolveQuickSaveListUseCase>()(
+        userId,
+        knownLists: listsBloc.userLists,
+      );
       await listsBloc.addCafeToListUseCase(quickSave.listId, widget.cafeId);
       await sl<LastSavedListStore>().setLastSavedListId(
         userId,
@@ -647,7 +654,6 @@ class _SavedButtonState extends State<_SavedButton> {
       listsBloc.add(LoadUserLists());
 
       if (!mounted) return;
-      setState(() => _isSaved = true);
       showSavedToListToast(
         context,
         widget.cafeName,
@@ -658,6 +664,7 @@ class _SavedButtonState extends State<_SavedButton> {
     } catch (e, st) {
       debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
       if (!mounted) return;
+      setState(() => _isSaved = false);
       _showErrorToast(context, e, goLogin: true);
     } finally {
       if (mounted) setState(() => _isSaving = false);
