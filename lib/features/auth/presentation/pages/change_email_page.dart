@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,7 +10,7 @@ typedef UpdateEmail = Future<void> Function(String email);
 Future<void> _supabaseUpdateEmail(String email) async {
   await Supabase.instance.client.auth.updateUser(
     UserAttributes(email: email),
-    emailRedirectTo: 'ph.nook.app://login-callback',
+    emailRedirectTo: AppConstants.emailRedirectUri,
   );
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/constants/app_constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,7 +11,7 @@ typedef SendPasswordReset = Future<void> Function(String email);
 Future<void> _supabaseSendReset(String email) {
   return Supabase.instance.client.auth.resetPasswordForEmail(
     email,
-    redirectTo: 'ph.nook.app://login-callback',
+    redirectTo: AppConstants.emailRedirectUri,
   );
 }
 

@@ -21,7 +21,7 @@ class MainScreen extends StatelessWidget {
           Supabase.instance.client.auth.currentSession != null,
       pagesBuilder: (tabIndex) => [
         const HomePage(),
-        MapPage(key: ValueKey('map_tab_${tabIndex == 1}')),
+        MapPage(isActive: tabIndex == 1),
         const ListsPage(showBackButton: false),
         ProfileRedesignPage(key: ValueKey('profile_tab_${tabIndex == 3}')),
       ],
