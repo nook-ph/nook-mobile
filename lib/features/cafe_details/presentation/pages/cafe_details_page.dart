@@ -220,6 +220,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                 ..add(LoadCafeDetailsRequested(cafeId: widget.cafeId)),
         ),
         BlocProvider(
+          // Not lazy: the first reader is the reviews section, which only
+          // builds once the cafe has loaded. The reviews should already be
+          // on their way by then, not start after it.
+          lazy: false,
           create: (_) =>
               sl<ReviewsBloc>()
                 ..add(LoadReviewsRequested(cafeId: widget.cafeId)),
@@ -574,9 +578,26 @@ class _SavedButtonState extends State<_SavedButton> {
     final cafeId = widget.cafeId;
 
     try {
-      final isSaved = await listsBloc.repository.isCafeSavedToAnyUserList(
-        cafeId,
-      );
+      // The user's lists are usually in memory already, which leaves one
+      // membership query (or none, without a custom list) instead of
+      // fetching the lists again first.
+      final known = listsBloc.userLists;
+      final bool isSaved;
+      if (known.isEmpty) {
+        isSaved = await listsBloc.repository.isCafeSavedToAnyUserList(cafeId);
+      } else {
+        // Custom lists only, as in isCafeSavedToAnyUserList.
+        final custom = [
+          for (final list in known)
+            if (!list.isSystem) list.id,
+        ];
+        isSaved =
+            custom.isNotEmpty &&
+            (await listsBloc.repository.getCafeListMemberships(
+              cafeId,
+              custom,
+            )).isNotEmpty;
+      }
       if (!mounted ||
           widget.cafeId != cafeId ||
           requestId != _savedStateRequest)

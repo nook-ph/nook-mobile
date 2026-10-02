@@ -43,16 +43,26 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
   String? _note;
   bool _noteLoaded = false;
 
+  /// A note only exists on a Been, and the block renders nothing otherwise,
+  /// so any other cafe is not asked about.
+  bool get _isBeen =>
+      context.read<CafeStatusCubit>().state.statusFor(widget.cafeId) ==
+      CafeStatus.been;
+
   @override
   void initState() {
     super.initState();
-    _loadNote();
+    if (_isBeen) _loadNote();
   }
 
   @override
   void didUpdateWidget(covariant CafeYourVisitBlock oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.cafeId != widget.cafeId) _loadNote();
+    if (oldWidget.cafeId != widget.cafeId) {
+      _note = null;
+      _noteLoaded = false;
+      if (_isBeen) _loadNote();
+    }
   }
 
   Future<void> _loadNote() async {
@@ -105,7 +115,13 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<CafeStatusCubit, CafeStatusState>(
+    return BlocConsumer<CafeStatusCubit, CafeStatusState>(
+      // The status usually lands after this block is built; the note is
+      // fetched when it turns out to be a Been.
+      listenWhen: (previous, current) =>
+          previous.statusFor(widget.cafeId) != CafeStatus.been &&
+          current.statusFor(widget.cafeId) == CafeStatus.been,
+      listener: (context, _) => _loadNote(),
       buildWhen: (previous, current) =>
           previous.statusFor(widget.cafeId) != current.statusFor(widget.cafeId),
       builder: (context, statusState) {

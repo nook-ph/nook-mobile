@@ -241,6 +241,11 @@ class CafeRemoteDataSource {
         ''');
       }
 
+      // The menu does not depend on the cafe row, so both go out together.
+      // A menu failure is only reported once the cafe itself has loaded.
+      final menuFuture = includeMenu ? _fetchMenuItemsByCafeId(cafeId) : null;
+      menuFuture?.ignore();
+
       final selectClause = fields.join(',');
       final response = await supabase
           .from('cafes')
@@ -249,8 +254,8 @@ class CafeRemoteDataSource {
           .single();
 
       final payload = Map<String, dynamic>.from(response);
-      if (includeMenu) {
-        payload['menu_items'] = await _fetchMenuItemsByCafeId(cafeId);
+      if (menuFuture != null) {
+        payload['menu_items'] = await menuFuture;
       }
 
       return CafeBundleModel.fromJson(
