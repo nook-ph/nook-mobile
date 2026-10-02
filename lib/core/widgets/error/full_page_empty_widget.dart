@@ -1,44 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/widgets/error/state_styles.dart';
 
-/// Full-screen empty state (no primary action).
+/// Full-screen empty state, Figma "System — empty page": no icon, a SemiBold
+/// 16 title, a Regular 14 muted line, and an optional filled 44 pill.
 class FullPageEmptyWidget extends StatelessWidget {
   const FullPageEmptyWidget({
     super.key,
     required this.title,
     required this.subtitle,
-    this.icon = Icons.inbox_outlined,
+    this.icon,
+    this.actionLabel,
+    this.onAction,
   });
 
   final String title;
   final String subtitle;
-  final IconData icon;
+
+  /// Kept for older call sites. The redesigned empty page has no icon, so
+  /// this is not drawn.
+  final IconData? icon;
+
+  /// The pill's label. The pill shows only when [onAction] is set too.
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final label = actionLabel;
+    final action = onAction;
 
     return SafeArea(
       child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 64, color: Colors.grey.shade800),
-              const SizedBox(height: 24),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: textTheme.titleLarge?.copyWith(color: Colors.black),
+                style: StateStyles.text(16, FontWeight.w600, StateStyles.ink),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 subtitle,
                 textAlign: TextAlign.center,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey.shade700,
-                ),
+                style: StateStyles.text(14, FontWeight.w400, StateStyles.muted),
               ),
+              if (label != null && action != null) ...[
+                // The design's 8 spacer between two 8 gaps.
+                const SizedBox(height: 24),
+                StatePillButton(label: label, filled: true, onTap: action),
+              ],
             ],
           ),
         ),

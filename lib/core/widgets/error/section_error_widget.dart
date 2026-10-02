@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/state_styles.dart';
 
-/// Compact error block for a subsection (e.g. failed reviews list).
+/// Compact error block for a subsection, Figma "System — section states":
+/// a tinted radius 12 row with 14 padding, a Medium 14 title over a Regular
+/// 12 muted line, and a SemiBold 12 brand action on the right.
 class SectionErrorWidget extends StatelessWidget {
   const SectionErrorWidget({super.key, required this.error, this.onRetry});
 
@@ -11,54 +14,67 @@ class SectionErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final retry = onRetry;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: StateStyles.tint,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Row(
         children: [
-          Icon(_iconFor(error.type), size: 36, color: Colors.grey.shade800),
-          const SizedBox(height: 12),
-          Text(
-            error.title,
-            textAlign: TextAlign.center,
-            style: textTheme.titleMedium?.copyWith(color: Colors.black),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            error.subtitle,
-            textAlign: TextAlign.center,
-            style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
-          ),
-          if (onRetry != null) ...[
-            const SizedBox(height: 12),
-            AdaptiveTextButton(
-              onPressed: onRetry,
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.black,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                error.type == ErrorType.sessionExpired
-                    ? 'Sign in'
-                    : 'Try again',
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(14, 14, retry == null ? 14 : 0, 14),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    error.title,
+                    style: StateStyles.text(
+                      14,
+                      FontWeight.w500,
+                      StateStyles.ink,
+                    ),
+                  ),
+                  Text(
+                    error.subtitle,
+                    style: StateStyles.text(
+                      12,
+                      FontWeight.w400,
+                      StateStyles.muted,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
+          if (retry != null)
+            Semantics(
+              button: true,
+              child: AdaptiveTap(
+                onTap: retry,
+                // The row's 10 gap and 14 padding sit inside the tap target.
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 14, 14, 14),
+                  child: Text(
+                    error.type == ErrorType.sessionExpired
+                        ? 'Sign in'
+                        : 'Try again',
+                    style: StateStyles.text(
+                      12,
+                      FontWeight.w600,
+                      StateStyles.brand,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
-  }
-
-  IconData _iconFor(ErrorType type) {
-    return switch (type) {
-      ErrorType.offline => Icons.wifi_off_outlined,
-      ErrorType.sessionExpired => Icons.lock_outline,
-      ErrorType.serverError => Icons.error_outline,
-      ErrorType.unknown => Icons.error_outline,
-    };
   }
 }

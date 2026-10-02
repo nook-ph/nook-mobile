@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/error_info.dart';
+import 'package:nook/core/widgets/error/state_styles.dart';
 
-/// Full-screen error shell: icon, title, subtitle, optional primary action.
+/// Full-screen error shell, the shared pattern from Figma "System — offline",
+/// "System — server error" and "System — signed out": a 48 tinted circle with
+/// a 22 icon, a SemiBold 16 title, a Regular 14 muted line, and one 44 high
+/// pill that hugs its label. Signing in is the filled pill; everything else
+/// retries with the outlined one.
 class FullPageErrorWidget extends StatelessWidget {
   const FullPageErrorWidget({super.key, required this.error, this.onRetry});
 
@@ -11,40 +16,48 @@ class FullPageErrorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final signIn = error.type == ErrorType.sessionExpired;
+    final retry = onRetry;
 
     return SafeArea(
       child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(_iconFor(error.type), size: 64, color: Colors.grey.shade800),
-              const SizedBox(height: 24),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: StateStyles.tint,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  iconFor(error.type),
+                  size: 22,
+                  color: StateStyles.brand,
+                ),
+              ),
+              const SizedBox(height: 8),
               Text(
                 error.title,
                 textAlign: TextAlign.center,
-                style: textTheme.titleLarge?.copyWith(color: Colors.black),
+                style: StateStyles.text(16, FontWeight.w600, StateStyles.ink),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Text(
                 error.subtitle,
                 textAlign: TextAlign.center,
-                style: textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey.shade700,
-                ),
+                style: StateStyles.text(14, FontWeight.w400, StateStyles.muted),
               ),
-              if (onRetry != null) ...[
-                const SizedBox(height: 32),
-                AdaptiveTextButton(
-                  onPressed: onRetry,
-                  style: TextButton.styleFrom(foregroundColor: Colors.black),
-                  child: Text(
-                    error.type == ErrorType.sessionExpired
-                        ? 'Sign in'
-                        : 'Try again',
-                  ),
+              if (retry != null) ...[
+                // The design's 8 spacer between two 8 gaps.
+                const SizedBox(height: 24),
+                StatePillButton(
+                  label: signIn ? 'Sign in' : 'Try again',
+                  filled: signIn,
+                  onTap: retry,
                 ),
               ],
             ],
@@ -54,12 +67,12 @@ class FullPageErrorWidget extends StatelessWidget {
     );
   }
 
-  IconData _iconFor(ErrorType type) {
+  static IconData iconFor(ErrorType type) {
     return switch (type) {
-      ErrorType.offline => Icons.wifi_off_outlined,
-      ErrorType.sessionExpired => Icons.lock_outline,
-      ErrorType.serverError => Icons.error_outline,
-      ErrorType.unknown => Icons.error_outline,
+      ErrorType.offline => LucideIcons.wifiOff,
+      ErrorType.sessionExpired => LucideIcons.lock,
+      ErrorType.serverError => LucideIcons.triangleAlert,
+      ErrorType.unknown => LucideIcons.triangleAlert,
     };
   }
 }

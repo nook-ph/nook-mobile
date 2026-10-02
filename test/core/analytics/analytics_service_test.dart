@@ -22,7 +22,7 @@ void main() {
       await analyticsService.track('', AnalyticsService.viewDetails);
     });
 
-    // Note: Internal Posthog().capture calls are harder to verify without 
+    // Note: Internal Posthog().capture calls are harder to verify without
     // a mock injection or wrapper, but we've verified the logic refactor.
   });
 }

@@ -5,9 +5,13 @@ import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 /// time the cafe's hours are written in. Tests pass UTC instants and name the
 /// Manila time they correspond to.
 DateTime manila(int year, int month, int day, int hour, [int minute = 0]) =>
-    DateTime.utc(year, month, day, hour, minute).subtract(
-      const Duration(hours: 8),
-    );
+    DateTime.utc(
+      year,
+      month,
+      day,
+      hour,
+      minute,
+    ).subtract(const Duration(hours: 8));
 
 Map<String, dynamic> day(String open, String close) => {
   'open': open,
@@ -101,10 +105,7 @@ void main() {
     });
 
     test('is open after midnight, on the previous day\'s span', () {
-      final status = CafeOpenStatus.resolve(
-        elim,
-        now: manila(2026, 7, 22, 1),
-      );
+      final status = CafeOpenStatus.resolve(elim, now: manila(2026, 7, 22, 1));
       expect(status.state, CafeOpenState.open);
       expect(status.minutesUntilClose, 2 * 60);
     });
@@ -117,10 +118,7 @@ void main() {
     });
 
     test('spills over even when today itself is a rest day', () {
-      final hours = {
-        ...everyDay(day('18:00', '2:00')),
-        'wednesday': closedDay,
-      };
+      final hours = {...everyDay(day('18:00', '2:00')), 'wednesday': closedDay};
       expect(
         CafeOpenStatus.resolve(hours, now: manila(2026, 7, 22, 1)).state,
         CafeOpenState.open,
@@ -199,10 +197,7 @@ void main() {
     // 2026-07-22 00:30 UTC is already 08:30 Wednesday in Manila. Resolving in
     // the device zone would read Tuesday's row, and for a viewer far enough
     // west, the wrong day entirely.
-    final hours = {
-      ...everyDay(closedDay),
-      'wednesday': day('8:00', '18:00'),
-    };
+    final hours = {...everyDay(closedDay), 'wednesday': day('8:00', '18:00')};
 
     test('resolves the day and time in Manila, not UTC', () {
       expect(
