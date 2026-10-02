@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/features/crawls/data/fake_stamp_store.dart';
 import 'package:nook/features/crawls/data/stamp_locator.dart';
 import 'package:nook/features/crawls/domain/entities/crawl.dart';
 import 'package:nook/features/crawls/domain/entities/crawl_exception.dart';
@@ -84,7 +85,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
     required this.leaveCrawlRunUseCase,
     required this.locator,
     required this.analytics,
-    this.fakeStamps = false,
+    this.fakeStampStore,
   }) : super(const CrawlRunState());
 
   final GetCrawlRunUseCase getCrawlRunUseCase;
@@ -93,16 +94,18 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
   final IStampLocator locator;
   final AnalyticsService analytics;
 
-  /// Dev aid (`AppConstants.fakeStamps`): [stamp] marks the stop on this
-  /// device only, without a fix or a server call.
-  final bool fakeStamps;
+  /// Dev aid (`AppConstants.fakeStamps`): when set, [stamp] marks the stop
+  /// on this device only, without a fix or a server call, and the store
+  /// keeps it for the next visit to the run.
+  final FakeStampStore? fakeStampStore;
 
-  /// Stamps made up on this device. Kept apart from the run so a refetch,
-  /// which knows nothing of them, does not wipe them.
-  final List<CrawlStamp> _fakes = [];
+  /// Stamps made up on this device, stop id → when. Kept apart from the run
+  /// so a refetch, which knows nothing of them, does not wipe them.
+  final Map<String, DateTime> _fakes = {};
 
   CrawlRun _withFakes(CrawlRun run) {
-    if (_fakes.isEmpty) return run;
+    final me = run.me;
+    if (_fakes.isEmpty || me == null) return run;
     final real = run.myStampedStopIds;
     return CrawlRun(
       id: run.id,
@@ -112,15 +115,31 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
       members: run.members,
       stamps: [
         ...run.stamps,
-        for (final fake in _fakes)
-          if (!real.contains(fake.stopId)) fake,
+        for (final fake in _fakes.entries)
+          if (!real.contains(fake.key))
+            CrawlStamp(
+              stopId: fake.key,
+              userId: me.userId,
+              claimedAt: fake.value,
+            ),
       ],
     );
   }
 
   Future<void> load(String runId, {CrawlRun? initial}) async {
+    final store = fakeStampStore;
+    if (store != null) {
+      try {
+        _fakes.addAll(await store.read(runId));
+      } catch (e) {
+        debugPrint('[CrawlRun] fake stamps for $runId not read: $e');
+      }
+      if (isClosed) return;
+    }
     if (initial != null) {
-      emit(CrawlRunState(status: CrawlRunStatus.loaded, run: initial));
+      emit(
+        CrawlRunState(status: CrawlRunStatus.loaded, run: _withFakes(initial)),
+      );
     } else {
       emit(const CrawlRunState());
     }
@@ -154,16 +173,16 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
     final run = state.run;
     if (run == null || state.isStamping) return;
 
-    final me = run.me;
-    if (fakeStamps && me != null) {
+    final store = fakeStampStore;
+    if (store != null && run.me != null) {
       // Not tracked: a made-up stamp is not a stamp attempt.
-      _fakes.add(
-        CrawlStamp(
-          stopId: stop.stopId,
-          userId: me.userId,
-          claimedAt: DateTime.now(),
-        ),
-      );
+      final claimedAt = _fakes.putIfAbsent(stop.stopId, DateTime.now);
+      try {
+        await store.add(run.id, stop.stopId, claimedAt);
+      } catch (e) {
+        debugPrint('[CrawlRun] fake stamp for ${stop.stopId} not kept: $e');
+      }
+      if (isClosed) return;
       emit(
         state.copyWith(
           run: _withFakes(run),
@@ -223,6 +242,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
     emit(state.copyWith(isLeaving: true));
     try {
       await leaveCrawlRunUseCase(run.id);
+      await fakeStampStore?.clear(run.id);
       if (isClosed) return true;
       analytics.logEvent(
         'crawl_run_left',

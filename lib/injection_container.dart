@@ -1,3 +1,4 @@
+import 'package:nook/core/constants/app_constants.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
@@ -47,6 +48,7 @@ import 'package:nook/core/upload/data/upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/use_cases/upload_use_case.dart';
 import 'package:nook/features/crawls/data/crawl_remote_data_source.dart';
 import 'package:nook/features/crawls/data/crawl_repository_impl.dart';
+import 'package:nook/features/crawls/data/fake_stamp_store.dart';
 import 'package:nook/features/crawls/data/stamp_locator.dart';
 import 'package:nook/features/crawls/domain/repositories/i_crawl_repository.dart';
 import 'package:nook/features/crawls/domain/use_cases/archive_crawl_usecase.dart';
@@ -101,6 +103,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<LocationPromptStore>(() => LocationPromptStore());
   sl.registerLazySingleton<ReviewDraftStore>(() => ReviewDraftStore());
   sl.registerLazySingleton<TermsAcceptanceStore>(() => TermsAcceptanceStore());
+  sl.registerLazySingleton<FakeStampStore>(() => FakeStampStore());
 
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
@@ -377,7 +380,10 @@ Future<void> initDependencies() async {
   // the moment the user returns to it. The per-screen crawl cubits are built
   // by their pages, which own their route arguments.
   sl.registerLazySingleton<MyCrawlsCubit>(
-    () => MyCrawlsCubit(getMyCrawlsUseCase: sl<GetMyCrawlsUseCase>()),
+    () => MyCrawlsCubit(
+      getMyCrawlsUseCase: sl<GetMyCrawlsUseCase>(),
+      fakeStampStore: AppConstants.fakeStamps ? sl<FakeStampStore>() : null,
+    ),
   );
 
   sl.registerFactory<SaveToListCubit>(

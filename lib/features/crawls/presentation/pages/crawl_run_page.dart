@@ -13,6 +13,7 @@ import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/geo.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
+import 'package:nook/features/crawls/data/fake_stamp_store.dart';
 import 'package:nook/features/crawls/data/stamp_locator.dart';
 import 'package:nook/features/crawls/domain/crawl_stats.dart';
 import 'package:nook/features/crawls/domain/entities/crawl.dart';
@@ -55,7 +56,7 @@ class CrawlRunPage extends StatelessWidget {
         leaveCrawlRunUseCase: sl<LeaveCrawlRunUseCase>(),
         locator: sl<IStampLocator>(),
         analytics: sl<AnalyticsService>(),
-        fakeStamps: AppConstants.fakeStamps,
+        fakeStampStore: AppConstants.fakeStamps ? sl<FakeStampStore>() : null,
       )..load(runId, initial: initial),
       child: _CrawlRunView(runId: runId),
     );
