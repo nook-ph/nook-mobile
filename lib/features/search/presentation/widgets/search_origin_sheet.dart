@@ -117,15 +117,17 @@ class _OriginSheetState extends State<_OriginSheet> {
       onTap: () => _close(const PickOnMap()),
     );
 
-    return Padding(
+    return Container(
+      decoration: const BoxDecoration(
+        color: SearchTokens.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      // The keyboard inset sits inside the surface, so the sheet's colour
+      // runs under the keyboard's rounded top corners.
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.85,
-        ),
-        decoration: const BoxDecoration(
-          color: SearchTokens.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: EdgeInsets.fromLTRB(
           20,

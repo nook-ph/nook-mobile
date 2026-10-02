@@ -51,13 +51,17 @@ class ProfileSheet extends StatelessWidget {
     // The design's 34 bottom padding is the home indicator's space.
     final bottom = math.max(34.0, MediaQuery.viewPaddingOf(context).bottom);
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          color: ProfileTokens.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: ProfileTokens.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      // The keyboard inset sits inside the surface, so the sheet's colour
+      // runs under the keyboard's rounded top corners.
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(

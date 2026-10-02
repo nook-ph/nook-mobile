@@ -168,12 +168,16 @@ class CrawlSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final heading = title;
     final hasHeader = heading != null || showClose;
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: ListsTokens.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return Container(
+      decoration: const BoxDecoration(
+        color: ListsTokens.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      // The keyboard inset sits inside the surface, so the sheet's colour
+      // runs under the keyboard's rounded top corners.
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: SafeArea(
           top: false,

@@ -65,12 +65,17 @@ class ListsSheet extends StatelessWidget {
     final extra = trailing;
     final pinned = footer;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: ListsTokens.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    return Container(
+      decoration: const BoxDecoration(
+        color: ListsTokens.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      // The keyboard inset sits inside the surface, so the sheet's colour
+      // runs under the keyboard: its rounded top corners would otherwise
+      // show the dimmed page behind them.
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
         child: SafeArea(
           top: false,
