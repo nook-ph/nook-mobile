@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -20,6 +21,62 @@ class CrawlRouteMap extends StatefulWidget {
   final List<CrawlStop> stops;
   final double height;
 
+  static const double _fitPadding = 30;
+
+  /// One stop, or several stacked on one point, has no bounds to fit.
+  static const double _singlePointZoom = 15.5;
+
+  /// Stops a few doors apart would otherwise zoom past the street names.
+  static const double _maxFitZoom = 18;
+
+  /// MapLibre's world is 512 logical pixels wide at zoom 0.
+  static const double _worldSize = 512;
+
+  /// The camera that shows every stop inside [size], [_fitPadding] in from
+  /// each edge.
+  ///
+  /// Worked out here and handed to the map as its initial camera, rather
+  /// than asking the map to fit the bounds once it is up: the native fit
+  /// reads the platform view's own size, and on iOS that can still be zero
+  /// when the style finishes loading, which makes MapLibre abort the app.
+  @visibleForTesting
+  static CameraPosition fitCamera(List<CrawlStop> stops, Size size) {
+    double x(double lng) => (lng + 180) / 360;
+    double y(double lat) {
+      final sin = math.sin(lat * math.pi / 180);
+      return 0.5 - math.log((1 + sin) / (1 - sin)) / (4 * math.pi);
+    }
+
+    final xs = stops.map((s) => x(s.lng));
+    final ys = stops.map((s) => y(s.lat));
+    final west = xs.reduce(math.min), east = xs.reduce(math.max);
+    final top = ys.reduce(math.min), bottom = ys.reduce(math.max);
+
+    final midY = (top + bottom) / 2;
+    final target = LatLng(
+      math.atan(_sinh(math.pi * (1 - 2 * midY))) * 180 / math.pi,
+      (west + east) / 2 * 360 - 180,
+    );
+
+    final width = size.width - 2 * _fitPadding;
+    final height = size.height - 2 * _fitPadding;
+    final spanX = east - west, spanY = bottom - top;
+    if ((spanX < 1e-9 && spanY < 1e-9) || width <= 0 || height <= 0) {
+      return CameraPosition(target: target, zoom: _singlePointZoom);
+    }
+    final scale = math.min(
+      spanX < 1e-9 ? double.infinity : width / (_worldSize * spanX),
+      spanY < 1e-9 ? double.infinity : height / (_worldSize * spanY),
+    );
+    final zoom = math.log(scale) / math.ln2;
+    return CameraPosition(
+      target: target,
+      zoom: zoom.clamp(0, _maxFitZoom).toDouble(),
+    );
+  }
+
+  static double _sinh(double v) => (math.exp(v) - math.exp(-v)) / 2;
+
   @override
   State<CrawlRouteMap> createState() => _CrawlRouteMapState();
 }
@@ -31,10 +88,6 @@ class _CrawlRouteMapState extends State<CrawlRouteMap> {
   /// Badges are rasterised at 3x and drawn at 1/3 so they stay sharp.
   static const double _badgeScale = 3;
   static const double _badgeSize = 24;
-  static const double _fitPadding = 30;
-
-  /// One stop, or several stacked on one point, has no bounds to fit.
-  static const double _singlePointZoom = 15.5;
 
   String? _styleJson;
   bool _styleResolved = false;
@@ -71,8 +124,6 @@ class _CrawlRouteMapState extends State<CrawlRouteMap> {
       // MapLibre sizes symbol images in physical pixels, so a badge rastered
       // at [_badgeScale] needs the device ratio to land on [_badgeSize].
       final iconSize = MediaQuery.devicePixelRatioOf(context) / _badgeScale;
-      await _fit(controller, points);
-      if (!mounted) return;
 
       if (points.length > 1) {
         await controller.addLine(
@@ -102,31 +153,6 @@ class _CrawlRouteMapState extends State<CrawlRouteMap> {
     } catch (_) {
       // Style or layer setup can fail after dispose; the painter stays up.
     }
-  }
-
-  Future<void> _fit(MapLibreMapController controller, List<LatLng> points) {
-    final lats = points.map((p) => p.latitude);
-    final lngs = points.map((p) => p.longitude);
-    final south = lats.reduce(math.min), north = lats.reduce(math.max);
-    final west = lngs.reduce(math.min), east = lngs.reduce(math.max);
-
-    if (north - south < 1e-6 && east - west < 1e-6) {
-      return controller.moveCamera(
-        CameraUpdate.newLatLngZoom(points.first, _singlePointZoom),
-      );
-    }
-    return controller.moveCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(south, west),
-          northeast: LatLng(north, east),
-        ),
-        left: _fitPadding,
-        top: _fitPadding,
-        right: _fitPadding,
-        bottom: _fitPadding,
-      ),
-    );
   }
 
   /// A filled brand circle with a white ring and the stop number.
@@ -196,23 +222,26 @@ class _CrawlRouteMapState extends State<CrawlRouteMap> {
                   fit: StackFit.expand,
                   children: [
                     RepaintBoundary(
-                      child: MapLibreMap(
-                        initialCameraPosition: CameraPosition(
-                          target: LatLng(stops.first.lat, stops.first.lng),
-                          zoom: 13,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) => MapLibreMap(
+                          initialCameraPosition: CrawlRouteMap.fitCamera(
+                            stops,
+                            Size(constraints.maxWidth, widget.height),
+                          ),
+                          styleString: _styleJson ?? _fallbackStyle,
+                          translucentTextureSurface: true,
+                          scrollGesturesEnabled: false,
+                          zoomGesturesEnabled: false,
+                          rotateGesturesEnabled: false,
+                          tiltGesturesEnabled: false,
+                          dragEnabled: false,
+                          compassEnabled: false,
+                          onMapCreated: (c) {
+                            if (!_controller.isCompleted)
+                              _controller.complete(c);
+                          },
+                          onStyleLoadedCallback: _onStyleLoaded,
                         ),
-                        styleString: _styleJson ?? _fallbackStyle,
-                        translucentTextureSurface: true,
-                        scrollGesturesEnabled: false,
-                        zoomGesturesEnabled: false,
-                        rotateGesturesEnabled: false,
-                        tiltGesturesEnabled: false,
-                        dragEnabled: false,
-                        compassEnabled: false,
-                        onMapCreated: (c) {
-                          if (!_controller.isCompleted) _controller.complete(c);
-                        },
-                        onStyleLoadedCallback: _onStyleLoaded,
                       ),
                     ),
                     // Covers the map until the route is drawn on it, so the
