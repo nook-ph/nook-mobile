@@ -6,18 +6,15 @@ import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
-import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
-import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
@@ -31,18 +28,24 @@ import 'package:go_router/go_router.dart';
 
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_your_visit_block.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/cafe_hours_title.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/cafe_tags_list.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_status_pills.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_error_view.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_skeleton.dart';
+import 'package:nook/features/cafe_details/presentation/utils/cafe_load_failure.dart';
+import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/expandable_description.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/hero_image_slider.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
 import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/reviews_section.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/reviews_preview_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/save_to_list_bottom_sheet.dart';
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
+import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 
 class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({super.key, required this.cafeId});
@@ -58,9 +61,21 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   final ValueNotifier<double> _scrollOffset = ValueNotifier(0);
   bool _hasTrackedViewDetails = false;
 
-  static const double _expandedHeight = 272;
+  /// The photo runs under the sheet by this much; the sheet's top corners
+  /// take the same radius.
+  static const double _sheetLip = 24;
+
+  final GlobalKey _barKey = GlobalKey();
+
+  static const double _expandedHeight = 296;
   static const double _collapsedHeight = kToolbarHeight;
-  static const double _fadeRange = _expandedHeight - _collapsedHeight - 60;
+
+  /// Scroll distance over which the photo collapses into the bar.
+  static const double _collapseRange = _expandedHeight - _collapsedHeight;
+
+  /// The bar turns white only over the last stretch of the collapse, once
+  /// the sheet has slid up over the photo.
+  static const double _fadeRange = 60;
 
   @override
   void initState() {
@@ -85,6 +100,110 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     _scrollController.dispose();
     _scrollOffset.dispose();
     super.dispose();
+  }
+
+  /// Height of the pinned bar, so toasts land above it. Read at tap time,
+  /// when the bar is always laid out; the estimate is only a fallback.
+  double _toastOffset() {
+    final box = _barKey.currentContext?.findRenderObject();
+    if (box is RenderBox && box.hasSize) return box.size.height;
+    return 72 + MediaQuery.of(context).padding.bottom;
+  }
+
+  void _openReviews(BuildContext context, CafeDetailsLoaded state) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MultiBlocProvider(
+          providers: [
+            BlocProvider.value(value: context.read<CafeDetailsBloc>()),
+            BlocProvider.value(value: context.read<ReviewsBloc>()),
+            BlocProvider.value(value: context.read<ReviewSubmitBloc>()),
+          ],
+          child: ReviewsPage(
+            cafeId: widget.cafeId,
+            cafeRating: state.data.cafeDetails.rating,
+            reviewCount: state.data.cafeDetails.reviewCount,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _writeReview(BuildContext context) {
+    if (Supabase.instance.client.auth.currentSession == null) {
+      CafeGuestSignInSheet.show(context, action: CafeGuestAction.writeReview);
+      return;
+    }
+    WriteReviewSheet.show(context, cafeId: widget.cafeId);
+  }
+
+  /// The sheet's content for a loaded cafe. Sections with nothing in them
+  /// are left out, divider included, instead of printing "No ... listed".
+  Widget _buildSections(
+    BuildContext context,
+    CafeDetailsLoaded state,
+    double menuCardWidth,
+  ) {
+    final cafe = state.data;
+    final details = cafe.cafeDetails;
+    final groups = CafeTagGroups.from(details.tags);
+    final description = details.description.trim();
+
+    final sections = <Widget>[
+      if (CafeAmenitiesSection.hasContent(groups))
+        CafeAmenitiesSection(groups: groups),
+      if (description.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CafeDetailsTokens.gutter,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const CafeSectionTitle('About'),
+              const SizedBox(height: 8),
+              ExpandableDescription(
+                text: description,
+                collapsedMaxLines: 3,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: CafeDetailsTokens.muted,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      if (cafe.menuHighlights.isNotEmpty)
+        MenuHighlights(width: menuCardWidth, cafe: cafe),
+      CafeHoursLocationSection(cafe: cafe, groups: groups),
+      ReviewsPreviewSection(
+        onSeeAllTap: () => _openReviews(context, state),
+        onWriteReviewTap: () => _writeReview(context),
+        currentUserId: Supabase.instance.client.auth.currentUser?.id,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CafeInfoHeader(cafe: cafe),
+        const SizedBox(height: 16),
+        CafeStatusPills(cafe: cafe, toastOffset: _toastOffset),
+        // Your own history with the cafe, right under the actions that
+        // create it. Renders nothing unless it's a Been.
+        CafeYourVisitBlock(
+          cafeId: widget.cafeId,
+          cafeName: details.name,
+          cafeImageUrl: details.featuredImageUrl,
+        ),
+        for (final section in sections) ...[
+          const CafeSectionDivider(),
+          section,
+        ],
+        // Clearance above the pinned bar.
+        const SizedBox(height: 24),
+      ],
+    );
   }
 
   @override
@@ -131,10 +250,17 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
             extendBodyBehindAppBar: true,
             bottomNavigationBar: BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
               builder: (context, state) {
+                if (state is CafeDetailsInitial ||
+                    state is CafeDetailsLoading) {
+                  return const CafeActionsBarSkeleton();
+                }
                 if (state is! CafeDetailsLoaded) {
                   return const SizedBox.shrink();
                 }
-                return CafeActionsBar(cafe: state.data);
+                return KeyedSubtree(
+                  key: _barKey,
+                  child: CafeActionsBar(cafe: state.data),
+                );
               },
             ),
             body: BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
@@ -163,27 +289,21 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                     : const <String>[];
 
                 if (state is CafeDetailsError) {
-                  final info = AppErrorCopy.fromException(state.error);
-                  return Scaffold(
-                    backgroundColor: Colors.white,
-                    appBar: AppBar(
-                      backgroundColor: Colors.white,
-                      elevation: 0,
-                      leading: AdaptiveTap(
-                        onTap: () => Navigator.pop(context),
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
-                          child: Icon(Icons.arrow_back, color: Colors.black),
-                        ),
-                      ),
-                    ),
-                    body: FullPageErrorWidget(
-                      error: info,
-                      onRetry: info.type == ErrorType.sessionExpired
-                          ? () => context.push('/login')
-                          : () => context.read<CafeDetailsBloc>().add(
-                              LoadCafeDetailsRequested(cafeId: widget.cafeId),
-                            ),
+                  final failure = CafeLoadFailure.from(state.error);
+                  void back() => Navigator.maybePop(context);
+                  if (failure.isNotFound) {
+                    return CafeDetailsErrorView.notFound(
+                      onBack: back,
+                      onSearch: () => context.push('/search'),
+                      onHome: () => context.go('/'),
+                    );
+                  }
+                  return CafeDetailsErrorView.forError(
+                    info: failure.info,
+                    onBack: back,
+                    onSignIn: () => context.push('/login'),
+                    onRetry: () => context.read<CafeDetailsBloc>().add(
+                      LoadCafeDetailsRequested(cafeId: widget.cafeId),
                     ),
                   );
                 }
@@ -201,13 +321,19 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                         child: HeroImageSlider(
                           images: heroImages,
                           isLoading: isLoading,
+                          bottomInset: _sheetLip,
+                          onImageTap: (index) => showReviewPhotoViewer(
+                            context,
+                            imageUrls: heroImages,
+                            initialIndex: index,
+                          ),
                         ),
                       ),
                       builder: (context, offset, heroSlider) {
-                        final collapseProgress = (offset / _fadeRange).clamp(
-                          0.0,
-                          1.0,
-                        );
+                        final collapseProgress =
+                            ((offset - (_collapseRange - _fadeRange)) /
+                                    _fadeRange)
+                                .clamp(0.0, 1.0);
                         final titleOpacity = collapseProgress < 0.6
                             ? 0.0
                             : ((collapseProgress - 0.6) / 0.4).clamp(0.0, 1.0);
@@ -278,170 +404,52 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                               ),
                             ),
                           ),
-                          flexibleSpace: FlexibleSpaceBar(
-                            collapseMode: CollapseMode.pin,
-                            background: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                heroSlider!,
-                                IgnorePointer(
-                                  child: Container(
-                                    color: Colors.white.withValues(
-                                      alpha: collapseProgress,
+                          // The photo drifts up at a quarter of the scroll
+                          // speed (parallax) while the bar's bottom edge, and
+                          // the sheet lip drawn on it, move at full speed, so
+                          // the sheet slides up over the photo.
+                          flexibleSpace: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              FlexibleSpaceBar(
+                                collapseMode: CollapseMode.parallax,
+                                background: heroSlider,
+                              ),
+                              IgnorePointer(
+                                child: ColoredBox(
+                                  color: Colors.white.withValues(
+                                    alpha: collapseProgress,
+                                  ),
+                                ),
+                              ),
+                              // The sheet's rounded top edge, pinned to the
+                              // bar's bottom so it travels with the sheet.
+                              const Align(
+                                alignment: Alignment.bottomCenter,
+                                child: IgnorePointer(
+                                  child: SizedBox(
+                                    height: _sheetLip,
+                                    width: double.infinity,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(_sheetLip),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         );
                       },
                     ),
                     SliverToBoxAdapter(
-                      child: Skeletonizer(
-                        enabled: isLoading,
-                        effect: const PulseEffect(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 24),
-
-                            CafeInfoHeader(
-                              cafe: state is CafeDetailsLoaded
-                                  ? state.data
-                                  : null,
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            CafeTagsList(
-                              tags: state is CafeDetailsLoaded
-                                  ? state.data.cafeDetails.tags
-                                  : const [],
-                            ),
-
-                            // Your own history with the cafe, next to the
-                            // cafe — not buried in the bottom bar behind a
-                            // long-press. Renders nothing unless it's a Been.
-                            if (state is CafeDetailsLoaded) ...[
-                              const SizedBox(height: 16),
-                              CafeYourVisitBlock(
-                                cafeId: widget.cafeId,
-                                cafeName: state.data.cafeDetails.name,
-                                cafeImageUrl:
-                                    state.data.cafeDetails.featuredImageUrl,
-                              ),
-                            ],
-
-                            if (state is CafeDetailsLoaded &&
-                                state
-                                    .data
-                                    .cafeDetails
-                                    .description
-                                    .isNotEmpty) ...[
-                              const SizedBox(height: 24),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 22,
-                                ),
-                                child: ExpandableDescription(
-                                  text: state.data.cafeDetails.description,
-                                  style: Theme.of(context).textTheme.bodyLarge
-                                      ?.copyWith(color: Colors.black54),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 24),
-
-                            CafeHoursTile(
-                              cafe: state is CafeDetailsLoaded
-                                  ? state.data
-                                  : null,
-                            ),
-
-                            const Padding(
-                              padding: EdgeInsets.only(left: 66, right: 22),
-                              child: Divider(
-                                height: 1,
-                                thickness: 1,
-                                color: Color(0xFFE0E0E0),
-                              ),
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            MenuHighlights(
-                              width: menuCardWidth,
-                              cafe: state is CafeDetailsLoaded
-                                  ? state.data
-                                  : null,
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            CafeInfo(
-                              cafe: state is CafeDetailsLoaded
-                                  ? state.data
-                                  : null,
-                            ),
-
-                            const SizedBox(height: 40),
-
-                            ReviewsSection(
-                              onSeeMoreTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => MultiBlocProvider(
-                                      providers: [
-                                        BlocProvider.value(
-                                          value: context
-                                              .read<CafeDetailsBloc>(),
-                                        ),
-                                        BlocProvider.value(
-                                          value: context.read<ReviewsBloc>(),
-                                        ),
-                                        BlocProvider.value(
-                                          value: context
-                                              .read<ReviewSubmitBloc>(),
-                                        ),
-                                      ],
-                                      child: ReviewsPage(
-                                        cafeId: widget.cafeId,
-                                        cafeRating: state is CafeDetailsLoaded
-                                            ? state.data.cafeDetails.rating
-                                            : null,
-                                        reviewCount: state is CafeDetailsLoaded
-                                            ? state.data.cafeDetails.reviewCount
-                                            : null,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                              onWriteReviewTap: () {
-                                final session = Supabase
-                                    .instance
-                                    .client
-                                    .auth
-                                    .currentSession;
-                                if (session == null) {
-                                  context.push('/login');
-                                  return;
-                                }
-
-                                WriteReviewSheet.show(
-                                  context,
-                                  cafeId: widget.cafeId,
-                                );
-                              },
-                            ),
-                            // Clearance for the sticky action bar. Without it
-                            // the last thing on the page — "Write a Review" —
-                            // sat flush against the bar with no gap at all.
-                            const SizedBox(height: 24),
-                          ],
-                        ),
-                      ),
+                      child: state is CafeDetailsLoaded
+                          ? _buildSections(context, state, menuCardWidth)
+                          : const CafeDetailsSkeleton(),
                     ),
                   ],
                 );
@@ -586,7 +594,12 @@ class _SavedButtonState extends State<_SavedButton> {
   Future<void> _onTap() async {
     final session = Supabase.instance.client.auth.currentSession;
     if (session == null) {
-      context.push('/login');
+      dismissToasts();
+      await CafeGuestSignInSheet.show(
+        context,
+        action: CafeGuestAction.saveToList,
+        cafeName: widget.cafeName,
+      );
       return;
     }
 

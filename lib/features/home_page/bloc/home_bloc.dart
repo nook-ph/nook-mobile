@@ -16,7 +16,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     LoadHomeDataEvent event,
     Emitter<HomeState> emit,
   ) async {
-    emit(HomeLoadingState());
+    // A refresh keeps the loaded feed on screen; anything else shows the
+    // skeleton.
+    if (!(event.refresh && state is HomeLoadedState)) {
+      emit(HomeLoadingState());
+    }
 
     try {
       final out = await getHomeFeedUseCase.call();
@@ -24,6 +28,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       final featured = _buildFeatured(out.feed);
       final allEmpty =
           featured.isEmpty &&
+          out.feed.nearby.isEmpty &&
           out.feed.newest.isEmpty &&
           out.feed.trending.isEmpty &&
           out.feed.topRated.isEmpty;
@@ -31,10 +36,12 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       emit(
         HomeLoadedState(
           featuredCafes: featured,
+          nearbyCafes: out.feed.nearby,
           newestCafes: out.feed.newest,
           trendingCafes: out.feed.trending,
           topRatedCafes: out.feed.topRated,
           locationDenied: out.locationDenied,
+          locationServicesOff: out.locationServicesOff,
           locationBannerDismissed: false,
           allEmpty: allEmpty,
         ),

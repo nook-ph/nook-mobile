@@ -2,21 +2,37 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/extensions/extensions.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 
-/// Dismissible banner when location permission blocks nearby sorting.
+/// Dismissible notice that nearby sorting and distances are unavailable.
 ///
-/// [visible] is driven by BLoC state (e.g. `locationDenied`). [onDismiss]
-/// should clear that flag in your state layer.
+/// A soft row, not an alert: the feed still works without location. Two
+/// cases share it: permission denied (the default copy, opens the app's
+/// settings) and [LocationDeniedBanner.servicesOff] (the phone-wide switch,
+/// opens the system location settings).
+///
+/// [visible] is driven by BLoC state. [onDismiss] should clear that flag in
+/// your state layer.
 class LocationDeniedBanner extends StatelessWidget {
   const LocationDeniedBanner({
     super.key,
     required this.visible,
     this.onDismiss,
     this.onOpenSettings,
+    this.title = 'See cafes near you',
+    this.actionLabel = 'Turn on location',
   });
+
+  /// The variant for Location Services being off for the whole phone.
+  const LocationDeniedBanner.servicesOff({
+    super.key,
+    required this.visible,
+    this.onDismiss,
+    this.onOpenSettings = Geolocator.openLocationSettings,
+  }) : title = 'Location Services are off',
+       actionLabel = 'Open Settings';
 
   final bool visible;
 
@@ -27,85 +43,98 @@ class LocationDeniedBanner extends StatelessWidget {
   /// Defaults to [Geolocator.openAppSettings].
   final Future<bool> Function()? onOpenSettings;
 
+  final String title;
+  final String actionLabel;
+
   @override
   Widget build(BuildContext context) {
     if (!visible) {
       return const SizedBox.shrink();
     }
 
-    final textTheme = Theme.of(context).textTheme;
+    final textTheme = context.textTheme;
+    final scheme = context.colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
-      child: Material(
-        color: context.colorScheme.primary60,
-        borderRadius: BorderRadius.circular(8),
-        child: SafeArea(
-          bottom: false,
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-                child: Center(
-                  child: Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 4,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: scheme.offWhite,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: AdaptiveTap(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  final open = onOpenSettings ?? Geolocator.openAppSettings;
+                  unawaited(open());
+                },
+                child: Padding(
+                  // Figma: 12 / 14 padding, 10 between icon, text and close.
+                  padding: EdgeInsets.fromLTRB(
+                    14,
+                    12,
+                    onDismiss != null ? 0 : 14,
+                    12,
+                  ),
+                  child: Row(
                     children: [
-                      Text(
-                        'See cafes near you',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: context.colorScheme.white,
-                        ),
+                      Icon(
+                        LucideIcons.locate,
+                        size: 18,
+                        color: scheme.primary100,
                       ),
-                      Text(
-                        '·',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: context.colorScheme.white,
-                        ),
-                      ),
-                      AdaptiveTextButton(
-                        onPressed: () {
-                          final open =
-                              onOpenSettings ?? Geolocator.openAppSettings;
-                          unawaited(open());
-                        },
-                        style: TextButton.styleFrom(
-                          foregroundColor: context.colorScheme.white,
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          'Turn on location',
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: context.colorScheme.white,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              title,
+                              style: textTheme.bodyMediumMed.copyWith(
+                                color: scheme.black,
+                                fontSize: 14,
+                                height: 1.5,
+                              ),
+                            ),
+                            Text(
+                              actionLabel,
+                              style: textTheme.bodySmallMed.copyWith(
+                                color: scheme.primary100,
+                                fontSize: 12,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-              if (onDismiss != null)
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: AdaptiveTap(
-                    onTap: onDismiss,
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.close,
-                        size: 18,
-                        color: context.colorScheme.white,
-                      ),
-                    ),
+            ),
+            if (onDismiss != null)
+              AdaptiveTap(
+                onTap: onDismiss,
+                borderRadius: BorderRadius.circular(22),
+                child: Semantics(
+                  button: true,
+                  label: 'Dismiss',
+                  // A 14pt glyph 14 from the edge and 10 from the text, in
+                  // a touch target that stays 44 tall.
+                  child: Container(
+                    width: 38,
+                    height: 44,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 14),
+                    child: Icon(LucideIcons.x, size: 14, color: scheme.gray),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );

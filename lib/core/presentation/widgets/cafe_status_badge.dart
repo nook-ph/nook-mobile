@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/extensions/extensions.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// "✓ Been" / "🔖 Want to Try" overlay for a cafe card's photo (spec:
+/// "✓ Been" / "🔖 Want to try" overlay for a cafe card's photo (spec:
 /// docs/BEEN_WANT_TO_TRY.md §3.2).
 ///
 /// Status only — the score and the note stay on the cafe page. Without this
@@ -21,6 +21,8 @@ class CafeStatusBadge extends StatelessWidget {
   final String cafeId;
 
   static const _brand = Color(0xFF344E41);
+  static const _ink = Color(0xFF0A0F0D);
+  static const _fill = Color(0xFFFEFEFE);
 
   @override
   Widget build(BuildContext context) {
@@ -34,25 +36,27 @@ class CafeStatusBadge extends StatelessWidget {
         final isBeen = status == CafeStatus.been;
 
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _fill,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                isBeen
-                    ? PhosphorIcons.check(PhosphorIconsStyle.fill)
-                    : PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill),
+                isBeen ? LucideIcons.check : LucideIcons.bookmark,
                 size: 12,
                 color: _brand,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               Text(
-                isBeen ? 'Been' : 'Want to Try',
-                style: context.textTheme.bodySmallMed.copyWith(color: _brand),
+                isBeen ? 'Been' : 'Want to try',
+                style: context.textTheme.bodySmallMed.copyWith(
+                  color: _ink,
+                  fontSize: 10,
+                  height: 1.5,
+                ),
               ),
             ],
           ),

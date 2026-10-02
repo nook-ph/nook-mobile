@@ -35,11 +35,11 @@ const List<String> kMapFilterAmenityLabels = [
 
 const List<String> kMapFilterPaymentLabels = ['Cash', 'E-wallet', 'Card'];
 
-/// Uppercase section labels for full filter sheet only (not sub-sheets).
-const String kMapFilterSectionSortBy = 'SORT BY';
-const String kMapFilterSectionBestFor = 'BEST FOR';
-const String kMapFilterSectionAmenities = 'AMENITIES';
-const String kMapFilterSectionPaymentAccepted = 'PAYMENT ACCEPTED';
+/// Section titles of the filter sheets, in sentence case.
+const String kMapFilterSectionSortBy = 'Sort by';
+const String kMapFilterSectionBestFor = 'Best for';
+const String kMapFilterSectionAmenities = 'Amenities';
+const String kMapFilterSectionPaymentAccepted = 'Payment accepted';
 
 Set<String> mergeTagsReplacingCategory(
   Set<String> currentTags,

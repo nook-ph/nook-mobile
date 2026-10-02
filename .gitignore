@@ -54,3 +54,6 @@ app.*.map.json
 /android/key.properties
 /android/app/*.jks
 /android/app/*.keystore
+
+# graphify knowledge graph (generated)
+/graphify-out/

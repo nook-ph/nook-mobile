@@ -1,34 +1,34 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:nook/core/cache/custom_cache_manager.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
-import 'package:nook/core/widgets/error/full_page_empty_widget.dart';
-import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
-import 'package:nook/core/widgets/prototype_height.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
-import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
-import 'package:nook/features/home_page/presentation/widgets/home_featured_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_card_section.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_featured_card.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
 import 'package:nook/injection_container.dart';
-import 'package:skeletonizer/skeletonizer.dart';
-import 'package:nook/core/extensions/extensions.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   Future<void> _onRefresh(BuildContext context) async {
     final bloc = context.read<HomeBloc>();
-    bloc.add(LoadHomeDataEvent());
-    await bloc.stream.firstWhere((s) => s is! HomeLoadingState);
+    // Wait for the state the refresh ends in. A refresh over a loaded feed
+    // emits no loading state, so the first emission is already the outcome.
+    final done = bloc.stream.firstWhere((s) => s is! HomeLoadingState);
+    bloc.add(LoadHomeDataEvent(refresh: true));
+    await done;
   }
 
   void _onRetry(BuildContext context) {
@@ -51,25 +51,24 @@ class HomePage extends StatelessWidget {
         backgroundColor: Colors.white,
         body: SafeArea(
           child: BlocListener<HomeBloc, HomeState>(
+            // Fires for a first load and for a refresh, but not for a banner
+            // dismissal, which re-emits the same lists.
             listenWhen: (prev, curr) =>
-                prev is! HomeLoadedState && curr is HomeLoadedState,
+                curr is HomeLoadedState &&
+                (prev is! HomeLoadedState ||
+                    !identical(prev.featuredCafes, curr.featuredCafes)),
             listener: (context, state) {
+              if (state is! HomeLoadedState) return;
+
               // One batched get_cafe_statuses for everything on the feed, so
               // the Been / Want to Try badges can render per card without a
               // request per card (spec §3.2).
-              if (state is HomeLoadedState) {
-                final ids = <String>{
-                  for (final cafe in state.featuredCafes) cafe.id,
-                  for (final cafe in state.newestCafes) cafe.id,
-                  for (final cafe in state.trendingCafes) cafe.id,
-                  for (final cafe in state.topRatedCafes) cafe.id,
-                };
-                if (ids.isNotEmpty) {
-                  context.read<CafeStatusCubit>().loadFor(ids.toList());
-                }
+              final ids = state.cafeIds;
+              if (ids.isNotEmpty) {
+                context.read<CafeStatusCubit>().loadFor(ids.toList());
               }
 
-              if (state is HomeLoadedState && state.featuredCafes.isNotEmpty) {
+              if (state.featuredCafes.isNotEmpty) {
                 final first = state.featuredCafes.first;
                 final url = first.coverImage?.trim().isNotEmpty == true
                     ? first.coverImage!.trim()
@@ -84,75 +83,94 @@ class HomePage extends StatelessWidget {
                 );
               }
             },
-            child: BlocBuilder<HomeBloc, HomeState>(
-              builder: (context, state) {
-                if (state is HomeLoadingState) {
-                  return _HomeScrollView(
-                    onRefresh: () => _onRefresh(context),
-                    children: const [_HomeSkeleton()],
-                  );
-                }
-
-                if (state is HomeError) {
-                  return FullPageErrorWidget(
-                    error: AppErrorCopy.fromException(state.error),
-                    onRetry: () => _onRetry(context),
-                  );
-                }
-
-                if (state is HomeLoadedState) {
-                  final hasData =
-                      state.featuredCafes.isNotEmpty ||
-                      state.newestCafes.isNotEmpty ||
-                      state.trendingCafes.isNotEmpty ||
-                      state.topRatedCafes.isNotEmpty;
-
-                  final locationBanner =
-                      state.locationDenied && !state.locationBannerDismissed
-                      ? LocationDeniedBanner(
-                          visible: true,
-                          onDismiss: () => context.read<HomeBloc>().add(
-                            HomeDismissLocationBannerEvent(),
-                          ),
-                        )
-                      : null;
-
-                  return _HomeScrollView(
-                    onRefresh: () => _onRefresh(context),
-                    children: [
-                      ?locationBanner,
-                      if (!hasData)
-                        state.allEmpty && !state.locationDenied
-                            ? FullPageErrorWidget(
-                                error: const ErrorInfo(
-                                  type: ErrorType.serverError,
-                                  title: "We couldn't load cafes",
-                                  subtitle:
-                                      'Something went wrong on our side. Try again.',
-                                ),
-                                onRetry: () => _onRetry(context),
-                              )
-                            : const SizedBox(
-                                height: 360,
-                                child: FullPageEmptyWidget(
-                                  title: 'No cafes yet',
-                                  subtitle:
-                                      'Pull to refresh — new spots appear here soon.',
-                                ),
-                              )
-                      else
-                        _HomeContent(state: state),
-                      const SizedBox(height: 36),
-                    ],
-                  );
-                }
-
-                return const SizedBox.shrink();
-              },
+            // The top bar sits outside the feed's scroll view: search stays
+            // reachable in every state, and the refresh spinner appears
+            // under it.
+            child: Column(
+              children: [
+                const HomeTopBar(),
+                Expanded(
+                  child: BlocBuilder<HomeBloc, HomeState>(
+                    builder: (context, state) => _feedArea(context, state),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _feedArea(BuildContext context, HomeState state) {
+    if (state is HomeLoadingState) {
+      return const SingleChildScrollView(
+        physics: NeverScrollableScrollPhysics(),
+        child: HomeSkeleton(),
+      );
+    }
+
+    if (state is HomeError) {
+      return _HomeScrollView(
+        onRefresh: () => _onRefresh(context),
+        children: [
+          const SizedBox(height: _stateTop),
+          HomeStateView.error(
+            error: HomeStateView.errorCopy(state.error),
+            onRetry: () => _onRetry(context),
+          ),
+          const SizedBox(height: 24),
+        ],
+      );
+    }
+
+    if (state is HomeLoadedState) {
+      final banner = _locationBanner(context, state);
+
+      // The load succeeded and there is nothing to list. A load where every
+      // section failed never gets here: the use case throws and the feed
+      // shows the error view instead.
+      if (!state.hasCafes) {
+        return _HomeScrollView(
+          onRefresh: () => _onRefresh(context),
+          children: [
+            ?banner,
+            const SizedBox(height: _stateTop),
+            const HomeStateView.noCafes(),
+            const SizedBox(height: 24),
+          ],
+        );
+      }
+
+      return _HomeScrollView(
+        onRefresh: () => _onRefresh(context),
+        children: [
+          ?banner,
+          const SizedBox(height: 12),
+          _HomeContent(state: state),
+          const SizedBox(height: 36),
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  /// Figma: the state block starts 150 below the top bar.
+  static const double _stateTop = 150;
+
+  Widget? _locationBanner(BuildContext context, HomeLoadedState state) {
+    if (!state.showLocationBanner) return null;
+    void dismiss() =>
+        context.read<HomeBloc>().add(HomeDismissLocationBannerEvent());
+
+    final banner = state.locationServicesOff
+        ? LocationDeniedBanner.servicesOff(visible: true, onDismiss: dismiss)
+        : LocationDeniedBanner(visible: true, onDismiss: dismiss);
+    // Figma "Banner wrap": 4 above and below.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: banner,
     );
   }
 }
@@ -169,15 +187,17 @@ class _HomeScrollView extends StatelessWidget {
       onRefresh: onRefresh,
       color: context.colorScheme.primary100,
       backgroundColor: context.colorScheme.white,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const HomeTopBar(),
-            const SizedBox(height: 12),
-            ...children,
-          ],
+      // Always scrollable, so pull to refresh works on a short state view.
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+          ),
         ),
       ),
     );
@@ -189,162 +209,182 @@ class _HomeContent extends StatelessWidget {
 
   const _HomeContent({required this.state});
 
-  static const _prototypeCafe = CafeSummary(
-    id: '',
-    name: 'Prototype Cafe Name',
-    address: 'Prototype Address',
-    rating: 4.9,
-    coverImage: null,
-    tags: ['Specialty'],
-  );
-
   @override
   Widget build(BuildContext context) {
-    final featuredWidth = FeaturedCard.cardWidth;
-    final featuredImageHeight = ResponsiveCardSizes.featuredImageHeight(
-      context,
-    );
+    // Sections with no cafes are left out, so the gap goes between the ones
+    // that remain rather than around blank space.
+    final sections = <Widget>[
+      if (state.featuredCafes.isNotEmpty)
+        _FeaturedSection(cafes: state.featuredCafes),
+      if (state.nearbyCafes.isNotEmpty)
+        HomeCafeSection(title: 'Near you', cafes: state.nearbyCafes),
+      if (state.newestCafes.isNotEmpty)
+        HomeCafeSection(title: 'New', cafes: state.newestCafes),
+      if (state.trendingCafes.isNotEmpty)
+        HomeCafeSection(title: 'Trending', cafes: state.trendingCafes),
+      if (state.topRatedCafes.isNotEmpty)
+        HomeCafeSection(title: 'Top Rated', cafes: state.topRatedCafes),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (state.featuredCafes.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          const _SectionTitle('Featured'),
-          const SizedBox(height: 12),
-          PrototypeHeight(
-            prototype: FeaturedCard(
-              width: featuredWidth,
-              height: featuredImageHeight,
-              cafe: _prototypeCafe,
-            ),
-            listView: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 22),
-              itemCount: state.featuredCafes.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => FeaturedCard(
-                width: featuredWidth,
-                height: featuredImageHeight,
-                cafe: state.featuredCafes[i],
-              ),
-            ),
-          ),
+        for (var i = 0; i < sections.length; i++) ...[
+          if (i > 0) const SizedBox(height: 28),
+          sections[i],
         ],
-        const SizedBox(height: 36),
-        HomeCafeSection(
-          title: 'New',
-          cafes: state.newestCafes,
-          emptySubtitle: 'No new cafes yet',
-        ),
-        const SizedBox(height: 36),
-        HomeCafeSection(
-          title: 'Trending',
-          cafes: state.trendingCafes,
-          emptySubtitle: 'Nothing trending right now',
-        ),
-        const SizedBox(height: 36),
-        HomeCafeSection(
-          title: 'Top Rated',
-          cafes: state.topRatedCafes,
-          emptySubtitle: 'Ratings show up soon',
-        ),
       ],
     );
   }
 }
 
-class _HomeSkeleton extends StatelessWidget {
-  const _HomeSkeleton();
+class _FeaturedSection extends StatelessWidget {
+  const _FeaturedSection({required this.cafes});
 
-  static const _skeletonCafe = CafeSummary(
-    id: 'skeleton',
-    name: 'Cafe Placeholder Name',
-    address: 'Street Address Placeholder',
-    rating: 4.9,
-    coverImage: null,
-    tags: ['Specialty'],
-  );
-
-  static final _skeletonCafes = List.filled(4, _skeletonCafe);
+  final List<CafeSummary> cafes;
 
   @override
   Widget build(BuildContext context) {
-    final featuredWidth = FeaturedCard.cardWidth;
-    final featuredImageHeight = ResponsiveCardSizes.featuredImageHeight(
-      context,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const HomeSectionTitle('Featured'),
+        const SizedBox(height: 12),
+        FeaturedCarousel(cafes: cafes),
+      ],
+    );
+  }
+}
+
+/// The loading feed (Figma 1605:14062): grey blocks in the shape of the real
+/// sections, so nothing jumps when the cafes arrive.
+class HomeSkeleton extends StatefulWidget {
+  const HomeSkeleton({super.key});
+
+  @override
+  State<HomeSkeleton> createState() => _HomeSkeletonState();
+}
+
+class _HomeSkeletonState extends State<HomeSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+    lowerBound: 0.55,
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final featuredWidth = ResponsiveCardSizes.featuredCardWidth(context);
+    final cardWidth = ResponsiveCardSizes.cafeCardWidth(context);
+
+    Widget row(List<Widget> cards) => SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(left: ResponsiveCardSizes.homeGutter),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < cards.length; i++) ...[
+            if (i > 0) const SizedBox(width: ResponsiveCardSizes.homeCardGap),
+            cards[i],
+          ],
+        ],
+      ),
     );
 
-    return Skeletonizer(
-      enabled: true,
-      effect: const PulseEffect(),
-      child: IgnorePointer(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
-            const _SectionTitle('Featured'),
-            const SizedBox(height: 12),
-            PrototypeHeight(
-              prototype: FeaturedCard(
-                width: featuredWidth,
-                height: featuredImageHeight,
-                cafe: _skeletonCafe,
-                isSkeleton: true,
-              ),
-              listView: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 22),
-                itemCount: 2,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
-                itemBuilder: (_, i) => FeaturedCard(
-                  width: featuredWidth,
-                  height: featuredImageHeight,
-                  cafe: _skeletonCafe,
-                  isSkeleton: true,
-                ),
-              ),
+    Widget section(Widget cards) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: ResponsiveCardSizes.homeGutter,
+          ),
+          child: _Bone(width: 110, height: 18),
+        ),
+        const SizedBox(height: 12),
+        cards,
+      ],
+    );
+
+    Widget featuredCard() => SizedBox(
+      width: featuredWidth,
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Bone(height: ResponsiveCardSizes.featuredPhotoHeight, radius: 16),
+          SizedBox(height: 10),
+          _Bone(width: 200, height: 16),
+          SizedBox(height: 6),
+          _Bone(width: 240, height: 10),
+          SizedBox(height: 6),
+          _Bone(width: 150, height: 10),
+        ],
+      ),
+    );
+
+    Widget compactCard() => SizedBox(
+      width: cardWidth,
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Bone(height: ResponsiveCardSizes.cafePhotoHeight, radius: 12),
+          SizedBox(height: 8),
+          _Bone(width: 130, height: 14),
+          SizedBox(height: 6),
+          _Bone(width: 170, height: 10),
+          SizedBox(height: 6),
+          _Bone(width: 90, height: 10),
+        ],
+      ),
+    );
+
+    return Semantics(
+      label: 'Loading cafes',
+      child: ExcludeSemantics(
+        child: FadeTransition(
+          opacity: _pulse,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 36),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                section(row([featuredCard(), featuredCard()])),
+                for (var i = 0; i < 3; i++) ...[
+                  const SizedBox(height: 28),
+                  section(row([compactCard(), compactCard(), compactCard()])),
+                ],
+              ],
             ),
-            const SizedBox(height: 36),
-            HomeCafeSection(
-              title: 'New',
-              cafes: _skeletonCafes,
-              isSkeleton: true,
-            ),
-            const SizedBox(height: 36),
-            HomeCafeSection(
-              title: 'Trending',
-              cafes: _skeletonCafes,
-              isSkeleton: true,
-            ),
-            const SizedBox(height: 36),
-            HomeCafeSection(
-              title: 'Top Rated',
-              cafes: _skeletonCafes,
-              isSkeleton: true,
-            ),
-            const SizedBox(height: 36),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
+/// One grey skeleton block.
+class _Bone extends StatelessWidget {
+  const _Bone({this.width, required this.height, this.radius = 6});
 
-  const _SectionTitle(this.text);
+  final double? width;
+  final double height;
+  final double radius;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
-      child: Text(
-        text,
-        style: context.textTheme.titleLargeSemi.copyWith(
-          color: context.colorScheme.black,
-        ),
+    return Container(
+      width: width ?? double.infinity,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEEEEE),
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }

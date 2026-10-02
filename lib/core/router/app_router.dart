@@ -90,8 +90,36 @@ GoRouter createAppRouter(AuthBloc authBloc) {
               return switch (state) {
                 ShowOnboarding() => const OnboardingPage(),
                 ShowHome() => const MainScreen(),
-                AppInitial() => const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
+                // Logo with a small spinner while the session is checked,
+                // so the hand-off from the native splash is not a bare
+                // spinner on white.
+                AppInitial() => Scaffold(
+                  backgroundColor: Colors.white,
+                  body: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Figma: the wordmark sits in a 79.2 x 44 box and
+                        // fills its width.
+                        SizedBox(
+                          width: 79.2,
+                          height: 44,
+                          child: Image.asset(
+                            'assets/logos/logoT.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        const SizedBox.square(
+                          dimension: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Color(0xFF344E41),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               };
             },

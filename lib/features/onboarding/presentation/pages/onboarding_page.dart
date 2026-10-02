@@ -2,15 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
-import 'package:nook/core/extensions/extensions.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../bloc/onboarding_bloc.dart';
 import '../../data/onboarding_data.dart';
 import '../widgets/onboarding_image.dart';
 
+/// First launch (Figma A1–A3): illustration, page dots, left-aligned copy,
+/// Skip on the first two slides and Next/Continue pinned to the bottom.
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({super.key});
+  const OnboardingPage({super.key, this.onFinish});
+
+  /// Called by Skip and by Continue on the last slide. Defaults to telling
+  /// [AppBloc] onboarding is done.
+  final VoidCallback? onFinish;
+
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
@@ -25,7 +31,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _finish(BuildContext context) {
-    context.read<AppBloc>().add(OnboardingCompleted());
+    final onFinish = widget.onFinish;
+    if (onFinish != null) {
+      onFinish();
+    } else {
+      context.read<AppBloc>().add(OnboardingCompleted());
+    }
   }
 
   @override
@@ -33,125 +44,120 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return BlocProvider(
       create: (context) => OnboardingBloc(),
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AuthColors.surface,
         body: BlocBuilder<OnboardingBloc, OnboardingState>(
           builder: (context, state) {
             final currentData = OnboardingData.items[state.pageIndex];
 
             return SafeArea(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // top section
-                  Expanded(
-                    flex: 3,
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount: OnboardingData.items.length,
-                      onPageChanged: (index) {
-                        context.read<OnboardingBloc>().add(PageChanged(index));
-                      },
-                      itemBuilder: (context, index) {
-                        return OnboardingImageWidget(
-                          model: OnboardingData.items[index],
-                        );
-                      },
+                  SizedBox(
+                    height: 48,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        // Gone on the last slide, where Continue does the
+                        // same thing.
+                        child: state.isLastPage
+                            ? null
+                            : AuthTextLink(
+                                label: 'Skip',
+                                color: AuthColors.muted,
+                                onTap: () => _finish(context),
+                              ),
+                      ),
                     ),
                   ),
-
-                  //bot
                   Expanded(
-                    flex: 2,
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                        left: 22,
-                        right: 22,
-                        bottom: 32,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: authGutter,
                       ),
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: SingleChildScrollView(
-                                key: ValueKey<int>(state.pageIndex),
-                                physics: const BouncingScrollPhysics(),
-                                child: Column(
-                                  children: [
-                                    Text(
-                                      currentData.title,
-                                      textAlign: TextAlign.center,
-                                      style: context.textTheme.titleLargeSemi
-                                          .copyWith(
-                                            color: const Color(0xFF344E41),
-                                            height: 1.3,
-                                          ),
-                                    ),
-
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      currentData.description,
-                                      textAlign: TextAlign.center,
-                                      style: context.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            color: const Color(0xFF0A0F0D),
-                                            height: 1.5,
-                                          ),
-                                    ),
-                                  ],
-                                ),
+                          // Takes what is left, up to the design's 340, so
+                          // the copy below always fits on short phones.
+                          Flexible(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 340),
+                              child: PageView.builder(
+                                controller: _pageController,
+                                itemCount: OnboardingData.items.length,
+                                onPageChanged: (index) {
+                                  context.read<OnboardingBloc>().add(
+                                    PageChanged(index),
+                                  );
+                                },
+                                itemBuilder: (context, index) {
+                                  return OnboardingImageWidget(
+                                    model: OnboardingData.items[index],
+                                  );
+                                },
                               ),
                             ),
                           ),
-
-                          const SizedBox(height: 30),
-
+                          const SizedBox(height: 14),
                           SmoothPageIndicator(
                             controller: _pageController,
                             count: OnboardingData.items.length,
                             effect: const ExpandingDotsEffect(
-                              activeDotColor: Color(0xFF344E41),
-                              dotColor: Color(0xFFE0E0E0),
+                              activeDotColor: AuthColors.brand,
+                              dotColor: AuthColors.border,
                               dotHeight: 8,
                               dotWidth: 8,
-                              expansionFactor: 4,
-                              spacing: 8,
+                              radius: 4,
+                              // 22 wide when active.
+                              expansionFactor: 22 / 8,
+                              spacing: 6,
                             ),
                           ),
-
-                          const SizedBox(height: 20),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: 46,
-                            child: AdaptiveElevatedButton(
-                              onPressed: () {
-                                if (state.isLastPage) {
-                                  _finish(context);
-                                } else {
-                                  _pageController.nextPage(
-                                    duration: const Duration(milliseconds: 300),
-                                    curve: Curves.easeIn,
-                                  );
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF344E41),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                          const SizedBox(height: 14),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: Column(
+                              key: ValueKey<int>(state.pageIndex),
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  currentData.title,
+                                  style: AuthText.display,
                                 ),
-                              ),
-                              child: Text(
-                                state.isLastPage ? "Continue" : "Next",
-                                style: context.textTheme.bodyLargeMed.copyWith(
-                                  color: Colors.white,
+                                const SizedBox(height: 14),
+                                Text(
+                                  currentData.description,
+                                  style: AuthText.body,
                                 ),
-                              ),
+                              ],
                             ),
                           ),
+                          const SizedBox(height: 24),
                         ],
                       ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      authGutter,
+                      0,
+                      authGutter,
+                      authBottomGap,
+                    ),
+                    child: AuthPrimaryButton(
+                      label: state.isLastPage ? 'Continue' : 'Next',
+                      onPressed: () {
+                        if (state.isLastPage) {
+                          _finish(context);
+                        } else {
+                          _pageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeIn,
+                          );
+                        }
+                      },
                     ),
                   ),
                 ],

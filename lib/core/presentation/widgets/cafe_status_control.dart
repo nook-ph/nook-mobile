@@ -27,6 +27,7 @@ class CafeStatusControl extends StatelessWidget {
     this.score,
     this.rankLabel,
     this.compact = false,
+    this.fill = false,
   });
 
   final CafeStatus status;
@@ -44,12 +45,45 @@ class CafeStatusControl extends StatelessWidget {
   /// Row is too narrow for both full status labels alongside Directions.
   final bool compact;
 
+  /// Lays the two pills out as equal halves of the available width, for the
+  /// details page where they sit on a row of their own under the cafe name.
+  /// The score is not merged into the Been pill in this mode: the "Your
+  /// visit" block directly below carries it.
+  final bool fill;
+
   bool get _isRanked => score != null;
 
   @override
   Widget build(BuildContext context) {
     final isBeen = status == CafeStatus.been;
-    final showsScore = _isRanked && isBeen;
+    final showsScore = _isRanked && isBeen && !fill;
+
+    if (fill) {
+      return Row(
+        children: [
+          Expanded(
+            child: _Pill(
+              onTap: isBusy ? null : onTapBeen,
+              isSelected: isBeen,
+              icon: PhosphorIcons.check,
+              label: 'Been',
+              fill: true,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _Pill(
+              onTap: isBusy ? null : onTapWantToTry,
+              isSelected: status == CafeStatus.wantToTry,
+              icon: PhosphorIcons.bookmarkSimple,
+              label: 'Want to Try',
+              compactLabel: compact ? 'Try' : null,
+              fill: true,
+            ),
+          ),
+        ],
+      );
+    }
 
     return Wrap(
       spacing: 6,
@@ -85,6 +119,7 @@ class _Pill extends StatelessWidget {
     this.score,
     this.rankLabel,
     this.compactLabel,
+    this.fill = false,
   });
 
   final VoidCallback? onTap;
@@ -97,6 +132,9 @@ class _Pill extends StatelessWidget {
   /// Short stand-in shown instead of [label] when the row is tight. [label]
   /// still goes to screen readers, so the spoken name never abbreviates.
   final String? compactLabel;
+
+  /// Centre the content in whatever width the parent gives.
+  final bool fill;
 
   static const _selectedBg = Color(0xFF3A5A40);
   static const _border = Color(0xFFE0E0E0);
@@ -113,6 +151,39 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final foreground = isSelected ? Colors.white : _ink;
+
+    // The visible text is decoration for the semantic label, so it is kept
+    // out of the semantics tree rather than merged into it.
+    final Widget text = ExcludeSemantics(
+      child: score == null
+          ? Text(
+              compactLabel ?? label,
+              maxLines: fill ? 1 : null,
+              overflow: fill ? TextOverflow.ellipsis : null,
+              style: context.textTheme.bodyLargeMed.copyWith(color: foreground),
+            )
+          // "5.5 · #8 of 9" — the score chip and the Been pill were
+          // always the same object, so they are one control now.
+          : Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: score,
+                    style: context.textTheme.bodyLargeMed.copyWith(
+                      color: foreground,
+                    ),
+                  ),
+                  if (rankLabel != null)
+                    TextSpan(
+                      text: ' · $rankLabel',
+                      style: context.textTheme.bodySmallMed.copyWith(
+                        color: foreground.withValues(alpha: 0.85),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+    );
 
     // MergeSemantics + ExcludeSemantics on the text, not a bare Semantics
     // wrapper: a plain `Semantics(label:)` around a subtree that has its own
@@ -132,6 +203,9 @@ class _Pill extends StatelessWidget {
             // the row wraps instead of clipping.
             constraints: const BoxConstraints(minHeight: 48),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            // Only when filling: an alignment makes the container take all
+            // the width it is offered, which would break the hugging pills.
+            alignment: fill ? Alignment.center : null,
             decoration: BoxDecoration(
               color: isSelected ? _selectedBg : Colors.white,
               borderRadius: BorderRadius.circular(999),
@@ -153,39 +227,9 @@ class _Pill extends StatelessWidget {
                 const SizedBox(width: 6),
                 // The visible text is decoration for the label above, so it is
                 // kept out of the semantics tree rather than merged into it.
-                ExcludeSemantics(
-                  child: score == null
-                      ? Text(
-                          compactLabel ?? label,
-                          style: context.textTheme.bodyLargeMed.copyWith(
-                            color: foreground,
-                          ),
-                        )
-                      // "5.5 · #8 of 9" — the score chip and the Been pill were
-                      // always the same object, so they are one control now.
-                      : Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: score,
-                                style: context.textTheme.bodyLargeMed.copyWith(
-                                  color: foreground,
-                                ),
-                              ),
-                              if (rankLabel != null)
-                                TextSpan(
-                                  text: ' · $rankLabel',
-                                  style: context.textTheme.bodySmallMed
-                                      .copyWith(
-                                        color: foreground.withValues(
-                                          alpha: 0.85,
-                                        ),
-                                      ),
-                                ),
-                            ],
-                          ),
-                        ),
-                ),
+                // Filling pills share a fixed width, so the label gives way
+                // (ellipsis) instead of overflowing on a narrow or large-text row.
+                if (fill) Flexible(child: text) else text,
               ],
             ),
           ),

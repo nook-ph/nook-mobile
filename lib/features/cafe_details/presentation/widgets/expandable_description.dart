@@ -53,8 +53,8 @@ class _ExpandableDescriptionState extends State<ExpandableDescription> {
                 child: Text(
                   _expanded ? 'See less' : 'See more',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.black,
-                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF344E41),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),

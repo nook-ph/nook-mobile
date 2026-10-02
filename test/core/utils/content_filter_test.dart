@@ -4,8 +4,10 @@ import 'package:nook/core/utils/content_filter.dart';
 void main() {
   group('ContentFilter.containsObjectionable', () {
     test('allows clean content', () {
-      expect(ContentFilter.containsObjectionable('Great coffee and cozy vibes'),
-          isFalse);
+      expect(
+        ContentFilter.containsObjectionable('Great coffee and cozy vibes'),
+        isFalse,
+      );
       expect(ContentFilter.containsObjectionable(''), isFalse);
       expect(ContentFilter.containsObjectionable('   '), isFalse);
     });
@@ -29,8 +31,9 @@ void main() {
       // whole word.
       expect(ContentFilter.containsObjectionable('first class latte'), isFalse);
       expect(
-          ContentFilter.containsObjectionable('grape juice on the menu'),
-          isFalse);
+        ContentFilter.containsObjectionable('grape juice on the menu'),
+        isFalse,
+      );
     });
   });
 }

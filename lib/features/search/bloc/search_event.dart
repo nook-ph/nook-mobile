@@ -42,3 +42,27 @@ class SearchRefresh extends SearchEvent {
 class SearchDismissLocationBanner extends SearchEvent {
   const SearchDismissLocationBanner();
 }
+
+/// Measure from [origin] instead of the phone; null goes back to the phone.
+class SearchOriginChanged extends SearchEvent {
+  final SearchOrigin? origin;
+  const SearchOriginChanged(this.origin);
+
+  @override
+  List<Object?> get props => [origin];
+}
+
+class SearchOpenNowToggled extends SearchEvent {
+  const SearchOpenNowToggled();
+}
+
+/// Clears tags, "Open now" and sort; the query and place stay.
+class SearchFiltersCleared extends SearchEvent {
+  const SearchFiltersCleared();
+}
+
+/// Re-read whether the phone's location can be used: on opening search, on
+/// coming back from Settings, and after the system prompt.
+class SearchLocationChecked extends SearchEvent {
+  const SearchLocationChecked();
+}

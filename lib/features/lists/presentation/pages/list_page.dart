@@ -8,6 +8,8 @@ import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
+import 'package:nook/features/crawls/presentation/widgets/my_crawls_section.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
@@ -33,6 +35,7 @@ class _ListsPageState extends State<ListsPage> {
   void initState() {
     super.initState();
     context.read<ListsBloc>().add(LoadUserLists());
+    context.read<MyCrawlsCubit>().load();
   }
 
   @override
@@ -134,6 +137,8 @@ class _ListsPageState extends State<ListsPage> {
                   ),
                 ],
                 const SizedBox(height: 24),
+                const MyCrawlsSection(),
+                const SizedBox(height: 14),
                 Text(
                   'All Lists',
                   style: context.textTheme.titleMediumSemi.copyWith(

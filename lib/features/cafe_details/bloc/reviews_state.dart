@@ -27,10 +27,13 @@ class ReviewsLoaded extends ReviewsState {
 }
 
 class ReviewsError extends ReviewsState {
-  const ReviewsError(this.message);
+  const ReviewsError(this.message, {this.error});
 
   final String message;
 
+  /// What was thrown, so the page can pick the shared error copy for it.
+  final Object? error;
+
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, error];
 }

@@ -20,6 +20,7 @@ import 'package:nook/core/router/app_router.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
+import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/injection_container.dart';
@@ -99,6 +100,7 @@ class _MyAppState extends State<MyApp> {
         BlocProvider<CafeRankingCubit>(create: (_) => sl<CafeRankingCubit>()),
         BlocProvider<FilterCubit>(create: (_) => sl<FilterCubit>()),
         BlocProvider<BlockCubit>(create: (_) => sl<BlockCubit>()),
+        BlocProvider<MyCrawlsCubit>(create: (_) => sl<MyCrawlsCubit>()),
         BlocProvider<AuthBloc>(
           create: (context) =>
               AuthInjection.createAuthBloc(listsBloc: context.read<ListsBloc>())
@@ -128,6 +130,7 @@ class _MyAppState extends State<MyApp> {
                 // Been / Want to Try statuses and rankings are per-user.
                 context.read<CafeStatusCubit>().reset();
                 context.read<CafeRankingCubit>().reset();
+                context.read<MyCrawlsCubit>().reset();
               }
             },
             child: MaterialApp.router(

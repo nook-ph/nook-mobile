@@ -95,13 +95,16 @@ void main() {
       expect(s.resolvedPosition, lessThanOrEqualTo(101));
     });
 
-    test('a lower cap trades precision for fewer questions, not correctness', () {
-      final s = sessionOver(7, cap: 1);
-      s.answer(preferredTarget: true);
-      expect(s.isComplete, isTrue);
-      // One "better than the midpoint" answer rules out the bottom half.
-      expect(s.resolvedPosition, inInclusiveRange(1, 4));
-    });
+    test(
+      'a lower cap trades precision for fewer questions, not correctness',
+      () {
+        final s = sessionOver(7, cap: 1);
+        s.answer(preferredTarget: true);
+        expect(s.isComplete, isTrue);
+        // One "better than the midpoint" answer rules out the bottom half.
+        expect(s.resolvedPosition, inInclusiveRange(1, 4));
+      },
+    );
   });
 
   group('skip', () {

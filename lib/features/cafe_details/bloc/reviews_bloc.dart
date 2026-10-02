@@ -32,7 +32,7 @@ class ReviewsBloc extends Bloc<ReviewsEvent, ReviewsState> {
         ),
       );
     } catch (e) {
-      emit(ReviewsError(e.toString()));
+      emit(ReviewsError(e.toString(), error: e));
     }
   }
 

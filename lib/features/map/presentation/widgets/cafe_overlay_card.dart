@@ -1,149 +1,124 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
-import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
-import 'package:nook/core/presentation/widgets/cafe_open_badge.dart';
-import 'package:nook/core/presentation/widgets/cafe_rating_label.dart';
-import 'package:nook/core/presentation/widgets/cafe_summary_overflow_tags_row.dart';
-import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/utils/geo.dart';
+import 'package:nook/features/map/presentation/widgets/map_sheet_cafe_card.dart';
+import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 
-class CafeOverlayCard extends StatelessWidget {
+/// The preview shown when a pin is selected: the list row in a floating card,
+/// with a small close button on its top-right corner.
+class CafeOverlayCard extends StatefulWidget {
   final CafeSummary cafe;
   final VoidCallback onClose;
 
-  const CafeOverlayCard({super.key, required this.cafe, required this.onClose});
+  /// Reports the card's laid-out height, so the map can keep the recenter
+  /// button above it. The card hugs its content, so this varies by cafe.
+  final ValueChanged<double>? onHeight;
 
-  static const String _fallbackImageUrl =
-      'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+  const CafeOverlayCard({
+    super.key,
+    required this.cafe,
+    required this.onClose,
+    this.onHeight,
+    this.distanceFrom,
+  });
 
-  static const double _cardHeight = 320;
+  /// The place distances are measured from; null means the phone.
+  final GeoPoint? distanceFrom;
+
+  static const double _padding = 12;
+
+  /// The shortest the card gets: the 76pt photo plus padding.
+  static const double minHeight = MapSheetCafeCard.photoSize + _padding * 2;
+
+  @override
+  State<CafeOverlayCard> createState() => _CafeOverlayCardState();
+}
+
+class _CafeOverlayCardState extends State<CafeOverlayCard> {
+  final _cardKey = GlobalKey();
+  double? _reported;
+
+  void _reportHeight() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final box = _cardKey.currentContext?.findRenderObject();
+      if (box is! RenderBox || !box.hasSize) return;
+      final height = box.size.height;
+      if (_reported == height) return;
+      _reported = height;
+      widget.onHeight?.call(height);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final openStatus = CafeOpenStatus.resolve(cafe.operatingHours);
-    final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
-        ? cafe.coverImage!.trim()
-        : _fallbackImageUrl;
-
-    return Material(
-      color: Colors.white,
-      elevation: 3,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        height: _cardHeight,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.border),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(
-            clipBehavior: Clip.hardEdge,
-            children: [
-              AdaptiveTap(
-                onTap: () => context.push('/cafe/${cafe.id}'),
-                child: Column(
-                  children: [
-                    Expanded(
-                      flex: 19,
-                      child: CafeCardImage(imageUrl: imageUrl),
-                    ),
-                    Expanded(
-                      flex: 11,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        cafe.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style:
-                                            context.textTheme.titleMediumSemi,
-                                      ),
-                                    ),
-                                    if (cafe.reviewCount > 0)
-                                      const SizedBox(width: 8),
-                                    CafeRatingLabel(
-                                      rating: cafe.rating,
-                                      reviewCount: cafe.reviewCount,
-                                      starSize: 14,
-                                      starColor: colors.primary100,
-                                      ratingStyle:
-                                          context.textTheme.bodySmallMed,
-                                      countStyle: context.textTheme.bodySmallMed
-                                          .copyWith(
-                                            color: const Color(0xFF848586),
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      LucideIcons.mapPin500,
-                                      size: 12,
-                                      color: Color(0xFF848586),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        cafe.locationLabel,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: context.textTheme.bodySmallMed
-                                            .copyWith(
-                                              color: const Color(0xFF848586),
-                                            ),
-                                      ),
-                                    ),
-                                    // Outside the Expanded so the status always
-                                    // fits and the address truncates instead.
-                                    if (openStatus.state !=
-                                        CafeOpenState.unknown) ...[
-                                      const SizedBox(width: 8),
-                                      CafeOpenBadge(status: openStatus),
-                                    ],
-                                  ],
-                                ),
-                              ],
-                            ),
-                            CafeSummaryOverflowTagsRow(tags: cafe.tags),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: AppBarCircleIconButton(
-                  icon: Icons.close,
-                  iconSize: 14,
-                  dimension: 32,
-                  onTap: onClose,
-                ),
+    _reportHeight();
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          key: _cardKey,
+          padding: const EdgeInsets.all(CafeOverlayCard._padding),
+          decoration: BoxDecoration(
+            color: MapTokens.surface,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.16),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
+          child: LayoutBuilder(
+            builder: (context, constraints) => MapSheetCafeCard(
+              width: constraints.maxWidth,
+              cafe: widget.cafe,
+              showUnratedArea: false,
+              distanceFrom: widget.distanceFrom,
+            ),
+          ),
         ),
-      ),
+        Positioned(
+          top: -16,
+          right: -16,
+          child: Semantics(
+            button: true,
+            label: 'Close preview',
+            excludeSemantics: true,
+            child: AdaptiveTap(
+              onTap: widget.onClose,
+              borderRadius: BorderRadius.circular(22),
+              // 44pt target around the 28pt circle.
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: MapTokens.surface,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 6,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    LucideIcons.x,
+                    size: 14,
+                    color: MapTokens.ink,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

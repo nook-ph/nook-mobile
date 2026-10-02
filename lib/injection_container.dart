@@ -45,12 +45,32 @@ import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/upload/data/upload_remove_data_source.dart';
 import 'package:nook/core/upload/data/upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/use_cases/upload_use_case.dart';
+import 'package:nook/features/crawls/data/crawl_remote_data_source.dart';
+import 'package:nook/features/crawls/data/crawl_repository_impl.dart';
+import 'package:nook/features/crawls/data/stamp_locator.dart';
+import 'package:nook/features/crawls/domain/repositories/i_crawl_repository.dart';
+import 'package:nook/features/crawls/domain/use_cases/archive_crawl_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/claim_crawl_stamp_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/create_crawl_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/get_crawl_by_code_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/get_crawl_run_preview_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/get_crawl_run_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/get_my_crawls_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/join_crawl_run_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/leave_crawl_run_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/report_crawl_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/start_crawl_run_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/enable_crawl_link_usecase.dart';
+import 'package:nook/features/crawls/domain/use_cases/update_crawl_title_usecase.dart';
+import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/data/profile_remote_data_source.dart';
 import 'package:nook/features/profile/data/profile_repository_impl.dart';
 import 'package:nook/features/profile/domain/i_profile_repository.dart';
 import 'package:nook/features/profile/use_cases/update_profile_usecase.dart';
+import 'package:nook/features/search/data/search_origin_store.dart';
+import 'package:nook/features/search/data/search_places.dart';
 import 'package:nook/features/search/bloc/search_bloc.dart';
 import 'package:nook/features/search/domain/use_cases/search_cafes_usecase.dart';
 import 'package:nook/core/upload/domain/repositories/i_review_image_upload_repository.dart';
@@ -85,6 +105,7 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
   sl.registerLazySingleton<ShareService>(() => ShareService());
+  sl.registerLazySingleton<IStampLocator>(() => const GeolocatorStampLocator());
 
   // 2) Data sources
   sl.registerLazySingleton<CafeStore>(() => CafeStore());
@@ -117,6 +138,10 @@ Future<void> initDependencies() async {
     () => BlockRemoteDataSource(sl<SupabaseClient>()),
   );
 
+  sl.registerLazySingleton<CrawlRemoteDataSource>(
+    () => CrawlRemoteDataSource(sl<SupabaseClient>()),
+  );
+
   // 3) Repositories
   sl.registerLazySingleton<ICafeRepository>(
     () => CafeRepositoryImpl(sl<CafeRemoteDataSource>(), sl<CafeStore>()),
@@ -136,6 +161,10 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<IBlockRepository>(
     () => BlockRepositoryImpl(sl<BlockRemoteDataSource>()),
+  );
+
+  sl.registerLazySingleton<ICrawlRepository>(
+    () => CrawlRepositoryImpl(sl<CrawlRemoteDataSource>()),
   );
 
   // 4) Use cases
@@ -241,6 +270,47 @@ Future<void> initDependencies() async {
     () => LogCafeComparisonUseCase(sl<ICafeRepository>()),
   );
 
+  // Community crawls
+  sl.registerLazySingleton<GetMyCrawlsUseCase>(
+    () => GetMyCrawlsUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<GetCrawlByCodeUseCase>(
+    () => GetCrawlByCodeUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<CreateCrawlUseCase>(
+    () => CreateCrawlUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<ArchiveCrawlUseCase>(
+    () => ArchiveCrawlUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<StartCrawlRunUseCase>(
+    () => StartCrawlRunUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<GetCrawlRunUseCase>(
+    () => GetCrawlRunUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<ClaimCrawlStampUseCase>(
+    () => ClaimCrawlStampUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<UpdateCrawlTitleUseCase>(
+    () => UpdateCrawlTitleUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<EnableCrawlLinkUseCase>(
+    () => EnableCrawlLinkUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<ReportCrawlUseCase>(
+    () => ReportCrawlUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<GetCrawlRunPreviewUseCase>(
+    () => GetCrawlRunPreviewUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<JoinCrawlRunUseCase>(
+    () => JoinCrawlRunUseCase(sl<ICrawlRepository>()),
+  );
+  sl.registerLazySingleton<LeaveCrawlRunUseCase>(
+    () => LeaveCrawlRunUseCase(sl<ICrawlRepository>()),
+  );
+
   sl.registerLazySingleton<UpdateProfileUseCase>(
     () => UpdateProfileUseCase(sl<IProfileRepository>()),
   );
@@ -303,6 +373,13 @@ Future<void> initDependencies() async {
     ),
   );
 
+  // App-wide (like ListsBloc) so a stamp or a new crawl is on the Lists tab
+  // the moment the user returns to it. The per-screen crawl cubits are built
+  // by their pages, which own their route arguments.
+  sl.registerLazySingleton<MyCrawlsCubit>(
+    () => MyCrawlsCubit(getMyCrawlsUseCase: sl<GetMyCrawlsUseCase>()),
+  );
+
   sl.registerFactory<SaveToListCubit>(
     () => SaveToListCubit(
       getUserListsUseCase: sl<GetUserListsUseCase>(),
@@ -335,10 +412,18 @@ Future<void> initDependencies() async {
     ),
   );
 
+  // The "search near" place and the places it can be, shared by search and
+  // the map.
+  sl.registerLazySingleton<SearchOriginStore>(SearchOriginStore.new);
+  sl.registerLazySingleton<SearchPlaces>(
+    () => SearchPlaces(sl<SearchCafesUseCase>()),
+  );
+
   sl.registerFactory<SearchBloc>(
     () => SearchBloc(
       searchCafesUseCase: sl<SearchCafesUseCase>(),
       supabase: sl<SupabaseClient>(),
+      originStore: sl<SearchOriginStore>(),
     ),
   );
 
