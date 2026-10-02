@@ -61,7 +61,10 @@ class SupabaseAuthRemoteDataSource {
     required String email,
     required String token,
   }) async {
-    developer.log('Verifying signup OTP: email=$email', name: 'EmailVerification');
+    developer.log(
+      'Verifying signup OTP: email=$email',
+      name: 'EmailVerification',
+    );
     return await _client.auth.verifyOTP(
       type: OtpType.signup,
       email: email,
@@ -72,7 +75,10 @@ class SupabaseAuthRemoteDataSource {
   /// Re-sends the signup confirmation email. [emailRedirectTo] is kept so the
   /// tap-the-link path in the same email keeps working as a fallback.
   Future<void> resendSignupOtp({required String email}) async {
-    developer.log('Resending signup OTP: email=$email', name: 'EmailVerification');
+    developer.log(
+      'Resending signup OTP: email=$email',
+      name: 'EmailVerification',
+    );
     await _client.auth.resend(
       type: OtpType.signup,
       email: email,

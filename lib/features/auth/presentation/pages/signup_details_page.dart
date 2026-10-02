@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:gap/gap.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:nook/core/extensions/extensions.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
-import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 
+/// "Create your account" (Figma C1–C5).
 class SignupDetailsScreen extends StatefulWidget {
   final String? email;
 
@@ -20,6 +17,7 @@ class SignupDetailsScreen extends StatefulWidget {
 class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final FocusNode _passwordFocus = FocusNode();
   String? _nameError;
   String? _passwordError;
   bool _obscurePassword = true;
@@ -28,72 +26,45 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
   void initState() {
     super.initState();
     _nameController.addListener(() {
-      if (_nameError != null && _nameController.text.trim().isNotEmpty) {
-        setState(() => _nameError = null);
-      } else {
-        setState(() {});
-      }
+      setState(() {
+        if (_nameController.text.trim().isNotEmpty) _nameError = null;
+      });
     });
     _passwordController.addListener(() {
-      if (_passwordError != null && _passwordController.text.length >= 8) {
-        setState(() => _passwordError = null);
-      } else {
-        setState(() {});
-      }
+      setState(() {
+        if (_passwordController.text.length >= kSignupPasswordMinLength) {
+          _passwordError = null;
+        }
+      });
     });
+    _passwordFocus.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _passwordController.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
-  void _onContinuePressed(BuildContext context, String email) {
+  void _onContinuePressed(String email) {
     final name = _nameController.text.trim();
     final password = _passwordController.text;
-    String? nameError;
-    String? passwordError;
-
-    if (name.isEmpty) nameError = 'Name is required';
-    if (password.length < 8) {
-      passwordError = 'Password must contain at least 8 characters';
-    }
-
-    if (nameError != null || passwordError != null) {
-      setState(() {
-        _nameError = nameError;
-        _passwordError = passwordError;
-      });
-      return;
-    }
+    final nameError = name.isEmpty ? 'Name is required' : null;
+    final passwordError = password.length < kSignupPasswordMinLength
+        ? 'Password must contain at least $kSignupPasswordMinLength characters'
+        : null;
 
     setState(() {
-      _nameError = null;
-      _passwordError = null;
+      _nameError = nameError;
+      _passwordError = passwordError;
     });
+    if (nameError != null || passwordError != null) return;
 
+    FocusManager.instance.primaryFocus?.unfocus();
     context.read<AuthBloc>().add(
       AuthSignUpEvent(email: email, name: name, password: password),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: context.textTheme.bodySmall!.copyWith(
-        color: const Color(0xFFA8AAAA),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.black87),
-      ),
     );
   }
 
@@ -120,159 +91,74 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
           return;
         }
         if (state is AuthError) {
-          showPrimaryToast(context, state.message);
+          showAuthToast(context, state.message);
         }
       },
       builder: (context, state) {
         final isLoading = state is AuthLoading;
-        final name = _nameController.text.trim();
         final password = _passwordController.text;
-        final canSubmit = name.isNotEmpty && password.isNotEmpty && !isLoading;
+        // Either field typed unlocks Continue, so pressing it can explain
+        // what is still missing (C2) instead of staying silently grey.
+        final canSubmit =
+            (_nameController.text.trim().isNotEmpty || password.isNotEmpty) &&
+            !isLoading;
+        final helper = passwordHelper(
+          value: password,
+          focused: _passwordFocus.hasFocus,
+          minLength: kSignupPasswordMinLength,
+        );
 
-        return Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            leading: AdaptiveTap(
-              onTap: () => context.go('/login', extra: email),
-              child: const Padding(
-                padding: EdgeInsets.all(8),
-                child: Icon(Icons.arrow_back, color: Colors.black),
+        return AuthPage(
+          onBack: () => context.go('/login', extra: email),
+          children: [
+            AuthHeader(
+              title: 'Create your account',
+              subtitle: 'Signing up as',
+              emphasis: email,
+            ),
+            AuthTextField(
+              controller: _nameController,
+              label: 'Full name',
+              hintText: 'Name',
+              errorText: _nameError,
+              autofocus: true,
+              enabled: !isLoading,
+              keyboardType: TextInputType.name,
+              textCapitalization: TextCapitalization.words,
+              textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.name],
+              onSubmitted: (_) => _passwordFocus.requestFocus(),
+            ),
+            AuthTextField(
+              controller: _passwordController,
+              focusNode: _passwordFocus,
+              label: 'Password',
+              hintText: 'Password',
+              errorText: _passwordError,
+              helperText: helper?.text,
+              helperColor: helper?.color,
+              obscureText: _obscurePassword,
+              enabled: !isLoading,
+              autocorrect: false,
+              enableSuggestions: false,
+              autofillHints: const [AutofillHints.newPassword],
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                if (canSubmit) _onContinuePressed(email);
+              },
+              trailing: AuthPasswordToggle(
+                obscured: _obscurePassword,
+                onTap: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
             ),
-          ),
-          body: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const Gap(60),
-                  Column(
-                    children: [
-                      Image.asset('assets/logos/logoT.png', width: 110),
-                      const Gap(22),
-                      Text(
-                        'Continue your account',
-                        style: context.textTheme.titleLargeSemi,
-                      ),
-                      const Gap(4),
-                      Text(
-                        'Signing up as $email',
-                        style: context.textTheme.bodySmall!.copyWith(
-                          color: Colors.black87,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                  const Gap(24),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'What is your full name?',
-                        style: context.textTheme.bodyLargeSemi,
-                      ),
-                      const Gap(8),
-                      TextFormField(
-                        controller: _nameController,
-                        keyboardType: TextInputType.name,
-                        decoration: _inputDecoration('Name'),
-                      ),
-                      if (_nameError != null) ...[
-                        const Gap(8),
-                        Text(
-                          _nameError!,
-                          style: context.textTheme.bodySmall!.copyWith(
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                      const Gap(24),
-                      Text(
-                        'Create a password',
-                        style: context.textTheme.bodyLargeSemi,
-                      ),
-                      const Gap(8),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: _inputDecoration('Password').copyWith(
-                          suffixIcon: AdaptiveTap(
-                            onTap: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: const Color(0xFFA8AAAA),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (_passwordError != null) ...[
-                        const Gap(8),
-                        Text(
-                          _passwordError!,
-                          style: context.textTheme.bodySmall!.copyWith(
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                      const Gap(32),
-                      SizedBox(
-                        width: double.infinity,
-                        child: AdaptiveElevatedButton(
-                          onPressed: canSubmit
-                              ? () => _onContinuePressed(context, email)
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF344E41),
-                            disabledBackgroundColor: const Color(
-                              0xFF344E41,
-                            ).withOpacity(0.5),
-                            foregroundColor: Colors.white,
-                            disabledForegroundColor: Colors.white.withOpacity(
-                              0.8,
-                            ),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: isLoading
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : Text(
-                                  'Continue',
-                                  style: context.textTheme.bodyLargeMed
-                                      .copyWith(color: Colors.white),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Gap(40),
-                ],
-              ),
+            AuthPrimaryButton(
+              label: 'Continue',
+              loading: isLoading,
+              loadingLabel: 'Creating account…',
+              onPressed: canSubmit ? () => _onContinuePressed(email) : null,
             ),
-          ),
+          ],
         );
       },
     );
