@@ -23,14 +23,19 @@ class ProfileCubit extends Cubit<ProfileState> {
        _deleteReviewUseCase = deleteReviewUseCase,
        super(const ProfileInitial());
 
-  Future<void> loadProfile() async {
+  /// With [refresh], a profile already loaded for the signed-in user stays on
+  /// screen while the new one is fetched, and stays if the fetch fails.
+  Future<void> loadProfile({bool refresh = false}) async {
     final user = _client.auth.currentUser;
     if (user == null) {
       emit(const ProfileUnauthenticated());
       return;
     }
 
-    emit(const ProfileLoading());
+    final current = state;
+    final keepShown =
+        refresh && current is ProfileLoaded && current.userId == user.id;
+    if (!keepShown) emit(const ProfileLoading());
 
     try {
       final profileFuture = _client
@@ -92,6 +97,7 @@ class ProfileCubit extends Cubit<ProfileState> {
         ),
       );
     } catch (e) {
+      if (keepShown) return;
       emit(ProfileError(e));
     }
   }
