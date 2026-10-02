@@ -221,6 +221,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       _initListsSession();
       await _emitAuthSuccess(user, emit);
     } on AuthException catch (e) {
+      if (_isEmailNotConfirmed(e)) {
+        // The account was created but the code never entered (the app was
+        // closed on the code screen). Nothing else leads back there, so park
+        // the user on it again and send a fresh code.
+        emit(AuthAwaitingEmailConfirmation(email: event.email));
+        add(const AuthResendOtpEvent());
+        return;
+      }
       emit(AuthError(_mapAuthError(e)));
     } on PostgrestException catch (e) {
       emit(AuthError(_mapDatabaseError(e)));
@@ -526,6 +534,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (previous is AuthAuthenticated || previous is AuthNeedsUsername) {
       emit(previous);
     }
+  }
+
+  bool _isEmailNotConfirmed(AuthException exception) {
+    return exception.code?.toLowerCase() == 'email_not_confirmed' ||
+        exception.message.toLowerCase().contains('email not confirmed');
   }
 
   void _initListsSession() => listsBloc.add(LoadUserLists());
