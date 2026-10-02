@@ -53,8 +53,9 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
   }
 
   /// Rows fetched to count a draft filter. A result this long may have been
-  /// cut off, so it is not reported as a count.
-  static const countLimit = 200;
+  /// cut off, so it is not reported as a count. `get_cafes` rejects a limit
+  /// above 100.
+  static const countLimit = 100;
 
   /// How many cafes the results would hold with [tags] in place of the
   /// current ones: the number "Show N cafes" promises.
