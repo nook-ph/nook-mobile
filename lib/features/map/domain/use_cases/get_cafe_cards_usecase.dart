@@ -2,7 +2,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:nook/core/location/device_location.dart';
 
 typedef CafeCardResult = ({List<CafeSummary> cafes, bool locationDenied});
 
@@ -50,35 +50,18 @@ class GetCafeCardUseCase {
 
   Future<({double? lat, double? lng, bool locationDenied})>
   _resolveDeviceCoordinates() async {
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        return (lat: null, lng: null, locationDenied: false);
-      }
-
-      final permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.unableToDetermine) {
-        return (
-          lat: null,
-          lng: null,
-          locationDenied: permission == LocationPermission.deniedForever,
-        );
-      }
-
-      final location = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-        ),
-      ).timeout(const Duration(seconds: 3));
-      return (
-        lat: location.latitude,
-        lng: location.longitude,
-        locationDenied: false,
-      );
-    } catch (_) {
-      return (lat: null, lng: null, locationDenied: false);
+    // The shared device position: the last known one answers at once, where
+    // a fresh fix of this use case's own could hold the first pins for
+    // seconds.
+    final access = await DeviceLocation.instance.access();
+    if (access.servicesOff || access.denied) {
+      return (lat: null, lng: null, locationDenied: access.deniedForever);
     }
+    final location = await DeviceLocation.instance.first();
+    return (
+      lat: location?.latitude,
+      lng: location?.longitude,
+      locationDenied: false,
+    );
   }
 }
