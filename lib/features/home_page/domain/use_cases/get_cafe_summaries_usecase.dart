@@ -12,17 +12,37 @@ typedef HomeFeedResult = ({
   List<CafeSummary> newest,
 });
 
-typedef HomeFeedWithLocationMeta = ({HomeFeedResult feed, bool locationDenied});
+/// [locationDenied] is the permanently-denied permission case;
+/// [locationServicesOff] is the phone-wide Location Services switch. Either
+/// one means no position, so no nearby list and no distances.
+typedef HomeFeedWithLocationMeta = ({
+  HomeFeedResult feed,
+  bool locationDenied,
+  bool locationServicesOff,
+});
+
+typedef _ResolvedLocation = ({
+  Position? position,
+  bool locationDenied,
+  bool servicesOff,
+});
 
 class GetHomeFeedUseCase {
   final ICafeRepository repository;
 
   GetHomeFeedUseCase(this.repository);
 
+  /// Each section is fetched on its own, so one failing leaves the others on
+  /// screen. When every section that was asked for failed there is no feed to
+  /// show, and the first error is rethrown: an empty result then always means
+  /// "loaded, and there is nothing", never "everything broke".
   Future<HomeFeedWithLocationMeta> call({int page = 0, int limit = 20}) async {
+    final failures = <Object>[];
+    var attempted = 3;
     final locFuture = _resolveLocation();
     final topRatedFuture = _safeFetch(
       label: 'top_rated',
+      failures: failures,
       query: CafeQuery(
         sort: 'top_rated',
         lat: null,
@@ -33,6 +53,7 @@ class GetHomeFeedUseCase {
     );
     final trendingFuture = _safeFetch(
       label: 'trending',
+      failures: failures,
       query: CafeQuery(
         sort: 'trending',
         lat: null,
@@ -43,6 +64,7 @@ class GetHomeFeedUseCase {
     );
     final newestFuture = _safeFetch(
       label: 'newest',
+      failures: failures,
       query: CafeQuery(
         sort: 'newest',
         lat: null,
@@ -58,15 +80,17 @@ class GetHomeFeedUseCase {
       trendingFuture,
       newestFuture,
     ]);
-    final loc = results[0] as ({Position? position, bool locationDenied});
+    final loc = results[0] as _ResolvedLocation;
     final topRated = results[1] as List<CafeSummary>;
     final trending = results[2] as List<CafeSummary>;
     final newest = results[3] as List<CafeSummary>;
 
+    if (loc.position != null) attempted++;
     final nearby = loc.position == null
         ? <CafeSummary>[]
         : await _safeFetch(
             label: 'nearby',
+            failures: failures,
             query: CafeQuery(
               sort: 'nearby',
               lat: loc.position?.latitude,
@@ -75,6 +99,10 @@ class GetHomeFeedUseCase {
               limit: limit,
             ),
           );
+
+    if (failures.length >= attempted) {
+      throw failures.first;
+    }
 
     final feed = (
       nearby: nearby,
@@ -90,25 +118,31 @@ class GetHomeFeedUseCase {
       ...newest,
     ]);
 
-    return (feed: feed, locationDenied: loc.locationDenied);
+    return (
+      feed: feed,
+      locationDenied: loc.locationDenied,
+      locationServicesOff: loc.servicesOff,
+    );
   }
 
   Future<List<CafeSummary>> _safeFetch({
     required String label,
+    required List<Object> failures,
     required CafeQuery query,
   }) async {
     try {
       return await repository.getCafes(query);
-    } catch (_) {
+    } catch (e) {
+      failures.add(e);
       return <CafeSummary>[];
     }
   }
 
-  Future<({Position? position, bool locationDenied})> _resolveLocation() async {
+  Future<_ResolvedLocation> _resolveLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        return (position: null, locationDenied: false);
+        return (position: null, locationDenied: false, servicesOff: true);
       }
 
       final permission = await Geolocator.checkPermission();
@@ -118,6 +152,7 @@ class GetHomeFeedUseCase {
         return (
           position: null,
           locationDenied: permission == LocationPermission.deniedForever,
+          servicesOff: false,
         );
       }
 
@@ -127,11 +162,11 @@ class GetHomeFeedUseCase {
           distanceFilter: 100,
         ),
       ).timeout(const Duration(seconds: 4));
-      return (position: position, locationDenied: false);
+      return (position: position, locationDenied: false, servicesOff: false);
     } on TimeoutException {
-      return (position: null, locationDenied: false);
+      return (position: null, locationDenied: false, servicesOff: false);
     } catch (_) {
-      return (position: null, locationDenied: false);
+      return (position: null, locationDenied: false, servicesOff: false);
     }
   }
 }

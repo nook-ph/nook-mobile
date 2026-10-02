@@ -1,41 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:nook/core/presentation/widgets/cafe_status_badge.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
-import 'package:nook/core/presentation/widgets/cafe_distance_label.dart';
-import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
-import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/core/utils/tag_icon_resolver.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
+import 'package:nook/core/presentation/widgets/cafe_status_badge.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_tag_chip.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 
+const _fallbackImage =
+    'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+
+/// The compact card of the New / Trending / Top Rated / Near you rows: photo,
+/// name, one meta line and one tag.
 class HomeCafeCard extends StatelessWidget {
   final CafeSummary cafe;
   final bool isSkeleton;
+  final double width;
   final double height;
 
   const HomeCafeCard({
     super.key,
     required this.cafe,
+    required this.width,
     required this.height,
     this.isSkeleton = false,
   });
 
-  static double cardWidth = 280.0;
-
   @override
   Widget build(BuildContext context) {
-    final double width = cardWidth;
-    final double imgHeight = height;
-
     final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
         ? cafe.coverImage!.trim()
-        : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
-    final String ratingText = cafe.rating.toStringAsFixed(1);
-    final String? primaryTag = cafe.tags.isNotEmpty ? cafe.tags.first : null;
+        : _fallbackImage;
+    final String? primaryTag =
+        cafe.tags.isNotEmpty && cafe.tags.first.trim().isNotEmpty
+        ? cafe.tags.first.trim()
+        : null;
 
     return AdaptiveTap(
       borderRadius: BorderRadius.circular(12),
@@ -49,16 +51,15 @@ class HomeCafeCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
             Stack(
               children: [
                 Skeleton.replace(
                   replace: isSkeleton,
                   replacement: Container(
-                    height: imgHeight,
+                    height: height,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
+                      color: context.colorScheme.offWhite,
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
@@ -66,7 +67,7 @@ class HomeCafeCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     child: CafeCardImage(
                       imageUrl: imageUrl,
-                      height: imgHeight,
+                      height: height,
                       width: double.infinity,
                     ),
                   ),
@@ -75,149 +76,83 @@ class HomeCafeCard extends StatelessWidget {
                 // thing on a card that is about you rather than the cafe.
                 if (!isSkeleton)
                   Positioned(
-                    top: 10,
-                    left: 10,
+                    top: 8,
+                    left: 8,
                     child: CafeStatusBadge(cafeId: cafe.id),
                   ),
-                // The community rating moves to the opposite corner and only
-                // renders once there is something to average — "0.0" beside
+                // The community rating sits in the opposite corner and only
+                // renders once there is something to average: "0.0" beside
                 // an empty star made every new cafe look bad.
-                if (cafe.reviewCount > 0)
+                if (!isSkeleton && cafe.reviewCount > 0)
                   Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(
-                            PhosphorIconsFill.star,
-                            color: context.colorScheme.primary60,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            ratingText,
-                            style: context.textTheme.bodyExtraSmallMed.copyWith(
-                              color: context.colorScheme.black,
-                              height: 1.1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    top: 8,
+                    right: 8,
+                    child: HomeRatingPill(rating: cafe.rating),
                   ),
               ],
             ),
-
-            // Info
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    cafe.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textTheme.bodyLargeSemi,
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Icon(
-                        LucideIcons.mapPin400,
-                        size: 14,
-                        color: context.colorScheme.gray,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          cafe.locationLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.textTheme.bodyMedium!.copyWith(
-                            color: context.colorScheme.gray,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      if (primaryTag != null && primaryTag.trim().isNotEmpty)
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: isSkeleton
-                                  ? null
-                                  : Border.all(
-                                      color: context.colorScheme.primary60,
-                                    ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (resolveTagIcon(primaryTag) != null) ...[
-                                  Icon(
-                                    resolveTagIcon(primaryTag),
-                                    size: 12,
-                                    color: context.colorScheme.primary60,
-                                  ),
-                                  const SizedBox(width: 4),
-                                ],
-                                Flexible(
-                                  child: Text(
-                                    primaryTag,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: context.textTheme.bodySmallMed
-                                        .copyWith(
-                                          color: context.colorScheme.gray,
-                                        ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      else
-                        const SizedBox.shrink(),
-                      const SizedBox(width: 6),
-                      // Always device-relative; see CafeDistanceLabel.
-                      CafeDistanceLabel(
-                        lat: cafe.lat,
-                        lng: cafe.lng,
-                        style: context.textTheme.bodyMedium!.copyWith(
-                          color: context.colorScheme.gray,
-                          height: 1.1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            const SizedBox(height: 8),
+            Text(
+              cafe.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textTheme.bodyLargeSemi.copyWith(
+                color: context.colorScheme.black,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                height: 1.5,
               ),
             ),
+            const SizedBox(height: 2),
+            HomeMetaLine(
+              area: homeCardArea(cafe),
+              lat: cafe.lat,
+              lng: cafe.lng,
+            ),
+            if (primaryTag != null) ...[
+              // Figma: 2 between the lines plus the tag row's own 4 on top.
+              const SizedBox(height: 6),
+              HomeTagChip(label: primaryTag, isSkeleton: isSkeleton),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// "★ 4.8" on a white pill over a card photo.
+class HomeRatingPill extends StatelessWidget {
+  const HomeRatingPill({super.key, required this.rating});
+
+  final double rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: context.colorScheme.white,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            PhosphorIconsFill.star,
+            color: context.colorScheme.primary60,
+            size: 11,
+          ),
+          const SizedBox(width: 3),
+          Text(
+            rating.toStringAsFixed(1),
+            style: context.textTheme.bodyExtraSmallMed.copyWith(
+              color: context.colorScheme.black,
+              fontSize: 10,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }
