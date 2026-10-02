@@ -526,10 +526,28 @@ class CafeRepositoryImpl implements ICafeRepository {
     for (final summary in summaries) {
       final existing = store.get(summary.id);
       if (existing != null) {
-        final updated = existing.copyWith(
-          details: existing.details.copyWithSummary(summary),
-        );
-        store.set(summary.id, updated);
+        final isSummarySeed =
+            existing.details.createdAt.millisecondsSinceEpoch == 0;
+        if (isSummarySeed) {
+          store.set(
+            summary.id,
+            existing.copyWith(
+              details: existing.details.copyWithSummary(summary),
+            ),
+          );
+        } else {
+          // A fully fetched bundle keeps its own tags (the summary's carry no
+          // category) and its age, so it still expires on schedule.
+          store.replace(
+            summary.id,
+            existing.copyWith(
+              details: existing.details.copyWithSummary(
+                summary,
+                keepTags: true,
+              ),
+            ),
+          );
+        }
         continue;
       }
 
@@ -607,7 +625,7 @@ class CafeRepositoryImpl implements ICafeRepository {
 }
 
 extension on CafeDetails {
-  CafeDetails copyWithSummary(CafeSummary summary) {
+  CafeDetails copyWithSummary(CafeSummary summary, {bool keepTags = false}) {
     return CafeDetails(
       id: id,
       createdAt: createdAt,
@@ -625,11 +643,14 @@ extension on CafeDetails {
       isNew: isNew,
       operatingHours: operatingHours,
       socialLinks: socialLinks,
-      tags: summary.tags
-          .map(
-            (name) => Tag(id: name, name: name, isFeatured: summary.isFeatured),
-          )
-          .toList(),
+      tags: keepTags
+          ? tags
+          : summary.tags
+                .map(
+                  (name) =>
+                      Tag(id: name, name: name, isFeatured: summary.isFeatured),
+                )
+                .toList(),
     );
   }
 }
