@@ -239,8 +239,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     } catch (e) {
       // Denied photo access, an unreadable file or a failed compress.
       debugPrint('[EditProfile] pick photo failed: $e');
-      if (mounted)
-        _toastAboveBar('Could not use that photo. Please try another.');
+      if (!mounted) return;
+      _toastAboveBar('Could not use that photo. Please try another.');
       return;
     }
     if (file == null || !mounted) return;

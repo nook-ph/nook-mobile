@@ -49,7 +49,7 @@ class WriteReviewSheet extends StatefulWidget {
     required String cafeId,
     String? cafeName,
     String? cafeImageUrl,
-  }) {
+  }) async {
     final submitBloc =
         context.read<ReviewSubmitBloc?>() ?? sl<ReviewSubmitBloc>();
     final reviewsBloc = context.read<ReviewsBloc?>();
@@ -58,7 +58,7 @@ class WriteReviewSheet extends StatefulWidget {
         ? detailsState.data.cafeDetails
         : null;
 
-    return ReviewSheetShell.show<void>(
+    await ReviewSheetShell.show<void>(
       context,
       builder: (_) => BlocProvider.value(
         value: submitBloc,
@@ -69,18 +69,21 @@ class WriteReviewSheet extends StatefulWidget {
           reviewsBloc: reviewsBloc,
         ),
       ),
-    ).then((_) {
-      if (submitBloc.state is! ReviewSubmitting) return;
-      // Swiped away mid-submit: the sheet is gone, the request is not.
-      unawaited(_reportLateOutcome(context, submitBloc, cafeId));
-    });
+    );
+    if (submitBloc.state is! ReviewSubmitting) return;
+    // Swiped away mid-submit: the sheet is gone, the request is not. The
+    // draft is cleared either way; the toast needs the page to still be up.
+    unawaited(() async {
+      final message = await _lateOutcome(submitBloc, cafeId);
+      if (message == null || !context.mounted) return;
+      showPrimaryToast(context, message);
+    }());
   }
 
-  /// Finishes a submit whose sheet was dismissed before it resolved: says
-  /// how it went, and on success clears the draft the dismissal just saved
-  /// so the posted review does not come back as one.
-  static Future<void> _reportLateOutcome(
-    BuildContext context,
+  /// Finishes a submit whose sheet was dismissed before it resolved: on
+  /// success clears the draft the dismissal just saved, so the posted review
+  /// does not come back as one. Returns what to tell the user, if anything.
+  static Future<String?> _lateOutcome(
     ReviewSubmitBloc submitBloc,
     String cafeId,
   ) async {
@@ -91,10 +94,9 @@ class WriteReviewSheet extends StatefulWidget {
     );
     if (outcome is ReviewSubmitSuccess) {
       await sl<ReviewDraftStore>().clear(cafeId, userId: userId);
-      if (context.mounted) showPrimaryToast(context, 'Review posted');
-    } else if (outcome is ReviewSubmitError && context.mounted) {
-      showPrimaryToast(context, outcome.message);
+      return 'Review posted';
     }
+    return outcome is ReviewSubmitError ? outcome.message : null;
   }
 
   @override
