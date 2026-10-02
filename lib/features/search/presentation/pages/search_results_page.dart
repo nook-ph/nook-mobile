@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/features/search/bloc/search_bloc.dart';
@@ -18,7 +17,6 @@ import 'package:nook/features/search/presentation/widgets/search_idle_view.dart'
 import 'package:nook/features/search/presentation/widgets/search_rows.dart';
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 import 'package:nook/injection_container.dart';
-import 'package:skeletonizer/skeletonizer.dart';
 
 /// "12 cafes near you", "8 cafes near IT Park · distances from IT Park", or
 /// "12 cafes · sorted by rating" when there was no position to be near and
@@ -368,17 +366,6 @@ class _Results extends StatelessWidget {
   final VoidCallback onSearchNearMe;
   final VoidCallback onDismissBanner;
 
-  static const _placeholder = CafeSummary(
-    id: '',
-    name: 'Loading cafe name',
-    address: 'Somewhere in Cebu',
-    neighborhood: 'Lahug',
-    city: 'Cebu City',
-    rating: 4.5,
-    reviewCount: 10,
-    tags: ['Free WiFi', 'Power Outlets'],
-  );
-
   @override
   Widget build(BuildContext context) {
     final loading =
@@ -408,10 +395,9 @@ class _Results extends StatelessWidget {
       );
     }
 
-    // Loading shows rows in the page's shape instead of a blank screen
+    // Loading shows skeletons in the page's shape instead of a blank screen
     // (QA bug 4: the list was cleared before each fetch, so there was
     // nothing to shimmer).
-    final rows = loading ? List.filled(4, _placeholder) : cafes;
     final showBanner =
         !loading &&
         state.locationUnavailable &&
@@ -421,55 +407,52 @@ class _Results extends StatelessWidget {
     return RefreshIndicator(
       color: SearchTokens.brand,
       onRefresh: onRefresh,
-      child: Skeletonizer(
-        enabled: loading,
-        effect: const PulseEffect(),
-        child: ListView.builder(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          itemCount: rows.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (showBanner)
-                    SearchLocationOffCard(onDismiss: onDismissBanner),
-                  Text(
-                    searchCountLine(
-                      loading ? 12 : cafes.length,
-                      state.origin,
-                      state.hasPosition,
-                      byRating: state.shownSort == 'top_rated',
-                    ),
-                    style: SearchTokens.text(
-                      context,
-                      size: 12,
-                      color: SearchTokens.muted,
-                    ),
-                  ),
-                ],
-              );
-            }
-            final i = index - 1;
-            if (state.status == SearchStatus.success &&
-                !state.hasReachedMax &&
-                i == rows.length - 1) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (context.mounted) {
-                  context.read<SearchBloc>().add(const SearchLoadMore());
-                }
-              });
-            }
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        itemCount: loading ? 1 : cafes.length + 1,
+        itemBuilder: (context, index) {
+          if (loading) return const SearchResultsSkeleton();
+          if (index == 0) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (i > 0) const SearchDivider(),
-                SearchResultRow(cafe: rows[i], skeleton: loading),
+                if (showBanner)
+                  SearchLocationOffCard(onDismiss: onDismissBanner),
+                Text(
+                  searchCountLine(
+                    cafes.length,
+                    state.origin,
+                    state.hasPosition,
+                    byRating: state.shownSort == 'top_rated',
+                  ),
+                  style: SearchTokens.text(
+                    context,
+                    size: 12,
+                    color: SearchTokens.muted,
+                  ),
+                ),
               ],
             );
-          },
-        ),
+          }
+          final i = index - 1;
+          if (state.status == SearchStatus.success &&
+              !state.hasReachedMax &&
+              i == cafes.length - 1) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) {
+                context.read<SearchBloc>().add(const SearchLoadMore());
+              }
+            });
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (i > 0) const SearchDivider(),
+              SearchResultRow(cafe: cafes[i]),
+            ],
+          );
+        },
       ),
     );
   }
