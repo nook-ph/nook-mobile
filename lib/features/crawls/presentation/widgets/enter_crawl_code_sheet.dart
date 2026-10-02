@@ -29,6 +29,11 @@ class CrawlCodeTarget {
 
   static final _hex = RegExp(r'^[0-9A-F]+$');
 
+  static final _crewInMessage = RegExp(
+    r'[?&]crew=([0-9A-Fa-f]{10})(?![0-9A-Za-z])',
+  );
+  static final _crawlInMessage = RegExp(r'/c/([0-9A-Fa-f]{8})(?![0-9A-Za-z])');
+
   static bool _isCode(String value, int length) =>
       value.length == length && _hex.hasMatch(value);
 
@@ -37,6 +42,20 @@ class CrawlCodeTarget {
   static CrawlCodeTarget? parse(String input) {
     final raw = input.trim();
     if (raw.isEmpty) return null;
+
+    // A whole share message ("…\n\nhttps://…/c/CODE\n\nOr enter code CODE
+    // in the app."): pick the code out of it. The crew code wins, as it
+    // does in a link.
+    if (raw.contains(RegExp(r'\s')) && raw.contains(RegExp('[/?]'))) {
+      final crew = _crewInMessage.firstMatch(raw);
+      if (crew != null) {
+        return CrawlCodeTarget.invite(crew.group(1)!.toUpperCase());
+      }
+      final crawl = _crawlInMessage.firstMatch(raw);
+      return crawl == null
+          ? null
+          : CrawlCodeTarget.crawl(crawl.group(1)!.toUpperCase());
+    }
 
     if (raw.contains('/') || raw.contains('?')) {
       final uri = Uri.tryParse(raw.contains('://') ? raw : 'https://$raw');

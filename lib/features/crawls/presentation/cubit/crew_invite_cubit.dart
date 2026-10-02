@@ -92,10 +92,12 @@ class CrewInviteCubit extends Cubit<CrewInviteState> {
     emit(const CrewInviteState());
     try {
       final preview = await getCrawlRunPreviewUseCase(inviteCode);
+      if (isClosed) return;
       emit(state.copyWith(status: CrewInviteStatus.loaded, preview: preview));
       await _loadStops(preview.shareCode);
     } catch (e, st) {
       debugPrint('[CrewInvite] load($inviteCode) failed: $e\n$st');
+      if (isClosed) return;
       emit(state.copyWith(status: CrewInviteStatus.error, error: e));
     }
   }
@@ -125,10 +127,13 @@ class CrewInviteCubit extends Cubit<CrewInviteState> {
           'crew_size': run.members.length,
         },
       );
+      if (isClosed) return;
       emit(state.copyWith(joining: false, joinedRun: run));
     } on CrewFull {
+      if (isClosed) return;
       emit(state.copyWith(joining: false, crewFull: true));
     } on CrawlNotFound catch (e) {
+      if (isClosed) return;
       // The run went away between the preview and the tap.
       emit(
         state.copyWith(
@@ -139,6 +144,7 @@ class CrewInviteCubit extends Cubit<CrewInviteState> {
       );
     } catch (e, st) {
       debugPrint('[CrewInvite] join($inviteCode) failed: $e\n$st');
+      if (isClosed) return;
       emit(state.copyWith(joining: false, error: e));
     }
   }

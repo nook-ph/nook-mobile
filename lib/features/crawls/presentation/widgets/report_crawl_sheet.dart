@@ -9,6 +9,7 @@ import 'package:nook/features/crawls/presentation/cubit/report_crawl_cubit.dart'
 import 'package:nook/features/crawls/presentation/widgets/crawl_ui.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
@@ -90,6 +91,8 @@ class _ReportCrawlSheetState extends State<ReportCrawlSheet> {
                       ? () => cubit.submit(
                           widget.crawl.id,
                           details: _details.text,
+                          reporterId:
+                              Supabase.instance.client.auth.currentUser?.id,
                         )
                       : null,
                 ),

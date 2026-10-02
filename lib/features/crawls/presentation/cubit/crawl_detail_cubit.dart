@@ -92,9 +92,11 @@ class CrawlDetailCubit extends Cubit<CrawlDetailState> {
     }
     try {
       final crawl = await getCrawlByCodeUseCase(shareCode);
+      if (isClosed) return;
       emit(state.copyWith(status: CrawlDetailStatus.loaded, crawl: crawl));
     } catch (e, st) {
       debugPrint('[CrawlDetail] load($shareCode) failed: $e\n$st');
+      if (isClosed) return;
       // A failed refresh must not take a crawl that is already on screen away.
       if (state.crawl == null) {
         emit(state.copyWith(status: CrawlDetailStatus.error, error: e));
@@ -115,9 +117,11 @@ class CrawlDetailCubit extends Cubit<CrawlDetailState> {
           'is_creator': crawl.isCreator,
         },
       );
+      if (isClosed) return;
       emit(state.copyWith(busy: false, startedRun: run));
     } catch (e, st) {
       debugPrint('[CrawlDetail] startRun failed: $e\n$st');
+      if (isClosed) return;
       emit(state.copyWith(busy: false, error: e));
     }
   }
@@ -130,6 +134,7 @@ class CrawlDetailCubit extends Cubit<CrawlDetailState> {
     emit(state.copyWith(busy: true));
     try {
       await archiveCrawlUseCase(crawl.id);
+      if (isClosed) return;
       // The page stays open on the archived crawl, so reflect it at once
       // instead of waiting for a refetch.
       emit(
@@ -141,6 +146,7 @@ class CrawlDetailCubit extends Cubit<CrawlDetailState> {
       );
     } catch (e, st) {
       debugPrint('[CrawlDetail] archive failed: $e\n$st');
+      if (isClosed) return;
       emit(state.copyWith(busy: false, error: e));
     }
   }

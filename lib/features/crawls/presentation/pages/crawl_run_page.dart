@@ -158,6 +158,19 @@ class _CrawlRunViewState extends State<_CrawlRunView>
 
     cubit.stamp(stop);
     final result = await StampSheet.show(context, cubit: cubit, stop: stop);
+    if (cubit.state.isStamping) {
+      // Swiped away while the check was running: the sheet is gone, the
+      // request is not. Wait for it, say how it went, and carry on to the
+      // recap below if that was the last stop.
+      final settled = await cubit.stampSettled();
+      if (!mounted) return;
+      showPrimaryToast(
+        context,
+        settled.stampPhase == StampPhase.stamped
+            ? 'Stamped! ${stop.name}'
+            : 'Couldn’t stamp ${stop.name}. Try again.',
+      );
+    }
     cubit.clearStamp();
     if (!mounted) return;
     _checkLocation();
