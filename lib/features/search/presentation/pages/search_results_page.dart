@@ -229,7 +229,12 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   Future<void> _refresh() async {
     _bloc.add(const SearchRefresh());
-    await _bloc.stream.firstWhere((s) => s.status != SearchStatus.loading);
+    // Leaving the page closes the bloc mid-refresh; the stream then ends
+    // with no match, which is not an error.
+    await _bloc.stream.firstWhere(
+      (s) => s.status != SearchStatus.loading,
+      orElse: () => _bloc.state,
+    );
   }
 
   @override
