@@ -326,6 +326,8 @@ void main() {
               'https://example.com/b.jpg',
             ],
             initialIndex: 1,
+            // The disk cache needs platform plugins the test has not got.
+            imageProvider: NetworkImage.new,
           ),
         ),
       );

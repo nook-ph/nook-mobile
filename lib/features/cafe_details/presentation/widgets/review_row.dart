@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -346,10 +347,10 @@ class _ReviewRowState extends State<ReviewRow> {
           borderRadius: BorderRadius.circular(8),
           child: SizedBox.square(
             dimension: 72,
-            child: Image.network(
-              photos[index],
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
+            child: CafeCardImage(
+              imageUrl: photos[index],
+              placeholder: const ColoredBox(color: Color(0xFFF0F0F0)),
+              errorWidget: Container(
                 color: const Color(0xFFF0F0F0),
                 child: const Icon(
                   Icons.broken_image_outlined,

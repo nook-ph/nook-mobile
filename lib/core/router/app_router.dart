@@ -107,6 +107,9 @@ GoRouter createAppRouter(AuthBloc authBloc) {
                           child: Image.asset(
                             'assets/logos/logoT.png',
                             fit: BoxFit.contain,
+                            cacheWidth:
+                                (79.2 * MediaQuery.devicePixelRatioOf(context))
+                                    .ceil(),
                           ),
                         ),
                         const SizedBox(height: 20),
