@@ -40,6 +40,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final ListsBloc listsBloc;
   late final StreamSubscription<supabase.AuthState> _authStateSubscription;
 
+  /// True while this bloc is itself signing out. gotrue announces `signedOut`
+  /// before its request goes out; the handler that asked for it finishes the
+  /// job, so the stream listener must not start a second one.
+  bool _signingOut = false;
+
   AuthBloc({
     required CheckEmailExistsUseCase checkEmailExistsUseCase,
     required SignUpWithEmailUseCase signUpWithEmailUseCase,
@@ -52,6 +57,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required DeleteAccountUseCase deleteAccountUseCase,
     required GetCurrentSessionUseCase getCurrentSessionUseCase,
     required this.listsBloc,
+    Stream<supabase.AuthState>? authStateChanges,
   }) : _checkEmailExistsUseCase = checkEmailExistsUseCase,
        _signUpWithEmailUseCase = signUpWithEmailUseCase,
        _signInWithEmailUseCase = signInWithEmailUseCase,
@@ -75,9 +81,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthUsernameSetEvent>(_onUsernameSet);
     on<AuthPasswordRecoveryEvent>(_onPasswordRecovery);
     on<AuthSessionCheckEvent>(_onSessionCheck);
+    on<AuthSessionEndedEvent>(_onSessionEnded);
 
-    _authStateSubscription = Supabase.instance.client.auth.onAuthStateChange
-        .listen(_onSupabaseAuthStateChange);
+    _authStateSubscription =
+        (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
+            .listen(_onSupabaseAuthStateChange);
   }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -120,7 +128,34 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (event == AuthChangeEvent.signedIn) {
       debugPrint('AuthBloc: trigger AuthSessionCheckEvent');
       add(const AuthSessionCheckEvent());
+      return;
     }
+
+    if (event == AuthChangeEvent.signedOut) {
+      if (_signingOut) return;
+      debugPrint('AuthBloc: trigger AuthSessionEndedEvent');
+      add(const AuthSessionEndedEvent());
+      return;
+    }
+  }
+
+  /// The session ended without the user asking: revoked from another device,
+  /// or a refresh token the server no longer accepts.
+  Future<void> _onSessionEnded(
+    AuthSessionEndedEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (_getCurrentSessionUseCase() != null) return;
+    final current = state;
+    if (current is AuthUnauthenticated ||
+        current is AuthLoggedOut ||
+        current is AuthAccountDeleted ||
+        current is AuthAwaitingEmailConfirmation) {
+      return;
+    }
+    await _resetPosthogUser();
+    _clearListsSession();
+    emit(const AuthUnauthenticated());
   }
 
   Future<void> _onPasswordRecovery(
@@ -327,20 +362,32 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthSignOutEvent event,
     Emitter<AuthState> emit,
   ) async {
+    final previous = state;
+    _signingOut = true;
     try {
       emit(AuthLoading());
       await _signOutUseCase();
-      await _resetPosthogUser();
-      _clearListsSession();
-      emit(const AuthLoggedOut());
-      emit(const AuthUnauthenticated());
-    } on AuthException catch (e) {
-      emit(AuthError(_mapAuthError(e)));
-    } on PostgrestException catch (e) {
-      emit(AuthError(_mapDatabaseError(e)));
-    } catch (_) {
-      emit(const AuthError('Connection failed. Check your internet.'));
+    } catch (e) {
+      // gotrue drops the local session before its request, so a failed
+      // request (offline, server error) still leaves this device signed out.
+      // Only a session that survived is a failed log out.
+      if (_getCurrentSessionUseCase() != null) {
+        _emitErrorKeepingSession(
+          emit,
+          previous,
+          e is AuthException
+              ? _mapAuthError(e)
+              : 'Connection failed. Check your internet.',
+        );
+        return;
+      }
+    } finally {
+      _signingOut = false;
     }
+    await _resetPosthogUser();
+    _clearListsSession();
+    emit(const AuthLoggedOut());
+    emit(const AuthUnauthenticated());
   }
 
   Future<void> _onDeleteAccount(
@@ -350,12 +397,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       emit(AuthLoading());
       await _deleteAccountUseCase(password: event.password);
+      _signingOut = true;
       try {
         await _signOutUseCase();
       } on AuthException catch (e) {
         debugPrint('AuthBloc: post-delete signOut AuthException: ${e.message}');
       } catch (e) {
         debugPrint('AuthBloc: post-delete signOut error: $e');
+      } finally {
+        _signingOut = false;
       }
       await _resetPosthogUser();
       _clearListsSession();
@@ -463,6 +513,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /// Reports a failed action without losing the signed-in (or username-setup)
+  /// state it interrupted: the error is emitted for listeners, then the state
+  /// the router and the rest of the app key off is put back.
+  void _emitErrorKeepingSession(
+    Emitter<AuthState> emit,
+    AuthState previous,
+    String message,
+  ) {
+    emit(AuthError(message));
+    if (previous is AuthAuthenticated || previous is AuthNeedsUsername) {
+      emit(previous);
+    }
+  }
 
   void _initListsSession() => listsBloc.add(LoadUserLists());
 
