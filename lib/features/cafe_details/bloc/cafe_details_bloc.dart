@@ -123,10 +123,13 @@ class CafeDetailsBloc extends Bloc<CafeDetailsEvent, CafeDetailsState> {
       reviews: reviews,
     );
 
+    // A menu with nothing flagged still gets its section (and the way into
+    // the full menu): the first few items stand in for the highlights.
+    final highlighted = menuItems.where((item) => item.isHighlight);
+
     return CafeDetailsResult(
       cafeDetails: details,
-      menuHighlights: menuItems
-          .where((item) => item.isHighlight)
+      menuHighlights: (highlighted.isEmpty ? menuItems : highlighted)
           .take(menuHighlightsLimit)
           .toList(),
       allMenuItems: menuItems,
