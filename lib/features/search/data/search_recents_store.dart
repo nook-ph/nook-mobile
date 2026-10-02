@@ -2,12 +2,37 @@ import 'dart:convert';
 
 import 'package:nook/features/search/domain/entities/search_origin.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Recent searches and recent "search near" places, kept on the device only.
+/// Recent searches and recent "search near" places, kept on the device only,
+/// one set per account (and one for signed-out use) so the next person to
+/// sign in on the phone does not see the last one's.
 class SearchRecentsStore {
-  static const _searchesKey = 'search.recentSearches';
-  static const _placesKey = 'search.recentPlaces';
+  SearchRecentsStore({String? Function()? userId})
+    : _userId = userId ?? _currentUserId;
+
+  final String? Function() _userId;
+
+  static const _searchesBase = 'search.recentSearches';
+  static const _placesBase = 'search.recentPlaces';
   static const maxItems = 5;
+
+  String get _searchesKey => _keyFor(_searchesBase);
+  String get _placesKey => _keyFor(_placesBase);
+
+  String _keyFor(String base) {
+    final id = _userId();
+    return id == null || id.isEmpty ? base : '$base.$id';
+  }
+
+  static String? _currentUserId() {
+    try {
+      return Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      // Supabase is not initialised (tests): signed-out keys.
+      return null;
+    }
+  }
 
   Future<List<String>> searches() async {
     final prefs = await SharedPreferences.getInstance();
