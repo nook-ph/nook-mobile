@@ -9,6 +9,7 @@ import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
@@ -61,9 +62,19 @@ class HomePage extends StatelessWidget {
             listenWhen: (prev, curr) =>
                 curr is HomeLoadedState &&
                 (prev is! HomeLoadedState ||
+                    curr.refreshError != null ||
                     !identical(prev.featuredCafes, curr.featuredCafes)),
             listener: (context, state) {
               if (state is! HomeLoadedState) return;
+
+              final refreshError = state.refreshError;
+              if (refreshError != null) {
+                showPrimaryToast(
+                  context,
+                  HomeStateView.errorCopy(refreshError).title,
+                );
+                return;
+              }
 
               // One batched get_cafe_statuses for everything on the feed, so
               // the Been / Want to Try badges can render per card without a
