@@ -9,6 +9,8 @@ import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/core/widgets/error/full_page_error_widget.dart';
+import 'package:nook/features/crawls/domain/use_cases/create_crawl_usecase.dart';
+import 'package:nook/features/crawls/presentation/pages/crawl_builder_page.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
@@ -71,11 +73,31 @@ class _ListDetailPageState extends State<ListDetailPage> {
     return list != null && !list.isSystem && !list.isDefault;
   }
 
+  /// Any list — Been and Want to Try included — with enough cafes can become
+  /// a crawl.
+  bool get _canMakeCrawl =>
+      (_cachedCafes?.length ?? 0) >= CreateCrawlUseCase.minStops;
+
+  void _openCrawlBuilder() {
+    final cafes = _cachedCafes;
+    if (cafes == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CrawlBuilderPage(
+          listId: widget.listId,
+          listName: _cachedList?.name ?? widget.title,
+          cafes: cafes,
+        ),
+      ),
+    );
+  }
+
   void _showListOptions() {
     final list = _cachedList;
     if (list == null) return;
 
     final bloc = context.read<ListsBloc>();
+    final canEdit = _canEditList;
 
     showModalBottomSheet(
       context: context,
@@ -83,8 +105,9 @@ class _ListDetailPageState extends State<ListDetailPage> {
       builder: (_) => ListOptionsBottomSheet(
         listId: list.id,
         listName: list.name,
-        onEdit: () => _showEditDialog(bloc, list),
-        onDelete: () => _confirmDelete(bloc, list),
+        onMakeCrawl: _canMakeCrawl ? _openCrawlBuilder : null,
+        onEdit: canEdit ? () => _showEditDialog(bloc, list) : null,
+        onDelete: canEdit ? () => _confirmDelete(bloc, list) : null,
       ),
     );
   }
@@ -146,10 +169,12 @@ class _ListDetailPageState extends State<ListDetailPage> {
           ),
         ),
         // Rename / delete moved here when the Lists index dropped its ⋮.
-        // Absent for system lists (the server refuses both) and for the
-        // default list, whose bookmark saves would be orphaned by a delete.
+        // Those two are absent for system lists (the server refuses both) and
+        // for the default list, whose bookmark saves would be orphaned by a
+        // delete — but the menu still opens there when the list is long
+        // enough to turn into a crawl.
         actions: [
-          if (_canEditList)
+          if (_cachedList != null && (_canEditList || _canMakeCrawl))
             AdaptiveTap(
               onTap: _showListOptions,
               child: const Padding(

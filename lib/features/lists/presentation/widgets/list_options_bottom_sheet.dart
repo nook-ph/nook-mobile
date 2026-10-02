@@ -1,87 +1,63 @@
 import 'package:flutter/material.dart';
-import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/features/crawls/presentation/widgets/crawl_ui.dart';
 
 class ListOptionsBottomSheet extends StatelessWidget {
   final String listId;
   final String listName;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+
+  /// Null hides the row. System and default lists can't be edited or deleted,
+  /// but can still become a crawl.
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  /// Null when the list has too few cafes to make a crawl from.
+  final VoidCallback? onMakeCrawl;
 
   const ListOptionsBottomSheet({
     super.key,
     required this.listId,
     required this.listName,
-    required this.onEdit,
-    required this.onDelete,
+    this.onEdit,
+    this.onDelete,
+    this.onMakeCrawl,
   });
+
+  /// Closes the sheet first so the next surface opens over the list.
+  VoidCallback? _then(BuildContext context, VoidCallback? action) {
+    if (action == null) return null;
+    return () {
+      Navigator.pop(context);
+      action();
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(2),
-              ),
+    return CrawlSheet(
+      title: listName,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (onMakeCrawl != null)
+            CrawlSheetAction(
+              title: 'Turn into a crawl',
+              subtitle: 'Pick 3 to 6 of these cafes and visit them in order',
+              onTap: _then(context, onMakeCrawl),
             ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                listName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: context.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey,
-                ),
-              ),
+          if (onEdit != null)
+            CrawlSheetAction(
+              title: 'Edit list',
+              subtitle: 'Name and description',
+              onTap: _then(context, onEdit),
             ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: const Icon(
-                Icons.edit_outlined,
-                color: Color(0xFF344E41),
-              ),
-              title: Text(
-                'Edit',
-                style: context.textTheme.bodyMedium?.copyWith(
-                  color: Colors.black,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                onEdit();
-              },
+          if (onDelete != null)
+            CrawlSheetAction(
+              title: 'Delete list',
+              destructive: true,
+              onTap: _then(context, onDelete),
             ),
-            Divider(height: 1, color: Theme.of(context).colorScheme.border),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: Text(
-                'Delete',
-                style: context.textTheme.bodyMedium?.copyWith(
-                  color: Colors.red,
-                ),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                onDelete();
-              },
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
