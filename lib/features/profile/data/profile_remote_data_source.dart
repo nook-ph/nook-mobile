@@ -19,7 +19,12 @@ class ProfileRemoteDataSource {
     if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
 
     if (username != null) {
-      updates['username'] = username;
+      // The same RPC signup uses: it checks the format and that no one else
+      // holds the name in any letter case, which a plain update does not.
+      await supabaseClient.rpc(
+        'set_username',
+        params: {'p_username': username},
+      );
       updates['last_username_change'] = DateTime.now()
           .toUtc()
           .toIso8601String();

@@ -312,8 +312,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         await profileCubit.editProfile(username: usernameToSave);
       } catch (e) {
         if (!mounted) return;
-        // 23505: the unique index on profiles.username.
-        final taken = e is PostgrestException && e.code == '23505';
+        // set_username raises "Username already taken"; 23505 is the unique
+        // index on profiles.username underneath it.
+        final taken =
+            e is PostgrestException &&
+            (e.code == '23505' ||
+                e.message.toLowerCase().contains('already taken'));
         setState(() {
           _saving = false;
           if (taken) _isAvailable = false;
