@@ -63,7 +63,9 @@ class HomePage extends StatelessWidget {
               // One batched get_cafe_statuses for everything on the feed, so
               // the Been / Want to Try badges can render per card without a
               // request per card (spec §3.2).
-              final ids = state.cafeIds;
+              // A load that emits twice only asks about the cafes the second
+              // emission added.
+              final ids = state.newCafeIds ?? state.cafeIds;
               if (ids.isNotEmpty) {
                 context.read<CafeStatusCubit>().loadFor(ids.toList());
               }
