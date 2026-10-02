@@ -8,6 +8,7 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
@@ -180,6 +181,10 @@ class _ReviewsPageState extends State<ReviewsPage> {
       bottomOffset: _writeBarHeight(),
     );
     _load();
+    // The details page under this one shows the rating and count.
+    context.read<CafeDetailsBloc?>()?.add(
+      LoadCafeDetailsRequested(cafeId: widget.cafeId),
+    );
   }
 
   void _onReviewsChanged(BuildContext context, ReviewsState state) {

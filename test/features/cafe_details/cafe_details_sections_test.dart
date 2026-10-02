@@ -239,5 +239,20 @@ void main() {
       expect(find.bySemanticsLabel('Open facebook'), findsNothing);
       expect(find.bySemanticsLabel('Open tiktok'), findsNothing);
     });
+
+    test('reads the account from a social link, not its last segment', () {
+      String? handle(String raw) => CafeHoursLocationSection.socialHandle(raw);
+
+      expect(handle('tadaima'), 'tadaima');
+      expect(handle('@tadaima'), 'tadaima');
+      expect(handle('https://www.instagram.com/tadaima'), 'tadaima');
+      expect(handle('https://www.instagram.com/tadaima/'), 'tadaima');
+      expect(handle('https://www.instagram.com/tadaima/reels/'), 'tadaima');
+      expect(handle('https://www.tiktok.com/@tadaima/video/123'), 'tadaima');
+      // A post or reel link names no account.
+      expect(handle('https://www.instagram.com/reel/Cabc123/'), isNull);
+      expect(handle('https://www.instagram.com/p/Cabc123/'), isNull);
+      expect(handle('  '), isNull);
+    });
   });
 }
