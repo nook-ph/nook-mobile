@@ -43,6 +43,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.
 import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_preview_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
+import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/lists/presentation/widgets/save_to_list_bottom_sheet.dart';
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
@@ -647,13 +648,8 @@ class _SavedButtonState extends State<_SavedButton> {
 
     final listsBloc = context.read<ListsBloc>();
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+    await ListsSheet.show<void>(
+      context,
       builder: (_) => MultiBlocProvider(
         providers: [
           BlocProvider.value(value: listsBloc),

@@ -34,8 +34,8 @@ Lists let users organize cafes into Favorites and custom collections. The featur
 |---|---|---|---|
 | **Event** | `LoadUserLists` | Lists tab entry / refresh | — |
 | **Event** | `LoadListCafes` | List detail open | `listId: String` |
-| **Event** | `CreateList` | Create list dialog submit | `name, description?, isPublic` |
-| **Event** | `UpdateList` | Edit list dialog submit | `listId, name, description?, isPublic` |
+| **Event** | `CreateList` | New list sheet submit | `name, description?, isPublic` |
+| **Event** | `UpdateList` | Edit list sheet submit | `listId, name, description?, isPublic` |
 | **Event** | `DeleteList` | Delete confirmation | `listId` |
 | **Event** | `AddCafeToList` | Add cafe to list | `listId, cafeId` |
 | **Event** | `RemoveCafeFromList` | Remove cafe from list | `listId, cafeId` |
@@ -101,8 +101,8 @@ User Action (open Lists tab / Save to...)
 |---|---|
 | `flutter_bloc` | ListsBloc + SaveToListCubit state management |
 | `supabase_flutter` | Lists CRUD and membership queries |
-| `cached_network_image` | List cover thumbnails in Save to... sheet |
-| `skeletonizer` | Loading placeholders in Save to... sheet |
+| `cached_network_image` | List and cafe thumbnails, through `CafeCardImage` |
+| `lucide_icons_flutter` | Icons of the redesigned Lists screens and sheets |
 | `shared_preferences` | Persist last saved list id |
 | `go_router` | Redirect to login on session-expired errors |
 

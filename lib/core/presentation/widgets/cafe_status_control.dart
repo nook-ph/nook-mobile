@@ -47,8 +47,8 @@ class CafeStatusControl extends StatelessWidget {
 
   /// Lays the two pills out as equal halves of the available width, for the
   /// details page where they sit on a row of their own under the cafe name.
-  /// The score is not merged into the Been pill in this mode: the "Your
-  /// visit" block directly below carries it.
+  /// Once ranked the Been pill reads "Been · 8.5", so status and score show
+  /// in one place; the rank stays in the "Your visit" block below.
   final bool fill;
 
   bool get _isRanked => score != null;
@@ -67,6 +67,8 @@ class CafeStatusControl extends StatelessWidget {
               isSelected: isBeen,
               icon: PhosphorIcons.check,
               label: 'Been',
+              // Visible text only; the pill is still announced as "Been".
+              compactLabel: _isRanked && isBeen ? 'Been · $score' : null,
               fill: true,
             ),
           ),

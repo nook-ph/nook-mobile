@@ -158,4 +158,35 @@ void main() {
       expect(opponents, ['a', 'b', 'c']);
     });
   });
+  group('revisited pick', () {
+    test('is null until a comparison is walked back', () {
+      final s = sessionOver(3);
+      expect(s.revisitedPick, isNull);
+      s.answer(preferredTarget: false);
+      expect(s.revisitedPick, isNull);
+    });
+
+    test('undo reports what was answered on the pair now showing', () {
+      final s = sessionOver(7);
+      final first = s.currentOpponent;
+      s.answer(preferredTarget: true);
+      s.answer(preferredTarget: false);
+
+      s.undo();
+      expect(s.revisitedPick, isFalse);
+      s.undo();
+      expect(s.revisitedPick, isTrue);
+      expect(s.currentOpponent, first);
+      expect(s.canUndo, isFalse);
+    });
+
+    test('answering again clears it', () {
+      final s = sessionOver(3);
+      s.answer(preferredTarget: true);
+      s.undo();
+      expect(s.revisitedPick, isTrue);
+      s.answer(preferredTarget: false);
+      expect(s.revisitedPick, isNull);
+    });
+  });
 }

@@ -1,55 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_note_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/set_cafe_note_usecase.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
+import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/injection_container.dart';
-import 'package:nook/utils/theme/custom_themes/text_theme.dart';
+
+/// Longest private note a cafe can carry.
+const cafeNoteLimit = 500;
 
 /// One-field private note on a logged cafe — the journal garnish after a
-/// one-tap log (spec: docs/BEEN_WANT_TO_TRY.md §3.1). Never blocks logging:
-/// it is always opened *after* the status write has already succeeded.
+/// one-tap log (spec: docs/BEEN_WANT_TO_TRY.md §3.1; Figma "Note — empty",
+/// "Note — edit"). Never blocks logging: it is always opened *after* the
+/// status write has already succeeded.
+///
+/// [bottomOffset] lifts the result toast above a sticky bottom bar.
 Future<void> showCafeNoteSheet(
   BuildContext context, {
   required String cafeId,
   required String cafeName,
+  double bottomOffset = 0,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.white,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+  return ListsSheet.show<void>(
+    context,
+    builder: (_) => CafeNoteSheet(
+      cafeId: cafeId,
+      cafeName: cafeName,
+      toastContext: context,
+      bottomOffset: bottomOffset,
     ),
-    builder: (_) => _CafeNoteSheet(cafeId: cafeId, cafeName: cafeName),
   );
 }
 
-class _CafeNoteSheet extends StatefulWidget {
-  const _CafeNoteSheet({required this.cafeId, required this.cafeName});
+/// The sheet body. Public so it can be pumped in tests; open it with
+/// [showCafeNoteSheet].
+class CafeNoteSheet extends StatefulWidget {
+  const CafeNoteSheet({
+    super.key,
+    required this.cafeId,
+    required this.cafeName,
+    this.toastContext,
+    this.bottomOffset = 0,
+  });
 
   final String cafeId;
   final String cafeName;
 
+  /// The page under the sheet. "Note saved" is shown from there, because the
+  /// sheet's own context is gone once it has popped.
+  final BuildContext? toastContext;
+  final double bottomOffset;
+
   @override
-  State<_CafeNoteSheet> createState() => _CafeNoteSheetState();
+  State<CafeNoteSheet> createState() => _CafeNoteSheetState();
 }
 
-class _CafeNoteSheetState extends State<_CafeNoteSheet> {
+class _CafeNoteSheetState extends State<CafeNoteSheet> {
   final _controller = TextEditingController();
+  final _focus = FocusNode();
   bool _isLoading = true;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
+    _controller.addListener(_onChanged);
     _loadExistingNote();
   }
+
+  void _onChanged() => setState(() {});
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -61,7 +87,14 @@ class _CafeNoteSheetState extends State<_CafeNoteSheet> {
     } catch (_) {
       // Prefill is best-effort — an empty field is still usable.
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        // The field is disabled while the note loads, so it can only take
+        // focus once it is enabled again.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focus.requestFocus();
+        });
+      }
     }
   }
 
@@ -72,11 +105,16 @@ class _CafeNoteSheetState extends State<_CafeNoteSheet> {
     try {
       await sl<SetCafeNoteUseCase>()(widget.cafeId, _controller.text);
       if (!mounted) return;
+      final cleared = _controller.text.trim().isEmpty;
+      final host = widget.toastContext;
       Navigator.pop(context);
-      showPrimaryToast(
-        context,
-        _controller.text.trim().isEmpty ? 'Note cleared' : 'Note saved',
-      );
+      if (host != null && host.mounted) {
+        showPrimaryToast(
+          host,
+          cleared ? 'Note cleared' : 'Note saved',
+          bottomOffset: widget.bottomOffset,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -87,103 +125,63 @@ class _CafeNoteSheetState extends State<_CafeNoteSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    OutlineInputBorder border(Color color, double width) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(ListsTokens.radius),
+      borderSide: BorderSide(color: color, width: width),
+    );
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 12),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 22),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Your note',
-                    style: Theme.of(context).textTheme.titleMediumSemi,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Private to you · ${widget.cafeName}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF868584),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _controller,
-                    enabled: !_isLoading,
-                    autofocus: !_isLoading,
-                    maxLines: 4,
-                    maxLength: 500,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: InputDecoration(
-                      hintText: _isLoading
-                          ? 'Loading…'
-                          : 'What do you want to remember about this place?',
-                      hintStyle: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: const Color(0xFFB0AFAE)),
-                      filled: true,
-                      fillColor: const Color(0xFFF7F7F7),
-                      contentPadding: const EdgeInsets.all(14),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF3A5A40)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  SizedBox(
-                    width: double.infinity,
-                    child: AdaptiveElevatedButton(
-                      onPressed: _isLoading || _isSaving ? null : _save,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF3A5A40),
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFFB6C2B8),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                      child: Text(
-                        _isSaving ? 'Saving…' : 'Save note',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyLargeMed.copyWith(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
-          ],
+    return ListsSheet(
+      title: 'Your note',
+      gap: 12,
+      children: [
+        Text(
+          'Private to you · ${widget.cafeName}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: listsText(12, color: ListsTokens.muted),
         ),
-      ),
+        SizedBox(
+          height: 140,
+          child: TextField(
+            controller: _controller,
+            focusNode: _focus,
+            enabled: !_isLoading,
+            expands: true,
+            maxLines: null,
+            textAlignVertical: TextAlignVertical.top,
+            textCapitalization: TextCapitalization.sentences,
+            inputFormatters: [LengthLimitingTextInputFormatter(cafeNoteLimit)],
+            cursorColor: ListsTokens.brand,
+            style: listsText(14),
+            decoration: InputDecoration(
+              hintText: _isLoading
+                  ? 'Loading…'
+                  : 'What do you want to remember about this place?',
+              hintStyle: listsText(14, color: ListsTokens.muted),
+              hintMaxLines: 3,
+              isDense: true,
+              filled: true,
+              fillColor: ListsTokens.surface,
+              contentPadding: const EdgeInsets.all(14),
+              disabledBorder: border(ListsTokens.border, 1),
+              enabledBorder: border(ListsTokens.border, 1),
+              focusedBorder: border(ListsTokens.brand, 1.5),
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '${_controller.text.characters.length} / $cafeNoteLimit',
+            style: listsText(12, color: ListsTokens.muted),
+          ),
+        ),
+        ListsPillButton(
+          label: 'Save note',
+          onTap: _isLoading ? null : _save,
+          busy: _isSaving,
+        ),
+      ],
     );
   }
 }

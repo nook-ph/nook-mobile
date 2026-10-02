@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:nook/features/crawls/presentation/widgets/crawl_ui.dart';
+import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 
+/// The ⋯ sheet of a list (Figma "List options sheet"): each row says what it
+/// does, and Delete is red.
 class ListOptionsBottomSheet extends StatelessWidget {
   final String listId;
   final String listName;
@@ -23,8 +25,7 @@ class ListOptionsBottomSheet extends StatelessWidget {
   });
 
   /// Closes the sheet first so the next surface opens over the list.
-  VoidCallback? _then(BuildContext context, VoidCallback? action) {
-    if (action == null) return null;
+  VoidCallback _then(BuildContext context, VoidCallback action) {
     return () {
       Navigator.pop(context);
       action();
@@ -33,32 +34,34 @@ class ListOptionsBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CrawlSheet(
+    final makeCrawl = onMakeCrawl;
+    final edit = onEdit;
+    final delete = onDelete;
+
+    return ListsSheet(
       title: listName,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (onMakeCrawl != null)
-            CrawlSheetAction(
-              title: 'Turn into a crawl',
-              subtitle: 'Pick 3 to 6 of these cafes and visit them in order',
-              onTap: _then(context, onMakeCrawl),
-            ),
-          if (onEdit != null)
-            CrawlSheetAction(
-              title: 'Edit list',
-              subtitle: 'Name and description',
-              onTap: _then(context, onEdit),
-            ),
-          if (onDelete != null)
-            CrawlSheetAction(
-              title: 'Delete list',
-              destructive: true,
-              onTap: _then(context, onDelete),
-            ),
-        ],
-      ),
+      gap: 2,
+      children: [
+        if (makeCrawl != null)
+          ListsSheetAction(
+            title: 'Turn into a crawl',
+            subtitle: 'Pick 3 to 6 of these cafes and visit them in order',
+            onTap: _then(context, makeCrawl),
+          ),
+        if (edit != null)
+          ListsSheetAction(
+            title: 'Edit',
+            subtitle: 'Name and description',
+            onTap: _then(context, edit),
+          ),
+        if (delete != null)
+          ListsSheetAction(
+            title: 'Delete',
+            subtitle: 'Cafes are not deleted',
+            destructive: true,
+            onTap: _then(context, delete),
+          ),
+      ],
     );
   }
 }

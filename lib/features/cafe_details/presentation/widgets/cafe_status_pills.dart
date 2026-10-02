@@ -137,6 +137,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
         cafeImageUrl: details.featuredImageUrl?.trim().isNotEmpty == true
             ? details.featuredImageUrl!.trim()
             : (details.photos.isNotEmpty ? details.photos.first : null),
+        cafeLocation: details.locationLabel,
       );
       if (!mounted) return;
 
@@ -148,15 +149,12 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
             context,
             cafeId: _cafeId,
             cafeName: details.name,
+            bottomOffset: _toastOffset,
           );
         case RankingFlowOutcome.completedViewList:
           await openBeenList(context);
         case RankingFlowOutcome.failed:
-          showPrimaryToast(
-            context,
-            "Couldn't save your ranking. Your Been is safe.",
-            bottomOffset: _toastOffset,
-          );
+          showRankingFailedToast(context, bottomOffset: _toastOffset);
         case RankingFlowOutcome.skipped || null:
           showPrimaryToastWithAction(
             context,
@@ -166,6 +164,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
               context,
               cafeId: _cafeId,
               cafeName: details.name,
+              bottomOffset: _toastOffset,
             ),
             bottomOffset: _toastOffset,
           );
@@ -242,13 +241,18 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
               // "Want to Try" in full; the label shortens before it clips.
               final scale = MediaQuery.textScalerOf(context).scale(15) / 15;
               final compact = constraints.maxWidth / scale < 300;
-              return CafeStatusControl(
-                fill: true,
-                compact: compact,
-                status: state.statusFor(_cafeId),
-                isBusy: state.isPending(_cafeId),
-                onTapBeen: () => _onStatusTap(CafeStatus.been),
-                onTapWantToTry: () => _onStatusTap(CafeStatus.wantToTry),
+              return BlocSelector<CafeRankingCubit, CafeRankingState, String?>(
+                selector: (ranking) =>
+                    ranking.rankingFor(_cafeId)?.displayScore,
+                builder: (context, score) => CafeStatusControl(
+                  fill: true,
+                  compact: compact,
+                  status: state.statusFor(_cafeId),
+                  isBusy: state.isPending(_cafeId),
+                  score: score,
+                  onTapBeen: () => _onStatusTap(CafeStatus.been),
+                  onTapWantToTry: () => _onStatusTap(CafeStatus.wantToTry),
+                ),
               );
             },
           );

@@ -44,6 +44,10 @@ class RankingSession {
   /// (lo, hi) before each answer, so a mis-tap can be walked back.
   final List<(int, int)> _history = [];
 
+  /// The answer given at each step of [_history], in the same order.
+  final List<bool> _answers = [];
+  bool? _revisitedPick;
+
   int get comparisonsAsked => _asked;
 
   /// How many questions this session expects to ask in total — the binary
@@ -65,11 +69,17 @@ class RankingSession {
 
   bool get canUndo => _history.isNotEmpty && !_stopped;
 
+  /// After [undo], what was answered on the question now back on screen —
+  /// true when the cafe being ranked was picked. Null on a question reached
+  /// by answering, so only a walked-back pair shows an earlier pick.
+  bool? get revisitedPick => _revisitedPick;
+
   /// Steps back one comparison. The search is a pure range narrowing, so
   /// restoring the previous range is a complete undo.
   void undo() {
     if (_history.isEmpty) return;
     final (lo, hi) = _history.removeLast();
+    _revisitedPick = _answers.removeLast();
     _lo = lo;
     _hi = hi;
     _asked--;
@@ -96,6 +106,8 @@ class RankingSession {
     if (isComplete) return;
     final mid = _midpoint;
     _history.add((_lo, _hi));
+    _answers.add(preferredTarget);
+    _revisitedPick = null;
     if (preferredTarget) {
       // Better than the midpoint → it belongs somewhere above it.
       _hi = mid - 1;
