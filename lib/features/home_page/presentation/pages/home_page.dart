@@ -11,6 +11,7 @@ import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
@@ -102,15 +103,29 @@ class HomePage extends StatelessWidget {
             // The top bar sits outside the feed's scroll view: search stays
             // reachable in every state, and the refresh spinner appears
             // under it.
-            child: Column(
-              children: [
-                const HomeTopBar(),
-                Expanded(
-                  child: BlocBuilder<HomeBloc, HomeState>(
-                    builder: (context, state) => _feedArea(context, state),
+            child: BlocListener<AuthBloc, AuthState>(
+              // Signing in from a guest sheet keeps this screen alive, so the
+              // feed does not reload and its badges have to be asked for.
+              listenWhen: (prev, curr) =>
+                  curr is AuthAuthenticated && prev is! AuthAuthenticated,
+              listener: (context, _) {
+                final home = context.read<HomeBloc>().state;
+                if (home is HomeLoadedState && home.hasCafes) {
+                  context.read<CafeStatusCubit>().loadFor(
+                    home.cafeIds.toList(),
+                  );
+                }
+              },
+              child: Column(
+                children: [
+                  const HomeTopBar(),
+                  Expanded(
+                    child: BlocBuilder<HomeBloc, HomeState>(
+                      builder: (context, state) => _feedArea(context, state),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
