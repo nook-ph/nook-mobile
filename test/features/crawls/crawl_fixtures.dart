@@ -53,6 +53,7 @@ class FakeCrawlRepository implements ICrawlRepository {
   FakeCrawlRepository({this.currentRun});
 
   CrawlRun? currentRun;
+  MyCrawls myCrawls = const MyCrawls();
   Object? claimError;
   Object? createError;
   Object? getRunError;
@@ -114,7 +115,7 @@ class FakeCrawlRepository implements ICrawlRepository {
   Future<Crawl> getCrawlByCode(String shareCode) async => crawl();
 
   @override
-  Future<MyCrawls> getMyCrawls() async => const MyCrawls();
+  Future<MyCrawls> getMyCrawls() async => myCrawls;
 
   @override
   Future<CrawlRun> startRun(String crawlId) async => currentRun!;
