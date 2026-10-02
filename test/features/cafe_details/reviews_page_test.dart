@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/block/domain/repositories/i_block_repository.dart';
 import 'package:nook/core/block/domain/use_cases/block_user_usecase.dart';
@@ -11,6 +12,7 @@ import 'package:nook/core/block/domain/use_cases/unblock_user_usecase.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_reviews_usecase.dart';
+import 'package:nook/core/cafe/domain/use_cases/report_review_usecase.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_event.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
@@ -42,6 +44,30 @@ class _FakeGetReviews extends GetCafeReviewsUseCase {
         .where((r) => ratingFilter == null || r.rating == ratingFilter)
         .toList();
   }
+}
+
+class _RecordingReportRepository implements ICafeRepository {
+  final calls =
+      <({String reviewId, String cafeId, String reporterId, String reason})>[];
+
+  @override
+  Future<void> reportReview({
+    required String reviewId,
+    required String cafeId,
+    required String reporterId,
+    required String reasonCode,
+    String? description,
+  }) async {
+    calls.add((
+      reviewId: reviewId,
+      cafeId: cafeId,
+      reporterId: reporterId,
+      reason: reasonCode,
+    ));
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeSubmitBloc extends Bloc<ReviewSubmitEvent, ReviewSubmitState>
@@ -251,5 +277,49 @@ void main() {
     expect(find.text('4.0'), findsOneWidget);
     expect(find.text('1 review'), findsNWidgets(2));
     expect(find.text('Review text from ana.reyes'), findsNothing);
+  });
+
+  testWidgets('reporting files the page\'s cafe id when the review has none', (
+    tester,
+  ) async {
+    final reports = _RecordingReportRepository();
+    GetIt.instance.registerSingleton<ReportReviewUseCase>(
+      ReportReviewUseCase(reports),
+    );
+    addTearDown(GetIt.instance.reset);
+
+    // The reviews RPC returns no cafe_id, so rows arrive with an empty one.
+    final harness = _Harness([
+      Review(
+        id: 'r2',
+        cafeId: '',
+        userId: 'jp_dev',
+        rating: 4,
+        content: 'Review text from jp_dev',
+        createdAt: DateTime(2026, 5, 23),
+        updatedAt: DateTime(2026, 5, 23),
+        name: 'jp_dev',
+      ),
+    ]);
+    await harness.pump(tester, userId: 'maria.c');
+
+    await tester.tap(find.bySemanticsLabel('Review options').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report review'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Spam or advertising'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Submit report'));
+    await tester.pumpAndSettle();
+
+    expect(reports.calls, [
+      (reviewId: 'r2', cafeId: 'cafe', reporterId: 'maria.c', reason: 'spam'),
+    ]);
+    expect(
+      find.text('Could not submit the report. Please retry.'),
+      findsNothing,
+    );
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
   });
 }

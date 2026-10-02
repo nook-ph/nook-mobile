@@ -23,6 +23,7 @@ class ReviewRow extends StatefulWidget {
     required this.review,
     this.isOwn = false,
     this.currentUserId,
+    this.cafeId,
     this.cafeName,
     this.onDeleteConfirmed,
     this.toastBottomOffset = 0,
@@ -34,6 +35,10 @@ class ReviewRow extends StatefulWidget {
 
   /// Null for a guest.
   final String? currentUserId;
+
+  /// The cafe the page is showing, filed with a report. The review's own
+  /// `cafeId` is used when this is null.
+  final String? cafeId;
 
   /// Named in the delete copy and the photo viewer caption.
   final String? cafeName;
@@ -94,7 +99,7 @@ class _ReviewRowState extends State<ReviewRow> {
     await showReviewActionsSheet(
       context,
       reviewId: review.id,
-      cafeId: review.cafeId,
+      cafeId: widget.cafeId ?? review.cafeId,
       authorId: review.userId,
       authorName: review.name,
       toastBottomOffset: widget.toastBottomOffset,

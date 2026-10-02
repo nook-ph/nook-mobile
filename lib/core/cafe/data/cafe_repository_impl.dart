@@ -168,7 +168,8 @@ class CafeRepositoryImpl implements ICafeRepository {
         .map(
           (item) => Review(
             id: item.id,
-            cafeId: item.cafeId,
+            // The reviews RPC returns no cafe_id; every row is this cafe's.
+            cafeId: item.cafeId.isEmpty ? cafeId : item.cafeId,
             userId: item.userId,
             rating: item.rating,
             content: item.content,

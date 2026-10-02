@@ -276,6 +276,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   review: reviews[i],
                   isOwn: reviews[i].userId == userId,
                   currentUserId: userId,
+                  cafeId: widget.cafeId,
                   cafeName: cafeName,
                   toastBottomOffset: toastOffset,
                   onDeleteConfirmed: () => _deleteOwnReview(reviews[i]),
