@@ -268,20 +268,25 @@ class CrawlSheetAction extends StatelessWidget {
       borderRadius: BorderRadius.circular(ListsTokens.radius),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: crawlText(
-                14,
-                weight: FontWeight.w500,
-                color: destructive ? crawlDanger : ListsTokens.ink,
+        // Full width so the row starts at the left edge: on iOS the tap
+        // target is a CupertinoButton, which centres a narrower child.
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: crawlText(
+                  14,
+                  weight: FontWeight.w500,
+                  color: destructive ? crawlDanger : ListsTokens.ink,
+                ),
               ),
-            ),
-            if (note != null)
-              Text(note, style: crawlText(12, color: ListsTokens.muted)),
-          ],
+              if (note != null)
+                Text(note, style: crawlText(12, color: ListsTokens.muted)),
+            ],
+          ),
         ),
       ),
     );
