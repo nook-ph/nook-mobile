@@ -388,9 +388,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                 cafeName: state is CafeDetailsLoaded
                                     ? state.data.cafeDetails.name
                                     : '',
-                                thumbnailUrl: state is CafeDetailsLoaded
-                                    ? state.data.cafeDetails.featuredImageUrl
-                                    : null,
+                                toastOffset: _toastOffset,
                               ),
                             ),
                             const SizedBox(width: 22),
@@ -509,12 +507,14 @@ class _SavedButton extends StatefulWidget {
   const _SavedButton({
     required this.cafeId,
     required this.cafeName,
-    required this.thumbnailUrl,
+    required this.toastOffset,
   });
 
   final String cafeId;
   final String cafeName;
-  final String? thumbnailUrl;
+
+  /// Height of the pinned action bar, so the saved toast lands above it.
+  final double Function() toastOffset;
 
   @override
   State<_SavedButton> createState() => _SavedButtonState();
@@ -629,10 +629,9 @@ class _SavedButtonState extends State<_SavedButton> {
       setState(() => _isSaved = true);
       showSavedToListToast(
         context,
-        widget.cafeName,
-        widget.thumbnailUrl,
         listDisplayName: quickSave.displayTitle,
         onChange: () => _showSaveToListSheet(),
+        bottomOffset: widget.toastOffset(),
       );
     } catch (e, st) {
       debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
