@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/preferences/review_draft_store.dart';
+import 'package:nook/core/utils/compressed_image_target.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/content_filter.dart';
 import 'package:nook/core/utils/toast_helper.dart';
@@ -68,7 +69,32 @@ class WriteReviewSheet extends StatefulWidget {
           reviewsBloc: reviewsBloc,
         ),
       ),
+    ).then((_) {
+      if (submitBloc.state is! ReviewSubmitting) return;
+      // Swiped away mid-submit: the sheet is gone, the request is not.
+      unawaited(_reportLateOutcome(context, submitBloc, cafeId));
+    });
+  }
+
+  /// Finishes a submit whose sheet was dismissed before it resolved: says
+  /// how it went, and on success clears the draft the dismissal just saved
+  /// so the posted review does not come back as one.
+  static Future<void> _reportLateOutcome(
+    BuildContext context,
+    ReviewSubmitBloc submitBloc,
+    String cafeId,
+  ) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final outcome = await submitBloc.stream.firstWhere(
+      (state) => state is ReviewSubmitSuccess || state is ReviewSubmitError,
+      orElse: () => submitBloc.state,
     );
+    if (outcome is ReviewSubmitSuccess) {
+      await sl<ReviewDraftStore>().clear(cafeId, userId: userId);
+      if (context.mounted) showPrimaryToast(context, 'Review posted');
+    } else if (outcome is ReviewSubmitError && context.mounted) {
+      showPrimaryToast(context, outcome.message);
+    }
   }
 
   @override
@@ -145,6 +171,10 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     }
   }
 
+  /// Whose draft this is. Drafts are kept per account, so a second person
+  /// signing in on the same phone starts from an empty sheet.
+  String? get _draftUserId => Supabase.instance.client.auth.currentUser?.id;
+
   Future<void> _saveDraft() async {
     if (_submitted) return;
     if (_reviewController.text.trim().isEmpty && _rating == 0) return;
@@ -155,6 +185,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
       widget.cafeId,
       text: _reviewController.text,
       rating: _rating,
+      userId: _draftUserId,
     );
     _saveInFlight = save;
     try {
@@ -173,7 +204,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
   }
 
   Future<void> _loadDraft() async {
-    final draft = await _draftStore.load(widget.cafeId);
+    final draft = await _draftStore.load(widget.cafeId, userId: _draftUserId);
     if (!mounted || draft == null || _composing) return;
     if (draft.text.trim().isEmpty && draft.rating == 0) return;
 
@@ -198,7 +229,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     } catch (_) {
       // The clear below is what matters.
     }
-    await _draftStore.clear(widget.cafeId);
+    await _draftStore.clear(widget.cafeId, userId: _draftUserId);
     if (!mounted) return;
     _reviewController.clear();
     setState(() {
@@ -230,7 +261,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     } catch (_) {
       // The clear below is what matters.
     }
-    await _draftStore.clear(widget.cafeId);
+    await _draftStore.clear(widget.cafeId, userId: _draftUserId);
     if (!mounted) return;
     showPrimaryToast(context, 'Review posted');
     Navigator.of(context).pop();
@@ -238,16 +269,15 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
 
   Future<File> _compressImage(File file) async {
     final filePath = file.path;
-    final ext = filePath.split('.').last.toLowerCase();
-    final targetPath = filePath.replaceAll('.$ext', '_compressed.$ext');
+    final target = compressedImageTarget(filePath);
 
     final result = await FlutterImageCompress.compressAndGetFile(
       filePath,
-      targetPath,
+      target.path,
       quality: 75,
       minWidth: 1280,
       minHeight: 1280,
-      format: ext == 'png' ? CompressFormat.png : CompressFormat.jpeg,
+      format: target.isPng ? CompressFormat.png : CompressFormat.jpeg,
     );
 
     if (result == null) return file;
@@ -257,12 +287,22 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
   Future<void> _pickPhoto() async {
     if (_photos.length >= _maxPhotos) return;
 
-    final XFile? picked = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-    );
-    if (picked == null) return;
-
-    final file = await _compressImage(File(picked.path));
+    final File file;
+    try {
+      final XFile? picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+      );
+      if (picked == null) return;
+      file = await _compressImage(File(picked.path));
+    } catch (e) {
+      // Denied photo access, an unreadable file or a failed compress.
+      debugPrint('[WriteReview] pick photo failed: $e');
+      if (!mounted) return;
+      setState(
+        () => _submitError = 'Could not add that photo. Please try another.',
+      );
+      return;
+    }
     if (!mounted || _photos.length >= _maxPhotos) return;
     setState(() {
       _photos.add(file);
@@ -372,7 +412,9 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
         final isSubmitting = state is ReviewSubmitting;
 
         return PopScope(
-          canPop: true,
+          // Back and the scrim wait for the submit; a drag still gets
+          // through, which is what [_reportLateOutcome] is for.
+          canPop: !isSubmitting,
           onPopInvokedWithResult: (didPop, _) {
             if (!didPop) return;
             _draftDebounce?.cancel();

@@ -7,8 +7,16 @@ class ReviewDraftStore {
   static const _ratingKeyPrefix = 'review_draft_rating_';
   static const _updatedAtKeyPrefix = 'review_draft_updated_at_';
 
-  Future<ReviewDraft?> load(String cafeId) async {
-    final id = cafeId.trim();
+  /// A draft belongs to one account on this device: with a [userId] the key
+  /// carries it, so the next person to sign in does not see it.
+  static String _keyId(String cafeId, String? userId) {
+    final cafe = cafeId.trim();
+    final user = userId?.trim() ?? '';
+    return cafe.isEmpty || user.isEmpty ? cafe : '${user}_$cafe';
+  }
+
+  Future<ReviewDraft?> load(String cafeId, {String? userId}) async {
+    final id = _keyId(cafeId, userId);
     if (id.isEmpty) return null;
 
     final prefs = await SharedPreferences.getInstance();
@@ -29,8 +37,9 @@ class ReviewDraftStore {
     String cafeId, {
     required String text,
     required int rating,
+    String? userId,
   }) async {
-    final id = cafeId.trim();
+    final id = _keyId(cafeId, userId);
     if (id.isEmpty) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -41,8 +50,8 @@ class ReviewDraftStore {
     await prefs.setInt('$_updatedAtKeyPrefix$id', updatedAt);
   }
 
-  Future<void> clear(String cafeId) async {
-    final id = cafeId.trim();
+  Future<void> clear(String cafeId, {String? userId}) async {
+    final id = _keyId(cafeId, userId);
     if (id.isEmpty) return;
 
     final prefs = await SharedPreferences.getInstance();
