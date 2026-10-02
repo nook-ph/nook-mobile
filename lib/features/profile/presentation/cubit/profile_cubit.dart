@@ -36,9 +36,9 @@ class ProfileCubit extends Cubit<ProfileState> {
     try {
       final profileFuture = _client
           .from('profiles')
-          .select(
-            'full_name,email,username,bio,avatar_url,last_username_change',
-          )
+          // No `email`: it comes from the session, so this read keeps
+          // working once that column stops being readable by other users.
+          .select('full_name,username,bio,avatar_url,last_username_change')
           .eq('id', user.id)
           .maybeSingle();
 
@@ -75,10 +75,7 @@ class ProfileCubit extends Cubit<ProfileState> {
           '';
 
       final email =
-          (map['email'] as String?) ??
-          user.email ??
-          (user.userMetadata?['email'] as String?) ??
-          'No email';
+          user.email ?? (user.userMetadata?['email'] as String?) ?? 'No email';
 
       final bio = (map['bio'] as String?) ?? '';
       final avatarUrl = map['avatar_url'] as String?;

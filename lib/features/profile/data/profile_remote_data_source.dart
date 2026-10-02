@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileRemoteDataSource {
@@ -25,9 +26,19 @@ class ProfileRemoteDataSource {
         'set_username',
         params: {'p_username': username},
       );
-      updates['last_username_change'] = DateTime.now()
-          .toUtc()
-          .toIso8601String();
+      // The cooldown stamp is the client's for now. It is written on its own
+      // and best-effort, so the change above still stands if the server
+      // takes this column over (and stops accepting it from clients).
+      try {
+        await supabaseClient
+            .from('profiles')
+            .update({
+              'last_username_change': DateTime.now().toUtc().toIso8601String(),
+            })
+            .eq('id', userId);
+      } catch (e) {
+        debugPrint('[Profile] last_username_change not stamped: $e');
+      }
     }
 
     if (updates.isEmpty) return;
