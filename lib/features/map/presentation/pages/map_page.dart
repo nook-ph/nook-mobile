@@ -46,7 +46,7 @@ class MapPage extends StatefulWidget {
   State<MapPage> createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> {
+class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
   final _controllerCompleter = Completer<MapLibreMapController>();
 
   /// On the map's own render box, not the page's: the fit has to be measured
@@ -164,6 +164,7 @@ class _MapPageState extends State<MapPage> {
       if (mounted) setState(() => _styleJson = s);
     });
     _syncLocationEnabledFromPermission();
+    WidgetsBinding.instance.addObserver(this);
     _originStore.origin.addListener(_onOriginChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -216,8 +217,18 @@ class _MapPageState extends State<MapPage> {
     }
   }
 
+  /// Back from Settings or a system prompt: permission may have been granted
+  /// outside this page, and the blue dot follows it.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncLocationEnabledFromPermission();
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     sl<FilterCubit>().reset();
     _originStore.origin.removeListener(_onOriginChanged);
     _mapController?.onFeatureTapped.remove(_onCafeFeatureTapped);
@@ -1128,6 +1139,14 @@ class _MapPageState extends State<MapPage> {
           bottomOffset: _sheetMetrics.value?.topFromBottom ?? 0,
         );
         return;
+      }
+      // Permission granted somewhere else (search, a crawl, Settings) never
+      // went through the branch below, so the location layer is still off;
+      // tracking does nothing without it.
+      if (!_myLocationEnabled) {
+        if (!mounted) return;
+        setState(() => _myLocationEnabled = true);
+        await WidgetsBinding.instance.endOfFrame;
       }
       await _enterTrackingMode();
       return;
