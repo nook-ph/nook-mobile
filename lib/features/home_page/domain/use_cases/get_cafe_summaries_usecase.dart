@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/location/device_location.dart';
 
 typedef HomeFeedResult = ({
   List<CafeSummary> nearby,
@@ -156,12 +157,10 @@ class GetHomeFeedUseCase {
         );
       }
 
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          distanceFilter: 100,
-        ),
-      ).timeout(const Duration(seconds: 4));
+      // The app-wide position: it falls back to the last known fix when a
+      // fresh one is slow, where a bare request would time out and drop the
+      // "Near you" section. It is also what the cards measure from.
+      final position = await DeviceLocation.instance.ensure();
       return (position: position, locationDenied: false, servicesOff: false);
     } on TimeoutException {
       return (position: null, locationDenied: false, servicesOff: false);
