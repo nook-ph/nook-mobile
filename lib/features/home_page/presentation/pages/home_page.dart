@@ -26,7 +26,12 @@ class HomePage extends StatelessWidget {
     final bloc = context.read<HomeBloc>();
     // Wait for the state the refresh ends in. A refresh over a loaded feed
     // emits no loading state, so the first emission is already the outcome.
-    final done = bloc.stream.firstWhere((s) => s is! HomeLoadingState);
+    // Leaving the screen closes the bloc mid-refresh; the stream then ends
+    // with no match, which is not an error.
+    final done = bloc.stream.firstWhere(
+      (s) => s is! HomeLoadingState,
+      orElse: () => bloc.state,
+    );
     bloc.add(LoadHomeDataEvent(refresh: true));
     await done;
   }
