@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:http/http.dart' as http;
+import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -44,8 +46,18 @@ class AppErrorCopy {
     }
   }
 
-  static ErrorType _classify(Object error) {
-    if (error is SocketException || error is TimeoutException) {
+  static ErrorType _classify(Object thrown) {
+    // The cafe data source wraps every failure in a CafeFetchException; the
+    // reason is the cause underneath.
+    var error = thrown;
+    while (error is CafeFetchException && error.cause != null) {
+      error = error.cause!;
+    }
+    // The http client reports a dropped connection as a ClientException
+    // rather than the SocketException underneath it.
+    if (error is SocketException ||
+        error is TimeoutException ||
+        error is http.ClientException) {
       return ErrorType.offline;
     }
     if (error is AuthException) {
