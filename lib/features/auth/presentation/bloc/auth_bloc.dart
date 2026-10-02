@@ -684,7 +684,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (code == 'over_request_rate_limit' || message.contains('rate limit')) {
       return 'Too many attempts. Please wait a moment.';
     }
-    if (message.contains('network') || message.contains('connection')) {
+    // AuthRetryableFetchException is what gotrue throws when the request never
+    // got an answer; its message is the raw socket error.
+    if (exception is AuthRetryableFetchException ||
+        message.contains('network') ||
+        message.contains('connection') ||
+        message.contains('socketexception') ||
+        message.contains('failed host lookup')) {
       return 'Connection failed. Check your internet.';
     }
     return exception.message.isNotEmpty
