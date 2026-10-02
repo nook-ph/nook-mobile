@@ -197,6 +197,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
         return;
       }
       await Geolocator.requestPermission();
+      await _syncLocationEnabledFromPermission();
     } catch (_) {
       // Best-effort: the user can re-enable via Settings.
     }
@@ -265,6 +266,10 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
   void didUpdateWidget(MapPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive && !oldWidget.isActive) {
+      // The tabs are built together at app start, on Home, so initState never
+      // sees the map tab selected; this is the first time the map is opened.
+      unawaited(_maybeRequestPermissionOnce());
+      unawaited(_syncLocationEnabledFromPermission());
       final cafes = _lastSyncedCafes;
       if (!_cameraFitted && cafes != null && _mapController != null) {
         unawaited(
