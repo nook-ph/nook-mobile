@@ -6,9 +6,21 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
 class SearchEntryButton extends StatelessWidget {
-  const SearchEntryButton({super.key});
+  const SearchEntryButton({
+    super.key,
+    this.filled = false,
+    this.hint = 'Search...',
+  });
+
+  /// Grey filled pill without a border, as on the home top bar. The default
+  /// outlined style is what floats over the map.
+  final bool filled;
+  final String hint;
 
   static const double height = 52;
+
+  /// Height of the [filled] variant.
+  static const double filledHeight = 44;
 
   static double mapSearchBarBottom(
     BuildContext context, {
@@ -36,21 +48,29 @@ class SearchEntryButton extends StatelessWidget {
     return AdaptiveTap(
       onTap: () => context.push('/search'),
       child: Container(
-        height: height,
+        height: filled ? filledHeight : height,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: filled ? Theme.of(context).colorScheme.offWhite : Colors.white,
           borderRadius: BorderRadius.circular(100),
-          border: Border.all(color: borderColor),
+          border: filled ? null : Border.all(color: borderColor),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         alignment: Alignment.centerLeft,
         child: Row(
           children: [
-            const Icon(LucideIcons.search, color: Colors.grey),
+            Icon(
+              LucideIcons.search,
+              size: filled ? 20 : null,
+              color: filled ? Theme.of(context).colorScheme.gray : Colors.grey,
+            ),
             const SizedBox(width: 8),
             Text(
-              'Search...',
-              style: context.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+              hint,
+              style: context.textTheme.bodyMedium?.copyWith(
+                color: filled
+                    ? Theme.of(context).colorScheme.gray
+                    : Colors.grey,
+              ),
             ),
           ],
         ),
