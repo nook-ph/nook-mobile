@@ -38,12 +38,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final DeleteAccountUseCase _deleteAccountUseCase;
   final GetCurrentSessionUseCase _getCurrentSessionUseCase;
   final ListsBloc listsBloc;
+  final Future<Map<String, dynamic>> Function(String userId) _fetchProfile;
   late final StreamSubscription<supabase.AuthState> _authStateSubscription;
 
   /// True while this bloc is itself signing out. gotrue announces `signedOut`
   /// before its request goes out; the handler that asked for it finishes the
   /// job, so the stream listener must not start a second one.
   bool _signingOut = false;
+
+  /// Set when the username gate let a user in without reading their profile.
+  /// The next token refresh runs the gate again.
+  bool _usernameUnverified = false;
 
   AuthBloc({
     required CheckEmailExistsUseCase checkEmailExistsUseCase,
@@ -58,7 +63,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required GetCurrentSessionUseCase getCurrentSessionUseCase,
     required this.listsBloc,
     Stream<supabase.AuthState>? authStateChanges,
-  }) : _checkEmailExistsUseCase = checkEmailExistsUseCase,
+    Future<Map<String, dynamic>> Function(String userId)? fetchProfile,
+  }) : _fetchProfile = fetchProfile ?? _fetchSupabaseProfile,
+       _checkEmailExistsUseCase = checkEmailExistsUseCase,
        _signUpWithEmailUseCase = signUpWithEmailUseCase,
        _signInWithEmailUseCase = signInWithEmailUseCase,
        _verifySignupOtpUseCase = verifySignupOtpUseCase,
@@ -139,6 +146,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       debugPrint('AuthBloc: trigger AuthSessionEndedEvent');
       add(const AuthSessionEndedEvent());
       return;
+    }
+
+    if (event == AuthChangeEvent.tokenRefreshed) {
+      if (_usernameUnverified && state is AuthAuthenticated) {
+        debugPrint('AuthBloc: re-run the username gate');
+        add(const AuthSessionCheckEvent());
+      }
     }
   }
 
@@ -519,11 +533,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _emitAuthSuccess(User user, Emitter<AuthState> emit) async {
     try {
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('username, full_name, avatar_url')
-          .eq('id', user.id)
-          .single();
+      final profile = await _fetchProfileWithRetry(user.id);
+      _usernameUnverified = false;
 
       final username = profile['username'] as String?;
 
@@ -541,9 +552,35 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthAuthenticated(user));
       }
     } catch (_) {
+      // Still let the user in: a returning user who opens the app offline
+      // has to reach it. The gate runs again on the next token refresh.
       debugPrint('AuthBloc: emit AuthAuthenticated (profile fetch failed)');
+      _usernameUnverified = true;
       emit(AuthAuthenticated(user));
     }
+  }
+
+  static const _profileFetchAttempts = 3;
+
+  /// A dropped request must not decide whether the username step is skipped,
+  /// so the profile read gets a couple of quick retries first.
+  Future<Map<String, dynamic>> _fetchProfileWithRetry(String userId) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _fetchProfile(userId);
+      } catch (_) {
+        if (attempt >= _profileFetchAttempts) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 300 * attempt));
+      }
+    }
+  }
+
+  static Future<Map<String, dynamic>> _fetchSupabaseProfile(String userId) {
+    return Supabase.instance.client
+        .from('profiles')
+        .select('username, full_name, avatar_url')
+        .eq('id', userId)
+        .single();
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
