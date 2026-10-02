@@ -262,6 +262,20 @@ void main() {
   group('countFor', () {
     const filter = CafeFilter(tagNames: {'Free WiFi'});
 
+    test('the filter in force is counted from the cafes on screen', () async {
+      final viewportUseCase = _FakeViewportUseCase()
+        ..result = List.filled(4, _viewportCafe);
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+      expect(viewportUseCase.calls, hasLength(1));
+
+      expect(await bloc.countFor(const CafeFilter()), 4);
+      expect(viewportUseCase.calls, hasLength(1));
+    });
+
     test('applying the counted draft reuses the counted rows', () async {
       final viewportUseCase = _FakeViewportUseCase();
       final bloc = _buildBloc(viewportUseCase: viewportUseCase);

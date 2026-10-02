@@ -56,6 +56,19 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   Future<int?> countFor(CafeFilter filter) async {
     final viewport = _lastViewport;
     if (viewport == null) return null;
+
+    // The draft is what the map already shows (the sheet has just opened, or
+    // a change was undone): the answer is on screen.
+    final shown = _shown;
+    final loaded = state;
+    if (loaded is MapLoadedState &&
+        !loaded.isRefreshing &&
+        shown != null &&
+        shown.viewport == viewport &&
+        shown.filter == filter) {
+      return loaded.cafes.length;
+    }
+
     final cafes = await getCafesForViewportUseCase
         .call(viewport: viewport, filter: filter)
         .timeout(_mapLoadTimeout);
