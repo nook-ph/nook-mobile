@@ -7,6 +7,14 @@ class AppConstants {
     'DEEP_LINK_SCHEME',
     defaultValue: 'ph.nook.app',
   );
+
+  /// Dev aid, off unless a build passes `--dart-define=FAKE_STAMPS=true`.
+  /// A crawl stop then stamps on the device only, with no GPS fix and no
+  /// server call, so the run, complete and share screens can be walked
+  /// through from a desk. Nothing is written: real stamps still come only
+  /// from the server's GPS check.
+  static const bool fakeStamps = bool.fromEnvironment('FAKE_STAMPS');
+
   static const String loginHost = 'login-callback';
   static const String emailRedirectUri = '$scheme://$loginHost';
   static const String googleServerClientId =

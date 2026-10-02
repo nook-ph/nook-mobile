@@ -84,6 +84,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
     required this.leaveCrawlRunUseCase,
     required this.locator,
     required this.analytics,
+    this.fakeStamps = false,
   }) : super(const CrawlRunState());
 
   final GetCrawlRunUseCase getCrawlRunUseCase;
@@ -91,6 +92,31 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
   final LeaveCrawlRunUseCase leaveCrawlRunUseCase;
   final IStampLocator locator;
   final AnalyticsService analytics;
+
+  /// Dev aid (`AppConstants.fakeStamps`): [stamp] marks the stop on this
+  /// device only, without a fix or a server call.
+  final bool fakeStamps;
+
+  /// Stamps made up on this device. Kept apart from the run so a refetch,
+  /// which knows nothing of them, does not wipe them.
+  final List<CrawlStamp> _fakes = [];
+
+  CrawlRun _withFakes(CrawlRun run) {
+    if (_fakes.isEmpty) return run;
+    final real = run.myStampedStopIds;
+    return CrawlRun(
+      id: run.id,
+      inviteCode: run.inviteCode,
+      plannedFor: run.plannedFor,
+      crawl: run.crawl,
+      members: run.members,
+      stamps: [
+        ...run.stamps,
+        for (final fake in _fakes)
+          if (!real.contains(fake.stopId)) fake,
+      ],
+    );
+  }
 
   Future<void> load(String runId, {CrawlRun? initial}) async {
     if (initial != null) {
@@ -110,7 +136,7 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
 
   Future<void> _fetch(String runId) async {
     try {
-      final run = await getCrawlRunUseCase(runId);
+      final run = _withFakes(await getCrawlRunUseCase(runId));
       if (isClosed) return;
       emit(state.copyWith(status: CrawlRunStatus.loaded, run: run));
     } catch (e, st) {
@@ -127,6 +153,26 @@ class CrawlRunCubit extends Cubit<CrawlRunState> {
   Future<void> stamp(CrawlStop stop, {String? note}) async {
     final run = state.run;
     if (run == null || state.isStamping) return;
+
+    final me = run.me;
+    if (fakeStamps && me != null) {
+      // Not tracked: a made-up stamp is not a stamp attempt.
+      _fakes.add(
+        CrawlStamp(
+          stopId: stop.stopId,
+          userId: me.userId,
+          claimedAt: DateTime.now(),
+        ),
+      );
+      emit(
+        state.copyWith(
+          run: _withFakes(run),
+          stampPhase: StampPhase.stamped,
+          stampStop: stop,
+        ),
+      );
+      return;
+    }
 
     emit(state.copyWith(stampPhase: StampPhase.locating, stampStop: stop));
     try {

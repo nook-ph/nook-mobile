@@ -1,6 +1,4 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:toastification/toastification.dart';
 
@@ -58,6 +56,9 @@ void dismissToasts() => toastification.dismissAll(delayForAnimation: false);
 const _toastInk = Color(0xFF0A0F0D);
 const _toastText = Color(0xFFFEFEFE);
 
+/// The action label ("Undo", "Change"): sage on the dark bar.
+const _toastAction = Color(0xFFA3B18A);
+
 void _showToastBar(
   BuildContext context,
   String message, {
@@ -70,8 +71,11 @@ void _showToastBar(
 
   // The measured bar already includes the bottom safe-area inset, and the
   // toast overlay adds that inset again, so take one back. Read from the
-  // caller's context: inside the overlay the inset is already consumed.
-  final inset = MediaQuery.viewPaddingOf(context).bottom;
+  // view, not the caller's MediaQuery: under a Scaffold with a bottom bar
+  // the body's inset is already zeroed, which left the toast a whole
+  // home-indicator height too high.
+  final view = View.of(context);
+  final inset = view.viewPadding.bottom / view.devicePixelRatio;
 
   toastification.showCustom(
     context: context,
@@ -116,14 +120,17 @@ void _showToastBar(
                   onAction?.call();
                 },
                 style: TextButton.styleFrom(
-                  foregroundColor: _toastText,
+                  foregroundColor: _toastAction,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   minimumSize: const Size(0, 24),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
                   actionLabel,
-                  style: style?.copyWith(fontWeight: FontWeight.w600),
+                  style: style?.copyWith(
+                    color: _toastAction,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -134,130 +141,26 @@ void _showToastBar(
   );
 }
 
+/// "Saved to Favorites · Change", shown when the bookmark on a cafe page
+/// quick-saves to the last used list (Figma "Saved toast — proposal", A).
+/// It is the same bar as every other toast; [onChange] opens Save to….
 void showSavedToListToast(
-  BuildContext context,
-  String cafeName,
-  String? thumbnailUrl, {
+  BuildContext context, {
   required String listDisplayName,
-  VoidCallback? onChange,
+  required VoidCallback onChange,
+  double bottomOffset = 0,
 }) {
-  final colorScheme = Theme.of(context).colorScheme;
-  final textTheme = Theme.of(context).textTheme;
-  final normalizedThumbnailUrl = thumbnailUrl?.trim();
-  final trimmedListTitle = listDisplayName.trim();
-  final mutedLine = trimmedListTitle.isEmpty
-      ? 'Saved to recent list'
-      : 'Saved to recent list $trimmedListTitle';
-
-  toastification.showCustom(
-    context: context,
-    alignment: Alignment.bottomCenter,
-    autoCloseDuration: const Duration(seconds: 3),
-    animationDuration: const Duration(milliseconds: 300),
-    animationBuilder: (context, animation, alignment, child) {
-      return FadeTransition(opacity: animation, child: child);
-    },
-    builder: (context, holder) {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-        // 2. CHANGED PADDING HERE: Switched from .all(12) to .symmetric to easily control height via 'vertical'
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child:
-                  normalizedThumbnailUrl == null ||
-                      normalizedThumbnailUrl.isEmpty
-                  ? Container(
-                      width: 48,
-                      height: 48,
-                      color: colorScheme.surfaceContainerHighest,
-                    )
-                  : CachedNetworkImage(
-                      imageUrl: normalizedThumbnailUrl,
-                      width: 48,
-                      height: 48,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => Container(
-                        width: 48,
-                        height: 48,
-                        color: colorScheme.surfaceContainerHighest,
-                      ),
-                      placeholder: (_, _) => Container(
-                        width: 48,
-                        height: 48,
-                        color: colorScheme.surfaceContainerHighest,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    mutedLine,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    cafeName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            if (onChange == null)
-              const Icon(Icons.bookmark, color: Colors.amber, size: 22)
-            else
-              AdaptiveTextButton(
-                onPressed: () {
-                  toastification.dismiss(holder);
-                  onChange();
-                },
-                style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFF33523F),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, 36),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Center(
-                  child: Text(
-                    'Change',
-                    style: context.textTheme.bodyLargeMed.copyWith(
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      );
-    },
+  showPrimaryToastWithAction(
+    context,
+    savedToListMessage(listDisplayName),
+    actionLabel: 'Change',
+    onAction: onChange,
+    bottomOffset: bottomOffset,
   );
+}
+
+/// "Saved to Favorites", or "Saved" when the list has no name to show.
+String savedToListMessage(String listDisplayName) {
+  final name = listDisplayName.trim();
+  return name.isEmpty ? 'Saved' : 'Saved to $name';
 }

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/location/device_location.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -54,6 +55,7 @@ class CrawlRunPage extends StatelessWidget {
         leaveCrawlRunUseCase: sl<LeaveCrawlRunUseCase>(),
         locator: sl<IStampLocator>(),
         analytics: sl<AnalyticsService>(),
+        fakeStamps: AppConstants.fakeStamps,
       )..load(runId, initial: initial),
       child: _CrawlRunView(runId: runId),
     );
