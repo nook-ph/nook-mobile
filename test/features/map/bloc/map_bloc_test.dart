@@ -29,10 +29,11 @@ Future<void> _settleDebounce() => Future<void>.delayed(
 MapBloc _buildBloc({
   required _FakeViewportUseCase viewportUseCase,
   _FakeCardUseCase? cardUseCase,
+  _FakeFilterTagsUseCase? tagsUseCase,
 }) {
   return MapBloc(
     getCafeCardUseCase: cardUseCase ?? _FakeCardUseCase(),
-    getFilterTagsUseCase: _FakeFilterTagsUseCase(),
+    getFilterTagsUseCase: tagsUseCase ?? _FakeFilterTagsUseCase(),
     getCafesForViewportUseCase: viewportUseCase,
   );
 }
@@ -60,6 +61,28 @@ void main() {
       );
     },
   );
+
+  test('a failed filter-tags load leaves a loaded map alone (M-5)', () async {
+    final bloc = _buildBloc(
+      viewportUseCase: _FakeViewportUseCase(),
+      tagsUseCase: _FakeFilterTagsUseCase()..error = Exception('offline'),
+    );
+    addTearDown(bloc.close);
+    await _loadInitial(bloc);
+
+    final emitted = <MapState>[];
+    final sub = bloc.stream.listen(emitted.add);
+    addTearDown(sub.cancel);
+
+    bloc.add(LoadFilterTagsEvent());
+    await pumpEventQueue();
+
+    expect(emitted, isEmpty);
+    expect(
+      bloc.state,
+      isA<MapLoadedState>().having((s) => s.cafes, 'cafes', [_initialCafe]),
+    );
+  });
 
   test('viewport changes before the initial load are ignored', () async {
     final viewportUseCase = _FakeViewportUseCase();
@@ -259,8 +282,14 @@ class _FakeCardUseCase extends GetCafeCardUseCase {
 class _FakeFilterTagsUseCase extends GetFilterTagsUseCase {
   _FakeFilterTagsUseCase() : super(_StubTagsRepository());
 
+  Object? error;
+
   @override
-  Future<List<CafeTagsEntity>> call() async => const [];
+  Future<List<CafeTagsEntity>> call() async {
+    final e = error;
+    if (e != null) throw e;
+    return const [];
+  }
 }
 
 class _StubRepository implements ICafeRepository {

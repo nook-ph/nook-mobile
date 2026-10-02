@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/geo.dart';
@@ -171,7 +172,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         emit(MapLoadedState(cafes: const [], tags: tags));
       }
     } catch (e) {
-      emit(MapError(e));
+      // The tags are an extra: a map that loaded its cafes stays up without
+      // them, and a failed cafe load reports its own error.
+      debugPrint('MapBloc: filter tags failed: $e');
     }
   }
 
