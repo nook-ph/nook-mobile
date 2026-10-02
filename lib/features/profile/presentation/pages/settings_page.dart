@@ -3,20 +3,42 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:nook/features/profile/presentation/pages/blocked_users_page.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/constants/app_constants.dart';
-import 'package:nook/core/extensions/extensions.dart';
-import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/profile/presentation/pages/blocked_users_page.dart';
+import 'package:nook/features/profile/presentation/profile_logic.dart';
+import 'package:nook/features/profile/presentation/widgets/delete_account_sheet.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_sheet.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import 'package:url_launcher/url_launcher.dart';
 
-enum _LocationStatus { on, off, denied, unknown }
+/// Where the app's location access stands, as Settings reports it.
+enum SettingsLocationStatus {
+  on('On'),
+  off('Off'),
+  denied('Denied'),
+  unknown('Not set');
 
+  const SettingsLocationStatus(this.label);
+
+  final String label;
+}
+
+/// Settings, in groups: Permissions, Account, Legal, then Log out and
+/// Delete account on their own.
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key, this.currentUser, this.readLocationStatus});
+
+  /// Who is signed in. Defaults to the Supabase session.
+  final ValueGetter<supabase.User?>? currentUser;
+
+  /// Reads the location permission. Defaults to asking Geolocator.
+  final Future<SettingsLocationStatus> Function()? readLocationStatus;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -24,13 +46,11 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage>
     with WidgetsBindingObserver {
-  static const _textColor = Color(0xFF1A1A1A);
-  static const _iconColor = Color(0xFF1A1A1A);
-  static const _chevronColor = Color(0xFFBBBBBB);
-  static const _dividerColor = Color(0xFFF0F0F0);
-  static const _dangerColor = Color(0xFFD9342B);
+  SettingsLocationStatus _locationStatus = SettingsLocationStatus.unknown;
 
-  _LocationStatus _locationStatus = _LocationStatus.unknown;
+  /// While the delete sheet is open it shows its own errors, under the
+  /// field, so the page keeps its toast to itself.
+  bool _deleteSheetOpen = false;
 
   @override
   void initState() {
@@ -52,43 +72,36 @@ class _SettingsPageState extends State<SettingsPage>
     }
   }
 
+  supabase.User? get _user {
+    final read = widget.currentUser;
+    if (read != null) return read();
+    return supabase.Supabase.instance.client.auth.currentUser;
+  }
+
   Future<void> _refreshLocationStatus() async {
-    final next = await _readLocationStatus();
+    final next = await (widget.readLocationStatus ?? _readLocationStatus)();
     if (!mounted) return;
     if (next != _locationStatus) {
       setState(() => _locationStatus = next);
     }
   }
 
-  Future<_LocationStatus> _readLocationStatus() async {
+  static Future<SettingsLocationStatus> _readLocationStatus() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       final permission = await Geolocator.checkPermission();
       final granted =
           permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always;
-      if (granted && serviceEnabled) return _LocationStatus.on;
-      if (granted && !serviceEnabled) return _LocationStatus.off;
+      if (granted && serviceEnabled) return SettingsLocationStatus.on;
+      if (granted && !serviceEnabled) return SettingsLocationStatus.off;
       if (permission == LocationPermission.deniedForever ||
           permission == LocationPermission.denied) {
-        return _LocationStatus.denied;
+        return SettingsLocationStatus.denied;
       }
-      return _LocationStatus.unknown;
+      return SettingsLocationStatus.unknown;
     } catch (_) {
-      return _LocationStatus.unknown;
-    }
-  }
-
-  String get _locationStatusLabel {
-    switch (_locationStatus) {
-      case _LocationStatus.on:
-        return 'On';
-      case _LocationStatus.off:
-        return 'Off';
-      case _LocationStatus.denied:
-        return 'Denied';
-      case _LocationStatus.unknown:
-        return 'Not set';
+      return SettingsLocationStatus.unknown;
     }
   }
 
@@ -96,17 +109,46 @@ class _SettingsPageState extends State<SettingsPage>
     await Geolocator.openAppSettings();
   }
 
-  Future<void> _openUrl(BuildContext context, String url) async {
+  Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (context.mounted) {
+      if (mounted) {
         showPrimaryToast(context, 'Could not open the page. Please try again.');
       }
     }
   }
 
+  Future<void> _confirmLogOut() async {
+    final authBloc = context.read<AuthBloc>();
+    final confirmed = await showProfileConfirmSheet(
+      context,
+      title: 'Log out?',
+      message: 'Are you sure you want to log out?',
+      confirmLabel: 'Log out',
+    );
+    if (confirmed) authBloc.add(const AuthSignOutEvent());
+  }
+
+  Future<void> _deleteAccount() async {
+    final user = _user;
+    if (user == null) return;
+    _deleteSheetOpen = true;
+    await DeleteAccountSheet.show(
+      context,
+      isEmailUser: isEmailPasswordUser(user),
+    );
+    _deleteSheetOpen = false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = _user;
+    // Google and Apple accounts have no password and take their email from
+    // the provider, so there is nothing to change here.
+    final emailAccount = user == null || isEmailPasswordUser(user);
+    final provider = user == null ? null : socialProviderName(user);
+    final denied = _locationStatus == SettingsLocationStatus.denied;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: BlocListener<AuthBloc, AuthState>(
@@ -119,123 +161,96 @@ class _SettingsPageState extends State<SettingsPage>
             showPrimaryToast(context, 'Your account has been deleted');
             context.go('/login');
           }
-          if (state is AuthError) {
+          if (state is AuthError && !_deleteSheetOpen) {
             showPrimaryToast(context, state.message);
           }
         },
         child: Scaffold(
-          backgroundColor: Colors.white,
-          appBar: AppBar(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            surfaceTintColor: Colors.white,
-            leading: AdaptiveTap(
-              onTap: () => Navigator.pop(context),
-              child: const Padding(
-                padding: EdgeInsets.all(8),
-                child: Icon(Icons.arrow_back, color: Colors.black87, size: 22),
-              ),
-            ),
-          ),
+          backgroundColor: ProfileTokens.surface,
+          appBar: const ProfileNavBar(title: 'Settings'),
           body: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 4),
-
-                  // ── Title ──────────────────────────────────────────────
-                  Text(
-                    'Settings',
-                    style: context.textTheme.titleMediumSemi.copyWith(
-                      color: _textColor,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // ── Items ──────────────────────────────────────────────
-                  _buildItem(
-                    context: context,
-                    icon: Icons.location_on_outlined,
-                    label: 'Location',
-                    trailing: Text(
-                      _locationStatusLabel,
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF8A8A8A),
+                  _Group(
+                    title: 'Permissions',
+                    rows: [
+                      _SettingsRow(
+                        icon: LucideIcons.mapPin,
+                        label: 'Location',
+                        value: _locationStatus.label,
+                        valueColor: denied ? ProfileTokens.danger : null,
+                        trailing: LucideIcons.chevronRight,
+                        onTap: _openLocationSettings,
                       ),
-                    ),
-                    onTap: _openLocationSettings,
+                    ],
                   ),
-                  const Divider(color: _dividerColor, height: 1),
-                  _buildItem(
-                    context: context,
-                    icon: Icons.mail_outline_rounded,
-                    label: 'Change Email',
-                    onTap: () {
-                      final email = supabase
-                          .Supabase
-                          .instance
-                          .client
-                          .auth
-                          .currentUser
-                          ?.email;
-                      debugPrint(
-                        'Change Email tapped. currentUser.email=$email',
-                      );
-                      context.push('/change-email', extra: email);
-                    },
-                  ),
-                  const Divider(color: _dividerColor, height: 1),
-                  _buildItem(
-                    context: context,
-                    icon: Icons.vpn_key_outlined,
-                    label: 'Change Password',
-                    onTap: () => context.push('/change-password'),
-                  ),
-                  const Divider(color: _dividerColor, height: 1),
-                  _buildItem(
-                    context: context,
-                    icon: Icons.block,
-                    label: 'Blocked Users',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const BlockedUsersPage(),
+                  _Group(
+                    title: 'Account',
+                    note: provider == null ? null : 'Signed in with $provider',
+                    rows: [
+                      if (emailAccount) ...[
+                        _SettingsRow(
+                          icon: LucideIcons.mail,
+                          label: 'Change email',
+                          trailing: LucideIcons.chevronRight,
+                          onTap: () =>
+                              context.push('/change-email', extra: user?.email),
+                        ),
+                        _SettingsRow(
+                          icon: LucideIcons.lock,
+                          label: 'Change password',
+                          trailing: LucideIcons.chevronRight,
+                          onTap: () => context.push('/change-password'),
+                        ),
+                      ],
+                      _SettingsRow(
+                        icon: LucideIcons.ban,
+                        label: 'Blocked users',
+                        trailing: LucideIcons.chevronRight,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const BlockedUsersPage(),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  const Divider(color: _dividerColor, height: 1),
-                  _buildItem(
-                    context: context,
-                    icon: Icons.description_outlined,
-                    label: 'Terms of Use (EULA)',
-                    onTap: () => _openUrl(context, AppConstants.eulaUrl),
+                  _Group(
+                    title: 'Legal',
+                    rows: [
+                      _SettingsRow(
+                        icon: LucideIcons.fileText,
+                        label: 'Terms of Use (EULA)',
+                        trailing: LucideIcons.externalLink,
+                        onTap: () => _openUrl(AppConstants.eulaUrl),
+                      ),
+                      _SettingsRow(
+                        icon: LucideIcons.shield,
+                        label: 'Privacy Policy',
+                        trailing: LucideIcons.externalLink,
+                        onTap: () => _openUrl(AppConstants.privacyPolicyUrl),
+                      ),
+                    ],
                   ),
-                  const Divider(color: _dividerColor, height: 1),
-                  _buildItem(
-                    context: context,
-                    icon: Icons.privacy_tip_outlined,
-                    label: 'Privacy Policy',
-                    onTap: () =>
-                        _openUrl(context, AppConstants.privacyPolicyUrl),
-                  ),
-                  const Divider(color: _dividerColor, height: 1),
-                  _buildItem(
-                    context: context,
-                    icon: Icons.logout_rounded,
-                    label: 'Logout',
-                    onTap: () => _showLogoutDialog(context),
-                  ),
-                  const Divider(color: _dividerColor, height: 1),
-                  _buildItem(
-                    context: context,
-                    icon: Icons.delete_outline_rounded,
-                    label: 'Delete Account',
-                    labelColor: _dangerColor,
-                    iconColor: _dangerColor,
-                    onTap: () => _showDeleteAccountDialog(context),
+                  // Leaving and deleting sit apart from the settings above.
+                  _Group(
+                    rows: [
+                      _SettingsRow(
+                        icon: LucideIcons.logOut,
+                        label: 'Log out',
+                        onTap: _confirmLogOut,
+                      ),
+                      _SettingsRow(
+                        icon: LucideIcons.trash2,
+                        label: 'Delete account',
+                        destructive: true,
+                        onTap: _deleteAccount,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -245,310 +260,116 @@ class _SettingsPageState extends State<SettingsPage>
       ),
     );
   }
-
-  Widget _buildItem({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? labelColor,
-    Color? iconColor,
-    Widget? trailing,
-  }) {
-    final effectiveLabelColor = labelColor ?? _textColor;
-    final effectiveIconColor = iconColor ?? _iconColor;
-    return InkWell(
-      onTap: onTap,
-      splashColor: Colors.black.withOpacity(0.04),
-      highlightColor: Colors.black.withOpacity(0.02),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        child: Row(
-          children: [
-            Icon(icon, size: 22, color: effectiveIconColor),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                label,
-                style: context.textTheme.bodyMedium?.copyWith(
-                  color: effectiveLabelColor,
-                ),
-              ),
-            ),
-            if (trailing != null) ...[trailing, const SizedBox(width: 8)],
-            const Icon(Icons.chevron_right, size: 20, color: _chevronColor),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
-void _showLogoutDialog(BuildContext context) {
-  showDialog(
-    context: context,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Log out', style: ctx.textTheme.titleMediumSemi),
-            const SizedBox(height: 16),
-            Text(
-              'Are you sure you want to log out?',
-              style: ctx.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                AdaptiveTextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                  child: Text(
-                    'Cancel',
-                    style: ctx.textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AdaptiveTextButton(
-                  onPressed: () {
-                    ctx.read<AuthBloc>().add(const AuthSignOutEvent());
-                    Navigator.pop(ctx);
-                  },
-                  child: Text(
-                    'Log out',
-                    style: ctx.textTheme.bodyMedium?.copyWith(
-                      color: Colors.red,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
+/// A block of rows with hairlines between them, under an optional muted
+/// [title]. With no title the block opens with a hairline instead.
+class _Group extends StatelessWidget {
+  const _Group({required this.rows, this.title, this.note});
 
-bool _isEmailPasswordUser(supabase.User user) {
-  final identities = user.identities;
-  if (identities == null || identities.isEmpty) {
-    return user.appMetadata['provider'] == 'email' ||
-        (user.appMetadata['providers'] is List &&
-            (user.appMetadata['providers'] as List).contains('email'));
-  }
-  return identities.any((i) => i.provider == 'email');
-}
+  final String? title;
 
-void _showDeleteAccountDialog(BuildContext context) {
-  final currentUser = supabase.Supabase.instance.client.auth.currentUser;
-  if (currentUser == null) return;
-  final isEmailUser = _isEmailPasswordUser(currentUser);
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (ctx) => _DeleteAccountDialog(isEmailUser: isEmailUser),
-  );
-}
-
-class _DeleteAccountDialog extends StatefulWidget {
-  final bool isEmailUser;
-  const _DeleteAccountDialog({required this.isEmailUser});
-
-  @override
-  State<_DeleteAccountDialog> createState() => _DeleteAccountDialogState();
-}
-
-class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
-  final TextEditingController _inputController = TextEditingController();
-  bool _isSubmitting = false;
-
-  @override
-  void dispose() {
-    _inputController.dispose();
-    super.dispose();
-  }
-
-  bool get _canSubmit {
-    if (_isSubmitting) return false;
-    final value = _inputController.text.trim();
-    if (widget.isEmailUser) {
-      return value.isNotEmpty;
-    }
-    return value == 'DELETE';
-  }
-
-  void _onSubmit() {
-    if (!_canSubmit) return;
-    setState(() => _isSubmitting = true);
-    final password = widget.isEmailUser ? _inputController.text : null;
-    context.read<AuthBloc>().add(AuthDeleteAccountEvent(password: password));
-  }
+  /// A muted line under the title ("Signed in with Google").
+  final String? note;
+  final List<Widget> rows;
 
   @override
   Widget build(BuildContext context) {
-    final isEmail = widget.isEmailUser;
-    return BlocListener<AuthBloc, AuthState>(
-      listener: (context, state) {
-        if (_isSubmitting && state is! AuthLoading) {
-          if (state is AuthAccountDeleted ||
-              state is AuthUnauthenticated ||
-              state is AuthError) {
-            if (Navigator.of(context).canPop()) {
-              Navigator.of(context).pop();
-            }
-            if (state is! AuthError) {
-              setState(() => _isSubmitting = false);
-            } else {
-              setState(() => _isSubmitting = false);
-            }
-          }
-        }
-      },
-      child: Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    final heading = title;
+    final detail = note;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        ProfileTokens.gutter,
+        16,
+        ProfileTokens.gutter,
+        0,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (heading == null)
+            const ProfileDivider()
+          else
+            Text(
+              heading,
+              style: ProfileTokens.text(
+                12,
+                weight: FontWeight.w500,
+                color: ProfileTokens.muted,
+              ),
+            ),
+          if (detail != null)
+            Text(
+              detail,
+              style: ProfileTokens.text(12, color: ProfileTokens.muted),
+            ),
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const ProfileDivider(),
+            rows[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One settings row: a 20 icon, the label, an optional value and an
+/// optional trailing glyph (a chevron for in-app, an arrow for a link out).
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.value,
+    this.valueColor,
+    this.trailing,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final String? value;
+  final Color? valueColor;
+  final IconData? trailing;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = destructive ? ProfileTokens.danger : ProfileTokens.ink;
+    final status = value;
+    final glyph = trailing;
+    return Semantics(
+      button: true,
+      child: AdaptiveTap(
+        onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
             children: [
-              Text('Delete Account?', style: context.textTheme.titleMediumSemi),
-              const SizedBox(height: 12),
-              Text(
-                'This will permanently delete your account and all associated data, including your reviews, lists, and saved cafes. This cannot be undone.',
-                style: context.textTheme.bodyMedium?.copyWith(
-                  color: Colors.black87,
-                  height: 1.4,
-                ),
+              Icon(icon, size: 20, color: color),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(label, style: ProfileTokens.text(14, color: color)),
               ),
-              const SizedBox(height: 20),
-              if (isEmail)
+              if (status != null) ...[
+                const SizedBox(width: 14),
                 Text(
-                  'Enter your password to confirm:',
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: Colors.black54,
-                  ),
-                )
-              else
-                Text(
-                  'Type DELETE in capitals to confirm:',
-                  style: context.textTheme.bodySmall?.copyWith(
-                    color: Colors.black54,
+                  status,
+                  style: ProfileTokens.text(
+                    14,
+                    color: valueColor ?? ProfileTokens.muted,
                   ),
                 ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _inputController,
-                obscureText: isEmail,
-                autocorrect: false,
-                enableSuggestions: false,
-                textInputAction: TextInputAction.done,
-                autofocus: true,
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _onSubmit(),
-                inputFormatters: isEmail
-                    ? const []
-                    : [
-                        FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z]')),
-                        _UpperCaseFormatter(),
-                      ],
-                decoration: InputDecoration(
-                  hintText: isEmail ? 'Password' : 'DELETE',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFF344E41)),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  AdaptiveTextButton(
-                    onPressed: _isSubmitting
-                        ? null
-                        : () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: Text(
-                      'Cancel',
-                      style: context.textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AdaptiveTextButton(
-                    onPressed: _canSubmit ? _onSubmit : null,
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFFD9342B),
-                            ),
-                          )
-                        : Text(
-                            'Delete Account',
-                            style: context.textTheme.bodyMedium?.copyWith(
-                              color: _canSubmit
-                                  ? const Color(0xFFD9342B)
-                                  : Colors.grey,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ],
-              ),
+              ],
+              if (glyph != null) ...[
+                const SizedBox(width: 14),
+                Icon(glyph, size: 18, color: ProfileTokens.muted),
+              ],
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _UpperCaseFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    return TextEditingValue(
-      text: newValue.text.toUpperCase(),
-      selection: newValue.selection,
     );
   }
 }
