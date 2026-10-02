@@ -135,12 +135,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return;
     }
 
-    if (event == AuthChangeEvent.signedIn) {
-      debugPrint('AuthBloc: trigger AuthSessionCheckEvent');
-      add(const AuthSessionCheckEvent());
-      return;
-    }
-
     if (event == AuthChangeEvent.signedOut) {
       if (_signingOut) return;
       debugPrint('AuthBloc: trigger AuthSessionEndedEvent');
@@ -153,6 +147,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         debugPrint('AuthBloc: re-run the username gate');
         add(const AuthSessionCheckEvent());
       }
+      return;
+    }
+
+    if (event == AuthChangeEvent.signedIn) {
+      debugPrint('AuthBloc: trigger AuthSessionCheckEvent');
+      add(const AuthSessionCheckEvent());
     }
   }
 
