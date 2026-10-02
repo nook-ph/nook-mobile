@@ -641,11 +641,13 @@ class CafeRemoteDataSource {
       final userId = _resolveUserId(null);
       final shouldUseCafeAsCover = await _isListEmpty(listId);
 
+      // Already saved is success: there is no UPDATE policy for a conflicting
+      // row to fall back on.
       await supabase.from('list_cafes').upsert({
         'list_id': listId,
         'cafe_id': cafeId,
         'added_by': userId,
-      });
+      }, ignoreDuplicates: true);
 
       if (shouldUseCafeAsCover) {
         final coverImageUrl = await _fetchCafeHeroImageUrl(cafeId);
