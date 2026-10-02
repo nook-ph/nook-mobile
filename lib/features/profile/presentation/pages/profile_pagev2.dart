@@ -82,9 +82,13 @@ class _ProfileViewState extends State<ProfileView> {
   void initState() {
     super.initState();
     // The header shows the list count, so the lists load with the profile
-    // rather than when the Lists tab is first opened.
-    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated) {
-      context.read<ListsBloc>().add(LoadUserLists());
+    // rather than when the Lists tab is first opened. Sign-in loads them
+    // too, so they are usually here already (or on their way).
+    final listsBloc = context.read<ListsBloc>();
+    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated &&
+        listsBloc.userLists.isEmpty &&
+        listsBloc.state is! ListsLoading) {
+      listsBloc.add(LoadUserLists());
     }
   }
 
