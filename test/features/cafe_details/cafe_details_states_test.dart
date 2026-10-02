@@ -25,8 +25,15 @@ Widget _host(Widget child) =>
 
 void main() {
   group('CafeOpenStatus soon states', () {
-    // 2026-10-01 is a Thursday.
-    DateTime at(int hour, int minute) => DateTime(2026, 10, 1, hour, minute);
+    // 2026-10-01 is a Thursday. Hours are Manila wall-clock times (UTC+8),
+    // so the instant is built from UTC and reads the same in any zone.
+    DateTime at(int hour, int minute) => DateTime.utc(
+      2026,
+      10,
+      1,
+      hour,
+      minute,
+    ).subtract(const Duration(hours: 8));
 
     test('opens soon within 30 minutes of opening', () {
       final status = CafeOpenStatus.resolve(_week('07:00', '22:00'), at(6, 40));
@@ -95,8 +102,9 @@ void main() {
     });
 
     test('never closes soon when open round the clock', () {
+      // 00:00-24:00 every day; 00:00-00:00 is a placeholder (see below).
       final status = CafeOpenStatus.resolve(
-        _week('00:00', '00:00'),
+        _week('00:00', '24:00'),
         at(23, 50),
       );
 

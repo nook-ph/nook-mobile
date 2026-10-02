@@ -451,7 +451,7 @@ class _HoursRowState extends State<_HoursRow> {
     final textTheme = Theme.of(context).textTheme;
     final status = widget.status;
     final hours = widget.operatingHours;
-    final today = CafeOpenStatus.dayKey(DateTime.now());
+    final today = CafeOpenStatus.todayKey();
     final todayRange = CafeOpenStatus.formatRange(hours, today);
     final detail = status.rowDetail;
     final statusColor = CafeDetailsTokens.statusLabel(status);
