@@ -5,6 +5,7 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
+import 'package:nook/features/cafe_details/presentation/utils/cafe_load_failure.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_logic.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -47,10 +48,14 @@ class ReviewsPreviewSection extends StatelessWidget {
     required this.onSeeAllTap,
     required this.onWriteReviewTap,
     this.currentUserId,
+    this.onRetry,
   });
 
   final VoidCallback onSeeAllTap;
   final VoidCallback onWriteReviewTap;
+
+  /// Reloads the reviews after a failed load. No retry is offered when null.
+  final VoidCallback? onRetry;
 
   /// Who is signed in; null for a guest. One review per cafe, so the Write
   /// pill goes once this user has one here.
@@ -63,13 +68,25 @@ class ReviewsPreviewSection extends StatelessWidget {
     return BlocBuilder<ReviewsBloc, ReviewsState>(
       builder: (context, state) {
         if (state is ReviewsError) {
+          // The shared copy, never the exception's own text.
+          final info = CafeLoadFailure.from(state.error ?? state.message).info;
+          final retry = onRetry;
           return _Shell(
             onWriteReviewTap: null,
-            child: Text(
-              state.message,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: CafeDetailsTokens.muted),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Reviews could not load. ${info.subtitle}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: CafeDetailsTokens.muted,
+                  ),
+                ),
+                if (retry != null) ...[
+                  const SizedBox(height: 12),
+                  _OutlinedWideButton(label: 'Try again', onTap: retry),
+                ],
+              ],
             ),
           );
         }

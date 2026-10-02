@@ -183,6 +183,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       ReviewsPreviewSection(
         onSeeAllTap: () => _openReviews(context, state),
         onWriteReviewTap: () => _writeReview(context),
+        onRetry: () => context.read<ReviewsBloc>().add(
+          LoadReviewsRequested(cafeId: widget.cafeId),
+        ),
         currentUserId: Supabase.instance.client.auth.currentUser?.id,
       ),
     ];
