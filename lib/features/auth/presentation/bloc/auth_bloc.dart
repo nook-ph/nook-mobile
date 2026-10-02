@@ -118,6 +118,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     if (event == AuthChangeEvent.signedIn) {
+      // Supabase reports the sign-in while the handler that asked for it is
+      // still running, and that handler runs the post-login gate itself. A
+      // second pass here would repeat the profile fetch, the PostHog
+      // identify and the lists load, and emit AuthAuthenticated twice. Only
+      // sign-ins nobody is handling (a deep link, say) are checked here.
+      final current = state;
+      final handledElsewhere =
+          current is AuthLoading ||
+          (current is AuthAwaitingEmailConfirmation && current.isVerifying) ||
+          (current is AuthAuthenticated &&
+              current.user.id == data.session?.user.id);
+      if (handledElsewhere) return;
+
       debugPrint('AuthBloc: trigger AuthSessionCheckEvent');
       add(const AuthSessionCheckEvent());
     }
