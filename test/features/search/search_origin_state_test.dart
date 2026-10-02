@@ -52,6 +52,28 @@ void main() {
       );
     });
 
+    test('"Open now" is only offered when the rows carry hours (S-1)', () {
+      const bare = CafeSummary(id: '1', name: 'A', rating: 4);
+      const withHours = CafeSummary(
+        id: '2',
+        name: 'B',
+        rating: 4,
+        operatingHours: {
+          'monday': {'open': '08:00', 'close': '17:00'},
+        },
+      );
+      expect(const SearchState(cafes: [bare]).canFilterOpenNow, isFalse);
+      expect(
+        const SearchState(cafes: [bare, withHours]).canFilterOpenNow,
+        isTrue,
+      );
+      // Already on: the chip stays, so it can be turned off again.
+      expect(
+        const SearchState(cafes: [bare], openNow: true).canFilterOpenNow,
+        isTrue,
+      );
+    });
+
     test('a pin takes the name of the neighbourhood it is near', () {
       const named = SearchOrigin.pin(
         lat: 10.3,

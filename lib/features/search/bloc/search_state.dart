@@ -71,6 +71,12 @@ class SearchState extends Equatable {
         .toList();
   }
 
+  /// Whether "Open now" can be offered. `get_cafes` does not return opening
+  /// hours yet, and without them the filter would hide every cafe; the chip
+  /// comes back by itself once the rows carry hours.
+  bool get canFilterOpenNow =>
+      openNow || cafes.any((c) => c.operatingHours != null);
+
   bool get hasFilters => tags.isNotEmpty || openNow || sort != 'nearby';
 
   SearchState copyWith({

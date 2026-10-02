@@ -272,6 +272,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                       onSort: _openSortSheet,
                       onOpenNow: () => _bloc.add(const SearchOpenNowToggled()),
                       onTag: _toggleTag,
+                      showOpenNow: state.canFilterOpenNow,
                     ),
                   const SearchDivider(),
                   Expanded(
