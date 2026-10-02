@@ -14,6 +14,16 @@ ReviewEntity _review(String id, String userId, int rating) => ReviewEntity(
 );
 
 void main() {
+  test('sort options send the values get_reviews_with_vote_status knows', () {
+    expect(reviewSortOptions.map((option) => option.value), [
+      'recommended',
+      'recent',
+      'highest',
+      'helpful',
+    ]);
+    expect(reviewSortLabel('recent'), 'Recently added');
+  });
+
   final reviews = [
     _review('r1', 'maria', 5),
     _review('r2', 'jp', 4),

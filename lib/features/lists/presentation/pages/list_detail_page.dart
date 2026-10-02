@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/toast_helper.dart';
@@ -61,9 +62,16 @@ class _ListDetailPageState extends State<ListDetailPage> {
   /// The cafe an Undo is putting back, so the reload can say it is back.
   CafeSummary? _restoring;
 
+  /// An edit is in flight, so the reload can say it was saved.
+  bool _editing = false;
+
+  /// App-wide, and held so the Undo toast still works once this page is gone.
+  late final ListsBloc _listsBloc;
+
   @override
   void initState() {
     super.initState();
+    _listsBloc = context.read<ListsBloc>();
     final state = context.read<ListsBloc>().state;
     if (state is ListCafesLoaded && state.list.id == widget.listId) {
       _cachedCafes = state.cafes;
@@ -71,15 +79,23 @@ class _ListDetailPageState extends State<ListDetailPage> {
     } else {
       context.read<ListsBloc>().add(LoadListCafes(listId: widget.listId));
     }
-    if (widget.isBeenList) {
-      // The ranked view needs positions/scores; idempotent and cheap.
-      final ranking = context.read<CafeRankingCubit>();
-      if (!ranking.state.loaded) ranking.load();
-    }
+    _loadRankingsIfBeen();
+  }
+
+  /// The loaded list is the authority on its own type: a caller that did not
+  /// pass one must still get Been as the ranked diary, never as plain rows
+  /// whose Remove would delete the ranking and note.
+  String get _listType => _cachedList?.listType ?? widget.listType;
+
+  void _loadRankingsIfBeen() {
+    if (_listType != 'been') return;
+    // The ranked view needs positions/scores; idempotent and cheap.
+    final ranking = context.read<CafeRankingCubit>();
+    if (!ranking.state.loaded) ranking.load();
   }
 
   String get _title {
-    if (widget.listType == 'want_to_try') return 'Want to try';
+    if (_listType == 'want_to_try') return 'Want to try';
     return _cachedList?.name ?? widget.title;
   }
 
@@ -143,7 +159,8 @@ class _ListDetailPageState extends State<ListDetailPage> {
         isPublic: list.isPublic,
       ),
     );
-    showPrimaryToast(context, 'List updated.');
+    // "List updated." waits for the reload that proves it.
+    _editing = true;
   }
 
   Future<void> _confirmDelete(ListsBloc bloc, CafeList list) async {
@@ -185,20 +202,30 @@ class _ListDetailPageState extends State<ListDetailPage> {
     );
   }
 
+  /// Runs from the toast, which can outlive this page: no context lookups.
   void _undoRemove(CafeSummary cafe) {
     _restoring = cafe;
     _removing = null;
-    context.read<ListsBloc>().add(
-      AddCafeToList(listId: widget.listId, cafeId: cafe.id),
-    );
+    _listsBloc.add(AddCafeToList(listId: widget.listId, cafeId: cafe.id));
   }
 
   void _onListsState(BuildContext context, ListsState state) {
     // An edit reloads the user's lists, not this list's cafes: pick the new
     // name and description up from there.
     if (state is ListsLoaded) {
+      if (_editing) {
+        _editing = false;
+        showPrimaryToast(context, 'List updated.');
+      }
       for (final list in state.lists) {
-        if (list.id == widget.listId) setState(() => _cachedList = list);
+        if (list.id != widget.listId) continue;
+        setState(() => _cachedList = list);
+        // A cafe saved or un-saved elsewhere (its own page, the Save-to
+        // sheet) changes the count but not the rows held here.
+        final cafes = _cachedCafes;
+        if (cafes != null && cafes.length != list.cafeCount) {
+          context.read<ListsBloc>().add(LoadListCafes(listId: widget.listId));
+        }
       }
       return;
     }
@@ -206,9 +233,11 @@ class _ListDetailPageState extends State<ListDetailPage> {
     if (state is ListsError) {
       // A failed remove or undo must not leave a stale toast armed.
       final failed = _removing ?? _restoring;
+      final editFailed = _editing;
       _removing = null;
       _restoring = null;
-      if (failed != null && _cachedCafes != null) {
+      _editing = false;
+      if ((failed != null || editFailed) && _cachedCafes != null) {
         showPrimaryToast(context, "Couldn't update. Please try again.");
       }
       return;
@@ -223,6 +252,14 @@ class _ListDetailPageState extends State<ListDetailPage> {
       _cachedCafes = state.cafes;
       _cachedList = state.list;
     });
+    _loadRankingsIfBeen();
+
+    // Want to Try is a status: a row removed or put back here has to reach
+    // the badges and pills that read CafeStatusCubit.
+    final changed = removed ?? restored;
+    if (changed != null && state.list.isSystem) {
+      context.read<CafeStatusCubit>().loadFor([changed.id]);
+    }
 
     if (removed != null && state.cafes.length < before) {
       _removing = null;
@@ -279,7 +316,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
   Widget _buildList(List<CafeSummary> cafes) {
     return ListDetailView(
       title: _title,
-      listType: widget.listType,
+      listType: _listType,
       description: _cachedList?.description,
       cafes: cafes,
       onOpenCafe: _openCafe,

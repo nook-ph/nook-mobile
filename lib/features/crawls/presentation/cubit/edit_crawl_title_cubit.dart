@@ -84,8 +84,10 @@ class EditCrawlTitleCubit extends Cubit<EditCrawlTitleState> {
     emit(const EditCrawlTitleState(saving: true));
     try {
       final crawl = await updateCrawlTitleUseCase(crawlId, title);
+      if (isClosed) return;
       emit(EditCrawlTitleState(saved: crawl));
     } on CrawlInvalid catch (e) {
+      if (isClosed) return;
       // `crawl_title_length` is the only token the update RPC raises for a
       // title today; any other rejection reads as "pick a different one".
       emit(
@@ -97,6 +99,7 @@ class EditCrawlTitleCubit extends Cubit<EditCrawlTitleState> {
       );
     } catch (e, st) {
       debugPrint('[EditCrawlTitle] save failed: $e\n$st');
+      if (isClosed) return;
       emit(EditCrawlTitleState(error: e));
     }
   }

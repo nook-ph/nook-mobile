@@ -45,14 +45,49 @@ const int _minutesPerDay = 24 * 60;
 
 final RegExp _hhmm = RegExp(r'^(\d{1,2}):(\d{2})$');
 
+/// The next time a closed cafe opens.
+class CafeNextOpening {
+  const CafeNextOpening({
+    required this.dayOffset,
+    required this.dayKey,
+    required this.openMinutes,
+    required this.minutesFromNow,
+  });
+
+  /// 0 for later today, 1 for tomorrow, up to 7 (this weekday next week).
+  final int dayOffset;
+
+  /// The `operating_hours` key of the day it opens, e.g. `monday`.
+  final String dayKey;
+
+  /// Opening time in minutes from that day's midnight.
+  final int openMinutes;
+
+  final int minutesFromNow;
+}
+
 class CafeOpenStatus {
-  const CafeOpenStatus._(this.state, this.minutesUntilClose);
+  const CafeOpenStatus._(
+    this.state,
+    this.minutesUntilClose, {
+    this.closesAtMinutes,
+    this.nextOpening,
+  });
 
   final CafeOpenState state;
 
   /// Minutes remaining until the cafe closes; null unless [state] is
-  /// [CafeOpenState.open] or [CafeOpenState.closingSoon].
+  /// [CafeOpenState.open] or [CafeOpenState.closingSoon], and null for a cafe
+  /// whose hours run round the clock all week, which never closes.
   final int? minutesUntilClose;
+
+  /// The closing time as a clock time, in minutes from midnight (0 for a
+  /// midnight close). Null unless the cafe is open.
+  final int? closesAtMinutes;
+
+  /// When the cafe next opens. Null while it is open, and when no readable
+  /// day in the coming week opens.
+  final CafeNextOpening? nextOpening;
 
   static const CafeOpenStatus unknown = CafeOpenStatus._(
     CafeOpenState.unknown,
@@ -63,10 +98,32 @@ class CafeOpenStatus {
     null,
   );
 
-  static const Duration closingSoonThreshold = Duration(minutes: 45);
+  /// One threshold for every surface, so a card and the details page never
+  /// disagree about whether a cafe is about to close.
+  static const Duration closingSoonThreshold = Duration(minutes: 30);
 
   bool get isOpen =>
       state == CafeOpenState.open || state == CafeOpenState.closingSoon;
+
+  /// [now] (default: this instant) as Manila wall-clock time. The result is a
+  /// UTC-flagged `DateTime` whose fields read as the time on a clock in the
+  /// Philippines; use it for the weekday and the hour, not as an instant.
+  static DateTime manilaNow([DateTime? now]) =>
+      (now ?? DateTime.now()).toUtc().add(_manilaOffset);
+
+  /// Opening and closing minutes for [dayKey] (`monday`..`sunday`), read by
+  /// the same rules as [resolve]. Null for a rest day, and for hours that are
+  /// missing, malformed or a `00:00`-`00:00` placeholder.
+  static ({int open, int close})? hoursFor(
+    Map<String, dynamic>? operatingHours,
+    String dayKey,
+  ) {
+    final parsed = _DayHours.parse(operatingHours?[dayKey]);
+    final open = parsed?.openMinutes;
+    final close = parsed?.closeMinutes;
+    if (open == null || close == null) return null;
+    return (open: open, close: close);
+  }
 
   /// [operatingHours] is the raw `cafes.operating_hours` JSON: a map of day
   /// name to `{open, close, closed}`. [now] defaults to the current instant and
@@ -80,14 +137,16 @@ class CafeOpenStatus {
       return unknown;
     }
 
-    final manilaNow = (now ?? DateTime.now()).toUtc().add(_manilaOffset);
+    final manilaNow = CafeOpenStatus.manilaNow(now);
     final nowMinutes = manilaNow.hour * 60 + manilaNow.minute;
 
-    final todayKey = _dayKeys[manilaNow.weekday - 1];
-    final yesterdayKey = _dayKeys[(manilaNow.weekday + 5) % 7];
+    // The parsed hours `offset` days from today (-1 is yesterday).
+    _DayHours? dayAt(int offset) => _DayHours.parse(
+      operatingHours[_dayKeys[(manilaNow.weekday - 1 + offset) % 7]],
+    );
 
-    final today = _DayHours.parse(operatingHours[todayKey]);
-    final yesterday = _DayHours.parse(operatingHours[yesterdayKey]);
+    final today = dayAt(0);
+    final yesterday = dayAt(-1);
 
     // Both spans are expressed in minutes relative to today 00:00, so a span
     // that runs past midnight is a single continuous interval instead of two
@@ -100,21 +159,65 @@ class CafeOpenStatus {
     ]) {
       if (span == null) continue;
       if (nowMinutes >= span.start && nowMinutes < span.end) {
-        final remaining = span.end - nowMinutes;
+        // A span that ends on the stroke of midnight carries straight on when
+        // the next day opens at 00:00 ("14:00-24:00" then "00:00-02:00"): the
+        // cafe closes when that one does. A whole week of them never closes.
+        var end = span.end;
+        var roundTheClock = false;
+        while (end % _minutesPerDay == 0) {
+          final dayOffset = end ~/ _minutesPerDay;
+          if (dayOffset > 7) {
+            roundTheClock = true;
+            break;
+          }
+          final next = dayAt(dayOffset)?.spanFrom(end);
+          if (next == null || next.start != end) break;
+          end = next.end;
+        }
+
+        if (roundTheClock) {
+          return CafeOpenStatus._(
+            CafeOpenState.open,
+            null,
+            closesAtMinutes: span.end % _minutesPerDay,
+          );
+        }
+        final remaining = end - nowMinutes;
         return CafeOpenStatus._(
           remaining <= closingSoonThreshold.inMinutes
               ? CafeOpenState.closingSoon
               : CafeOpenState.open,
           remaining,
+          closesAtMinutes: end % _minutesPerDay,
         );
       }
+    }
+
+    // The first opening still ahead: later today, else the next day that
+    // opens. Rest days and unreadable days are skipped, never guessed at.
+    CafeNextOpening? nextOpening;
+    for (var offset = 0; offset <= 7; offset++) {
+      final open = dayAt(offset)?.openMinutes;
+      if (open == null) continue;
+      final minutesFromNow = offset * _minutesPerDay + open - nowMinutes;
+      if (minutesFromNow <= 0) continue;
+      nextOpening = CafeNextOpening(
+        dayOffset: offset,
+        dayKey: _dayKeys[(manilaNow.weekday - 1 + offset) % 7],
+        openMinutes: open,
+        minutesFromNow: minutesFromNow,
+      );
+      break;
     }
 
     // Nothing covers now. Only claim "closed" when today's entry was actually
     // readable — otherwise we are reporting our own missing data as a fact
     // about the cafe.
-    if (today == null) return unknown;
-    return closed;
+    return CafeOpenStatus._(
+      today == null ? CafeOpenState.unknown : CafeOpenState.closed,
+      null,
+      nextOpening: nextOpening,
+    );
   }
 }
 

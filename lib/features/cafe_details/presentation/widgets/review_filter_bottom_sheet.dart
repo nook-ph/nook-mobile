@@ -50,9 +50,9 @@ class _ReviewFilterBottomSheetState extends State<ReviewFilterBottomSheet> {
 
   static const List<({String value, String label})> _sortOptions = [
     (value: 'recommended', label: 'Recommended'),
-    (value: 'recently_added', label: 'Recently Added'),
-    (value: 'highest_rated', label: 'Highest Rated'),
-    (value: 'most_helpful', label: 'Most Helpful'),
+    (value: 'recent', label: 'Recently Added'),
+    (value: 'highest', label: 'Highest Rated'),
+    (value: 'helpful', label: 'Most Helpful'),
   ];
 
   static const List<int> _ratingStars = [5, 4, 3, 2, 1];

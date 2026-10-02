@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
 
 class CafeStore {
@@ -16,6 +17,13 @@ class CafeStore {
     _writtenAt[id] = DateTime.now();
   }
 
+  /// Swaps a live entry's bundle without renewing its TTL. No-op when the
+  /// entry is missing or already stale.
+  void replace(String id, CafeBundle bundle) {
+    if (isStale(id)) return;
+    _bundles[id] = bundle;
+  }
+
   void bust(String id) {
     _bundles.remove(id);
     _writtenAt.remove(id);
@@ -25,6 +33,9 @@ class CafeStore {
     _bundles.clear();
     _writtenAt.clear();
   }
+
+  @visibleForTesting
+  DateTime? writtenAt(String id) => _writtenAt[id];
 
   bool isStale(String id) {
     final writtenAt = _writtenAt[id];

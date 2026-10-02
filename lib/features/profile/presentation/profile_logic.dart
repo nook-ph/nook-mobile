@@ -79,6 +79,33 @@ List<WrittenReview> filterAndSortReviews(
   return result;
 }
 
+/// What the profile shows for an account with no name. It is a label, not a
+/// value: it must never be written back to `profiles.full_name`.
+const noNamePlaceholder = 'No name';
+
+/// The name the edit form starts from: empty when the account has none, so
+/// the placeholder is never offered as text to save.
+String editableName(String name) =>
+    name.trim() == noNamePlaceholder ? '' : name;
+
+/// What to write to `full_name` for [typed], or null to leave it alone:
+/// nothing changed, nothing typed, or only the placeholder.
+String? profileNameToSave(String typed, {required String saved}) {
+  final name = typed.trim();
+  if (name.isEmpty || name == noNamePlaceholder) return null;
+  return name == saved.trim() ? null : name;
+}
+
+/// The server's limit on `profiles.bio`, counted in code points. The field
+/// stops at 150 characters as the user sees them, but one emoji can be
+/// several code points, so a short-looking bio can still be over.
+const bioMaxCodePoints = 500;
+
+/// Whether [typed] differs from the saved username only by letter case.
+/// The availability check would report the user's own name as taken.
+bool isCaseOnlyUsernameChange(String typed, String saved) =>
+    typed != saved && typed.toLowerCase() == saved.toLowerCase();
+
 /// Why [value] cannot be a username, or null when it can.
 String? validateUsername(String value) {
   if (value.isEmpty) return 'Username cannot be empty';

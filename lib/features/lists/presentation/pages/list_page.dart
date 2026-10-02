@@ -59,6 +59,18 @@ class _ListsPageState extends State<ListsPage> {
           return;
         }
 
+        // The lists reload on every sign-in; this page is built once and may
+        // have been built for a guest, or before a sign-out cleared the
+        // crawls. Load them whenever they are not in.
+        if (state is ListsLoaded) {
+          final crawls = context.read<MyCrawlsCubit>();
+          final status = crawls.state.status;
+          if (status == MyCrawlsStatus.initial ||
+              status == MyCrawlsStatus.error) {
+            crawls.load();
+          }
+        }
+
         if (state is ListsLoaded && _pendingCreateName != null) {
           showPrimaryToast(context, 'List created.');
           _pendingCreateName = null;

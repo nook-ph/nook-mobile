@@ -3,6 +3,7 @@ import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
@@ -24,6 +25,7 @@ class ReviewRow extends StatefulWidget {
     required this.review,
     this.isOwn = false,
     this.currentUserId,
+    this.cafeId,
     this.cafeName,
     this.onDeleteConfirmed,
     this.toastBottomOffset = 0,
@@ -35,6 +37,10 @@ class ReviewRow extends StatefulWidget {
 
   /// Null for a guest.
   final String? currentUserId;
+
+  /// The cafe the page is showing, filed with a report. The review's own
+  /// `cafeId` is used when this is null.
+  final String? cafeId;
 
   /// Named in the delete copy and the photo viewer caption.
   final String? cafeName;
@@ -95,7 +101,7 @@ class _ReviewRowState extends State<ReviewRow> {
     await showReviewActionsSheet(
       context,
       reviewId: review.id,
-      cafeId: review.cafeId,
+      cafeId: widget.cafeId ?? review.cafeId,
       authorId: review.userId,
       authorName: review.name,
       toastBottomOffset: widget.toastBottomOffset,
@@ -104,7 +110,8 @@ class _ReviewRowState extends State<ReviewRow> {
   }
 
   Future<void> _toggleHelpful() async {
-    if (_voting) return;
+    // Marking your own review helpful is not a vote.
+    if (_voting || widget.isOwn) return;
     final userId = widget.currentUserId;
     if (userId == null) {
       await CafeGuestSignInSheet.show(
@@ -137,6 +144,13 @@ class _ReviewRowState extends State<ReviewRow> {
           _helpful = wasHelpful;
           _helpfulCount += wasHelpful ? 1 : -1;
         });
+        // The mark just flipped back; say why rather than leave it looking
+        // like the tap was missed.
+        showPrimaryToast(
+          context,
+          "Couldn't update. Please try again.",
+          bottomOffset: widget.toastBottomOffset,
+        );
       }
     } finally {
       if (mounted) setState(() => _voting = false);

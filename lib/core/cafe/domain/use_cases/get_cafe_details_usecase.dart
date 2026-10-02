@@ -19,10 +19,8 @@ class GetCafeDetailsUseCase {
         ? null
         : bundle.reviews!.take(3).toList();
 
-    final menuHighlights = bundle.menu == null
-        ? null
-        : bundle.menu!.where((item) => item.isHighlight).toList();
-
-    return bundle.copyWith(menu: menuHighlights, reviews: latestReviews);
+    // The menu stays whole: the bloc derives the highlights and "See all"
+    // needs every item.
+    return bundle.copyWith(reviews: latestReviews);
   }
 }

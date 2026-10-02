@@ -30,6 +30,9 @@ class FakeProfileCubit extends Cubit<ProfileState> implements ProfileCubit {
   /// Thrown by the next [deleteReview] / [editProfile] when set.
   Object? failure;
 
+  /// Thrown only by an [editProfile] that changes the username.
+  Object? usernameFailure;
+
   void push(ProfileState state) => emit(state);
 
   @override
@@ -65,7 +68,7 @@ class FakeProfileCubit extends Cubit<ProfileState> implements ProfileCubit {
     String? bio,
     String? avatarUrl,
   }) async {
-    final error = failure;
+    final error = failure ?? (username == null ? null : usernameFailure);
     if (error != null) throw error;
     edits.add((name: name, username: username, bio: bio));
   }
@@ -171,6 +174,7 @@ ProfileLoaded profile({
   String bio = 'Cebu. Remote most days.',
   List<WrittenReview> reviews = const [],
   DateTime? lastUsernameChange,
+  bool reviewsFailed = false,
 }) {
   return ProfileLoaded(
     name: name,
@@ -180,6 +184,7 @@ ProfileLoaded profile({
     userId: 'user-1',
     lastUsernameChange: lastUsernameChange,
     reviews: reviews,
+    reviewsFailed: reviewsFailed,
   );
 }
 

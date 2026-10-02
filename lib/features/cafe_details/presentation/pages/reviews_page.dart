@@ -8,6 +8,7 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
@@ -183,6 +184,10 @@ class _ReviewsPageState extends State<ReviewsPage> {
       bottomOffset: _writeBarHeight(),
     );
     _load();
+    // The details page under this one shows the rating and count.
+    context.read<CafeDetailsBloc?>()?.add(
+      LoadCafeDetailsRequested(cafeId: widget.cafeId),
+    );
   }
 
   void _onReviewsChanged(BuildContext context, ReviewsState state) {
@@ -310,6 +315,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
                   review: review,
                   isOwn: review.userId == userId,
                   currentUserId: userId,
+                  cafeId: widget.cafeId,
                   cafeName: cafeName,
                   toastBottomOffset: toastOffset,
                   onDeleteConfirmed: () => _deleteOwnReview(review),
@@ -364,7 +370,16 @@ class _ReviewsPageState extends State<ReviewsPage> {
         listeners: [
           BlocListener<ReviewSubmitBloc, ReviewSubmitState>(
             listener: (context, state) {
-              if (state is ReviewSubmitSuccess) _load();
+              if (state is! ReviewSubmitSuccess) return;
+              // With a rating filter on, the reload is filtered and never
+              // refreshes the totals: add the new review to them here.
+              final all = _allReviews;
+              if (_ratingFilter != null &&
+                  all != null &&
+                  !all.any((r) => r.id == state.review.id)) {
+                setState(() => _allReviews = [state.review, ...all]);
+              }
+              _load();
             },
           ),
           BlocListener<ReviewsBloc, ReviewsState>(listener: _onReviewsChanged),

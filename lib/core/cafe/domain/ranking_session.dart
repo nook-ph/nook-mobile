@@ -95,6 +95,11 @@ class RankingSession {
     return _opponents[_midpoint - 1];
   }
 
+  /// 1-based position of [currentOpponent] among the opponents, or null when
+  /// [isComplete]. Inserting at this position, or the one after it, puts the
+  /// cafe directly beside that opponent.
+  int? get currentOpponentPosition => isComplete ? null : _midpoint;
+
   /// 1-based insertion position within the bucket. Meaningful at any time —
   /// before completion it is the current best estimate, which is exactly what
   /// a skip should persist.

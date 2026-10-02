@@ -265,7 +265,10 @@ class _ProfileViewState extends State<ProfileView> {
                             tabs: [
                               ProfileTabData(
                                 'Reviews',
-                                count: loaded == null ? null : reviews.length,
+                                // Unknown, not zero, when the read failed.
+                                count: loaded == null || loaded.reviewsFailed
+                                    ? null
+                                    : reviews.length,
                               ),
                               ProfileTabData(
                                 'Lists',
@@ -280,6 +283,9 @@ class _ProfileViewState extends State<ProfileView> {
                       children: [
                         ProfileReviewsTab(
                           loading: loaded == null,
+                          failed: loaded?.reviewsFailed ?? false,
+                          onRetry: () =>
+                              context.read<ProfileCubit>().loadProfile(),
                           reviews: reviews,
                           onMore: (review) =>
                               showProfileReviewOptions(context, review),

@@ -32,7 +32,9 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
           statuses[id] = status;
         }
       }
-      emit(state.copyWith(statuses: statuses));
+      emit(
+        state.copyWith(statuses: statuses, known: {...state.known, ...cafeIds}),
+      );
     } catch (e, st) {
       // Badges silently stay unknown; the write path surfaces its own errors.
       debugPrint('[CafeStatus] loadFor failed: $e\n$st');
@@ -50,7 +52,7 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
     _emitStatus(cafeId, status, pending: true);
     try {
       await setCafeStatusUseCase(cafeId, status);
-      _emitStatus(cafeId, status, pending: false);
+      _emitStatus(cafeId, status, pending: false, confirmed: true);
       return true;
     } catch (e, st) {
       debugPrint('[CafeStatus] set($cafeId, ${status.wire}) failed: $e\n$st');
@@ -62,7 +64,12 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
   /// Drops all cached statuses (e.g. on sign-out).
   void reset() => emit(const CafeStatusState());
 
-  void _emitStatus(String cafeId, CafeStatus status, {required bool pending}) {
+  void _emitStatus(
+    String cafeId,
+    CafeStatus status, {
+    required bool pending,
+    bool confirmed = false,
+  }) {
     final statuses = Map<String, CafeStatus>.from(state.statuses);
     if (status == CafeStatus.none) {
       statuses.remove(cafeId);
@@ -75,12 +82,22 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
     } else {
       pendingIds.remove(cafeId);
     }
-    emit(state.copyWith(statuses: statuses, pending: pendingIds));
+    emit(
+      state.copyWith(
+        statuses: statuses,
+        pending: pendingIds,
+        known: confirmed ? {...state.known, cafeId} : null,
+      ),
+    );
   }
 }
 
 class CafeStatusState extends Equatable {
-  const CafeStatusState({this.statuses = const {}, this.pending = const {}});
+  const CafeStatusState({
+    this.statuses = const {},
+    this.pending = const {},
+    this.known = const {},
+  });
 
   /// Cafes with a status; absent means none (or not yet loaded).
   final Map<String, CafeStatus> statuses;
@@ -88,20 +105,31 @@ class CafeStatusState extends Equatable {
   /// Cafe ids with an in-flight write.
   final Set<String> pending;
 
+  /// Cafe ids whose status the server has confirmed, by a read or a write.
+  /// Tells "none" apart from "the read failed", which [statuses] cannot.
+  final Set<String> known;
+
   CafeStatus statusFor(String cafeId) => statuses[cafeId] ?? CafeStatus.none;
 
   bool isPending(String cafeId) => pending.contains(cafeId);
 
+  /// Whether [statusFor] is the server's answer rather than a default. A
+  /// write that depends on the current status (leaving Been deletes the rank
+  /// and note) must not go ahead on a guess.
+  bool isKnown(String cafeId) => known.contains(cafeId);
+
   CafeStatusState copyWith({
     Map<String, CafeStatus>? statuses,
     Set<String>? pending,
+    Set<String>? known,
   }) {
     return CafeStatusState(
       statuses: statuses ?? this.statuses,
       pending: pending ?? this.pending,
+      known: known ?? this.known,
     );
   }
 
   @override
-  List<Object?> get props => [statuses, pending];
+  List<Object?> get props => [statuses, pending, known];
 }

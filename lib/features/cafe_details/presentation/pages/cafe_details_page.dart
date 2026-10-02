@@ -92,15 +92,18 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                     _fadeRange)
                 .clamp(0.0, 1.0);
       });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _hasTrackedViewDetails) return;
-      _hasTrackedViewDetails = true;
-      sl<AnalyticsService>().track(
-        widget.cafeId,
-        AnalyticsService.viewDetails,
-        metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
-      );
-    });
+  }
+
+  /// Logged once per visit, and only when the cafe loaded: a bad id or a
+  /// failed fetch is not a details view.
+  void _trackViewDetails() {
+    if (_hasTrackedViewDetails) return;
+    _hasTrackedViewDetails = true;
+    sl<AnalyticsService>().track(
+      widget.cafeId,
+      AnalyticsService.viewDetails,
+      metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
+    );
   }
 
   @override
@@ -187,6 +190,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       ReviewsPreviewSection(
         onSeeAllTap: () => _openReviews(context, state),
         onWriteReviewTap: () => _writeReview(context),
+        onRetry: () => context.read<ReviewsBloc>().add(
+          LoadReviewsRequested(cafeId: widget.cafeId),
+        ),
         currentUserId: Supabase.instance.client.auth.currentUser?.id,
       ),
     ];
@@ -275,7 +281,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                 );
               },
             ),
-            body: BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
+            body: BlocConsumer<CafeDetailsBloc, CafeDetailsState>(
+              listenWhen: (_, current) => current is CafeDetailsLoaded,
+              listener: (_, _) => _trackViewDetails(),
               buildWhen: (previous, current) {
                 if (previous is CafeDetailsLoaded &&
                     current is CafeDetailsLoading) {
@@ -533,6 +541,10 @@ class _SavedButtonState extends State<_SavedButton> {
   int _savedStateRequest = 0;
   bool _loadErrorToastShown = false;
 
+  /// The saved-state read in flight. A tap waits for it: quick-saving on a
+  /// guess would re-add a cafe that is already saved.
+  Future<void>? _savedStateLoad;
+
   void _showErrorToast(
     BuildContext context,
     Object e, {
@@ -550,7 +562,7 @@ class _SavedButtonState extends State<_SavedButton> {
   @override
   void initState() {
     super.initState();
-    _loadSavedState();
+    _savedStateLoad = _loadSavedState();
   }
 
   @override
@@ -559,7 +571,7 @@ class _SavedButtonState extends State<_SavedButton> {
     if (oldWidget.cafeId != widget.cafeId) {
       _isSaved = false;
       _loadErrorToastShown = false;
-      _loadSavedState();
+      _savedStateLoad = _loadSavedState();
     }
   }
 
@@ -627,6 +639,10 @@ class _SavedButtonState extends State<_SavedButton> {
       );
       return;
     }
+
+    if (_isSaving) return;
+    await _savedStateLoad;
+    if (!mounted) return;
 
     if (_isSaved) {
       await _showSaveToListSheet();
