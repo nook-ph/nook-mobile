@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/toast_helper.dart';
@@ -71,15 +72,23 @@ class _ListDetailPageState extends State<ListDetailPage> {
     } else {
       context.read<ListsBloc>().add(LoadListCafes(listId: widget.listId));
     }
-    if (widget.isBeenList) {
-      // The ranked view needs positions/scores; idempotent and cheap.
-      final ranking = context.read<CafeRankingCubit>();
-      if (!ranking.state.loaded) ranking.load();
-    }
+    _loadRankingsIfBeen();
+  }
+
+  /// The loaded list is the authority on its own type: a caller that did not
+  /// pass one must still get Been as the ranked diary, never as plain rows
+  /// whose Remove would delete the ranking and note.
+  String get _listType => _cachedList?.listType ?? widget.listType;
+
+  void _loadRankingsIfBeen() {
+    if (_listType != 'been') return;
+    // The ranked view needs positions/scores; idempotent and cheap.
+    final ranking = context.read<CafeRankingCubit>();
+    if (!ranking.state.loaded) ranking.load();
   }
 
   String get _title {
-    if (widget.listType == 'want_to_try') return 'Want to try';
+    if (_listType == 'want_to_try') return 'Want to try';
     return _cachedList?.name ?? widget.title;
   }
 
@@ -198,7 +207,14 @@ class _ListDetailPageState extends State<ListDetailPage> {
     // name and description up from there.
     if (state is ListsLoaded) {
       for (final list in state.lists) {
-        if (list.id == widget.listId) setState(() => _cachedList = list);
+        if (list.id != widget.listId) continue;
+        setState(() => _cachedList = list);
+        // A cafe saved or un-saved elsewhere (its own page, the Save-to
+        // sheet) changes the count but not the rows held here.
+        final cafes = _cachedCafes;
+        if (cafes != null && cafes.length != list.cafeCount) {
+          context.read<ListsBloc>().add(LoadListCafes(listId: widget.listId));
+        }
       }
       return;
     }
@@ -223,6 +239,14 @@ class _ListDetailPageState extends State<ListDetailPage> {
       _cachedCafes = state.cafes;
       _cachedList = state.list;
     });
+    _loadRankingsIfBeen();
+
+    // Want to Try is a status: a row removed or put back here has to reach
+    // the badges and pills that read CafeStatusCubit.
+    final changed = removed ?? restored;
+    if (changed != null && state.list.isSystem) {
+      context.read<CafeStatusCubit>().loadFor([changed.id]);
+    }
 
     if (removed != null && state.cafes.length < before) {
       _removing = null;
@@ -279,7 +303,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
   Widget _buildList(List<CafeSummary> cafes) {
     return ListDetailView(
       title: _title,
-      listType: widget.listType,
+      listType: _listType,
       description: _cachedList?.description,
       cafes: cafes,
       onOpenCafe: _openCafe,

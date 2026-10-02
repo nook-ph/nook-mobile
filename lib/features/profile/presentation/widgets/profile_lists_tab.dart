@@ -47,7 +47,11 @@ class _ProfileListsTabState extends State<ProfileListsTab> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ListDetailPage(listId: list.id, title: list.name),
+        builder: (_) => ListDetailPage(
+          listId: list.id,
+          title: list.name,
+          listType: list.listType,
+        ),
       ),
     );
   }

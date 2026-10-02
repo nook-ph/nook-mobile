@@ -175,10 +175,9 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
 
     try {
       await addCafeToListUseCase(event.listId, event.cafeId);
-      if (state is ListCafesLoaded &&
-          (state as ListCafesLoaded).list.id == event.listId) {
-        add(LoadListCafes(listId: event.listId));
-      }
+      // Always reload: the state may have moved off this list's cafes (an
+      // edit leaves ListsLoaded) while its page is still on screen.
+      add(LoadListCafes(listId: event.listId));
     } catch (e, st) {
       debugPrint('ListsBloc._onAddCafeToList error: $e\n$st');
       emit(ListsError(e));
@@ -193,10 +192,9 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
 
     try {
       await removeCafeFromListUseCase(event.listId, event.cafeId);
-      if (state is ListCafesLoaded &&
-          (state as ListCafesLoaded).list.id == event.listId) {
-        add(LoadListCafes(listId: event.listId));
-      }
+      // Always reload: the state may have moved off this list's cafes (an
+      // edit leaves ListsLoaded) while its page is still on screen.
+      add(LoadListCafes(listId: event.listId));
     } catch (e, st) {
       debugPrint('ListsBloc._onRemoveCafeFromList error: $e\n$st');
       emit(ListsError(e));
