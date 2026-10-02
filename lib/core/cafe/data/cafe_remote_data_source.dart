@@ -56,7 +56,8 @@ class CafeRemoteDataSource {
         params: {
           'p_lat': lat,
           'p_lng': lng,
-          'p_radius_meters': radiusMeters,
+          // The RPC's parameter is an integer; a double is a 400.
+          'p_radius_meters': radiusMeters.round(),
           'p_user_id': supabase.auth.currentUser?.id,
           'p_sort': sort,
           'p_tag_names': tags.isEmpty ? null : tags,
