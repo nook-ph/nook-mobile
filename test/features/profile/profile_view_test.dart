@@ -27,6 +27,14 @@ void main() {
       profileHost(page: const ProfileView(), cubit: cubit, lists: listsBloc),
     );
     await tester.pump();
+    // Ranked is the first tab; these tests are about Reviews. Error and
+    // signed-out pages have no tabs.
+    final reviewsTab = find.text('Reviews');
+    if (reviewsTab.evaluate().isNotEmpty) {
+      await tester.tap(reviewsTab);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+    }
   }
 
   testWidgets('loading shows the skeleton, the bare tabs and "@…"', (
@@ -152,7 +160,8 @@ void main() {
       find.text('When you share reviews, they will appear here.'),
       findsOneWidget,
     );
-    expect(find.text('0'), findsOneWidget);
+    // Reviews 0, and Ranked 0 (nothing ranked in the test cubit).
+    expect(find.text('0'), findsNWidgets(2));
   });
 
   testWidgets('a review is deleted through options, then a confirm sheet', (
