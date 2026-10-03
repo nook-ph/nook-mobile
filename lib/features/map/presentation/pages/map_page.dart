@@ -466,6 +466,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                             cafes: state.cafes,
                             tags: state.tags,
                             isLoadingCafes: false,
+                            isCapped: state.isCapped,
                             distanceFrom: _originPoint,
                             onMetricsChanged: _onSheetMetricsChanged,
                           )
@@ -899,6 +900,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
     List<CafeSummary> cafes,
   ) async {
     if (cafes.isEmpty) return false;
+    cafes = mapCoreCafes(cafes);
 
     // The map is built on every tab (MainScreen keeps all four in an
     // IndexedStack), so this can run while it has never been laid out. There
@@ -1234,4 +1236,25 @@ class _MapSelection {
       animateDismiss: animateDismiss ?? this.animateDismiss,
     );
   }
+}
+
+/// The cafes the first view frames: those within 10 km of the median cafe,
+/// when they are most of the set. Fitting every cafe let one outlying town
+/// zoom the map out to the whole region, with the city's pins merged into one
+/// blob (docs/ux/find-a-cafe.md, finding 3). Mirrors the web map.
+List<CafeSummary> mapCoreCafes(List<CafeSummary> cafes) {
+  if (cafes.length < 3) return cafes;
+  double median(Iterable<double> values) {
+    final sorted = values.toList()..sort();
+    return sorted[sorted.length ~/ 2];
+  }
+
+  final lat = median(cafes.map((c) => c.lat!));
+  final lng = median(cafes.map((c) => c.lng!));
+  final core = cafes
+      .where(
+        (c) => Geolocator.distanceBetween(lat, lng, c.lat!, c.lng!) <= 10000,
+      )
+      .toList();
+  return core.length >= cafes.length * 0.6 ? core : cafes;
 }

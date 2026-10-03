@@ -109,6 +109,7 @@ class HomeCafeCard extends StatelessWidget {
               lat: cafe.lat,
               lng: cafe.lng,
             ),
+            if (!isSkeleton) HomeOpenLine(hours: cafe.operatingHours),
             if (primaryTag != null) ...[
               // Figma: 2 between the lines plus the tag row's own 4 on top.
               const SizedBox(height: 6),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/geo.dart';
 import 'package:nook/features/map/domain/entities/cafe_tags_entity.dart';
@@ -97,6 +98,15 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   static const _mapLoadTimeout = Duration(seconds: 30);
   static const _filterTagsTimeout = Duration(seconds: 30);
 
+  /// The Open now chip: cafes whose hours say they are open this minute.
+  /// Rows without hours are dropped too, since they cannot be shown open.
+  List<CafeSummary> _openNowOnly(List<CafeSummary> cafes) {
+    if (!_filter.openNow) return cafes;
+    return cafes
+        .where((c) => CafeOpenStatus.resolve(c.operatingHours).isOpen)
+        .toList();
+  }
+
   Future<void> _onLoadMapData(
     LoadMapDataEvent event,
     Emitter<MapState> emit,
@@ -132,7 +142,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
       emit(
         MapLoadedState(
-          cafes: result.cafes,
+          cafes: _openNowOnly(result.cafes),
+          isCapped: result.cafes.length >= GetCafeCardUseCase.defaultLimit,
           tags: tags,
           locationDenied: result.locationDenied,
           locationBannerDismissed: false,
@@ -199,7 +210,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
       _shown = cafes.length < GetCafesForViewportUseCase.fetchCap
           ? (viewport: viewport, filter: filter)
           : null;
-      emit(loaded.copyWith(cafes: cafes, isRefreshing: false));
+      emit(
+        loaded.copyWith(
+          cafes: _openNowOnly(cafes),
+          isRefreshing: false,
+          isCapped: cafes.length >= GetCafesForViewportUseCase.fetchCap,
+        ),
+      );
     } catch (_) {
       // Keep the previous list on refetch errors (webapp behavior); just
       // drop the loading chip.
