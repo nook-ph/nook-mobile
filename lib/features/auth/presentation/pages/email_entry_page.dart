@@ -31,6 +31,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   String? _emailError;
   bool _didPrefillFromExtra = false;
   bool _agreedToTerms = false;
+  bool _termsNudge = false;
   _Pending? _pending;
   late final TapGestureRecognizer _eulaTap;
   late final TapGestureRecognizer _privacyTap;
@@ -96,6 +97,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       }
     }
   }
+
+  void _nudgeTerms() => setState(() => _termsNudge = true);
 
   void _onContinuePressed() {
     final email = _emailController.text.trim();
@@ -226,47 +229,88 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
             ),
             AuthTermsAgreement(
               value: _agreedToTerms,
-              onChanged: (value) => setState(() => _agreedToTerms = value),
+              onChanged: (value) => setState(() {
+                _agreedToTerms = value;
+                if (value) _termsNudge = false;
+              }),
+              showNudge: _termsNudge,
               eulaRecognizer: _eulaTap,
               privacyRecognizer: _privacyTap,
             ),
-            AuthPrimaryButton(
-              label: 'Continue',
-              loading: pending == _Pending.email,
-              loadingLabel: 'Checking…',
-              onPressed: canSubmit ? _onContinuePressed : null,
+            _TermsGate(
+              locked: !_agreedToTerms && !isLoading,
+              onLockedTap: _nudgeTerms,
+              child: AuthPrimaryButton(
+                label: 'Continue',
+                loading: pending == _Pending.email,
+                loadingLabel: 'Checking…',
+                onPressed: canSubmit ? _onContinuePressed : null,
+              ),
             ),
             const AuthOrDivider(),
-            AuthOutlineButton(
-              label: 'Continue with Google',
-              icon: Image.asset(
-                'assets/logos/googleLogo.png',
-                width: 18,
-                height: 18,
-                cacheWidth: (18 * MediaQuery.devicePixelRatioOf(context))
-                    .ceil(),
+            _TermsGate(
+              locked: !_agreedToTerms && !isLoading,
+              onLockedTap: _nudgeTerms,
+              child: AuthOutlineButton(
+                label: 'Continue with Google',
+                icon: Image.asset(
+                  'assets/logos/googleLogo.png',
+                  width: 18,
+                  height: 18,
+                  cacheWidth: (18 * MediaQuery.devicePixelRatioOf(context))
+                      .ceil(),
+                ),
+                loading: pending == _Pending.google,
+                onPressed: providersEnabled
+                    ? () => _signInWith(_Pending.google)
+                    : null,
               ),
-              loading: pending == _Pending.google,
-              onPressed: providersEnabled
-                  ? () => _signInWith(_Pending.google)
-                  : null,
             ),
             if (Platform.isIOS)
-              AuthOutlineButton(
-                label: 'Continue with Apple',
-                icon: const Icon(
-                  LucideIcons.apple,
-                  size: 18,
-                  color: AuthColors.ink,
+              _TermsGate(
+                locked: !_agreedToTerms && !isLoading,
+                onLockedTap: _nudgeTerms,
+                child: AuthOutlineButton(
+                  label: 'Continue with Apple',
+                  icon: const Icon(
+                    LucideIcons.apple,
+                    size: 18,
+                    color: AuthColors.ink,
+                  ),
+                  loading: pending == _Pending.apple,
+                  onPressed: providersEnabled
+                      ? () => _signInWith(_Pending.apple)
+                      : null,
                 ),
-                loading: pending == _Pending.apple,
-                onPressed: providersEnabled
-                    ? () => _signInWith(_Pending.apple)
-                    : null,
               ),
           ],
         );
       },
+    );
+  }
+}
+
+/// Keeps a button disabled until the terms box is ticked (App Store review
+/// records it that way), but catches a tap on it and asks for the tick
+/// instead of letting the tap do nothing.
+class _TermsGate extends StatelessWidget {
+  const _TermsGate({
+    required this.locked,
+    required this.onLockedTap,
+    required this.child,
+  });
+
+  final bool locked;
+  final VoidCallback onLockedTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!locked) return child;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onLockedTap,
+      child: child,
     );
   }
 }

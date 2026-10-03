@@ -840,12 +840,17 @@ class AuthTermsAgreement extends StatelessWidget {
     required this.onChanged,
     required this.eulaRecognizer,
     required this.privacyRecognizer,
+    this.showNudge = false,
   });
 
   final bool value;
   final ValueChanged<bool> onChanged;
   final GestureRecognizer eulaRecognizer;
   final GestureRecognizer privacyRecognizer;
+
+  /// Set after someone taps a button that the unticked box keeps disabled,
+  /// so the reason is said instead of the button just not responding.
+  final bool showNudge;
 
   @override
   Widget build(BuildContext context) {
@@ -855,7 +860,7 @@ class AuthTermsAgreement extends StatelessWidget {
       decoration: TextDecoration.underline,
       decorationColor: AuthColors.brand,
     );
-    return Row(
+    final row = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AuthCheckbox(value: value, onChanged: onChanged),
@@ -888,6 +893,21 @@ class AuthTermsAgreement extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ],
+    );
+    if (!showNudge || value) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        row,
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.only(left: 30),
+          child: Text(
+            'Tick the box to agree before you continue.',
+            style: AuthText.small.copyWith(color: AuthColors.danger),
           ),
         ),
       ],

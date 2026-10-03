@@ -180,9 +180,14 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         path: '/username-setup',
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
+          // The redirect after the email code carries no extra, so fall back
+          // to the auth state: it holds the name typed at sign-up, which the
+          // screen turns into a suggested username instead of a blank field.
+          final auth = authBloc.state;
+          final needs = auth is AuthNeedsUsername ? auth : null;
           return UsernameSetupScreen(
-            fullName: extra?['fullName'] as String?,
-            avatarUrl: extra?['avatarUrl'] as String?,
+            fullName: extra?['fullName'] as String? ?? needs?.fullName,
+            avatarUrl: extra?['avatarUrl'] as String? ?? needs?.avatarUrl,
           );
         },
       ),
