@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -461,6 +462,12 @@ class _CrawlRunViewState extends State<_CrawlRunView>
             onStamp: done.contains(stops[i].stopId)
                 ? null
                 : () => _stamp(stops[i]),
+            onDirections: () => MapsDirectionsLauncher.launchDirections(
+              lat: stops[i].lat,
+              lng: stops[i].lng,
+              label: stops[i].name,
+              platform: Theme.of(context).platform,
+            ),
           ),
         const SizedBox(height: 14),
         if (run.isComplete)
@@ -595,6 +602,7 @@ class _StopRow extends StatelessWidget {
     required this.nearMeters,
     required this.lineBelow,
     required this.onStamp,
+    required this.onDirections,
   });
 
   final CrawlStop stop;
@@ -609,17 +617,25 @@ class _StopRow extends StatelessWidget {
   final double nearMeters;
   final bool? lineBelow;
   final VoidCallback? onStamp;
+  final VoidCallback onDirections;
 
   bool get _stamped => stamp != null;
 
   bool get _here =>
       !_stamped && distanceMeters != null && distanceMeters! <= hereMeters;
 
-  /// The button shows on the next stop always (so a missing fix never hides
-  /// the only way forward) and on any stop the device looks close to.
+  bool get _near => distanceMeters != null && distanceMeters! <= nearMeters;
+
+  /// Stamp shows on a stop the device is close to, and on the next stop when
+  /// there is no fix (so a missing fix never hides the only way forward). It
+  /// used to show on the next stop always, even 11 km away, where a tap can
+  /// only fail the server's GPS check (docs/ux/core-loops.md, finding 1).
   bool get _showStamp =>
-      !_stamped &&
-      (isNext || (distanceMeters != null && distanceMeters! <= nearMeters));
+      !_stamped && (_near || (isNext && distanceMeters == null));
+
+  /// The next stop, known to be far: the way there instead of a Stamp that
+  /// cannot work yet.
+  bool get _showDirections => !_stamped && isNext && !_showStamp;
 
   @override
   Widget build(BuildContext context) {
@@ -662,6 +678,16 @@ class _StopRow extends StatelessWidget {
             const SizedBox(width: 12),
             // Figma: a 36 pill at the top of the row.
             CrawlPillButton(label: 'Stamp', onTap: onStamp, tapHeight: 36),
+          ],
+          if (_showDirections) ...[
+            const SizedBox(width: 12),
+            CrawlPillButton(
+              label: 'Directions',
+              icon: LucideIcons.navigation,
+              outlined: true,
+              onTap: onDirections,
+              tapHeight: 36,
+            ),
           ],
         ],
       ),
