@@ -15,6 +15,7 @@ import 'package:nook/features/search/presentation/widgets/search_filters.dart';
 import 'package:nook/features/search/presentation/widgets/search_header.dart';
 import 'package:nook/features/search/presentation/widgets/search_idle_view.dart';
 import 'package:nook/features/search/presentation/widgets/search_rows.dart';
+import 'package:nook/features/search/presentation/widgets/search_tag_match.dart';
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 import 'package:nook/injection_container.dart';
 
@@ -179,6 +180,19 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _bloc.add(const SearchLocationChecked());
   }
 
+  /// A filter suggested by the typed words replaces them: "wifi" becomes the
+  /// Free WiFi filter with no text, so the results are every nearby cafe
+  /// with it rather than cafes whose names look like "wifi".
+  void _applySuggestedTag(String tag) {
+    _remember(_controller.text);
+    _controller.clear();
+    _bloc.add(const SearchQueryChanged(''));
+    final tags = {..._bloc.state.tags, tag};
+    setState(() => _submitted = true);
+    _focus.unfocus();
+    _bloc.add(SearchTagsChanged(tags));
+  }
+
   void _toggleTag(String tag) {
     final tags = {..._bloc.state.tags};
     if (!tags.remove(tag)) tags.add(tag);
@@ -308,6 +322,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                             state: state,
                             onSeeAll: _submit,
                             onMatchTap: () => _remember(state.query),
+                            onTag: _applySuggestedTag,
                           )
                         : _Results(
                             state: state,
@@ -319,6 +334,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                                 _bloc.add(const SearchOriginChanged(null)),
                             onDismissBanner: () =>
                                 _bloc.add(const SearchDismissLocationBanner()),
+                            onTag: _applySuggestedTag,
                           ),
                   ),
                 ],
@@ -336,11 +352,13 @@ class _Matches extends StatelessWidget {
     required this.state,
     required this.onSeeAll,
     required this.onMatchTap,
+    required this.onTag,
   });
 
   final SearchState state;
   final VoidCallback onSeeAll;
   final VoidCallback onMatchTap;
+  final ValueChanged<String> onTag;
 
   @override
   Widget build(BuildContext context) {
@@ -351,6 +369,10 @@ class _Matches extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
+        // Filters the words mean come first: "wifi" is a filter, not a name.
+        for (final tag in searchTagsFor(state.query))
+          if (!state.tags.contains(tag))
+            SearchTagSuggestionRow(tag: tag, onTap: () => onTag(tag)),
         for (final cafe in matches)
           SearchMatchRow(cafe: cafe, query: state.query, onOpen: onMatchTap),
         if (matches.isNotEmpty) const SearchDivider(),
@@ -368,6 +390,7 @@ class _Results extends StatelessWidget {
     required this.onClearFilters,
     required this.onSearchNearMe,
     required this.onDismissBanner,
+    required this.onTag,
   });
 
   final SearchState state;
@@ -376,6 +399,7 @@ class _Results extends StatelessWidget {
   final VoidCallback onClearFilters;
   final VoidCallback onSearchNearMe;
   final VoidCallback onDismissBanner;
+  final ValueChanged<String> onTag;
 
   @override
   Widget build(BuildContext context) {
@@ -395,6 +419,10 @@ class _Results extends StatelessWidget {
 
     if (!loading && cafes.isEmpty) {
       final filters = [if (state.openNow) 'Open now', ...state.tags];
+      final suggested = searchTagsFor(
+        state.query,
+        max: 1,
+      ).where((t) => !state.tags.contains(t)).firstOrNull;
       return SearchEmptyView(
         line: searchNoResultsLine(
           query: state.query,
@@ -403,6 +431,8 @@ class _Results extends StatelessWidget {
         ),
         onClearFilters: state.hasFilters ? onClearFilters : null,
         onSearchNearMe: state.origin != null ? onSearchNearMe : null,
+        suggestedTag: suggested,
+        onSuggestedTag: suggested == null ? null : () => onTag(suggested),
       );
     }
 

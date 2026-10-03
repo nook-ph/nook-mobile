@@ -370,3 +370,52 @@ class SearchSeeAllRow extends StatelessWidget {
     );
   }
 }
+
+/// A filter suggested by what was typed ("wifi" → Free WiFi): the filter's
+/// name and "Filter" in muted text. Tapping applies it in place of the text.
+class SearchTagSuggestionRow extends StatelessWidget {
+  const SearchTagSuggestionRow({
+    super.key,
+    required this.tag,
+    required this.onTap,
+  });
+
+  final String tag;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdaptiveTap(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          children: [
+            const Icon(
+              LucideIcons.slidersHorizontal,
+              size: 18,
+              color: SearchTokens.brand,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Cafes with $tag',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: SearchTokens.text(context, weight: FontWeight.w500),
+              ),
+            ),
+            Text(
+              'Filter',
+              style: SearchTokens.text(
+                context,
+                size: 12,
+                color: SearchTokens.muted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
