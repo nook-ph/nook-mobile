@@ -18,6 +18,7 @@ import 'package:nook/features/search/presentation/widgets/search_rows.dart';
 import 'package:nook/features/search/presentation/widgets/search_tag_match.dart';
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 
 /// "12 cafes near you", "8 cafes near IT Park · distances from IT Park", or
 /// "12 cafes · sorted by rating" when there was no position to be near and
@@ -147,6 +148,28 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _bloc.add(SearchQueryChanged(value));
   }
 
+  /// The last submitted search already reported as having no results.
+  String? _loggedEmpty;
+
+  /// Reports a submitted search with no results, once per search, so the
+  /// share of dead ends can be measured (docs/ux/find-a-cafe.md, finding 1).
+  void _onSearchState(BuildContext context, SearchState state) {
+    if (!_submitted || state.status != SearchStatus.success) return;
+    if (state.visibleCafes.isNotEmpty) return;
+    final key = '${state.query}|${state.tags.join(',')}|${state.openNow}';
+    if (key == _loggedEmpty) return;
+    _loggedEmpty = key;
+    logAppEvent(
+      'search_no_results',
+      properties: {
+        'query_length': state.query.trim().length,
+        'tag_count': state.tags.length,
+        'open_now': state.openNow,
+        'suggested_tag': searchTagsFor(state.query, max: 1).isNotEmpty,
+      },
+    );
+  }
+
   void _submit([String? value]) {
     final query = value ?? _controller.text;
     setState(() => _submitted = true);
@@ -200,6 +223,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   /// Free WiFi filter with no text, so the results are every nearby cafe
   /// with it rather than cafes whose names look like "wifi".
   void _applySuggestedTag(String tag) {
+    logAppEvent('search_tag_suggestion_used', properties: {'tag': tag});
     _remember(_controller.text);
     _controller.clear();
     _bloc.add(const SearchQueryChanged(''));
@@ -280,7 +304,8 @@ class _SearchResultsPageState extends State<SearchResultsPage>
         backgroundColor: SearchTokens.surface,
         body: SafeArea(
           bottom: false,
-          child: BlocBuilder<SearchBloc, SearchState>(
+          child: BlocConsumer<SearchBloc, SearchState>(
+            listener: _onSearchState,
             builder: (context, state) {
               final idle =
                   !_browsing &&

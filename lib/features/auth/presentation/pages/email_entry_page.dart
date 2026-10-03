@@ -12,6 +12,7 @@ import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:nook/injection_container.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 
 /// Which action put the page into [AuthLoading], so only that control spins
 /// (B4 "Checking…" on Continue, B9 the provider's own button).
@@ -139,6 +140,10 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       listener: (context, state) {
         if (state is! AuthLoading) setState(() => _pending = null);
         if (state is AuthEmailChecked) {
+          logAppEvent(
+            'auth_email_checked',
+            properties: {'account_exists': state.exists},
+          );
           // Pushed, not `go`: `go` replaced the whole stack, so the system
           // Back button on the next screen closed the app (docs/ux/signup.md,
           // finding 1). Pushed, Back returns here with the email still typed.

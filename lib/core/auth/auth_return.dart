@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 
 /// Where to send someone once they finish signing in: the page they were on
 /// when they opened the login screen (a cafe, a list, search results).
@@ -48,6 +49,10 @@ class AuthReturn {
 void finishSignIn(BuildContext context) {
   final router = GoRouter.of(context);
   final target = AuthReturn.take();
+  logAppEvent(
+    'sign_in_finished',
+    properties: {'returned_to_origin': target != null},
+  );
   router.go('/');
   if (target != null) {
     // After the frame that applies `go`, so the push lands on Home's stack.

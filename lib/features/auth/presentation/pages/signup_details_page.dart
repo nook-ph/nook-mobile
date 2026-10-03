@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 
 /// "Create your account" (Figma C1–C5).
 class SignupDetailsScreen extends StatefulWidget {
@@ -84,6 +85,7 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
           return;
         }
         if (state is AuthAwaitingEmailConfirmation) {
+          logAppEvent('signup_details_submitted');
           context.go('/email-confirmation');
           return;
         }
