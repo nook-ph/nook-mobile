@@ -244,19 +244,36 @@ class _HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Near you leads when the phone has a position: the job is somewhere to
+    // go now, and a featured cafe 10 km away answered it worst. A cafe is
+    // shown in one shelf's first cards only, so the screen does not repeat
+    // itself (docs/ux/find-a-cafe.md, finding 4).
+    final seen = <String>{};
+    List<CafeSummary> fresh(List<CafeSummary> cafes) {
+      final rest = cafes.where((c) => !seen.contains(c.id)).toList();
+      final shelf = rest.length >= 3 ? rest : cafes;
+      seen.addAll(shelf.take(3).map((c) => c.id));
+      return shelf;
+    }
+
+    final nearby = fresh(state.nearbyCafes);
+    final featured = fresh(state.featuredCafes);
+    final newest = fresh(state.newestCafes);
+    final trending = fresh(state.trendingCafes);
+    final topRated = fresh(state.topRatedCafes);
+
     // Sections with no cafes are left out, so the gap goes between the ones
     // that remain rather than around blank space.
     final sections = <Widget>[
-      if (state.featuredCafes.isNotEmpty)
-        _FeaturedSection(cafes: state.featuredCafes),
-      if (state.nearbyCafes.isNotEmpty)
-        HomeCafeSection(title: 'Near you', cafes: state.nearbyCafes),
-      if (state.newestCafes.isNotEmpty)
-        HomeCafeSection(title: 'New', cafes: state.newestCafes),
-      if (state.trendingCafes.isNotEmpty)
-        HomeCafeSection(title: 'Trending', cafes: state.trendingCafes),
-      if (state.topRatedCafes.isNotEmpty)
-        HomeCafeSection(title: 'Top Rated', cafes: state.topRatedCafes),
+      if (nearby.isNotEmpty)
+        HomeCafeSection(title: 'Near you', cafes: nearby, sort: 'nearby'),
+      if (featured.isNotEmpty) _FeaturedSection(cafes: featured),
+      if (newest.isNotEmpty)
+        HomeCafeSection(title: 'New', cafes: newest, sort: 'newest'),
+      if (trending.isNotEmpty)
+        HomeCafeSection(title: 'Trending', cafes: trending, sort: 'trending'),
+      if (topRated.isNotEmpty)
+        HomeCafeSection(title: 'Top Rated', cafes: topRated, sort: 'top_rated'),
     ];
 
     return Column(

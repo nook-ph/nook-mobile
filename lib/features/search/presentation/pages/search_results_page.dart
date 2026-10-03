@@ -43,9 +43,13 @@ String searchCountLine(
 }
 
 class SearchResultsPage extends StatefulWidget {
-  const SearchResultsPage({super.key, required this.query});
+  const SearchResultsPage({super.key, required this.query, this.sort});
 
   final String query;
+
+  /// Opens straight on results in this order with no text: the full list
+  /// behind a Home shelf ("nearby", "newest", "trending", "top_rated").
+  final String? sort;
 
   @override
   State<SearchResultsPage> createState() => _SearchResultsPageState();
@@ -66,6 +70,10 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   /// Editing the text goes back to live matches.
   bool _submitted = false;
 
+  /// Showing a Home shelf's full list. Results show without text or tags
+  /// until the person clears the field or types.
+  bool _browsing = false;
+
   @override
   void initState() {
     super.initState();
@@ -80,7 +88,12 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     WidgetsBinding.instance.addObserver(this);
     _bloc.add(const SearchLocationChecked());
 
-    if (widget.query.trim().isNotEmpty) {
+    final sort = widget.sort;
+    if (sort != null && widget.query.trim().isEmpty) {
+      _browsing = true;
+      _submitted = true;
+      _bloc.add(SearchSortChanged(sort));
+    } else if (widget.query.trim().isNotEmpty) {
       _bloc.add(SearchQueryChanged(widget.query));
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -127,7 +140,10 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   }
 
   void _onChanged(String value) {
-    setState(() => _submitted = false);
+    setState(() {
+      _submitted = false;
+      _browsing = false;
+    });
     _bloc.add(SearchQueryChanged(value));
   }
 
@@ -266,7 +282,10 @@ class _SearchResultsPageState extends State<SearchResultsPage>
           bottom: false,
           child: BlocBuilder<SearchBloc, SearchState>(
             builder: (context, state) {
-              final idle = state.query.trim().isEmpty && state.tags.isEmpty;
+              final idle =
+                  !_browsing &&
+                  state.query.trim().isEmpty &&
+                  state.tags.isEmpty;
               final typing =
                   !idle &&
                   !_submitted &&

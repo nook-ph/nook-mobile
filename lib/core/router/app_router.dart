@@ -205,7 +205,9 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         path: '/search',
         builder: (context, state) {
           final query = state.uri.queryParameters['q'] ?? '';
-          return SearchResultsPage(query: query);
+          // A Home shelf's "See all" opens the full list in its order.
+          final sort = state.uri.queryParameters['sort'];
+          return SearchResultsPage(query: query, sort: sort);
         },
       ),
     ],
