@@ -252,6 +252,12 @@ class _CrawlBuilderViewState extends State<_CrawlBuilderView> {
                       index: index,
                       child: PopupMenuButton<int>(
                         tooltip: 'Reorder ${cafe.name}',
+                        color: ListsTokens.surface,
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 6,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         enabled: !submitting,
                         onSelected: (delta) => cubit.move(index, delta),
                         itemBuilder: (_) => [

@@ -236,9 +236,14 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
     }
     if (draft.text.trim().isEmpty && draft.rating == 0) return;
 
+    // A draft with stars but no words still takes the ranking note.
+    final start = widget.initialText?.trim() ?? '';
+    final text = draft.text.trim().isEmpty && start.isNotEmpty
+        ? start
+        : draft.text;
     _reviewController.value = TextEditingValue(
-      text: draft.text,
-      selection: TextSelection.collapsed(offset: draft.text.length),
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
     setState(() {
       _rating = draft.rating;

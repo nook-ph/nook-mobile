@@ -514,6 +514,8 @@ class CafeRemoteDataSource {
                 address,
                 neighborhood,
                 city,
+                lat,
+                lng,
                 rating,
                 review_count,
                 featured_image_url,
