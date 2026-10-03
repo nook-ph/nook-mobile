@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
+import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
@@ -243,15 +245,41 @@ class _ProfileViewState extends State<ProfileView> {
                       SliverToBoxAdapter(
                         child: loaded == null
                             ? const ProfileHeaderSkeleton()
-                            : ProfileHeader(
-                                name: loaded.name,
-                                avatarUrl: loaded.avatarUrl,
-                                bio: loaded.bio,
-                                countsLine: profileCountsLine(
-                                  reviews: reviews.length,
-                                  lists: listCount,
-                                ),
-                                onEdit: _openEdit,
+                            : BlocBuilder<CafeRankingCubit, CafeRankingState>(
+                                buildWhen: (a, b) =>
+                                    a.rankings.length != b.rankings.length,
+                                builder: (context, ranking) {
+                                  final ranked = ranking.rankings.length;
+                                  final been = lists
+                                      .where((l) => l.listType == 'been')
+                                      .firstOrNull;
+                                  return ProfileHeader(
+                                    name: loaded.name,
+                                    avatarUrl: loaded.avatarUrl,
+                                    bio: loaded.bio,
+                                    countsLine: profileCountsLine(
+                                      reviews: reviews.length,
+                                      lists: listCount,
+                                      ranked: ranked,
+                                    ),
+                                    onEdit: _openEdit,
+                                    ranked: ranked == 0 || been == null
+                                        ? null
+                                        : ProfileRankedRow(
+                                            count: ranked,
+                                            onTap: () => Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => ListDetailPage(
+                                                  listId: been.id,
+                                                  title: been.name,
+                                                  listType: been.listType,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                  );
+                                },
                               ),
                       ),
                       SliverPersistentHeader(

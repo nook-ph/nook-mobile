@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/block/block_cubit.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -16,6 +17,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' show User, UserIdentity;
 
 import '../auth/auth_test_host.dart';
 import '../auth/fake_auth_bloc.dart';
+import '../lists/lists_fixtures.dart' show FakeRankingRepository, rankingCubit;
 
 /// Stands in for [ProfileCubit]: holds whatever state the test pushes and
 /// records what the page asked of it.
@@ -220,6 +222,7 @@ Widget profileHost({
   ListsBloc? lists,
   AvatarUploadBloc? avatar,
   BlockCubit? block,
+  CafeRankingCubit? ranking,
 }) {
   return authTestHost(
     bloc: auth ?? FakeAuthBloc(),
@@ -233,6 +236,9 @@ Widget profileHost({
           value: avatar ?? FakeAvatarUploadBloc(),
         ),
         BlocProvider<BlockCubit>.value(value: block ?? FakeBlockCubit()),
+        BlocProvider<CafeRankingCubit>.value(
+          value: ranking ?? rankingCubit(FakeRankingRepository()),
+        ),
       ],
       child: page,
     ),

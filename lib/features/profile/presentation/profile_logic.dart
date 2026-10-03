@@ -36,11 +36,16 @@ String listCountLabel(int count) => '$count ${count == 1 ? 'list' : 'lists'}';
 String placeCountLabel(int count) =>
     '$count ${count == 1 ? 'place' : 'places'}';
 
-/// The line under the name: "12 reviews · 3 lists". The lists half is left
-/// out until the lists have loaded.
-String profileCountsLine({required int reviews, int? lists}) {
-  final head = reviewCountLabel(reviews);
-  return lists == null ? head : '$head · ${listCountLabel(lists)}';
+/// The line under the name: "5 ranked · 12 reviews · 3 lists". Ranked leads
+/// when there is any, since ranking is what most people do here; the lists
+/// half is left out until the lists have loaded.
+String profileCountsLine({required int reviews, int? lists, int ranked = 0}) {
+  final parts = [
+    if (ranked > 0) '$ranked ranked',
+    reviewCountLabel(reviews),
+    if (lists != null) listCountLabel(lists),
+  ];
+  return parts.join(' · ');
 }
 
 /// The order of the "Your reviews" page.
