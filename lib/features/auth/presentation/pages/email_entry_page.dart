@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -56,6 +57,9 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_didPrefillFromExtra) return;
+
+    // The page under this screen is where sign-in should return to.
+    AuthReturn.rememberOrigin(GoRouter.of(context));
 
     final email = GoRouterState.of(context).extra as String?;
     if (email != null && email.trim().isNotEmpty) {
@@ -132,10 +136,13 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       listener: (context, state) {
         if (state is! AuthLoading) setState(() => _pending = null);
         if (state is AuthEmailChecked) {
+          // Pushed, not `go`: `go` replaced the whole stack, so the system
+          // Back button on the next screen closed the app (docs/ux/signup.md,
+          // finding 1). Pushed, Back returns here with the email still typed.
           if (state.exists) {
-            context.go('/login-password', extra: state.email);
+            context.push('/login-password', extra: state.email);
           } else {
-            context.go('/signup-details', extra: state.email);
+            context.push('/signup-details', extra: state.email);
           }
           return;
         }
@@ -151,7 +158,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
           return;
         }
         if (state is AuthAuthenticated) {
-          context.go('/');
+          finishSignIn(context);
           return;
         }
         if (state is AuthError) {

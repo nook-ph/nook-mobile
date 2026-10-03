@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 
@@ -87,7 +88,7 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
           return;
         }
         if (state is AuthAuthenticated) {
-          context.go('/');
+          finishSignIn(context);
           return;
         }
         if (state is AuthError) {
@@ -109,7 +110,9 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
         );
 
         return AuthPage(
-          onBack: () => context.go('/login', extra: email),
+          onBack: () => context.canPop()
+              ? context.pop()
+              : context.go('/login', extra: email),
           children: [
             AuthHeader(
               title: 'Create your account',
