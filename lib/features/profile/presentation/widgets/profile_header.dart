@@ -79,7 +79,6 @@ class ProfileHeader extends StatelessWidget {
     required this.name,
     required this.countsLine,
     required this.onEdit,
-    this.ranked,
     this.avatarUrl,
     this.bio = '',
   });
@@ -91,9 +90,6 @@ class ProfileHeader extends StatelessWidget {
   final String? avatarUrl;
   final String bio;
   final VoidCallback onEdit;
-
-  /// The ranked-cafes row, shown above Edit profile when there is any.
-  final Widget? ranked;
 
   @override
   Widget build(BuildContext context) {
@@ -138,7 +134,6 @@ class ProfileHeader extends StatelessWidget {
             const SizedBox(height: 14),
             Text(about, style: ProfileTokens.text(14)),
           ],
-          if (ranked != null) ...[const SizedBox(height: 14), ranked!],
           const SizedBox(height: 14),
           ProfilePillButton(
             label: 'Edit profile',
@@ -307,56 +302,6 @@ class _Tab extends StatelessWidget {
                   ),
                 ),
               ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// "5 cafes ranked · See your list": the way from the profile to the ranked
-/// Been list, which used to be reachable only from the Saved tab
-/// (docs/ux/core-loops.md, finding 3).
-class ProfileRankedRow extends StatelessWidget {
-  const ProfileRankedRow({super.key, required this.count, required this.onTap});
-
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: ProfileTokens.tint,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              const Icon(
-                LucideIcons.trophy,
-                size: 18,
-                color: ProfileTokens.brand,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  '$count ${count == 1 ? 'cafe' : 'cafes'} ranked',
-                  style: ProfileTokens.text(14, weight: FontWeight.w500),
-                ),
-              ),
-              Text(
-                'See your list',
-                style: ProfileTokens.text(12, color: ProfileTokens.brand),
-              ),
-              const Icon(
-                LucideIcons.chevronRight,
-                size: 16,
-                color: ProfileTokens.brand,
-              ),
             ],
           ),
         ),

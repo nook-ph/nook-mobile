@@ -23,6 +23,7 @@ import 'package:nook/features/profile/presentation/widgets/profile_lists_tab.dar
 import 'package:nook/features/profile/presentation/widgets/profile_review_sheets.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_reviews_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_top_cafes.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -224,6 +225,7 @@ class _ProfileViewState extends State<ProfileView> {
         final lists = listsState is ListsLoaded
             ? listsState.lists
             : bloc.userLists;
+        final been = lists.where((l) => l.listType == 'been').firstOrNull;
         // Unknown until the lists have loaded at least once.
         final listCount = listsState is ListsLoaded || lists.isNotEmpty
             ? lists.length
@@ -248,40 +250,40 @@ class _ProfileViewState extends State<ProfileView> {
                             : BlocBuilder<CafeRankingCubit, CafeRankingState>(
                                 buildWhen: (a, b) =>
                                     a.rankings.length != b.rankings.length,
-                                builder: (context, ranking) {
-                                  final ranked = ranking.rankings.length;
-                                  final been = lists
-                                      .where((l) => l.listType == 'been')
-                                      .firstOrNull;
-                                  return ProfileHeader(
-                                    name: loaded.name,
-                                    avatarUrl: loaded.avatarUrl,
-                                    bio: loaded.bio,
-                                    countsLine: profileCountsLine(
-                                      reviews: reviews.length,
-                                      lists: listCount,
-                                      ranked: ranked,
-                                    ),
-                                    onEdit: _openEdit,
-                                    ranked: ranked == 0 || been == null
-                                        ? null
-                                        : ProfileRankedRow(
-                                            count: ranked,
-                                            onTap: () => Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => ListDetailPage(
-                                                  listId: been.id,
-                                                  title: been.name,
-                                                  listType: been.listType,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                  );
-                                },
+                                builder: (context, ranking) => ProfileHeader(
+                                  name: loaded.name,
+                                  avatarUrl: loaded.avatarUrl,
+                                  bio: loaded.bio,
+                                  countsLine: profileCountsLine(
+                                    reviews: reviews.length,
+                                    lists: listCount,
+                                    ranked: ranking.rankings.length,
+                                  ),
+                                  onEdit: _openEdit,
+                                ),
                               ),
                       ),
+                      // Taste before the tabs: the person's best-ranked
+                      // cafes, opening the whole ranked list.
+                      if (loaded != null && been != null)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: ProfileTopCafes(
+                              beenListId: been.id,
+                              onOpenList: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ListDetailPage(
+                                    listId: been.id,
+                                    title: been.name,
+                                    listType: been.listType,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       SliverPersistentHeader(
                         pinned: true,
                         delegate: _PinnedTabs(
