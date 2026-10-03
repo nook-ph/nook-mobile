@@ -130,6 +130,24 @@ void main() {
           initialCafeIds: ids,
         );
 
+    test('move steps a stop up or down without dragging, within bounds', () {
+      final cubit = build(FakeCrawlRepository(), ['a', 'b', 'c']);
+      cubit.move(2, -1);
+      expect(cubit.state.selectedIds, ['a', 'c', 'b']);
+      cubit.move(0, -1);
+      expect(cubit.state.selectedIds, ['a', 'c', 'b'], reason: 'top stays');
+      cubit.move(2, 1);
+      expect(cubit.state.selectedIds, ['a', 'c', 'b'], reason: 'bottom stays');
+    });
+
+    test('setOrder takes a new order of the same stops only', () {
+      final cubit = build(FakeCrawlRepository(), ['a', 'b', 'c']);
+      cubit.setOrder(['c', 'a', 'b']);
+      expect(cubit.state.selectedIds, ['c', 'a', 'b']);
+      cubit.setOrder(['c', 'a', 'x']);
+      expect(cubit.state.selectedIds, ['c', 'a', 'b']);
+    });
+
     test('checkTitle enforces 3 to 60 characters after trimming', () {
       expect(CrawlBuilderCubit.checkTitle('  xx  '), CrawlTitleProblem.length);
       expect(CrawlBuilderCubit.checkTitle('x' * 61), CrawlTitleProblem.length);
