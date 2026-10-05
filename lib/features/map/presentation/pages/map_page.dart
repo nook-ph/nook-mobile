@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:flutter/services.dart' show PlatformException, rootBundle;
+import 'package:nook/features/search/domain/repositories/i_place_search_repository.dart';
+import 'package:nook/features/search/domain/repositories/i_saved_places_repository.dart';
 import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/cafe_overlay_card.dart';
 import 'package:nook/features/map/presentation/widgets/map_search_pill.dart';
@@ -663,6 +665,8 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
       current: _origin,
       places: sl<SearchPlaces>(),
       recents: SearchRecentsStore(),
+      placeSearch: sl<IPlaceSearchRepository>(),
+      savedPlaces: sl<ISavedPlacesRepository>(),
     );
     if (pick == null || !mounted) return;
     _originStore.set(pick.origin);

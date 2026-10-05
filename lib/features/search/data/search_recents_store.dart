@@ -101,8 +101,9 @@ class SearchRecentsStore {
   }
 
   /// Pins are not kept: "Pinned location" twice in a list says nothing.
+  /// Saved places are not either: they already sit above the recents.
   Future<List<SearchOrigin>> addPlace(SearchOrigin place) async {
-    if (place.isPin) return places();
+    if (place.isPin || place.isSaved) return places();
     final prefs = await SharedPreferences.getInstance();
     final current = await places();
     final list = [

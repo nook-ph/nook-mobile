@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/features/search/domain/repositories/i_place_search_repository.dart';
+import 'package:nook/features/search/domain/repositories/i_saved_places_repository.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/features/search/bloc/search_bloc.dart';
@@ -264,6 +266,8 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       current: _bloc.state.origin,
       places: sl<SearchPlaces>(),
       recents: _recentsStore,
+      placeSearch: sl<IPlaceSearchRepository>(),
+      savedPlaces: sl<ISavedPlacesRepository>(),
     );
     if (!mounted || pick == null) return;
     _bloc.add(SearchOriginChanged(pick.origin));
