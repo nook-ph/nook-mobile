@@ -18,10 +18,26 @@ import 'package:nook/core/utils/geo.dart';
 import 'package:nook/features/map/domain/entities/cafe_tags_entity.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-/// Lets the map page open the sheet to its full list from outside.
+/// Where the page can send the sheet: its full list, or down to its chips.
+enum MapSheetSnap { open, collapsed }
+
+/// Lets the map page move the sheet between its snaps from outside.
 class MapSheetCommands extends ChangeNotifier {
+  MapSheetSnap? _requested;
+
+  /// The last snap asked for; the sheet reads it when notified.
+  MapSheetSnap? get requested => _requested;
+
   /// Slides the sheet up to its open snap, the full list.
-  void expand() => notifyListeners();
+  void expand() => _request(MapSheetSnap.open);
+
+  /// Lowers the sheet to its chips, so a pin's card has room over the map.
+  void collapse() => _request(MapSheetSnap.collapsed);
+
+  void _request(MapSheetSnap snap) {
+    _requested = snap;
+    notifyListeners();
+  }
 }
 
 class BottomModalSheet extends StatefulWidget {
@@ -95,37 +111,38 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
   // [OPT-1] Cache last emitted metrics to skip redundant parent setState calls.
   BottomSheetMetrics? _lastMetrics;
 
-  /// Set by [MapSheetCommands.expand]: the open snap becomes the only one, so
-  /// the panel springs up to it through its own snap logic (which is what
-  /// keeps the list scrollable once it arrives). The usual snaps come back on
-  /// the next touch, when the panel's velocity reading is fresh; restoring
-  /// them earlier would re-snap on the stale fling that collapsed it.
-  bool _openRequested = false;
+  /// Set by [MapSheetCommands]: the asked-for snap becomes the only one, so
+  /// the panel springs to it through its own snap logic (which is what keeps
+  /// the list scrollable once it arrives). The usual snaps come back on the
+  /// next touch, when the panel's velocity reading is fresh; restoring them
+  /// earlier would re-snap on the stale fling that last moved it.
+  MapSheetSnap? _forcedSnap;
 
   @override
   void initState() {
     super.initState();
     controller.addListener(_notifyMetrics);
-    widget.commands?.addListener(_onExpand);
+    widget.commands?.addListener(_onCommand);
   }
 
   @override
   void didUpdateWidget(BottomModalSheet oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.commands != widget.commands) {
-      oldWidget.commands?.removeListener(_onExpand);
-      widget.commands?.addListener(_onExpand);
+      oldWidget.commands?.removeListener(_onCommand);
+      widget.commands?.addListener(_onCommand);
     }
   }
 
-  void _onExpand() {
-    if (!mounted) return;
-    setState(() => _openRequested = true);
+  void _onCommand() {
+    final snap = widget.commands?.requested;
+    if (!mounted || snap == null) return;
+    setState(() => _forcedSnap = snap);
   }
 
   @override
   void dispose() {
-    widget.commands?.removeListener(_onExpand);
+    widget.commands?.removeListener(_onCommand);
     controller.removeListener(_notifyMetrics);
     controller.dispose();
     super.dispose();
@@ -238,15 +255,19 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
 
         return Listener(
           onPointerDown: (_) {
-            if (_openRequested) setState(() => _openRequested = false);
+            if (_forcedSnap != null) setState(() => _forcedSnap = null);
           },
           child: SlidingPanelBuilder(
             controller: controller,
             minExtent: minExtent,
             initialExtent: _maxExtent,
             snapConfig: SlidingPanelSnapConfig(
-              extents: _openRequested ? [_maxExtent] : [minExtent, _maxExtent],
-              includeBoundaryExtents: !_openRequested,
+              extents: switch (_forcedSnap) {
+                MapSheetSnap.open => [_maxExtent],
+                MapSheetSnap.collapsed => [minExtent],
+                null => [minExtent, _maxExtent],
+              },
+              includeBoundaryExtents: _forcedSnap == null,
               velocityRange: (400, 2400),
               animation: SpringSnapAnimation.fixed(
                 SpringDescription(mass: 1, stiffness: 350, damping: 30),

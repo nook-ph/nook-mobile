@@ -1116,6 +1116,10 @@ class _MapPageState extends State<MapPage>
 
     unawaited(_applySelectionFilters(selectedCafe.id));
 
+    // An open list hides the pin's card, so a tap on a pin peeking above it
+    // lowers the list to its chips and the card comes up in its place.
+    if (_listOpen) _sheetCommands.collapse();
+
     final wasVisible = _shouldShowOverlay;
     // Only the overlay's ValueListenableBuilder listens to this — the map,
     // sheet, and cafe list are not rebuilt on tap.

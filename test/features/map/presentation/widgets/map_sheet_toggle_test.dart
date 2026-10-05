@@ -157,6 +157,21 @@ void main() {
     expect(tester.getRect(count).top, closeTo(openTop, 0.5));
     expect(tester.getRect(row).top, lessThan(rowTop - 50));
 
+    // A pin tap over the open list lowers it to the chips, not off screen.
+    final commands = tester
+        .state<_HarnessState>(find.byType(_Harness))
+        ._commands;
+    commands.collapse();
+    await tester.pumpAndSettle();
+    expect(tester.getRect(count).top, closeTo(collapsedTop, 0.5));
+    expect(count.hitTestable(), findsOneWidget);
+    expect(find.bySemanticsLabel('Show list'), findsOneWidget);
+
+    // The sheet still drags back up by hand afterwards.
+    await tester.fling(count, const Offset(0, -100), 1000);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(count).top, closeTo(openTop, 0.5));
+
     semantics.dispose();
   });
 }
