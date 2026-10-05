@@ -4,19 +4,19 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/map/presentation/widgets/map_search_pill.dart';
 import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 
-/// Round button beside the map's search field that puts the cafe list away
-/// for a map-only view and brings it back.
+/// Round button beside the map's search field that switches between the map
+/// and the full cafe list.
 ///
-/// The icon shows what a tap gives: the map while the list is up, the list
-/// while it is put away.
+/// The icon shows what a tap gives: the map while the list is open, the list
+/// while the sheet is away or collapsed to its chips.
 class MapListToggleButton extends StatelessWidget {
   const MapListToggleButton({
     super.key,
-    required this.listHidden,
+    required this.listOpen,
     required this.onTap,
   });
 
-  final bool listHidden;
+  final bool listOpen;
   final VoidCallback onTap;
 
   /// As tall as the search field beside it.
@@ -26,7 +26,7 @@ class MapListToggleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: listHidden ? 'Show list' : 'Hide list',
+      label: listOpen ? 'Hide list' : 'Show list',
       excludeSemantics: true,
       child: AdaptiveTap(
         key: const ValueKey('map-list-toggle'),
@@ -43,8 +43,8 @@ class MapListToggleButton extends StatelessWidget {
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 180),
             child: Icon(
-              listHidden ? LucideIcons.list : LucideIcons.map,
-              key: ValueKey(listHidden),
+              listOpen ? LucideIcons.map : LucideIcons.list,
+              key: ValueKey(listOpen),
               size: 20,
               color: MapTokens.ink,
             ),
@@ -57,33 +57,34 @@ class MapListToggleButton extends StatelessWidget {
 
 /// Slides the cafe sheet down out of view as [hidden] runs from 0 to 1.
 ///
-/// The sheet keeps its own extent while it is away, so it comes back at the
-/// snap position it was left at. [sheetTop] is how far the sheet's top edge
-/// sits above the bottom; the slide covers that plus room for its shadow, so
-/// the edge and anything pinned to it move together. While hidden the sheet
-/// takes no touches and is left out of the semantics tree.
+/// The slide covers the sheet's whole box plus room for its shadow, so the
+/// sheet is gone at any extent, including one it is springing to on the way
+/// back. While hidden it takes no touches and is left out of the semantics
+/// tree.
 class MapSheetSlide extends StatelessWidget {
-  const MapSheetSlide({
-    super.key,
-    required this.hidden,
-    required this.sheetTop,
-    required this.child,
-  });
+  const MapSheetSlide({super.key, required this.hidden, required this.child});
 
   final Animation<double> hidden;
-
-  /// Null before the sheet has been measured; the slide then covers the
-  /// whole box.
-  final double? sheetTop;
   final Widget child;
 
-  static const double _shadowRoom = 24;
+  static const double shadowRoom = 24;
+
+  /// Where the sheet's top edge sits above the bottom while sliding: its
+  /// resting [sheetTop] less how far the slide has carried it.
+  static double visibleTop({
+    required double sheetTop,
+    required double panelHeight,
+    required double hidden,
+  }) {
+    final top = sheetTop - hidden * (panelHeight + shadowRoom);
+    return top < 0 ? 0 : top;
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final travel = (sheetTop ?? constraints.maxHeight) + _shadowRoom;
+        final travel = constraints.maxHeight + shadowRoom;
         return AnimatedBuilder(
           animation: hidden,
           child: child,

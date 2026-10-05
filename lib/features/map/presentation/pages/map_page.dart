@@ -81,6 +81,9 @@ class _MapPageState extends State<MapPage>
   /// Dragging cannot do this: the sheet's lowest snap still shows its chips.
   final _listHidden = ValueNotifier<bool>(false);
 
+  /// Opens the sheet to its full list for the map/list button.
+  final _sheetCommands = MapSheetCommands();
+
   /// Runs 0 (sheet up) to 1 (sheet slid away); drives the slide and moves
   /// the pin preview and recenter button down with the sheet's edge.
   late final AnimationController _sheetHide = AnimationController(
@@ -253,6 +256,7 @@ class _MapPageState extends State<MapPage>
     _mapController?.onFeatureTapped.remove(_onCafeFeatureTapped);
     _sheetMetrics.dispose();
     _listHidden.dispose();
+    _sheetCommands.dispose();
     _sheetHide.dispose();
     _overlayHeight.dispose();
     _selection.dispose();
@@ -267,26 +271,41 @@ class _MapPageState extends State<MapPage>
     });
   }
 
+  /// The list is open: the sheet is up and past its collapsed snap.
+  bool get _listOpen =>
+      !_listHidden.value && (_sheetMetrics.value?.isExpanded ?? false);
+
+  /// Map/list switch. An open list slides away; from the bare map or the
+  /// collapsed chips, the sheet comes up to the full list.
   void _toggleList() {
-    final hide = !_listHidden.value;
-    _listHidden.value = hide;
-    if (hide) {
+    if (_listOpen) {
+      _listHidden.value = true;
       _sheetHide.forward();
-    } else {
+      return;
+    }
+    _sheetCommands.expand();
+    if (_listHidden.value) {
+      _listHidden.value = false;
       _sheetHide.reverse();
     }
   }
 
   /// How far the sheet's top edge sits above the bottom right now, allowing
   /// for it sliding away.
-  double _visibleSheetTop(BottomSheetMetrics? metrics) =>
-      (metrics?.topFromBottom ?? 0.0) * (1 - _sheetHideCurve.value);
+  double _visibleSheetTop(BottomSheetMetrics? metrics) {
+    if (metrics == null) return 0;
+    return MapSheetSlide.visibleTop(
+      sheetTop: metrics.topFromBottom,
+      panelHeight: metrics.panelHeight,
+      hidden: _sheetHideCurve.value,
+    );
+  }
 
   /// The pin preview shows over a collapsed sheet, or over the bare map once
   /// the list is put away, whatever extent the sheet was left at.
   bool _previewFits(BottomSheetMetrics? m) {
     if (m == null || m.topFromBottom <= 0) return false;
-    return _listHidden.value || m.extent <= m.minExtent + 0.01;
+    return _listHidden.value || !m.isExpanded;
   }
 
   bool get _shouldShowOverlay {
@@ -502,19 +521,15 @@ class _MapPageState extends State<MapPage>
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: ValueListenableBuilder<BottomSheetMetrics?>(
-                      valueListenable: _sheetMetrics,
-                      builder: (context, metrics, sheet) => MapSheetSlide(
-                        hidden: _sheetHideCurve,
-                        sheetTop: metrics?.topFromBottom,
-                        child: sheet!,
-                      ),
+                    child: MapSheetSlide(
+                      hidden: _sheetHideCurve,
                       child: state is MapLoadingState
                           ? BottomModalSheet(
                               cafes: const [],
                               tags: const [],
                               isLoadingCafes: true,
                               onMetricsChanged: _onSheetMetricsChanged,
+                              commands: _sheetCommands,
                             )
                           : state is MapLoadedState
                           ? BottomModalSheet(
@@ -524,6 +539,7 @@ class _MapPageState extends State<MapPage>
                               isCapped: state.isCapped,
                               distanceFrom: _originPoint,
                               onMetricsChanged: _onSheetMetricsChanged,
+                              commands: _sheetCommands,
                             )
                           : state is MapError
                           // The failure sits in the sheet, so the map and the
@@ -538,6 +554,7 @@ class _MapPageState extends State<MapPage>
                                 ),
                               ),
                               onMetricsChanged: _onSheetMetricsChanged,
+                              commands: _sheetCommands,
                             )
                           : const SizedBox.shrink(),
                     ),
@@ -580,13 +597,15 @@ class _MapPageState extends State<MapPage>
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              ValueListenableBuilder<bool>(
-                                valueListenable: _listHidden,
-                                builder: (context, hidden, _) =>
-                                    MapListToggleButton(
-                                      listHidden: hidden,
-                                      onTap: _toggleList,
-                                    ),
+                              ListenableBuilder(
+                                listenable: Listenable.merge([
+                                  _listHidden,
+                                  _sheetMetrics,
+                                ]),
+                                builder: (context, _) => MapListToggleButton(
+                                  listOpen: _listOpen,
+                                  onTap: _toggleList,
+                                ),
                               ),
                             ],
                           ),
