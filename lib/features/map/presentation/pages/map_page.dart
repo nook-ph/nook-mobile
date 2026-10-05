@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show PlatformException, rootBundle;
 import 'package:nook/features/map/presentation/widgets/bottom_modal_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/cafe_overlay_card.dart';
 import 'package:nook/features/map/presentation/widgets/map_search_pill.dart';
+import 'package:nook/features/map/presentation/widgets/map_sheet_toggle.dart';
 import 'package:nook/features/map/presentation/widgets/map_updating_chip.dart';
 import 'package:nook/features/map/presentation/utils/map_camera_fit.dart';
 import 'package:nook/features/map/presentation/utils/map_fit_padding.dart';
@@ -46,7 +47,8 @@ class MapPage extends StatefulWidget {
   State<MapPage> createState() => _MapPageState();
 }
 
-class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
+class _MapPageState extends State<MapPage>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _controllerCompleter = Completer<MapLibreMapController>();
 
   /// On the map's own render box, not the page's: the fit has to be measured
@@ -74,6 +76,22 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
   static bool _hasRequestedPermission = false;
 
   final _sheetMetrics = ValueNotifier<BottomSheetMetrics?>(null);
+
+  /// Whether the person has put the cafe list away for a map-only view.
+  /// Dragging cannot do this: the sheet's lowest snap still shows its chips.
+  final _listHidden = ValueNotifier<bool>(false);
+
+  /// Runs 0 (sheet up) to 1 (sheet slid away); drives the slide and moves
+  /// the pin preview and recenter button down with the sheet's edge.
+  late final AnimationController _sheetHide = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+  );
+  late final Animation<double> _sheetHideCurve = CurvedAnimation(
+    parent: _sheetHide,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
 
   /// Measured height of the pin preview card; it hugs its content, so the
   /// recenter button reads this to stay 12pt above it.
@@ -234,6 +252,8 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
     _originStore.origin.removeListener(_onOriginChanged);
     _mapController?.onFeatureTapped.remove(_onCafeFeatureTapped);
     _sheetMetrics.dispose();
+    _listHidden.dispose();
+    _sheetHide.dispose();
     _overlayHeight.dispose();
     _selection.dispose();
     _following.dispose();
@@ -247,19 +267,33 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
     });
   }
 
-  bool get _isSheetExpanded {
-    final m = _sheetMetrics.value;
-    if (m == null) return false;
-    return m.extent > m.minExtent + 0.01;
+  void _toggleList() {
+    final hide = !_listHidden.value;
+    _listHidden.value = hide;
+    if (hide) {
+      _sheetHide.forward();
+    } else {
+      _sheetHide.reverse();
+    }
+  }
+
+  /// How far the sheet's top edge sits above the bottom right now, allowing
+  /// for it sliding away.
+  double _visibleSheetTop(BottomSheetMetrics? metrics) =>
+      (metrics?.topFromBottom ?? 0.0) * (1 - _sheetHideCurve.value);
+
+  /// The pin preview shows over a collapsed sheet, or over the bare map once
+  /// the list is put away, whatever extent the sheet was left at.
+  bool _previewFits(BottomSheetMetrics? m) {
+    if (m == null || m.topFromBottom <= 0) return false;
+    return _listHidden.value || m.extent <= m.minExtent + 0.01;
   }
 
   bool get _shouldShowOverlay {
-    final m = _sheetMetrics.value;
     final sel = _selection.value;
     return sel.cafe != null &&
         !sel.dismissed &&
-        !_isSheetExpanded &&
-        (m?.topFromBottom ?? 0.0) > 0;
+        _previewFits(_sheetMetrics.value);
   }
 
   @override
@@ -352,21 +386,22 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                 // Recenter sits 16 above the sheet, or 12 above the pin
                 // preview when one is showing.
                 if (_styleLoaded)
-                  ValueListenableBuilder<BottomSheetMetrics?>(
-                    valueListenable: _sheetMetrics,
-                    builder: (context, metrics, _) {
+                  ListenableBuilder(
+                    listenable: Listenable.merge([
+                      _sheetMetrics,
+                      _sheetHideCurve,
+                      _listHidden,
+                    ]),
+                    builder: (context, _) {
+                      final metrics = _sheetMetrics.value;
                       return ValueListenableBuilder<_MapSelection>(
                         valueListenable: _selection,
                         builder: (context, selection, _) {
-                          final top = metrics?.topFromBottom ?? 0.0;
-                          final expanded =
-                              (metrics?.extent ?? 0) >
-                              (metrics?.minExtent ?? 0) + 0.01;
+                          final top = _visibleSheetTop(metrics);
                           final preview =
                               selection.cafe != null &&
                               !selection.dismissed &&
-                              !expanded &&
-                              top > 0;
+                              _previewFits(metrics);
                           return ValueListenableBuilder<double>(
                             valueListenable: _overlayHeight,
                             builder: (context, cardHeight, _) => Positioned(
@@ -391,22 +426,23 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                     },
                   ),
 
-                ValueListenableBuilder<BottomSheetMetrics?>(
-                  valueListenable: _sheetMetrics,
-                  builder: (context, metrics, _) {
+                ListenableBuilder(
+                  listenable: Listenable.merge([
+                    _sheetMetrics,
+                    _sheetHideCurve,
+                    _listHidden,
+                  ]),
+                  builder: (context, _) {
+                    final metrics = _sheetMetrics.value;
                     return ValueListenableBuilder<_MapSelection>(
                       valueListenable: _selection,
                       builder: (context, selection, _) {
-                        final topFromBottom = metrics?.topFromBottom ?? 0.0;
-                        final extent = metrics?.extent ?? 0.0;
-                        final minExtent = metrics?.minExtent ?? 0.0;
-                        final isExpanded = extent > minExtent + 0.01;
+                        final topFromBottom = _visibleSheetTop(metrics);
                         final cafe = selection.cafe;
                         final shouldShow =
                             cafe != null &&
                             !selection.dismissed &&
-                            !isExpanded &&
-                            topFromBottom > 0;
+                            _previewFits(metrics);
 
                         final animateOverlayIn =
                             shouldShow && !selection.suppressAnimation;
@@ -466,37 +502,45 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: state is MapLoadingState
-                        ? BottomModalSheet(
-                            cafes: const [],
-                            tags: const [],
-                            isLoadingCafes: true,
-                            onMetricsChanged: _onSheetMetricsChanged,
-                          )
-                        : state is MapLoadedState
-                        ? BottomModalSheet(
-                            cafes: state.cafes,
-                            tags: state.tags,
-                            isLoadingCafes: false,
-                            isCapped: state.isCapped,
-                            distanceFrom: _originPoint,
-                            onMetricsChanged: _onSheetMetricsChanged,
-                          )
-                        : state is MapError
-                        // The failure sits in the sheet, so the map and the
-                        // search field stay usable above it.
-                        ? BottomModalSheet(
-                            cafes: const [],
-                            tags: const [],
-                            error: state.error,
-                            onRetry: () => context.read<MapBloc>().add(
-                              LoadMapDataEvent(
-                                filter: context.read<FilterCubit>().state,
+                    child: ValueListenableBuilder<BottomSheetMetrics?>(
+                      valueListenable: _sheetMetrics,
+                      builder: (context, metrics, sheet) => MapSheetSlide(
+                        hidden: _sheetHideCurve,
+                        sheetTop: metrics?.topFromBottom,
+                        child: sheet!,
+                      ),
+                      child: state is MapLoadingState
+                          ? BottomModalSheet(
+                              cafes: const [],
+                              tags: const [],
+                              isLoadingCafes: true,
+                              onMetricsChanged: _onSheetMetricsChanged,
+                            )
+                          : state is MapLoadedState
+                          ? BottomModalSheet(
+                              cafes: state.cafes,
+                              tags: state.tags,
+                              isLoadingCafes: false,
+                              isCapped: state.isCapped,
+                              distanceFrom: _originPoint,
+                              onMetricsChanged: _onSheetMetricsChanged,
+                            )
+                          : state is MapError
+                          // The failure sits in the sheet, so the map and the
+                          // search field stay usable above it.
+                          ? BottomModalSheet(
+                              cafes: const [],
+                              tags: const [],
+                              error: state.error,
+                              onRetry: () => context.read<MapBloc>().add(
+                                LoadMapDataEvent(
+                                  filter: context.read<FilterCubit>().state,
+                                ),
                               ),
-                            ),
-                            onMetricsChanged: _onSheetMetricsChanged,
-                          )
-                        : const SizedBox.shrink(),
+                              onMetricsChanged: _onSheetMetricsChanged,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                   ),
 
                 // Floating "Updating" chip while a viewport refetch runs.
@@ -526,9 +570,25 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                       children: [
                         Padding(
                           padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                          child: MapSearchPill(
-                            origin: _origin?.fullLabel ?? 'Current location',
-                            onOriginTap: _chooseOrigin,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: MapSearchPill(
+                                  origin:
+                                      _origin?.fullLabel ?? 'Current location',
+                                  onOriginTap: _chooseOrigin,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _listHidden,
+                                builder: (context, hidden, _) =>
+                                    MapListToggleButton(
+                                      listHidden: hidden,
+                                      onTap: _toggleList,
+                                    ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -903,6 +963,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
   /// can still be null — fall back to the sheet's resting fraction rather than
   /// treating the map as fully visible.
   double get _sheetOcclusion {
+    if (_listHidden.value) return 0;
     final measured = _sheetMetrics.value?.topFromBottom;
     if (measured != null && measured > 0) return measured;
     return MediaQuery.sizeOf(context).height * 0.45;
@@ -1180,7 +1241,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
         showPrimaryToast(
           context,
           'Turn on Location Services to center the map on you.',
-          bottomOffset: _sheetMetrics.value?.topFromBottom ?? 0,
+          bottomOffset: _visibleSheetTop(_sheetMetrics.value),
         );
         return;
       }
