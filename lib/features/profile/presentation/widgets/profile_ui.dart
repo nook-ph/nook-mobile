@@ -294,53 +294,58 @@ class ProfileMessage extends StatelessWidget {
     final action = onAction;
     final outlined = actionStyle == ProfilePillStyle.outlined;
 
+    // Full width, so the block centres even inside a scroll view, whose
+    // loose width would otherwise shrink it to its longest line.
     return Padding(
       padding: EdgeInsets.fromLTRB(40, top, 40, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: ProfileTokens.tint,
-              shape: BoxShape.circle,
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: ProfileTokens.tint,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: isError ? 26 : 24,
+                color: isError ? ProfileTokens.brand : ProfileTokens.muted,
+              ),
             ),
-            child: Icon(
-              icon,
-              size: isError ? 26 : 24,
-              color: isError ? ProfileTokens.brand : ProfileTokens.muted,
-            ),
-          ),
-          // Figma: 8 + a 4 spacer + 8.
-          const SizedBox(height: 20),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: ProfileTokens.text(16, weight: FontWeight.w600),
-          ),
-          if (note != null) ...[
-            const SizedBox(height: 8),
+            // Figma: 8 + a 4 spacer + 8.
+            const SizedBox(height: 20),
             Text(
-              note,
+              title,
               textAlign: TextAlign.center,
-              style: ProfileTokens.text(14, color: ProfileTokens.muted),
+              style: ProfileTokens.text(16, weight: FontWeight.w600),
             ),
+            if (note != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                note,
+                textAlign: TextAlign.center,
+                style: ProfileTokens.text(14, color: ProfileTokens.muted),
+              ),
+            ],
+            if (label != null && action != null) ...[
+              // Figma: 8 + a spacer (12 before the wide button, 8 otherwise)
+              // + 8.
+              SizedBox(height: wideAction ? 28 : 24),
+              ProfilePillButton(
+                label: label,
+                onTap: action,
+                style: actionStyle,
+                expand: wideAction,
+                height: wideAction ? 48 : (outlined ? 40 : 44),
+                padding: outlined || wideAction ? 16 : 28,
+              ),
+            ],
           ],
-          if (label != null && action != null) ...[
-            // Figma: 8 + a spacer (12 before the wide button, 8 otherwise)
-            // + 8.
-            SizedBox(height: wideAction ? 28 : 24),
-            ProfilePillButton(
-              label: label,
-              onTap: action,
-              style: actionStyle,
-              expand: wideAction,
-              height: wideAction ? 48 : (outlined ? 40 : 44),
-              padding: outlined || wideAction ? 16 : 28,
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
