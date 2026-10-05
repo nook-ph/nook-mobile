@@ -17,6 +17,7 @@ import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
+import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
@@ -104,6 +105,7 @@ class _MyAppState extends State<MyApp> {
         BlocProvider<ListsBloc>(create: (_) => sl<ListsBloc>()),
         BlocProvider<CafeStatusCubit>(create: (_) => sl<CafeStatusCubit>()),
         BlocProvider<CafeRankingCubit>(create: (_) => sl<CafeRankingCubit>()),
+        BlocProvider<GalleryCubit>(create: (_) => sl<GalleryCubit>()),
         BlocProvider<FilterCubit>(create: (_) => sl<FilterCubit>()),
         BlocProvider<BlockCubit>(create: (_) => sl<BlockCubit>()),
         BlocProvider<MyCrawlsCubit>(create: (_) => sl<MyCrawlsCubit>()),
@@ -136,6 +138,7 @@ class _MyAppState extends State<MyApp> {
                 // Been / Want to Try statuses and rankings are per-user.
                 context.read<CafeStatusCubit>().reset();
                 context.read<CafeRankingCubit>().reset();
+                context.read<GalleryCubit>().clear();
                 context.read<MyCrawlsCubit>().reset();
               }
             },

@@ -223,19 +223,24 @@ class ProfileTabs extends StatelessWidget {
         color: ProfileTokens.surface,
         border: Border(bottom: BorderSide(color: ProfileTokens.border)),
       ),
+      // Four tabs with counts need about 340pt; on a narrow phone, or at a
+      // large text size, the row scrolls instead of clipping the last tab.
       child: AnimatedBuilder(
         animation: controller,
-        builder: (context, _) => Row(
-          children: [
-            for (var i = 0; i < tabs.length; i++) ...[
-              if (i > 0) const SizedBox(width: 24),
-              _Tab(
-                data: tabs[i],
-                selected: controller.index == i,
-                onTap: () => controller.animateTo(i),
-              ),
+        builder: (context, _) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (var i = 0; i < tabs.length; i++) ...[
+                if (i > 0) const SizedBox(width: 20),
+                _Tab(
+                  data: tabs[i],
+                  selected: controller.index == i,
+                  onTap: () => controller.animateTo(i),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

@@ -8,6 +8,15 @@ import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
+import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
+import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
+import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
+import 'package:nook/features/gallery/presentation/gallery_flows.dart';
+import 'package:nook/features/gallery/presentation/pages/gallery_viewer_page.dart';
+import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options.dart';
+import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
@@ -68,7 +77,11 @@ class ProfileRedesignPage extends StatelessWidget {
 /// failed or signed out. Reads the lists from [ListsBloc] for the counts and
 /// the Lists tab.
 class ProfileView extends StatefulWidget {
-  const ProfileView({super.key, this.isActive = true});
+  const ProfileView({super.key, this.isActive = true, this.galleryFlows});
+
+  /// What the Gallery tab's + needs (picker, cafe sources). Defaults to the
+  /// app's; tests pass fakes.
+  final GalleryFlowDeps Function(BuildContext context)? galleryFlows;
 
   /// Whether the Profile tab is the one on screen. Coming back to it reloads
   /// the profile behind what is already shown, so a review written elsewhere
@@ -92,6 +105,11 @@ class _ProfileViewState extends State<ProfileView> {
         listsBloc.state is! ListsLoading) {
       listsBloc.add(LoadUserLists());
     }
+    final gallery = context.read<GalleryCubit>();
+    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated &&
+        gallery.state.status == GalleryStatus.initial) {
+      gallery.load();
+    }
   }
 
   @override
@@ -99,7 +117,41 @@ class _ProfileViewState extends State<ProfileView> {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive && !oldWidget.isActive) {
       context.read<ProfileCubit>().loadProfile(refresh: true);
+      context.read<GalleryCubit>().load(refresh: true);
     }
+  }
+
+  GalleryFlowDeps _galleryDeps() =>
+      widget.galleryFlows?.call(context) ??
+      GalleryFlowDeps(
+        cubit: context.read<GalleryCubit>(),
+        picker: sl<GalleryPhotoPicker>(),
+        cafes: sl<ICafePickerSource>(),
+      );
+
+  void _openCafe(String cafeId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CafeDetailsPage(cafeId: cafeId)),
+    );
+  }
+
+  void _openPhoto(GalleryPhoto photo) {
+    GalleryViewerPage.open(
+      context,
+      photo: photo,
+      onOpenCafe: _openCafe,
+      onOpenReview: _openReviews,
+    );
+  }
+
+  void _photoOptions(GalleryPhoto photo) {
+    showGalleryPhotoOptions(
+      context,
+      cubit: context.read<GalleryCubit>(),
+      photo: photo,
+      onOpenReview: _openReviews,
+    );
   }
 
   void _openSettings() {
@@ -235,8 +287,10 @@ class _ProfileViewState extends State<ProfileView> {
             ? lists.length
             : null;
 
+        final gallery = context.watch<GalleryCubit>().state;
+
         return DefaultTabController(
-          length: 3,
+          length: 4,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -280,6 +334,15 @@ class _ProfileViewState extends State<ProfileView> {
                                 'Ranked',
                                 count: loaded == null ? null : rankedCount,
                               ),
+                              // Second: the public-safe showcase once
+                              // profiles are public; Ranked stays private
+                              // (docs/ux/coffee-gallery.md, finding 4).
+                              ProfileTabData(
+                                'Gallery',
+                                count: gallery.status == GalleryStatus.loaded
+                                    ? gallery.cupCount
+                                    : null,
+                              ),
                               ProfileTabData(
                                 'Reviews',
                                 // Unknown, not zero, when the read failed.
@@ -299,6 +362,12 @@ class _ProfileViewState extends State<ProfileView> {
                     body: TabBarView(
                       children: [
                         ProfileRankedTab(beenListId: been?.id),
+                        ProfileGalleryTab(
+                          onAdd: () =>
+                              addPhotosToGallery(context, _galleryDeps()),
+                          onOpen: _openPhoto,
+                          onOptions: _photoOptions,
+                        ),
                         ProfileReviewsTab(
                           loading: loaded == null,
                           failed: loaded?.reviewsFailed ?? false,

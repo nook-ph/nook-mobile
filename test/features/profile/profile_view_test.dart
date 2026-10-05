@@ -160,8 +160,9 @@ void main() {
       find.text('When you share reviews, they will appear here.'),
       findsOneWidget,
     );
-    // Reviews 0, and Ranked 0 (nothing ranked in the test cubit).
-    expect(find.text('0'), findsNWidgets(2));
+    // Reviews 0, Ranked 0 (nothing ranked in the test cubit) and Gallery 0
+    // (an empty gallery).
+    expect(find.text('0'), findsNWidgets(3));
   });
 
   testWidgets('a review is deleted through options, then a confirm sheet', (

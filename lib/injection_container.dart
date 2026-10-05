@@ -45,6 +45,14 @@ import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/upload/data/upload_remove_data_source.dart';
 import 'package:nook/core/upload/data/upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/use_cases/upload_use_case.dart';
+import 'package:nook/features/gallery/data/cafe_picker_source_impl.dart';
+import 'package:nook/features/gallery/data/demo_gallery_repository.dart';
+import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
+import 'package:nook/features/gallery/data/gallery_repository_impl.dart';
+import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
+import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
+import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/features/crawls/data/crawl_remote_data_source.dart';
 import 'package:nook/features/crawls/data/crawl_repository_impl.dart';
 import 'package:nook/features/crawls/data/stamp_locator.dart';
@@ -154,6 +162,34 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<IUploadRepository>(
     () => UploadRepositoryImpl(sl<UploadRemoteDataSource>()),
   );
+
+  // Coffee gallery. GALLERY_DEMO (debug only) swaps in an in-memory
+  // repository, because `user_photos` is not in production yet.
+  sl.registerLazySingleton<ICafePickerSource>(
+    () => CafePickerSourceImpl(cafes: sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<IGalleryRepository>(() {
+    final demo = GalleryDemoMode.current;
+    if (demo != GalleryDemoMode.off) {
+      return DemoGalleryRepository(
+        seed: demo == GalleryDemoMode.photos,
+        cafes: () async {
+          final picker = sl<ICafePickerSource>();
+          final been = await picker.beenCafes();
+          final more = await sl<ICafeRepository>().getCafes(
+            const CafeQuery(sort: 'top_rated', limit: 8),
+          );
+          final ids = been.map((c) => c.id).toSet();
+          return [...been, ...more.where((c) => !ids.contains(c.id))];
+        },
+      );
+    }
+    return GalleryRepositoryImpl(
+      client: sl<SupabaseClient>(),
+      upload: ({required file, required cafeId}) => sl<UploadRemoteDataSource>()
+          .uploadGalleryPhoto(file: file, cafeId: cafeId),
+    );
+  });
 
   sl.registerLazySingleton<ICafeTagsRepository>(
     () => CafeTagsRepositoryImpl(sl<CafeTagsRemoteDataSource>()),
@@ -362,6 +398,12 @@ Future<void> initDependencies() async {
       getCafeStatusesUseCase: sl<GetCafeStatusesUseCase>(),
       setCafeStatusUseCase: sl<SetCafeStatusUseCase>(),
     ),
+  );
+
+  // App-wide, so a photo added on the ranking reveal is on the profile.
+  sl.registerLazySingleton<GalleryPhotoPicker>(() => GalleryPhotoPicker());
+  sl.registerLazySingleton<GalleryCubit>(
+    () => GalleryCubit(repository: sl<IGalleryRepository>()),
   );
 
   sl.registerLazySingleton<CafeRankingCubit>(
