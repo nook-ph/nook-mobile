@@ -71,14 +71,19 @@ class ProfileTopBar extends StatelessWidget {
   }
 }
 
-/// Who the profile belongs to: the avatar, the name with the review and
-/// list counts under it, the bio, and Edit profile.
+/// Who the profile belongs to: the avatar, the name with the counts under
+/// it, the bio, and the owner's actions: Edit profile with a square Share
+/// beside it (Duolingo's action row; docs/references/public-profile).
+///
+/// A visitor's header has no action row yet. When following arrives, Follow
+/// takes Edit profile's place in the same row, with Share beside it.
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
     super.key,
     required this.name,
     required this.countsLine,
-    required this.onEdit,
+    this.onEdit,
+    this.onShare,
     this.avatarUrl,
     this.bio = '',
   });
@@ -89,7 +94,12 @@ class ProfileHeader extends StatelessWidget {
   final String countsLine;
   final String? avatarUrl;
   final String bio;
-  final VoidCallback onEdit;
+
+  /// Null leaves the action row out (a visitor's view).
+  final VoidCallback? onEdit;
+
+  /// Shares the profile's web link. Shown beside Edit profile.
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -134,14 +144,67 @@ class ProfileHeader extends StatelessWidget {
             const SizedBox(height: 14),
             Text(about, style: ProfileTokens.text(14)),
           ],
-          const SizedBox(height: 14),
-          ProfilePillButton(
-            label: 'Edit profile',
-            onTap: onEdit,
-            style: ProfilePillStyle.outlined,
-            height: 44,
-          ),
+          if (onEdit != null) ...[
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: ProfilePillButton(
+                    label: 'Edit profile',
+                    onTap: onEdit,
+                    style: ProfilePillStyle.outlined,
+                    height: 44,
+                  ),
+                ),
+                if (onShare != null) ...[
+                  const SizedBox(width: 8),
+                  ProfileIconButton(
+                    icon: LucideIcons.share,
+                    label: 'Share profile',
+                    onTap: onShare!,
+                  ),
+                ],
+              ],
+            ),
+          ],
         ],
+      ),
+    );
+  }
+}
+
+/// A 44pt outlined square holding one icon, the same outline as the
+/// outlined pill beside it.
+class ProfileIconButton extends StatelessWidget {
+  const ProfileIconButton({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            border: Border.all(color: ProfileTokens.border),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Icon(icon, size: 18, color: ProfileTokens.ink),
+        ),
       ),
     );
   }
@@ -149,14 +212,17 @@ class ProfileHeader extends StatelessWidget {
 
 /// The header's shape in grey, shown while the profile loads.
 class ProfileHeaderSkeleton extends StatelessWidget {
-  const ProfileHeaderSkeleton({super.key});
+  const ProfileHeaderSkeleton({super.key, this.showAction = true});
+
+  /// The Edit profile row's shape; a visitor's header has none.
+  final bool showAction;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: 'Loading profile',
-      child: const Padding(
-        padding: EdgeInsets.fromLTRB(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
           ProfileTokens.gutter,
           8,
           ProfileTokens.gutter,
@@ -186,8 +252,10 @@ class ProfileHeaderSkeleton extends StatelessWidget {
               widthFactor: 220 / 350,
               child: ProfileSkeleton(height: 12),
             ),
-            SizedBox(height: 14),
-            ProfileSkeleton(height: 44, radius: 22),
+            if (showAction) ...[
+              const SizedBox(height: 14),
+              const ProfileSkeleton(height: 44, radius: 22),
+            ],
           ],
         ),
       ),

@@ -3,10 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/lists/presentation/widgets/ranked_been_list.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
+import 'package:nook/features/public_profile/presentation/widgets/visitor_hint.dart';
 import 'package:nook/injection_container.dart';
 
 /// The Ranked tab: the person's Been list as their ranking (your #1, then
@@ -15,10 +18,13 @@ import 'package:nook/injection_container.dart';
 /// about the person, which matters once profiles are public
 /// (docs/ux/core-loops.md, finding 3).
 class ProfileRankedTab extends StatefulWidget {
-  const ProfileRankedTab({super.key, required this.beenListId});
+  const ProfileRankedTab({super.key, required this.beenListId, this.onPreview});
 
   /// Null until the lists have loaded, or when there is no Been list yet.
   final String? beenListId;
+
+  /// Opens "View as visitor". Null leaves the hint out.
+  final VoidCallback? onPreview;
 
   @override
   State<ProfileRankedTab> createState() => _ProfileRankedTabState();
@@ -55,6 +61,20 @@ class _ProfileRankedTabState extends State<ProfileRankedTab> {
       if (mounted) setState(() => _failed = true);
     }
   }
+
+  /// "Only you see your ranking…" with Preview; follows the switch.
+  Widget _hint() => BlocBuilder<ProfileVisibilityCubit, ProfileVisibilityState>(
+    builder: (context, visibility) => VisitorHint(
+      highlightsPublic: visibility.highlightsPublic,
+      onPreview: widget.onPreview!,
+      likedCount: context
+          .watch<CafeRankingCubit>()
+          .state
+          .rankings
+          .where((r) => r.bucket == RankBucket.liked)
+          .length,
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -93,13 +113,28 @@ class _ProfileRankedTabState extends State<ProfileRankedTab> {
       );
     }
     if (cafes == null || cafes.isEmpty) {
-      return const SingleChildScrollView(
-        child: ProfileMessage(
-          icon: LucideIcons.trophy,
-          title: 'Nothing ranked yet',
-          subtitle:
-              'Mark a cafe as Been and rank it. Your ranking shows here, best '
-              'first.',
+      return SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.onPreview != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  ProfileTokens.gutter,
+                  4,
+                  ProfileTokens.gutter,
+                  0,
+                ),
+                child: _hint(),
+              ),
+            const ProfileMessage(
+              icon: LucideIcons.trophy,
+              title: 'Nothing ranked yet',
+              subtitle:
+                  'Mark a cafe as Been and rank it. Your ranking shows here, '
+                  'best first.',
+            ),
+          ],
         ),
       );
     }
@@ -107,13 +142,22 @@ class _ProfileRankedTabState extends State<ProfileRankedTab> {
     return BlocBuilder<CafeRankingCubit, CafeRankingState>(
       buildWhen: (a, b) => a.rankings != b.rankings,
       builder: (context, _) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
+        padding: EdgeInsets.fromLTRB(
           ProfileTokens.gutter,
-          16,
+          widget.onPreview != null ? 4 : 16,
           ProfileTokens.gutter,
           24,
         ),
-        child: RankedBeenList(cafes: cafes),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.onPreview != null) ...[
+              _hint(),
+              const SizedBox(height: 8),
+            ],
+            RankedBeenList(cafes: cafes),
+          ],
+        ),
       ),
     );
   }

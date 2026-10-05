@@ -29,6 +29,28 @@ class ShareService {
     );
   }
 
+  /// A person's public profile on the web (`/u/<username>`). Opens for
+  /// anyone, app or not, and unfurls with the profile's OpenGraph card.
+  static String profileLink(String username) =>
+      'https://www.nookph.app/u/$username';
+
+  /// Shares a public profile. [own] words it as the sender's own.
+  Future<void> shareProfile({
+    required String username,
+    required String name,
+    bool own = false,
+    Rect? sharePositionOrigin,
+  }) async {
+    final title = own ? 'My top cafes on Nook' : '$name on Nook';
+    await SharePlus.instance.share(
+      ShareParams(
+        text: '$title\n\n${profileLink(username)}',
+        subject: title,
+        sharePositionOrigin: sharePositionOrigin,
+      ),
+    );
+  }
+
   /// The public page for a crawl. `nookph.app/c/<code>` is also the short
   /// form printed on share cards and typed into "Enter a code".
   static String crawlLink(String shareCode) =>

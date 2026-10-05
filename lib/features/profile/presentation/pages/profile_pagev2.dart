@@ -33,6 +33,9 @@ import 'package:nook/features/profile/presentation/widgets/profile_reviews_tab.d
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ranked_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/core/services/share_service.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
+import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
@@ -66,6 +69,7 @@ class ProfileRedesignPage extends StatelessWidget {
             current is AuthAccountDeleted,
         listener: (context, state) {
           context.read<ProfileCubit>().clear();
+          context.read<ProfileVisibilityCubit>().clear();
         },
         child: ProfileView(isActive: isActive),
       ),
@@ -77,7 +81,20 @@ class ProfileRedesignPage extends StatelessWidget {
 /// failed or signed out. Reads the lists from [ListsBloc] for the counts and
 /// the Lists tab.
 class ProfileView extends StatefulWidget {
-  const ProfileView({super.key, this.isActive = true, this.galleryFlows});
+  const ProfileView({
+    super.key,
+    this.isActive = true,
+    this.galleryFlows,
+    this.shareProfile,
+    this.openPreview,
+  });
+
+  /// Shares the profile's web link. Defaults to the system share sheet.
+  final ShareProfile? shareProfile;
+
+  /// Opens "View as visitor" for the signed-in user. Defaults to pushing
+  /// [PublicProfilePage] in preview mode.
+  final void Function(String userId)? openPreview;
 
   /// What the Gallery tab's + needs (picker, cafe sources). Defaults to the
   /// app's; tests pass fakes.
@@ -110,6 +127,28 @@ class _ProfileViewState extends State<ProfileView> {
         gallery.state.status == GalleryStatus.initial) {
       gallery.load();
     }
+    final visibility = context.read<ProfileVisibilityCubit>();
+    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated &&
+        visibility.state.status == ProfileVisibilityStatus.initial) {
+      visibility.load();
+    }
+  }
+
+  void _share(ProfileLoaded profile) {
+    final share =
+        widget.shareProfile ??
+        ({required username, required name, own = false}) => sl<ShareService>()
+            .shareProfile(username: username, name: name, own: own);
+    share(username: profile.username, name: profile.name, own: true);
+  }
+
+  void _preview(ProfileLoaded profile) {
+    final open = widget.openPreview;
+    if (open != null) {
+      open(profile.userId);
+      return;
+    }
+    PublicProfilePage.open(context, userId: profile.userId, preview: true);
   }
 
   @override
@@ -318,6 +357,11 @@ class _ProfileViewState extends State<ProfileView> {
                                     ranked: ranking.rankings.length,
                                   ),
                                   onEdit: _openEdit,
+                                  // No handle yet (mid sign-up): nothing
+                                  // to link to.
+                                  onShare: loaded.username.isEmpty
+                                      ? null
+                                      : () => _share(loaded),
                                 ),
                               ),
                       ),
@@ -361,7 +405,12 @@ class _ProfileViewState extends State<ProfileView> {
                     ],
                     body: TabBarView(
                       children: [
-                        ProfileRankedTab(beenListId: been?.id),
+                        ProfileRankedTab(
+                          beenListId: been?.id,
+                          onPreview: loaded == null
+                              ? null
+                              : () => _preview(loaded),
+                        ),
                         ProfileGalleryTab(
                           onAdd: () =>
                               addPhotosToGallery(context, _galleryDeps()),

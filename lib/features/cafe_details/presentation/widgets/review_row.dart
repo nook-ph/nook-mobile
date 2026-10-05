@@ -9,6 +9,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_
 import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_sheet_shell.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_logic.dart';
+import 'package:nook/features/public_profile/presentation/widgets/review_author_link.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -183,51 +184,65 @@ class _ReviewRowState extends State<ReviewRow> {
           height: 44,
           child: Row(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDAD7CD),
-                  shape: BoxShape.circle,
-                ),
-                child: Text(
-                  name[0].toUpperCase(),
-                  style: context.textTheme.bodyMediumMed.copyWith(
-                    color: ReviewTokens.ink,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.bodyMediumMed.copyWith(
-                        color: ReviewTokens.ink,
-                        fontSize: 14,
-                        height: 1.5,
-                      ),
+                child: ReviewAuthorLink(
+                  userId: review.userId,
+                  name: name,
+                  isOwn: widget.isOwn,
+                  child: SizedBox(
+                    height: 44,
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFDAD7CD),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            name[0].toUpperCase(),
+                            style: context.textTheme.bodyMediumMed.copyWith(
+                              color: ReviewTokens.ink,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.textTheme.bodyMediumMed.copyWith(
+                                  color: ReviewTokens.ink,
+                                  fontSize: 14,
+                                  height: 1.5,
+                                ),
+                              ),
+                              Text(
+                                widget.isOwn ? 'Your review · $date' : date,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.textTheme.bodySmall?.copyWith(
+                                  color: widget.isOwn
+                                      ? ReviewTokens.brand
+                                      : ReviewTokens.muted,
+                                  fontSize: 10,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      widget.isOwn ? 'Your review · $date' : date,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.textTheme.bodySmall?.copyWith(
-                        color: widget.isOwn
-                            ? ReviewTokens.brand
-                            : ReviewTokens.muted,
-                        fontSize: 10,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               if (_hasOptions)

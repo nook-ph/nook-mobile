@@ -8,6 +8,7 @@ import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.d
 import 'package:nook/features/cafe_details/presentation/utils/cafe_load_failure.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_logic.dart';
+import 'package:nook/features/public_profile/presentation/widgets/review_author_link.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 /// How many reviews carry each star rating, as the summary on the details
@@ -397,7 +398,9 @@ class _ReviewPreviewCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: _width,
-        padding: const EdgeInsets.all(14),
+        // 8 on top: the author row below carries its own 6 above and below,
+        // so it is a 44pt target while the card looks as before.
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
         decoration: BoxDecoration(
           border: Border.all(color: CafeDetailsTokens.border),
           borderRadius: BorderRadius.circular(12),
@@ -407,50 +410,63 @@ class _ReviewPreviewCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFDAD7CD),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    name[0].toUpperCase(),
-                    style: textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: CafeDetailsTokens.ink,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: CafeDetailsTokens.ink,
-                        ),
+                  child: ReviewAuthorLink(
+                    userId: review.userId,
+                    name: name,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFDAD7CD),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              name[0].toUpperCase(),
+                              style: textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: CafeDetailsTokens.ink,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: CafeDetailsTokens.ink,
+                                  ),
+                                ),
+                                Text(
+                                  formatDate(review.createdAt),
+                                  style: textTheme.bodySmall?.copyWith(
+                                    fontSize: 10,
+                                    color: CafeDetailsTokens.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        formatDate(review.createdAt),
-                        style: textTheme.bodySmall?.copyWith(
-                          fontSize: 10,
-                          color: CafeDetailsTokens.muted,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
                 ReviewStars(rating: review.rating),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 4),
             Expanded(
               child: Text(
                 review.content,

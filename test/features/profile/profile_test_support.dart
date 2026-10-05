@@ -14,10 +14,13 @@ import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_event.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_state.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show User, UserIdentity;
 
 import '../auth/auth_test_host.dart';
 import '../gallery/gallery_fakes.dart' show FakeGalleryRepository;
+import '../public_profile/public_profile_fakes.dart'
+    show FakePublicProfileRepository;
 import '../auth/fake_auth_bloc.dart';
 import '../lists/lists_fixtures.dart' show FakeRankingRepository, rankingCubit;
 
@@ -226,6 +229,7 @@ Widget profileHost({
   BlockCubit? block,
   CafeRankingCubit? ranking,
   GalleryCubit? gallery,
+  ProfileVisibilityCubit? visibility,
 }) {
   return authTestHost(
     bloc: auth ?? FakeAuthBloc(),
@@ -244,6 +248,11 @@ Widget profileHost({
         ),
         BlocProvider<GalleryCubit>.value(
           value: gallery ?? GalleryCubit(repository: FakeGalleryRepository()),
+        ),
+        BlocProvider<ProfileVisibilityCubit>.value(
+          value:
+              visibility ??
+              ProfileVisibilityCubit(repository: FakePublicProfileRepository()),
         ),
       ],
       child: page,

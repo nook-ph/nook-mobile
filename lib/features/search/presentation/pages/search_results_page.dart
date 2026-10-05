@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/features/public_profile/domain/entities/public_profile.dart';
+import 'package:nook/features/public_profile/presentation/widgets/people_matches.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -172,6 +174,12 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   void _submit([String? value]) {
     final query = value ?? _controller.text;
+    // "@bea" looks for people, not cafes: keep the People matches up.
+    if (peopleQuery(query) != null) {
+      _focus.unfocus();
+      _remember(query);
+      return;
+    }
     setState(() => _submitted = true);
     _focus.unfocus();
     _remember(query);
@@ -313,9 +321,11 @@ class _SearchResultsPageState extends State<SearchResultsPage>
                   state.tags.isEmpty;
               final typing =
                   !idle &&
-                  !_submitted &&
-                  _focus.hasFocus &&
-                  state.query.trim().isNotEmpty;
+                  ((!_submitted &&
+                          _focus.hasFocus &&
+                          state.query.trim().isNotEmpty) ||
+                      // People matches stay up with the keyboard down.
+                      peopleQuery(state.query) != null);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -406,6 +416,14 @@ class _Matches extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final people = peopleQuery(state.query);
+    if (people != null) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: [PeopleMatches(prefix: people, onOpen: onMatchTap)],
+      );
+    }
     final matches = state.visibleCafes
         .take(_SearchResultsPageState._maxMatches)
         .toList();

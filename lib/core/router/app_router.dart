@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_state.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
@@ -199,6 +200,13 @@ GoRouter createAppRouter(AuthBloc authBloc) {
           final id = state.pathParameters['id'] ?? '';
           return CafeDetailsPage(cafeId: id);
         },
+      ),
+
+      /// A person's public profile; the web's `/u/<username>`.
+      GoRoute(
+        path: '/u/:username',
+        builder: (context, state) =>
+            PublicProfilePage(username: state.pathParameters['username']),
       ),
 
       GoRoute(

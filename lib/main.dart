@@ -24,6 +24,7 @@ import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
@@ -106,6 +107,9 @@ class _MyAppState extends State<MyApp> {
         BlocProvider<CafeStatusCubit>(create: (_) => sl<CafeStatusCubit>()),
         BlocProvider<CafeRankingCubit>(create: (_) => sl<CafeRankingCubit>()),
         BlocProvider<GalleryCubit>(create: (_) => sl<GalleryCubit>()),
+        BlocProvider<ProfileVisibilityCubit>(
+          create: (_) => sl<ProfileVisibilityCubit>(),
+        ),
         BlocProvider<FilterCubit>(create: (_) => sl<FilterCubit>()),
         BlocProvider<BlockCubit>(create: (_) => sl<BlockCubit>()),
         BlocProvider<MyCrawlsCubit>(create: (_) => sl<MyCrawlsCubit>()),
