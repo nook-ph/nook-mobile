@@ -366,6 +366,139 @@ void main() {
       expect(c.state.uploads, isEmpty);
     });
   });
+
+  group('merge seam (SF2) and sign-out (SF5)', () {
+    test('an upload that lands during the first load shows without a '
+        'tab switch', () async {
+      final gate = Completer<void>();
+      repo.readGate = gate.future;
+      final loading = cubit.load();
+      expect(cubit.state.status, GalleryStatus.loading);
+      repo.readGate = null;
+      final result = await cubit.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a', takenAt: DateTime(2026, 10, 1))],
+        source: GalleryPhotoSource.gallery,
+      );
+      expect(result, (added: 1, failed: 0));
+      gate.complete();
+      await loading;
+      await pumpEventQueue();
+      expect(cubit.state.status, GalleryStatus.loaded);
+      expect(ids(), contains('new-5'));
+      expect(ids(), hasLength(6));
+    });
+
+    test('an upload after a failed load loads the gallery and keeps the '
+        'photo', () async {
+      repo.readFailure = Exception('offline');
+      await cubit.load();
+      expect(cubit.state.status, GalleryStatus.failed);
+      repo.readFailure = null;
+      await cubit.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a', takenAt: DateTime(2026, 10, 1))],
+        source: GalleryPhotoSource.gallery,
+      );
+      expect(cubit.state.status, GalleryStatus.loaded);
+      expect(ids(), hasLength(6));
+      expect(ids(), contains('new-5'));
+    });
+
+    test(
+      'a photo that lands during a tab-switch refresh is not dropped',
+      () async {
+        await cubit.load();
+        final gate = Completer<void>();
+        repo.readGate = gate.future;
+        // The refresh snapshots before the save ...
+        final refreshing = cubit.load(refresh: true);
+        repo.readGate = null;
+        await cubit.upload(
+          cafeId: 'cafe-9',
+          photos: [pickedPhoto('a', takenAt: DateTime(2026, 10, 1))],
+          source: GalleryPhotoSource.gallery,
+        );
+        expect(ids(), contains('new-5'));
+        // ... and returns after it, without the new row.
+        gate.complete();
+        await refreshing;
+        expect(ids(), contains('new-5'));
+        await pumpEventQueue();
+        expect(ids(), contains('new-5'));
+        expect(ids().where((id) => id == 'new-5'), hasLength(1));
+      },
+    );
+
+    test('a row merged twice is shown once', () async {
+      await cubit.load();
+      final gate = Completer<void>();
+      repo.readGate = gate.future;
+      final refreshing = cubit.load(refresh: true);
+      repo.readGate = null;
+      await cubit.addPhotos(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.rank,
+      );
+      gate.complete();
+      await refreshing;
+      await pumpEventQueue();
+      expect(ids().toSet().length, ids().length);
+    });
+
+    test(
+      'a load still in flight at sign-out never shows the old gallery',
+      () async {
+        final gate = Completer<void>();
+        repo.readGate = gate.future;
+        final loading = cubit.load();
+        cubit.clear();
+        gate.complete();
+        await loading;
+        expect(cubit.state.status, GalleryStatus.initial);
+        expect(cubit.state.photos, isEmpty);
+      },
+    );
+
+    test('a save that lands after sign-out is dropped', () async {
+      final gated = _GatedRepository();
+      final c = GalleryCubit(repository: gated);
+      addTearDown(c.close);
+      final saving = c.addPhotos(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.rank,
+      );
+      c.clear();
+      gated.gate.complete();
+      await saving;
+      await pumpEventQueue();
+      expect(c.state.status, GalleryStatus.initial);
+      expect(c.state.photos, isEmpty);
+    });
+
+    test('a successful Retry is logged as added', () async {
+      final analytics = RecordingAnalytics.install(addTearDown);
+      await cubit.load();
+      repo.writeFailure = Exception('offline');
+      await cubit.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.gallery,
+      );
+      expect(analytics.names, isNot(contains('gallery_photos_added')));
+      repo.writeFailure = null;
+      await cubit.retryUpload(cubit.state.uploads.single.id);
+      expect(analytics.propertiesOf('gallery_photos_added'), {
+        'count': 1,
+        'source': 'gallery',
+        'has_drink': false,
+        'has_note': false,
+        'retry': true,
+      });
+    });
+  });
 }
 
 /// Holds every add until [gate] completes.

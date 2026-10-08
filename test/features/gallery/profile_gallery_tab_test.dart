@@ -71,6 +71,43 @@ void main() {
   Finder tile(String drink) =>
       find.bySemanticsLabel(RegExp('^${RegExp.escape(drink)}, at '));
 
+  testWidgets('a failed upload shows its tile even when the gallery failed '
+      'to load', (tester) async {
+    usePhone(tester);
+    repo = FakeGalleryRepository()..readFailure = Exception('offline');
+    cubit = GalleryCubit(repository: repo);
+    await cubit.load();
+    expect(cubit.state.status, GalleryStatus.failed);
+    repo.writeFailure = Exception('offline');
+    await cubit.upload(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a')],
+      source: GalleryPhotoSource.gallery,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TAppTheme.lightTheme,
+        home: BlocProvider.value(
+          value: cubit,
+          child: Scaffold(
+            body: ProfileGalleryTab(
+              onAdd: () {},
+              onOpen: (_) {},
+              onOptions: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Didn’t upload'), findsOneWidget);
+    expect(find.bySemanticsLabel('Retry upload'), findsOneWidget);
+    expect(
+      find.text('Could not load the rest of your gallery.'),
+      findsOneWidget,
+    );
+  });
+
   group('grid', () {
     testWidgets('hidden photos stay in the grid, marked as hidden', (
       tester,

@@ -33,7 +33,12 @@ class ProfileGalleryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<GalleryCubit, GalleryState>(
       builder: (context, state) {
-        switch (state.status) {
+        // Photos on their way in show even when the gallery itself isn't
+        // loaded (still loading, or failed): a failed one says "Tap Retry
+        // on it", so its tile has to be there.
+        final uploadsOnly =
+            state.status != GalleryStatus.loaded && state.uploads.isNotEmpty;
+        switch (uploadsOnly ? GalleryStatus.loaded : state.status) {
           case GalleryStatus.initial || GalleryStatus.loading:
             return const _GridSkeleton();
           case GalleryStatus.failed:
@@ -59,6 +64,12 @@ class ProfileGalleryTab extends StatelessWidget {
             ];
             return CustomScrollView(
               slivers: [
+                if (uploadsOnly && state.status == GalleryStatus.failed)
+                  SliverToBoxAdapter(
+                    child: _LoadFailedBar(
+                      onRetry: () => context.read<GalleryCubit>().load(),
+                    ),
+                  ),
                 SliverPadding(
                   padding: const EdgeInsets.only(top: _gap, bottom: 24),
                   sliver: SliverGrid.builder(
@@ -88,6 +99,31 @@ class ProfileGalleryTab extends StatelessWidget {
             );
         }
       },
+    );
+  }
+}
+
+/// Above the uploads when the rest of the gallery failed to load.
+class _LoadFailedBar extends StatelessWidget {
+  const _LoadFailedBar({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Could not load the rest of your gallery.',
+              style: TextStyle(fontSize: 13, color: ProfileTokens.muted),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
     );
   }
 }

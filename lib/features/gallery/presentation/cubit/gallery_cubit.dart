@@ -132,30 +132,107 @@ class GalleryCubit extends Cubit<GalleryState> {
   /// it, so load again when it finishes.
   bool _reloadAfterLoad = false;
 
+  /// True from the start of a read to its end, including a refresh (which
+  /// keeps the status `loaded`, so the status alone can't tell).
+  bool _loadInFlight = false;
+
+  /// Rows saved while a read was in flight. The read may predate them, so
+  /// they are merged into its result instead of vanishing until the next
+  /// refresh.
+  final List<GalleryPhoto> _landedDuringLoad = [];
+
+  /// Bumped by [clear]. Anything that awaited across a sign-out (or an
+  /// account switch) sees a new epoch and drops its result, so one user's
+  /// gallery never lands in the next user's state.
+  int _epoch = 0;
+
   /// Loads the gallery. [refresh] keeps what is shown while it reloads.
   Future<void> load({bool refresh = false}) async {
-    if (state.status == GalleryStatus.loading) return;
+    if (_loadInFlight) return;
+    _loadInFlight = true;
+    final epoch = _epoch;
     if (!refresh || state.status != GalleryStatus.loaded) {
       emit(state.copyWith(status: GalleryStatus.loading));
     }
     _reloadAfterLoad = false;
+    _landedDuringLoad.clear();
     try {
       final photos = await _repository.getMyPhotos();
-      if (isClosed) return;
-      // Uploads in flight stay: they are not rows yet.
-      emit(state.copyWith(status: GalleryStatus.loaded, photos: photos));
+      if (isClosed || epoch != _epoch) return;
+      // Uploads in flight stay: they are not rows yet. Rows saved during
+      // the read are kept even if the read predates them.
+      emit(
+        state.copyWith(
+          status: GalleryStatus.loaded,
+          photos: _dedupe([...photos, ..._landedDuringLoad]),
+        ),
+      );
     } catch (_) {
-      if (isClosed) return;
+      if (isClosed || epoch != _epoch) return;
       // A failed refresh keeps the photos already on screen.
       if (refresh && state.photos.isNotEmpty) {
         emit(state.copyWith(status: GalleryStatus.loaded));
+      } else if (_landedDuringLoad.isNotEmpty) {
+        // The read failed, but rows were saved meanwhile: show those
+        // rather than an error over a photo that did land.
+        emit(
+          state.copyWith(
+            status: GalleryStatus.loaded,
+            photos: _dedupe([...state.photos, ..._landedDuringLoad]),
+          ),
+        );
       } else {
         emit(state.copyWith(status: GalleryStatus.failed));
       }
+    } finally {
+      if (epoch == _epoch) {
+        _loadInFlight = false;
+        _landedDuringLoad.clear();
+      }
     }
-    if (_reloadAfterLoad && !isClosed) {
+    if (_reloadAfterLoad && !isClosed && epoch == _epoch) {
       _reloadAfterLoad = false;
       await load(refresh: true);
+    }
+  }
+
+  /// One entry per id; a later entry wins (fresher data).
+  static List<GalleryPhoto> _dedupe(Iterable<GalleryPhoto> photos) =>
+      {for (final p in photos) p.id: p}.values.toList();
+
+  /// Puts freshly saved [rows] into the gallery, whatever state it is in
+  /// (the S8 rules, shared by every save path):
+  /// - loaded, nothing in flight: merge now;
+  /// - a read in flight (first load or refresh): merge now if loaded, keep
+  ///   them for the read's result, and read again afterwards;
+  /// - never loaded / failed: load all of it, with these rows kept.
+  ///
+  /// Completes when the rows are on screen (after that load, if one runs).
+  Future<void> _landed(List<GalleryPhoto> rows) async {
+    if (rows.isEmpty) return;
+    if (_loadInFlight) {
+      _landedDuringLoad.addAll(rows);
+      _reloadAfterLoad = true;
+      if (state.status == GalleryStatus.loaded) {
+        emit(state.copyWith(photos: _dedupe([...state.photos, ...rows])));
+      }
+      return;
+    }
+    switch (state.status) {
+      case GalleryStatus.loaded:
+        emit(state.copyWith(photos: _dedupe([...state.photos, ...rows])));
+      case GalleryStatus.loading:
+        // Not reachable without a read in flight; handled above.
+        _landedDuringLoad.addAll(rows);
+      case GalleryStatus.initial:
+      case GalleryStatus.failed:
+        // Never loaded (e.g. a photo added on the ranking reveal before the
+        // Profile tab opened): showing only [rows] would hide the rest of
+        // the gallery, so load all of it. [load] clears the landed list at
+        // its start, so add them after it has begun.
+        final loading = load();
+        _landedDuringLoad.addAll(rows);
+        await loading;
     }
   }
 
@@ -168,6 +245,7 @@ class GalleryCubit extends Cubit<GalleryState> {
     String? drinkName,
     String? caption,
   }) async {
+    final epoch = _epoch;
     final added = await _repository.addPhotos(
       cafeId: cafeId,
       photos: photos,
@@ -184,20 +262,10 @@ class GalleryCubit extends Cubit<GalleryState> {
         'has_note': (caption?.trim() ?? '').isNotEmpty,
       },
     );
-    if (isClosed) return added;
-    switch (state.status) {
-      case GalleryStatus.loaded:
-        emit(state.copyWith(photos: [...state.photos, ...added]));
-      case GalleryStatus.loading:
-        // The read in flight may have started before this save.
-        _reloadAfterLoad = true;
-      case GalleryStatus.initial:
-      case GalleryStatus.failed:
-        // Never loaded (e.g. a photo added on the ranking reveal before the
-        // Profile tab opened): showing only [added] would hide the rest of
-        // the gallery, so load all of it.
-        unawaited(load());
-    }
+    // Signed out meanwhile: the rows are saved; this gallery is not theirs.
+    if (isClosed || epoch != _epoch) return added;
+    // The sheet that asked closes now; a needed load finishes on its own.
+    unawaited(_landed(added));
     return added;
   }
 
@@ -249,7 +317,20 @@ class GalleryCubit extends Cubit<GalleryState> {
     if (upload == null || !upload.failed) return false;
     final again = upload.copyWith(failed: false);
     _replaceUpload(again);
-    return _send(again);
+    final ok = await _send(again);
+    if (ok) {
+      logAppEvent(
+        ProfileEvents.galleryPhotosAdded,
+        properties: {
+          'count': 1,
+          'source': upload.source.wire,
+          'has_drink': (upload.drinkName?.trim() ?? '').isNotEmpty,
+          'has_note': (upload.caption?.trim() ?? '').isNotEmpty,
+          'retry': true,
+        },
+      );
+    }
+    return ok;
   }
 
   /// Drops a failed upload from the grid.
@@ -267,6 +348,7 @@ class GalleryCubit extends Cubit<GalleryState> {
   }
 
   Future<bool> _send(GalleryUpload upload) async {
+    final epoch = _epoch;
     try {
       final rows = await _repository.addPhotos(
         cafeId: upload.cafeId,
@@ -276,22 +358,25 @@ class GalleryCubit extends Cubit<GalleryState> {
         caption: upload.caption,
       );
       // Signed out meanwhile: the row is saved; this gallery is not theirs.
-      if (isClosed || !state.uploads.any((u) => u.id == upload.id)) {
+      if (isClosed ||
+          epoch != _epoch ||
+          !state.uploads.any((u) => u.id == upload.id)) {
         return true;
       }
-      final rest = [
-        for (final u in state.uploads)
-          if (u.id != upload.id) u,
-      ];
-      if (state.status == GalleryStatus.loaded) {
-        emit(state.copyWith(photos: [...state.photos, ...rows], uploads: rest));
-      } else {
-        emit(state.copyWith(uploads: rest));
-        await load();
-      }
+      emit(
+        state.copyWith(
+          uploads: [
+            for (final u in state.uploads)
+              if (u.id != upload.id) u,
+          ],
+        ),
+      );
+      await _landed(rows);
       return true;
     } catch (_) {
-      if (!isClosed && state.uploads.any((u) => u.id == upload.id)) {
+      if (!isClosed &&
+          epoch == _epoch &&
+          state.uploads.any((u) => u.id == upload.id)) {
         _replaceUpload(upload.copyWith(failed: true));
       }
       return false;
@@ -392,8 +477,15 @@ class GalleryCubit extends Cubit<GalleryState> {
     }
   }
 
-  /// Signed out: forget the photos.
-  void clear() => emit(const GalleryState());
+  /// Signed out: forget the photos, and drop any read or save still in
+  /// flight for the previous account.
+  void clear() {
+    _epoch++;
+    _loadInFlight = false;
+    _reloadAfterLoad = false;
+    _landedDuringLoad.clear();
+    emit(const GalleryState());
+  }
 
   Future<bool> _apply(GalleryPhoto next, Future<void> Function() write) async {
     final before = state.photos;
