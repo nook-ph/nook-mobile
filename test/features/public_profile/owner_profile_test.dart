@@ -53,7 +53,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: find.byType(ProfileTabs),
-          matching: find.text('Ranked'),
+          matching: find.byTooltip('Ranked'),
         ),
       );
       await tester.pumpAndSettle();
@@ -63,10 +63,11 @@ void main() {
       tester,
     ) async {
       await pump(tester);
-      // Stat label and tab: two "Ranked"s, and the tab carries the lock.
-      expect(find.text('Ranked'), findsNWidgets(2));
+      // The tab is a trophy with a lock; its word is for screen readers.
+      expect(find.text('Ranked'), findsOneWidget); // the stat
+      expect(find.bySemanticsLabel('Ranked, only you can see it'), findsOne);
       expect(find.byIcon(LucideIcons.lock), findsWidgets);
-      expect(find.text('Lists'), findsOneWidget);
+      expect(find.byTooltip('Lists'), findsOneWidget);
       expect(
         find.text(
           "Only you see your ranking. Visitors see how many cafes you've "

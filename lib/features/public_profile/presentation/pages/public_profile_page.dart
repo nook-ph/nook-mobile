@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart'
     show WrittenReview;
@@ -521,8 +522,11 @@ class _Loaded extends StatelessWidget {
                   child: ProfileTabs(
                     controller: DefaultTabController.of(context),
                     tabs: const [
-                      ProfileTabData('Gallery'),
-                      ProfileTabData('Reviews'),
+                      ProfileTabData('Gallery', icon: PhosphorIcons.gridFour),
+                      ProfileTabData(
+                        'Reviews',
+                        icon: PhosphorIcons.chatCircleText,
+                      ),
                     ],
                   ),
                 ),

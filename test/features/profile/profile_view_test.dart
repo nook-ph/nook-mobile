@@ -19,9 +19,12 @@ void main() {
     cafeList('3', 'Want to Try', places: 1),
   ];
 
-  /// A tab's label, not the stat of the same name above it.
-  Finder tabLabel(String label) =>
-      find.descendant(of: find.byType(ProfileTabs), matching: find.text(label));
+  /// A tab (drawn as an icon; its word is the tooltip), not the stat of the
+  /// same name above it.
+  Finder tabLabel(String label) => find.descendant(
+    of: find.byType(ProfileTabs),
+    matching: find.byTooltip(label),
+  );
 
   Future<void> pump(
     WidgetTester tester, {

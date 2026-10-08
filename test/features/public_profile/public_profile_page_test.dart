@@ -77,16 +77,17 @@ void main() {
     // The Top 3 strip no longer exists, though the server still sends one.
     expect(find.text('Top cafes'), findsNothing);
     expect(find.bySemanticsLabel(RegExp(r'^Number \d')), findsNothing);
-    expect(find.text('Gallery'), findsOneWidget);
-    // "Reviews" is the stat label and the tab.
-    expect(find.text('Reviews'), findsNWidgets(2));
+    // Icon tabs, named for screen readers.
+    expect(find.bySemanticsLabel('Gallery'), findsOneWidget);
+    expect(find.bySemanticsLabel('Reviews'), findsOneWidget);
+    expect(find.text('Reviews'), findsOneWidget); // the stat
     // No count badges on the tabs, and no gallery counts line.
     expect(find.text('2 cups · 2 cafes'), findsNothing);
 
     // Nothing private: no Ranked tab (the stat label is the only "Ranked"),
     // no Lists tab, no Edit, no score.
     expect(find.text('Ranked'), findsOneWidget);
-    expect(find.text('Lists'), findsNothing);
+    expect(find.byTooltip('Lists'), findsNothing);
     expect(find.text('Edit profile'), findsNothing);
     expect(find.textContaining(RegExp(r'\d+\.\d')), findsNothing);
     expect(find.textContaining('out of 10'), findsNothing);
@@ -111,7 +112,7 @@ void main() {
       repository: FakePublicProfileRepository(profile: beaProfile(top: 0)),
     );
     expect(find.text('Top cafes'), findsNothing);
-    expect(find.text('Gallery'), findsOneWidget);
+    expect(find.bySemanticsLabel('Gallery'), findsOneWidget);
   });
 
   testWidgets('switch off: no gallery, a private note, reviews still shown', (
@@ -124,7 +125,7 @@ void main() {
       ),
     );
     expect(find.text('Top cafes'), findsNothing);
-    expect(find.text('Gallery'), findsNothing);
+    expect(find.bySemanticsLabel('Gallery'), findsNothing);
     expect(
       find.text('Their gallery is private. Their reviews are public.'),
       findsOneWidget,
@@ -228,7 +229,7 @@ void main() {
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
     // The tab, not the stat above it.
-    await tester.tap(find.text('Reviews').last);
+    await tester.tap(find.byTooltip('Reviews'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Tadaima').last);
     await tester.pumpAndSettle();
@@ -326,7 +327,7 @@ void main() {
       tester,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    await tester.tap(find.text('Reviews').last);
+    await tester.tap(find.byTooltip('Reviews'));
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('Review options'), findsWidgets);
     await tester.tap(find.bySemanticsLabel('Review options').first);
@@ -340,7 +341,7 @@ void main() {
       signedIn: false,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    await tester.tap(find.text('Reviews').last);
+    await tester.tap(find.byTooltip('Reviews'));
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('Review options'), findsNothing);
   });

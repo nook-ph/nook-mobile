@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -440,10 +441,23 @@ class _ProfileViewState extends State<ProfileView> {
                             // Gallery first, as the profile's public face;
                             // counts are in the header's stat row.
                             tabs: const [
-                              ProfileTabData('Gallery'),
-                              ProfileTabData('Ranked', private: true),
-                              ProfileTabData('Reviews'),
-                              ProfileTabData('Lists'),
+                              ProfileTabData(
+                                'Gallery',
+                                icon: PhosphorIcons.gridFour,
+                              ),
+                              ProfileTabData(
+                                'Ranked',
+                                private: true,
+                                icon: PhosphorIcons.trophy,
+                              ),
+                              ProfileTabData(
+                                'Reviews',
+                                icon: PhosphorIcons.chatCircleText,
+                              ),
+                              ProfileTabData(
+                                'Lists',
+                                icon: PhosphorIcons.bookmarksSimple,
+                              ),
                             ],
                           ),
                         ),
