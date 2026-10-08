@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:nook/core/upload/domain/entities/uploaded_file.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// The edge function that deletes a gallery photo's file from Spaces.
+const deleteGalleryObjectFunction = 'delete-gallery-object';
 
 /// Uploads one gallery photo's file for [cafeId] and returns where it landed.
 typedef GalleryFileUploader =
@@ -60,10 +65,7 @@ class GalleryRepositoryImpl implements IGalleryRepository {
     final userId = _userId;
     final drink = _cleanDrink(drinkName);
     final note = _cleanCaption(caption);
-    // Side by side, as review photos are; a batch waits for its slowest.
-    final uploaded = await Future.wait([
-      for (final photo in photos) _upload(file: photo.file, cafeId: cafeId),
-    ]);
+    final uploaded = await _uploadAll(photos, cafeId);
     final now = DateTime.now().toUtc();
     try {
       final rows = await _client
@@ -85,8 +87,51 @@ class GalleryRepositoryImpl implements IGalleryRepository {
           .select(_columns);
       return [for (final row in rows) galleryPhotoFromRow(row)];
     } on PostgrestException catch (e) {
+      // "Try again" uploads the files again, so these would be orphans.
+      _deleteFiles([for (final file in uploaded) file.objectKey]);
       throw GalleryException('Could not save the photos.', cause: e);
     }
+  }
+
+  /// Uploads side by side, as review photos are; a batch waits for its
+  /// slowest. If any upload fails, the ones that made it are deleted again
+  /// before the error is passed on.
+  Future<List<UploadedFile>> _uploadAll(
+    List<PickedGalleryPhoto> photos,
+    String cafeId,
+  ) async {
+    final results = await Future.wait([
+      for (final photo in photos)
+        _upload(file: photo.file, cafeId: cafeId).then<Object>(
+          (file) => file,
+          onError: (Object e, StackTrace st) => AsyncError(e, st),
+        ),
+    ]);
+    final failure = results.whereType<AsyncError>().firstOrNull;
+    final uploaded = results.whereType<UploadedFile>().toList();
+    if (failure != null) {
+      _deleteFiles([for (final file in uploaded) file.objectKey]);
+      Error.throwWithStackTrace(failure.error, failure.stackTrace);
+    }
+    return uploaded;
+  }
+
+  /// Asks `delete-gallery-object` to remove files no row points at any more
+  /// (nook-supabase `supabase/functions/delete-gallery-object`). Best-effort
+  /// and not awaited: the row change already happened, and a file left
+  /// behind is only an orphan.
+  void _deleteFiles(List<String?> objectKeys) {
+    final keys = objectKeys.whereType<String>().toSet().toList();
+    if (keys.isEmpty) return;
+    unawaited(
+      _client.functions
+          .invoke(deleteGalleryObjectFunction, body: {'objectKeys': keys})
+          .then<void>(
+            (_) {},
+            onError: (Object e) =>
+                debugPrint('[Gallery] files not deleted ($keys): $e'),
+          ),
+    );
   }
 
   @override
@@ -111,7 +156,13 @@ class GalleryRepositoryImpl implements IGalleryRepository {
   @override
   Future<void> deletePhoto(String photoId) async {
     try {
-      await _client.from('user_photos').delete().eq('id', photoId);
+      final rows = await _client
+          .from('user_photos')
+          .delete()
+          .eq('id', photoId)
+          .select('object_key');
+      // Then the file itself, so it stops being public.
+      _deleteFiles([for (final row in rows) row['object_key'] as String?]);
     } on PostgrestException catch (e) {
       throw GalleryException('Could not delete the photo.', cause: e);
     }
