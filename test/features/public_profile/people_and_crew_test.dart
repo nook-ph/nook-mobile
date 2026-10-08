@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -47,6 +49,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(PublicProfilePage), findsOneWidget);
     expect(repo.asked.single.username, 'beasantos');
+  });
+
+  testWidgets('a server refusal is neutral; only offline blames the '
+      'connection', (tester) async {
+    repo.failure = const PublicProfileException(
+      'Could not search people.',
+      cause: PostgrestException(message: 'function search_people not found'),
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: PeopleMatches(prefix: 'bea')),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('People search isn’t available right now.'), findsOne);
+    expect(find.textContaining('connection'), findsNothing);
+
+    repo.failure = const SocketException('offline');
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: PeopleMatches(prefix: 'bean')),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('You’re offline. Check your connection.'), findsOne);
   });
 
   test('a plain word that could be a username also looks for people', () {

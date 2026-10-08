@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
@@ -69,6 +71,9 @@ class _PeopleMatchesState extends State<PeopleMatches> {
     super.dispose();
   }
 
+  /// Whether the last failure was the connection, not the server.
+  bool _offline = false;
+
   void _schedule() {
     _timer?.cancel();
     _timer = Timer(_debounce, _search);
@@ -87,9 +92,12 @@ class _PeopleMatchesState extends State<PeopleMatches> {
         _people = people;
         _failed = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted || generation != _generation) return;
-      setState(() => _failed = true);
+      setState(() {
+        _failed = true;
+        _offline = AppErrorCopy.fromException(e).type == ErrorType.offline;
+      });
     }
   }
 
@@ -117,7 +125,13 @@ class _PeopleMatchesState extends State<PeopleMatches> {
           ),
         ),
         if (_failed)
-          _Line('Could not search people. Check your connection.')
+          // Only a dropped connection blames the connection. A server
+          // refusal (e.g. search_people not deployed yet) is neutral.
+          _Line(
+            _offline
+                ? 'You’re offline. Check your connection.'
+                : 'People search isn’t available right now.',
+          )
         else if (people == null)
           const _Line('Looking…')
         else if (people.isEmpty)
