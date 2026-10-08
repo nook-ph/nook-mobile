@@ -201,8 +201,17 @@ class _PublicProfileView extends StatelessWidget {
           'its ⋯. They won’t know who reported them.',
       reasons: ProfileReportReason.values,
       labelOf: (reason) => reason.label,
-      send: (reason, details) =>
-          repository.reportProfile(profile.userId, reason, details: details),
+      send: (reason, details) async {
+        await repository.reportProfile(
+          profile.userId,
+          reason,
+          details: details,
+        );
+        logAppEvent(
+          ProfileEvents.profileReported,
+          properties: {'reason': reason.wire},
+        );
+      },
     );
   }
 

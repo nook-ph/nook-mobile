@@ -356,6 +356,9 @@ void main() {
       ('bea-id', ProfileReportReason.impersonation, null),
     ]);
     expect(find.text(ReviewReportSheet.sentMessage), findsOneWidget);
+    expect(analytics.propertiesOf('profile_reported'), {
+      'reason': ProfileReportReason.impersonation.wire,
+    });
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
   });

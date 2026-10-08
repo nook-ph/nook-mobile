@@ -18,7 +18,11 @@ abstract final class ProfileEvents {
   /// A visitor reported a photo. Properties: `reason`.
   static const photoReported = 'photo_reported';
 
-  /// A user blocked someone. Properties: `from` (`profile`).
+  /// A visitor reported a person (their name, photo or bio). Properties:
+  /// `reason`.
+  static const profileReported = 'profile_reported';
+
+  /// A user blocked someone. Properties: `from` (`profile` or `review`).
   static const userBlocked = 'user_blocked';
 
   /// The owner turned their gallery on or off for visitors. Properties:

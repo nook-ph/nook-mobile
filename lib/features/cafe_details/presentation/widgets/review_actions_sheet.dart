@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/cafe/domain/entities/report_reason.dart';
 import 'package:nook/core/cafe/domain/use_cases/report_review_usecase.dart';
@@ -143,6 +145,7 @@ Future<void> _confirmAndBlock(
     }
 
     await blockCubit.block(authorId);
+    logAppEvent(ProfileEvents.userBlocked, properties: {'from': 'review'});
     if (!context.mounted) return;
     final name = authorName?.trim() ?? '';
     showPrimaryToast(
