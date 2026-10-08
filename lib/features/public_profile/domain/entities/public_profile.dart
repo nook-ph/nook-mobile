@@ -2,31 +2,6 @@ import 'package:equatable/equatable.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 
-/// One of the person's top three cafes, as anyone may see it: the cafe and
-/// its place in the strip. There is deliberately no score or bucket here;
-/// the server never sends them (nook-supabase docs/PUBLIC_PROFILE.md).
-class PublicTopCafe extends Equatable {
-  const PublicTopCafe({
-    required this.rank,
-    required this.cafeId,
-    required this.name,
-    this.area,
-    this.imageUrl,
-  });
-
-  /// 1, 2 or 3.
-  final int rank;
-  final String cafeId;
-  final String name;
-
-  /// "Lahug, Cebu City".
-  final String? area;
-  final String? imageUrl;
-
-  @override
-  List<Object?> get props => [rank, cafeId, name, area, imageUrl];
-}
-
 /// A profile as someone other than its owner sees it, from
 /// `get_public_profile`. Also what the owner's "View as visitor" shows.
 class PublicProfile extends Equatable {
@@ -41,7 +16,6 @@ class PublicProfile extends Equatable {
     this.isSelf = false,
     this.rankedCount,
     this.cupCount,
-    this.topCafes = const [],
     this.photos = const [],
     this.reviews = const [],
   });
@@ -52,8 +26,8 @@ class PublicProfile extends Equatable {
   final String? avatarUrl;
   final String? bio;
 
-  /// The owner's "Show my top cafes and gallery on my profile". Off: no Top
-  /// 3, no gallery, and no ranked or cups count.
+  /// The owner's "Show my gallery on my profile". Off: no gallery, and no
+  /// ranked or cups count.
   final bool highlightsPublic;
 
   /// The viewer is this person.
@@ -67,8 +41,6 @@ class PublicProfile extends Equatable {
   /// Visible gallery photos. Null when [highlightsPublic] is off.
   final int? cupCount;
 
-  /// At most three, in rank order.
-  final List<PublicTopCafe> topCafes;
   final List<GalleryPhoto> photos;
   final List<WrittenReview> reviews;
 
@@ -90,7 +62,6 @@ class PublicProfile extends Equatable {
     reviewCount,
     rankedCount,
     cupCount,
-    topCafes,
     photos,
     reviews.map((r) => r.id).toList(),
   ];

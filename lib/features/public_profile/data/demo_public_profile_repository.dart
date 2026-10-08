@@ -19,9 +19,9 @@ bool get publicProfileDemoEnabled =>
 /// Which profile comes back depends on who is asked for, so every state can
 /// be reached from the app:
 /// - `@nobody`: not found.
-/// - `@private`, or a user id that hashes to it: Top 3 and gallery off.
+/// - `@private`, or a user id that hashes to it: gallery off.
 /// - `@onecafe`, or a user id that hashes to it: one ranked cafe.
-/// - anyone else: three top cafes, a gallery and reviews.
+/// - anyone else: a gallery and reviews.
 /// - yourself (the "View as visitor" preview): follows the demo switch.
 class DemoPublicProfileRepository implements IPublicProfileRepository {
   DemoPublicProfileRepository({
@@ -71,19 +71,6 @@ class DemoPublicProfileRepository implements IPublicProfileRepository {
     final public = variant != 2;
 
     final cafes = await _cafes();
-    final top = [
-      for (var i = 0; i < cafes.length && i < (variant == 1 ? 1 : 3); i++)
-        PublicTopCafe(
-          rank: i + 1,
-          cafeId: cafes[i].id,
-          name: cafes[i].name,
-          area: [
-            cafes[i].neighborhood,
-            cafes[i].city,
-          ].whereType<String>().join(', '),
-          imageUrl: cafes[i].coverImage,
-        ),
-    ];
     final now = DateTime.now();
     final photos = <GalleryPhoto>[];
     for (var i = 0; i < cafes.length && photos.length < 9; i++) {
@@ -139,7 +126,6 @@ class DemoPublicProfileRepository implements IPublicProfileRepository {
       reviewCount: reviews.length,
       rankedCount: public ? (variant == 1 ? 1 : 18) : null,
       cupCount: public ? photos.length : null,
-      topCafes: public ? top : const [],
       photos: public ? photos : const [],
       reviews: reviews,
     );

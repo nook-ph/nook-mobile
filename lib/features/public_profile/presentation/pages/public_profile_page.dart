@@ -33,8 +33,7 @@ typedef ShareProfile =
 
 /// Someone's profile as anyone else sees it: avatar, name, counts and bio,
 /// then Gallery and Reviews. Never their ranking, their lists or any score
-/// (nook-supabase docs/PUBLIC_PROFILE.md). The server still sends a Top 3;
-/// profile v2 leaves it off so the photos start on the first screen.
+/// (nook-supabase docs/PUBLIC_PROFILE.md).
 ///
 /// With [preview] it is the owner's own "View as visitor": the same screen,
 /// titled Preview, reached from their Ranked tab.

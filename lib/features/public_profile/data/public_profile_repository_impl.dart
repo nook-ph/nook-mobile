@@ -128,25 +128,6 @@ PublicProfile publicProfileFromJson(Map<String, dynamic> json) {
         ]
       : const [];
 
-  String? area(Object? neighborhood, Object? city) {
-    final parts = [
-      for (final p in [neighborhood, city])
-        if (p is String && p.trim().isNotEmpty) p.trim(),
-    ];
-    return parts.isEmpty ? null : parts.join(', ');
-  }
-
-  final top = [
-    for (final row in rows(json['top_cafes']))
-      PublicTopCafe(
-        rank: (row['rank'] as num).toInt(),
-        cafeId: row['cafe_id'] as String,
-        name: row['name'] as String? ?? 'Cafe',
-        area: area(row['neighborhood'], row['city']),
-        imageUrl: row['image_url'] as String?,
-      ),
-  ]..sort((a, b) => a.rank.compareTo(b.rank));
-
   final photos = [
     for (final row in rows(json['photos']))
       GalleryPhoto(
@@ -201,8 +182,6 @@ PublicProfile publicProfileFromJson(Map<String, dynamic> json) {
     reviewCount: (counts['reviews'] as num?)?.toInt() ?? reviews.length,
     rankedCount: highlights ? (counts['ranked'] as num?)?.toInt() : null,
     cupCount: highlights ? (counts['cups'] as num?)?.toInt() : null,
-    // Belt and braces: never show more than three, nor any when private.
-    topCafes: highlights ? top.take(3).toList() : const [],
     photos: highlights ? photos : const [],
     reviews: reviews,
   );

@@ -71,7 +71,7 @@ void main() {
     expect(find.bySemanticsLabel('2 Cups'), findsOneWidget);
     expect(find.text('18 cafes ranked · 2 reviews · 2 cups'), findsNothing);
     expect(find.text('Flat whites and window seats.'), findsOneWidget);
-    // The Top 3 strip no longer exists, though the server still sends one.
+    // There is no Top 3 strip: the ranking is private.
     expect(find.text('Top cafes'), findsNothing);
     expect(find.bySemanticsLabel(RegExp(r'^Number \d')), findsNothing);
     expect(find.text('Gallery'), findsOneWidget);
@@ -102,10 +102,10 @@ void main() {
     expect(find.bySemanticsLabel('2 Reviews'), findsOneWidget);
   });
 
-  testWidgets('nothing ranked: still no Top 3, Gallery stays', (tester) async {
+  testWidgets('nothing ranked: no Top 3, Gallery stays', (tester) async {
     await pump(
       tester,
-      repository: FakePublicProfileRepository(profile: beaProfile(top: 0)),
+      repository: FakePublicProfileRepository(profile: beaProfile(ranked: 0)),
     );
     expect(find.text('Top cafes'), findsNothing);
     expect(find.text('Gallery'), findsOneWidget);

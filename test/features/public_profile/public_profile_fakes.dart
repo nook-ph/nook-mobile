@@ -60,13 +60,6 @@ class FakePublicProfileRepository implements IPublicProfileRepository {
   }
 }
 
-PublicTopCafe topCafe(int rank, String name) => PublicTopCafe(
-  rank: rank,
-  cafeId: 'cafe-$rank',
-  name: name,
-  area: 'Lahug, Cebu City',
-);
-
 WrittenReview publicReview(String id, String cafe) => WrittenReview(
   id: id,
   cafeId: 'cafe-$id',
@@ -77,14 +70,13 @@ WrittenReview publicReview(String id, String cafe) => WrittenReview(
   updatedAt: DateTime(2026, 9, 1),
 );
 
-/// Bea's profile as a visitor gets it, with [top] ranked cafes shown.
+/// Bea's profile as a visitor gets it, with [ranked] cafes ranked.
 PublicProfile beaProfile({
-  int top = 3,
+  int ranked = 18,
   bool highlightsPublic = true,
   bool isSelf = false,
   String? bio = 'Flat whites and window seats.',
 }) {
-  const names = ['Kamp Craft Coffee', 'Tadaima', 'Pulso'];
   return PublicProfile(
     userId: 'bea-id',
     username: 'beasantos',
@@ -93,11 +85,8 @@ PublicProfile beaProfile({
     highlightsPublic: highlightsPublic,
     isSelf: isSelf,
     reviewCount: 2,
-    rankedCount: highlightsPublic ? 18 : null,
+    rankedCount: highlightsPublic ? ranked : null,
     cupCount: highlightsPublic ? 2 : null,
-    topCafes: highlightsPublic
-        ? [for (var i = 0; i < top; i++) topCafe(i + 1, names[i])]
-        : const [],
     photos: highlightsPublic
         ? [galleryPhoto('p1'), galleryPhoto('p2', cafeId: 'cafe-2')]
         : const [],

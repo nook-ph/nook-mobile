@@ -12,7 +12,7 @@ class ProfileVisibilityState extends Equatable {
 
   final ProfileVisibilityStatus status;
 
-  /// "Show my top cafes and gallery on my profile". On until read: it is
+  /// "Show my gallery on my profile". On until read: it is
   /// the server default.
   final bool highlightsPublic;
 

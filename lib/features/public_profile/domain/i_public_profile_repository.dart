@@ -14,7 +14,7 @@ abstract interface class IPublicProfileRepository {
   /// shortest first. Suspended and not-yet-active accounts are left out.
   Future<List<PersonMatch>> searchPeople(String prefix, {int limit = 5});
 
-  /// Whether the signed-in person shows their top cafes and gallery.
+  /// Whether the signed-in person shows their gallery.
   Future<bool> getMyHighlightsPublic();
 
   Future<void> setMyHighlightsPublic(bool value);
