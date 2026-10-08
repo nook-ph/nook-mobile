@@ -122,6 +122,22 @@ void main() {
     },
   );
 
+  test('Try again asks the map again for the same query (UX S3)', () async {
+    final repo = FakePlaceSearchRepository(fail: true);
+    final c = cubit(repo);
+    await Future<void>.delayed(Duration.zero);
+    c.queryChanged('it park');
+    await settle();
+    expect(c.state.status, PlaceSearchStatus.unavailable);
+    repo.fail = false;
+    c.retry();
+    expect(c.state.status, PlaceSearchStatus.loading);
+    await settle();
+    expect(c.state.status, PlaceSearchStatus.done);
+    expect(repo.queries, ['it park', 'it park']);
+    await c.close();
+  });
+
   test('when the map is unavailable, Nook areas still show', () async {
     final repo = FakePlaceSearchRepository(fail: true);
     final c = cubit(repo);

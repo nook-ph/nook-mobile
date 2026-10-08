@@ -217,6 +217,7 @@ class _SearchOriginSheetState extends State<SearchOriginSheet> {
           builder: (context, state) => PlaceSearchResults(
             state: state,
             onPick: (p) => _close(UsePlace(p.origin)),
+            onRetry: context.read<PlaceSearchCubit>().retry,
             leading: [
               if (savedMatches.isNotEmpty) Text('Saved places', style: muted12),
               for (final p in savedMatches)

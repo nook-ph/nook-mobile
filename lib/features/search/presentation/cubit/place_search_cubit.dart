@@ -162,6 +162,16 @@ class PlaceSearchCubit extends Cubit<PlaceSearchState> {
     }
   }
 
+  /// Asks the map again for the current query, after it didn't answer.
+  void retry() {
+    final q = state.query;
+    if (q.length < minRemoteLength) return;
+    _timer?.cancel();
+    final generation = ++_generation;
+    emit(state.copyWith(status: PlaceSearchStatus.loading));
+    _fetch(q, generation);
+  }
+
   void clear() => queryChanged('');
 
   @override

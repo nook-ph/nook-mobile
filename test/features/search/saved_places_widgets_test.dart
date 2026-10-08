@@ -219,7 +219,8 @@ void main() {
       );
       await tester.enterText(find.byType(TextField), 'USC Talamban');
       await tester.pumpAndSettle();
-      expect(find.text('Map search isn’t answering'), findsOneWidget);
+      expect(find.text('Place search is slow right now'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
       expect(find.text('Pick on the map'), findsOneWidget);
     });
 

@@ -109,6 +109,7 @@ class _FindPlaceSheetState extends State<FindPlaceSheet> {
                       : PlaceSearchResults(
                           state: state,
                           onPick: (p) => Navigator.of(context).pop(p),
+                          onRetry: context.read<PlaceSearchCubit>().retry,
                         ),
                 ),
               ),

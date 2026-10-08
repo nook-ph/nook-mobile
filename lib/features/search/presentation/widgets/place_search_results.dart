@@ -28,12 +28,16 @@ class PlaceSearchResults extends StatelessWidget {
     required this.onPick,
     this.leading = const [],
     this.trailing,
+    this.onRetry,
   });
 
   final PlaceSearchState state;
   final ValueChanged<PlaceSuggestion> onPick;
   final List<Widget> leading;
   final Widget? trailing;
+
+  /// Asks the map again after it didn't answer. Null hides Try again.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -49,12 +53,15 @@ class PlaceSearchResults extends StatelessWidget {
 
     Widget? status;
     if (state.status == PlaceSearchStatus.unavailable) {
+      // Usually a slow or busy geocoder, not a broken map: say so, and let
+      // them ask again.
       status = _Note(
-        title: nothing ? 'Map search isn’t answering' : null,
+        title: nothing ? 'Place search is slow right now' : null,
         body: nothing
-            ? 'Try again in a moment, or pick the spot on the map.'
-            : 'Map search isn’t answering, so only areas with cafes on '
+            ? 'Try again, or pick the spot on the map.'
+            : 'Place search is slow right now, so only areas with cafes on '
                   'Nook are shown.',
+        onRetry: onRetry,
       );
     } else if (nothing && busy) {
       status = _Note(body: 'Looking for places…');
@@ -105,10 +112,11 @@ class PlaceSearchResults extends StatelessWidget {
 }
 
 class _Note extends StatelessWidget {
-  const _Note({this.title, required this.body});
+  const _Note({this.title, required this.body, this.onRetry});
 
   final String? title;
   final String body;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -130,6 +138,16 @@ class _Note extends StatelessWidget {
               color: SearchTokens.muted,
             ),
           ),
+          if (onRetry != null)
+            TextButton(
+              onPressed: onRetry,
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(0, 44),
+                foregroundColor: SearchTokens.brand,
+              ),
+              child: const Text('Try again'),
+            ),
         ],
       ),
     );
