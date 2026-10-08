@@ -102,15 +102,21 @@ class _SearchResultsPageState extends State<SearchResultsPage>
       _bloc.add(SearchQueryChanged(widget.query));
     } else {
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
         final route = ModalRoute.of(context);
         if (route?.animation?.isCompleted ?? true) {
           _focus.requestFocus();
         } else {
-          route?.animation?.addStatusListener(_onRouteAnimation);
+          _routeAnimation = route?.animation
+            ?..addStatusListener(_onRouteAnimation);
         }
       });
     }
   }
+
+  /// The route animation [_onRouteAnimation] listens to, so dispose can
+  /// stop listening if the page closes before it completes.
+  Animation<double>? _routeAnimation;
 
   void _onRouteAnimation(AnimationStatus status) {
     if (status == AnimationStatus.completed && mounted) {
@@ -131,6 +137,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
 
   @override
   void dispose() {
+    _routeAnimation?.removeStatusListener(_onRouteAnimation);
     WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
     _focus.dispose();

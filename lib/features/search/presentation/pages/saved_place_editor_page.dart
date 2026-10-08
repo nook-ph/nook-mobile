@@ -139,30 +139,41 @@ class _SavedPlaceEditorPageState extends State<SavedPlaceEditorPage> {
       _locating = true;
       _locationNote = null;
     });
-    final at = await _position();
-    if (!mounted) return;
-    if (at == null) {
+    // try/finally: a throw from the location read or the namer used to
+    // leave the spinner on for good.
+    try {
+      final at = await _position();
+      if (!mounted) return;
+      if (at == null) {
+        setState(() {
+          _locationNote =
+              'Your location is off. Turn it on in Settings, or search for '
+              'the place instead.';
+        });
+        return;
+      }
+      final name = await SpotNamer(
+        widget.search,
+        widget.places,
+      ).name(at.lat, at.lng);
+      if (!mounted) return;
       setState(() {
-        _locating = false;
-        _locationNote =
-            'Your location is off. Turn it on in Settings, or search for '
-            'the place instead.';
+        _spot = (
+          address: _addressOf(name) ?? 'Your current location',
+          lat: at.lat,
+          lng: at.lng,
+        );
       });
-      return;
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _locationNote =
+              'Could not get your location. Search for the place instead.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _locating = false);
     }
-    final name = await SpotNamer(
-      widget.search,
-      widget.places,
-    ).name(at.lat, at.lng);
-    if (!mounted) return;
-    setState(() {
-      _locating = false;
-      _spot = (
-        address: _addressOf(name) ?? 'Your current location',
-        lat: at.lat,
-        lng: at.lng,
-      );
-    });
   }
 
   static String? _addressOf(SpotName? name) {

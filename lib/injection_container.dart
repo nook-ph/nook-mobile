@@ -178,7 +178,7 @@ Future<void> initDependencies() async {
   );
 
   // Coffee gallery. GALLERY_DEMO (debug only) swaps in an in-memory
-  // repository, because `user_photos` is not in production yet.
+  // repository for local work without the backend.
   sl.registerLazySingleton<ICafePickerSource>(
     () => CafePickerSourceImpl(cafes: sl<ICafeRepository>()),
   );
@@ -206,8 +206,7 @@ Future<void> initDependencies() async {
   });
 
   // Public profiles. PUBLIC_PROFILE_DEMO (debug only) swaps in an
-  // in-memory repository, because `get_public_profile` is not in
-  // production yet.
+  // in-memory repository for local work without the backend.
   sl.registerLazySingleton<IPublicProfileRepository>(() {
     if (publicProfileDemoEnabled) {
       return DemoPublicProfileRepository(
