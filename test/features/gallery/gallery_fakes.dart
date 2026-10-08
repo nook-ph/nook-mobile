@@ -55,7 +55,13 @@ class FakeGalleryRepository implements IGalleryRepository {
   Object? writeFailure;
   final List<String> calls = [];
   final List<
-    ({String cafeId, int count, GalleryPhotoSource source, String? drink})
+    ({
+      String cafeId,
+      int count,
+      GalleryPhotoSource source,
+      String? drink,
+      String? caption,
+    })
   >
   added = [];
 
@@ -78,6 +84,7 @@ class FakeGalleryRepository implements IGalleryRepository {
     required List<PickedGalleryPhoto> photos,
     required GalleryPhotoSource source,
     String? drinkName,
+    String? caption,
   }) async {
     _write('add');
     added.add((
@@ -85,6 +92,7 @@ class FakeGalleryRepository implements IGalleryRepository {
       count: photos.length,
       source: source,
       drink: drinkName,
+      caption: caption,
     ));
     final rows = [
       for (var i = 0; i < photos.length; i++)
@@ -109,8 +117,11 @@ class FakeGalleryRepository implements IGalleryRepository {
       _write('hide $photoId $hidden');
 
   @override
-  Future<void> setDrinkName(String photoId, String? drinkName) async =>
-      _write('drink $photoId $drinkName');
+  Future<void> setDetails(
+    String photoId, {
+    String? drinkName,
+    String? caption,
+  }) async => _write('details $photoId $drinkName $caption');
 
   @override
   Future<void> deletePhoto(String photoId) async => _write('delete $photoId');

@@ -99,6 +99,10 @@ class DemoPublicProfileRepository implements IPublicProfileRepository {
             cafeArea: cafe.neighborhood,
             imageUrl: url,
             drinkName: photos.length.isEven ? 'Iced Spanish latte' : null,
+            caption: photos.length % 3 == 0
+                ? 'Light roast, tastes like strawberries. Ask for it '
+                      'without sugar.'
+                : null,
             takenAt: now.subtract(Duration(days: photos.length * 3)),
             source: GalleryPhotoSource.gallery,
             pinOrder: photos.isEmpty ? 1 : null,
@@ -164,4 +168,8 @@ class DemoPublicProfileRepository implements IPublicProfileRepository {
     await Future<void>.delayed(const Duration(milliseconds: 250));
     _myHighlights = value;
   }
+
+  @override
+  Future<void> reportPhoto(String photoId, PhotoReportReason reason) =>
+      Future<void>.delayed(const Duration(milliseconds: 400));
 }

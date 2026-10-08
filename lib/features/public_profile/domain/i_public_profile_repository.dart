@@ -18,6 +18,23 @@ abstract interface class IPublicProfileRepository {
   Future<bool> getMyHighlightsPublic();
 
   Future<void> setMyHighlightsPublic(bool value);
+
+  /// Reports someone else's photo (the image or its note) for review.
+  /// Reporting the same photo twice is not an error.
+  Future<void> reportPhoto(String photoId, PhotoReportReason reason);
+}
+
+/// Why a photo was reported (`photo_reports.reason`).
+enum PhotoReportReason {
+  offensive('offensive', 'Offensive or hateful'),
+  notCoffee('not_coffee', 'Not a drink or a cafe'),
+  spam('spam', 'Spam or an ad'),
+  other('other', 'Something else');
+
+  const PhotoReportReason(this.wire, this.label);
+
+  final String wire;
+  final String label;
 }
 
 /// Thrown when a public profile read or the switch write fails.

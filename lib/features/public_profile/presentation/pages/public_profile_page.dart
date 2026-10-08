@@ -20,7 +20,7 @@ import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/features/public_profile/domain/entities/public_profile.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 import 'package:nook/features/public_profile/presentation/cubit/public_profile_cubit.dart';
-import 'package:nook/features/public_profile/presentation/widgets/top_cafes_strip.dart';
+import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/injection_container.dart';
 
 /// Shares [profile]'s web link. Swapped in tests.
@@ -32,8 +32,9 @@ typedef ShareProfile =
     });
 
 /// Someone's profile as anyone else sees it: avatar, name, counts and bio,
-/// their Top 3 cafes, then Gallery and Reviews. Never their ranking, their
-/// lists or any score (nook-supabase docs/PUBLIC_PROFILE.md).
+/// then Gallery and Reviews. Never their ranking, their lists or any score
+/// (nook-supabase docs/PUBLIC_PROFILE.md). The server still sends a Top 3;
+/// profile v2 leaves it off so the photos start on the first screen.
 ///
 /// With [preview] it is the owner's own "View as visitor": the same screen,
 /// titled Preview, reached from their Ranked tab.
@@ -90,13 +91,15 @@ class PublicProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final repo = repository ?? sl<IPublicProfileRepository>();
     return BlocProvider(
       create: (_) => PublicProfileCubit(
-        repository: repository ?? sl<IPublicProfileRepository>(),
+        repository: repo,
         username: username,
         userId: userId,
       )..load(),
       child: _PublicProfileView(
+        repository: repo,
         title: username != null ? '@$username' : (nameHint ?? ''),
         preview: preview,
         shareProfile:
@@ -124,6 +127,7 @@ class PublicProfilePage extends StatelessWidget {
 
 class _PublicProfileView extends StatelessWidget {
   const _PublicProfileView({
+    required this.repository,
     required this.title,
     required this.preview,
     required this.shareProfile,
@@ -131,11 +135,46 @@ class _PublicProfileView extends StatelessWidget {
     this.onOpenCafe,
   });
 
+  final IPublicProfileRepository repository;
   final String title;
   final bool preview;
   final ShareProfile shareProfile;
   final bool signedIn;
   final ValueChanged<String>? onOpenCafe;
+
+  /// Asks why, then reports the photo. Signed-in visitors only.
+  Future<void> _reportPhoto(BuildContext context, GalleryPhoto photo) async {
+    final reason = await ListsSheet.show<PhotoReportReason>(
+      context,
+      builder: (sheetContext) => ListsSheet(
+        title: 'Report this photo?',
+        gap: 4,
+        children: [
+          Text(
+            'For the photo or what it says. They won’t know who reported '
+            'it.',
+            style: ProfileTokens.text(14, color: ProfileTokens.muted),
+          ),
+          for (final reason in PhotoReportReason.values)
+            ListsSheetAction(
+              title: reason.label,
+              onTap: () => Navigator.pop(sheetContext, reason),
+            ),
+        ],
+      ),
+    );
+    if (reason == null || !context.mounted) return;
+    try {
+      await repository.reportPhoto(photo.id, reason);
+      if (context.mounted) {
+        showPrimaryToast(context, 'Thanks. We’ll take a look.');
+      }
+    } catch (_) {
+      if (context.mounted) {
+        showPrimaryToast(context, 'Could not send the report. Try again.');
+      }
+    }
+  }
 
   /// Blocking from the profile, as from a review: they disappear from the
   /// viewer's feeds and their profile is no longer shown to them.
@@ -256,6 +295,9 @@ class _PublicProfileView extends StatelessWidget {
               PublicProfileStatus.loaded => _Loaded(
                 profile: profile!,
                 onOpenCafe: (id) => _openCafe(context, id),
+                onReportPhoto: signedIn && !profile.isSelf && !preview
+                    ? (photo) => _reportPhoto(context, photo)
+                    : null,
               ),
             },
           ),
@@ -274,10 +316,7 @@ class _Loading extends StatelessWidget {
       physics: NeverScrollableScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ProfileHeaderSkeleton(showAction: false),
-          TopCafesStripSkeleton(),
-        ],
+        children: [ProfileHeaderSkeleton(showAction: false)],
       ),
     );
   }
@@ -299,6 +338,7 @@ class _ReadOnlyGallery implements IGalleryRepository {
     required List<PickedGalleryPhoto> photos,
     required GalleryPhotoSource source,
     String? drinkName,
+    String? caption,
   }) => throw UnsupportedError('Read only');
 
   @override
@@ -306,8 +346,11 @@ class _ReadOnlyGallery implements IGalleryRepository {
       throw UnsupportedError('Read only');
 
   @override
-  Future<void> setDrinkName(String photoId, String? drinkName) =>
-      throw UnsupportedError('Read only');
+  Future<void> setDetails(
+    String photoId, {
+    String? drinkName,
+    String? caption,
+  }) => throw UnsupportedError('Read only');
 
   @override
   Future<void> setHidden(String photoId, {required bool hidden}) =>
@@ -319,30 +362,35 @@ class _ReadOnlyGallery implements IGalleryRepository {
 }
 
 class _Loaded extends StatelessWidget {
-  const _Loaded({required this.profile, required this.onOpenCafe});
+  const _Loaded({
+    required this.profile,
+    required this.onOpenCafe,
+    this.onReportPhoto,
+  });
 
   final PublicProfile profile;
   final ValueChanged<String> onOpenCafe;
+  final ValueChanged<GalleryPhoto>? onReportPhoto;
 
   @override
   Widget build(BuildContext context) {
+    final ranked = profile.rankedCount, cups = profile.cupCount;
     final header = [
       ProfileHeader(
         name: profile.displayName,
         avatarUrl: profile.avatarUrl,
         bio: profile.bio ?? '',
-        countsLine: publicCountsLine(
-          reviews: profile.reviewCount,
-          ranked: profile.rankedCount,
-          cups: profile.cupCount,
-        ),
+        // Ranked and Cups only when the owner shows them.
+        stats: [
+          if (ranked != null) ProfileStat('Ranked', ranked),
+          ProfileStat('Reviews', profile.reviewCount),
+          if (cups != null) ProfileStat('Cups', cups),
+        ],
       ),
-      if (profile.topCafes.isNotEmpty)
-        TopCafesStrip(cafes: profile.topCafes, onOpen: onOpenCafe),
     ];
 
     if (!profile.highlightsPublic) {
-      // Top 3 and gallery are off: the profile is the reviews, which are
+      // The gallery is off: the profile is the reviews, which are
       // public on cafe pages anyway. No tabs for a single list.
       return SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: 24),
@@ -392,9 +440,9 @@ class _Loaded extends StatelessWidget {
                   ),
                   child: ProfileTabs(
                     controller: DefaultTabController.of(context),
-                    tabs: [
-                      ProfileTabData('Gallery', count: profile.photos.length),
-                      ProfileTabData('Reviews', count: profile.reviewCount),
+                    tabs: const [
+                      ProfileTabData('Gallery'),
+                      ProfileTabData('Reviews'),
                     ],
                   ),
                 ),
@@ -405,6 +453,7 @@ class _Loaded extends StatelessWidget {
                 _GalleryBody(
                   profile: profile,
                   onOpenCafe: onOpenCafe,
+                  onReportPhoto: onReportPhoto,
                   onOpenReviews: () =>
                       DefaultTabController.of(context).animateTo(1),
                 ),
@@ -426,7 +475,7 @@ class _Loaded extends StatelessWidget {
   }
 }
 
-/// One muted line where the Top 3 and the gallery would be.
+/// One muted line where the gallery would be.
 class _PrivateNote extends StatelessWidget {
   const _PrivateNote();
 
@@ -445,7 +494,7 @@ class _PrivateNote extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Top cafes and gallery are private',
+              'Their gallery is private. Their reviews are public.',
               style: ProfileTokens.text(13, color: ProfileTokens.muted),
             ),
           ),
@@ -460,11 +509,13 @@ class _GalleryBody extends StatelessWidget {
     required this.profile,
     required this.onOpenCafe,
     required this.onOpenReviews,
+    this.onReportPhoto,
   });
 
   final PublicProfile profile;
   final ValueChanged<String> onOpenCafe;
   final VoidCallback onOpenReviews;
+  final ValueChanged<GalleryPhoto>? onReportPhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -478,42 +529,28 @@ class _GalleryBody extends StatelessWidget {
         ),
       );
     }
-    final cafes = photos.map((p) => p.cafeId).toSet().length;
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              ProfileTokens.gutter,
-              12,
-              ProfileTokens.gutter,
-              10,
-            ),
-            child: Text(
-              galleryCountsLine(photos.length, cafes),
-              style: ProfileTokens.text(14, weight: FontWeight.w500),
-            ),
-          ),
-        ),
         SliverPadding(
-          padding: const EdgeInsets.only(bottom: 24),
+          padding: const EdgeInsets.only(top: 1.5, bottom: 24),
           sliver: SliverGrid.builder(
             itemCount: photos.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              mainAxisSpacing: 2,
-              crossAxisSpacing: 2,
+              mainAxisSpacing: 1.5,
+              crossAxisSpacing: 1.5,
+              childAspectRatio: ProfileGalleryTab.tileAspect,
             ),
             itemBuilder: (context, i) => GalleryTile(
               key: ValueKey(photos[i].id),
-              // Pins are the owner's arrangement; visitors just see order.
-              photo: photos[i].copyWith(clearPin: true),
+              photo: photos[i],
               onTap: () => GalleryViewerPage.open(
                 context,
                 photo: photos[i],
                 isOwner: false,
                 onOpenCafe: onOpenCafe,
                 onOpenReview: onOpenReviews,
+                onReport: onReportPhoto,
               ),
             ),
           ),

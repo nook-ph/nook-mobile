@@ -137,16 +137,34 @@ void main() {
     expect(ids()[2], 'new-5');
   });
 
-  test('drink names are trimmed, and blank clears them', () async {
+  test('drink and note are trimmed, and blank clears them', () async {
     await cubit.load();
     final photo = cubit.state.photos.firstWhere((p) => p.id == 'old');
-    await cubit.setDrinkName(photo, '  Flat white ');
-    expect(repo.calls.last, 'drink old Flat white');
-    await cubit.setDrinkName(photo, '   ');
-    expect(repo.calls.last, 'drink old null');
-    expect(
-      cubit.state.photos.firstWhere((p) => p.id == 'old').drinkName,
-      isNull,
+    await cubit.setDetails(
+      photo,
+      drinkName: '  Flat white ',
+      caption: ' Silky, not too hot. ',
     );
+    expect(repo.calls.last, 'details old Flat white Silky, not too hot.');
+    expect(
+      cubit.state.photos.firstWhere((p) => p.id == 'old').caption,
+      'Silky, not too hot.',
+    );
+    await cubit.setDetails(photo, drinkName: '   ', caption: '');
+    expect(repo.calls.last, 'details old null null');
+    final cleared = cubit.state.photos.firstWhere((p) => p.id == 'old');
+    expect(cleared.drinkName, isNull);
+    expect(cleared.caption, isNull);
+  });
+
+  test('a note added with photos reaches the repository', () async {
+    await cubit.load();
+    await cubit.addPhotos(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a')],
+      source: GalleryPhotoSource.gallery,
+      caption: 'Best cortado in Lahug',
+    );
+    expect(repo.added.single.caption, 'Best cortado in Lahug');
   });
 }

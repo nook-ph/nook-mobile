@@ -70,13 +70,16 @@ void main() {
       find.bySemanticsLabel(RegExp('^${RegExp.escape(drink)}, at '));
 
   group('grid', () {
-    testWidgets('header counts cups, cafes and hidden photos', (tester) async {
+    testWidgets('hidden photos stay in the grid, marked as hidden', (
+      tester,
+    ) async {
       await pump(tester, [
         galleryPhoto('a', drink: 'Flat white'),
         galleryPhoto('b', drink: 'Cortado', cafeId: 'cafe-2'),
         galleryPhoto('c', drink: 'Mocha', hidden: true),
       ]);
-      expect(find.text('2 cups · 2 cafes · 1 hidden'), findsOneWidget);
+      // The counts line is gone; the header's Cups stat carries the count.
+      expect(find.textContaining(' cups'), findsNothing);
       expect(find.byType(GalleryTile), findsNWidgets(3));
       expect(
         find.bySemanticsLabel(
@@ -85,11 +88,6 @@ void main() {
         ),
         findsOneWidget,
       );
-    });
-
-    testWidgets('one cup reads in the singular', (tester) async {
-      await pump(tester, [galleryPhoto('a')]);
-      expect(find.text('1 cup · 1 cafe'), findsOneWidget);
     });
 
     testWidgets('pinned photos come first and say so', (tester) async {
@@ -108,12 +106,6 @@ void main() {
         find.bySemanticsLabel('Pinned one, at Kamp Craft Coffee, pinned'),
         findsOneWidget,
       );
-    });
-
-    testWidgets('Add opens the add flow', (tester) async {
-      await pump(tester, [galleryPhoto('a')]);
-      await tester.tap(find.bySemanticsLabel('Add photos'));
-      expect(adds, 1);
     });
 
     testWidgets('empty: says what belongs here and offers Add photos', (
@@ -203,7 +195,12 @@ void main() {
       await tester.tap(find.text('Hide from profile'));
       await tester.pumpAndSettle();
       expect(repo.calls, ['hide a true']);
-      expect(find.text('0 cups · 0 cafes · 1 hidden'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(
+          'Flat white, at Kamp Craft Coffee, hidden from your profile',
+        ),
+        findsOneWidget,
+      );
       await letToastExpire(tester);
 
       // And back.
@@ -274,10 +271,14 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add what you had'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), 'Ube latte');
+      expect(find.text('Edit photo'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Drink (optional)'),
+        'Ube latte',
+      );
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
-      expect(repo.calls, ['drink a Ube latte']);
+      expect(repo.calls, ['details a Ube latte null']);
       expect(cubit.state.photos.single.drinkName, 'Ube latte');
     });
   });

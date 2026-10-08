@@ -193,7 +193,10 @@ void main() {
 
       expect(find.text('Add 2 photos'), findsNWidgets(2)); // title + button
       expect(find.text('Drink (optional)'), findsOneWidget);
-      await tester.enterText(find.byType(TextField), 'Iced Spanish latte');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Drink (optional)'),
+        'Iced Spanish latte',
+      );
 
       // Change the cafe from the add sheet.
       await tester.tap(
@@ -215,9 +218,40 @@ void main() {
         count: 2,
         source: GalleryPhotoSource.gallery,
         drink: 'Iced Spanish latte',
+        caption: null,
       ));
       expect(cubit.state.photos, hasLength(2));
       expect(find.text('2 photos added'), findsOneWidget);
+      await _letToastExpire(tester);
+    });
+
+    testWidgets('a note typed in the add sheet is sent as the caption', (
+      tester,
+    ) async {
+      usePhone(tester);
+      await tester.pumpWidget(
+        _launcher(
+          (context) => addPhotosToGallery(
+            context,
+            galleryDeps(
+              cubit: cubit,
+              picker: FakeGalleryPhotoPicker(many: [pickedPhoto('a')]),
+              cafes: FakeCafePickerSource(been: [kamp], near: const []),
+            ),
+          ),
+        ),
+      );
+      await _go(tester);
+      await tester.tap(find.text('Kamp Craft Coffee'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Say something about it (optional)'),
+        'Best cortado in town',
+      );
+      await tester.tap(find.text('Add photo'));
+      await tester.pumpAndSettle();
+      expect(repo.added.single.caption, 'Best cortado in town');
+      expect(repo.added.single.drink, isNull);
       await _letToastExpire(tester);
     });
 

@@ -24,7 +24,7 @@ class GalleryRepositoryImpl implements IGalleryRepository {
   final GalleryFileUploader _upload;
 
   static const _columns =
-      'id, user_id, cafe_id, image_url, drink_name, taken_at, source, '
+      'id, user_id, cafe_id, image_url, drink_name, caption, taken_at, source, '
       'source_id, is_hidden, pin_order, cafes(name, neighborhood, city)';
 
   String get _userId {
@@ -54,10 +54,12 @@ class GalleryRepositoryImpl implements IGalleryRepository {
     required List<PickedGalleryPhoto> photos,
     required GalleryPhotoSource source,
     String? drinkName,
+    String? caption,
   }) async {
     if (photos.isEmpty) return const [];
     final userId = _userId;
     final drink = _cleanDrink(drinkName);
+    final note = _cleanCaption(caption);
     // Side by side, as review photos are; a batch waits for its slowest.
     final uploaded = await Future.wait([
       for (final photo in photos) _upload(file: photo.file, cafeId: cafeId),
@@ -74,6 +76,7 @@ class GalleryRepositoryImpl implements IGalleryRepository {
                 'image_url': uploaded[i].publicUrl,
                 'object_key': uploaded[i].objectKey,
                 'drink_name': drink,
+                'caption': ?note,
                 'taken_at': (photos[i].takenAt?.toUtc() ?? now)
                     .toIso8601String(),
                 'source': source.wire,
@@ -96,8 +99,14 @@ class GalleryRepositoryImpl implements IGalleryRepository {
       _update(photoId, {'is_hidden': hidden, if (hidden) 'pin_order': null});
 
   @override
-  Future<void> setDrinkName(String photoId, String? drinkName) =>
-      _update(photoId, {'drink_name': _cleanDrink(drinkName)});
+  Future<void> setDetails(
+    String photoId, {
+    String? drinkName,
+    String? caption,
+  }) => _update(photoId, {
+    'drink_name': _cleanDrink(drinkName),
+    'caption': _cleanCaption(caption),
+  });
 
   @override
   Future<void> deletePhoto(String photoId) async {
@@ -121,6 +130,14 @@ class GalleryRepositoryImpl implements IGalleryRepository {
     if (trimmed.isEmpty) return null;
     return trimmed.length > 60 ? trimmed.substring(0, 60) : trimmed;
   }
+
+  static String? _cleanCaption(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) return null;
+    return trimmed.length > maxGalleryCaption
+        ? trimmed.substring(0, maxGalleryCaption)
+        : trimmed;
+  }
 }
 
 /// Maps one `user_photos` row (with its `cafes` join) to a [GalleryPhoto].
@@ -143,6 +160,7 @@ GalleryPhoto galleryPhotoFromRow(Map<String, dynamic> row) {
     cafeArea: area.isEmpty ? null : area,
     imageUrl: row['image_url'] as String,
     drinkName: row['drink_name'] as String?,
+    caption: row['caption'] as String?,
     takenAt:
         DateTime.tryParse(row['taken_at']?.toString() ?? '')?.toLocal() ??
         DateTime.now(),

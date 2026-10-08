@@ -50,6 +50,13 @@ class DemoGalleryRepository implements IGalleryRepository {
     'Ube latte',
   ];
 
+  static const _notes = [
+    'Too sweet for me, but the foam held up the whole way down.',
+    'Rainy Tuesday, stayed three hours. Not too sweet, the espresso still '
+        'comes through, and they topped up the ice twice. Best one in Lahug.',
+    'Light roast, tastes like strawberries.',
+  ];
+
   Future<List<GalleryPhoto>> _all() async {
     final existing = _photos;
     if (existing != null) return existing;
@@ -73,6 +80,7 @@ class DemoGalleryRepository implements IGalleryRepository {
               cafeArea: cafe.locationLabel.isEmpty ? null : cafe.locationLabel,
               imageUrl: url,
               drinkName: _drinks[n % _drinks.length],
+              caption: n % 3 == 0 ? _notes[n % _notes.length] : null,
               takenAt: now.subtract(Duration(days: n * 9)),
               source: n % 5 == 0
                   ? GalleryPhotoSource.review
@@ -97,6 +105,7 @@ class DemoGalleryRepository implements IGalleryRepository {
     required List<PickedGalleryPhoto> photos,
     required GalleryPhotoSource source,
     String? drinkName,
+    String? caption,
   }) async {
     final all = await _all();
     final cafes = await _cafes();
@@ -113,6 +122,7 @@ class DemoGalleryRepository implements IGalleryRepository {
           cafeArea: cafe?.locationLabel,
           imageUrl: photo.file.path,
           drinkName: drinkName,
+          caption: caption,
           takenAt: photo.takenAt ?? DateTime.now(),
           source: source,
         ),
@@ -145,13 +155,19 @@ class DemoGalleryRepository implements IGalleryRepository {
       );
 
   @override
-  Future<void> setDrinkName(String photoId, String? drinkName) async =>
-      _replace(
-        photoId,
-        (p) => drinkName == null
-            ? p.copyWith(clearDrinkName: true)
-            : p.copyWith(drinkName: drinkName),
-      );
+  Future<void> setDetails(
+    String photoId, {
+    String? drinkName,
+    String? caption,
+  }) async => _replace(
+    photoId,
+    (p) => p.copyWith(
+      drinkName: drinkName,
+      clearDrinkName: drinkName == null,
+      caption: caption,
+      clearCaption: caption == null,
+    ),
+  );
 
   @override
   Future<void> deletePhoto(String photoId) async =>

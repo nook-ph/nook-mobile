@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/profile/presentation/pages/profile_pagev2.dart';
 import 'package:nook/features/profile/presentation/pages/settings_page.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 
 import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
@@ -46,28 +48,29 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
+      // Gallery is the first tab; the hint and Preview live on Ranked.
+      // "Ranked" is also a stat label, so tap the one in the tab row.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(ProfileTabs),
+          matching: find.text('Ranked'),
+        ),
+      );
+      await tester.pumpAndSettle();
     }
 
     testWidgets('keeps the private Ranked tab, says only they see it', (
       tester,
     ) async {
       await pump(tester);
-      expect(find.text('Ranked'), findsOneWidget);
+      // Stat label and tab: two "Ranked"s, and the tab carries the lock.
+      expect(find.text('Ranked'), findsNWidgets(2));
+      expect(find.byIcon(LucideIcons.lock), findsWidgets);
       expect(find.text('Lists'), findsOneWidget);
       expect(
-        find.text('Only you see your ranking. Visitors see your top 3.'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('nothing liked yet: says where a Top 3 comes from', (
-      tester,
-    ) async {
-      await pump(tester, liked: 0);
-      expect(
         find.text(
-          'Only you see your ranking. Cafes you mark Liked it become the '
-          'top 3 visitors see.',
+          "Only you see your ranking. Visitors see how many cafes you've "
+          'ranked.',
         ),
         findsOneWidget,
       );
@@ -87,13 +90,7 @@ void main() {
       );
       await pump(tester, visibility: visibility);
       await tester.pump();
-      expect(
-        find.text(
-          'Only you see your ranking. Your top cafes are hidden from '
-          'visitors.',
-        ),
-        findsOneWidget,
-      );
+      expect(find.text('Only you see your ranking.'), findsOneWidget);
     });
 
     testWidgets('Share profile shares their own link', (tester) async {
@@ -130,10 +127,7 @@ void main() {
     testWidgets('the switch is on by default and turns off', (tester) async {
       final repo = await pump(tester);
       expect(find.text('Privacy'), findsOneWidget);
-      expect(
-        find.text('Show my top cafes and gallery on my profile'),
-        findsOneWidget,
-      );
+      expect(find.text('Show my gallery on my profile'), findsOneWidget);
       expect(toggle(tester).value, isTrue);
 
       await tester.tap(find.byType(Switch));

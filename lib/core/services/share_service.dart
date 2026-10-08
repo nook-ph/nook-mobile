@@ -41,7 +41,7 @@ class ShareService {
     bool own = false,
     Rect? sharePositionOrigin,
   }) async {
-    final title = own ? 'My top cafes on Nook' : '$name on Nook';
+    final title = own ? 'Find me on Nook' : '$name on Nook';
     await SharePlus.instance.share(
       ShareParams(
         text: '$title\n\n${profileLink(username)}',

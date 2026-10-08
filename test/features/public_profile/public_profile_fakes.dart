@@ -49,6 +49,15 @@ class FakePublicProfileRepository implements IPublicProfileRepository {
     writes.add(value);
     highlights = value;
   }
+
+  final reports = <(String, PhotoReportReason)>[];
+
+  @override
+  Future<void> reportPhoto(String photoId, PhotoReportReason reason) async {
+    final error = writeFailure;
+    if (error != null) throw error;
+    reports.add((photoId, reason));
+  }
 }
 
 PublicTopCafe topCafe(int rank, String name) => PublicTopCafe(

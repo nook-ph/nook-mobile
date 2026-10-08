@@ -25,7 +25,6 @@ import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
 import 'package:nook/features/profile/presentation/pages/settings_page.dart';
-import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_lists_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_review_sheets.dart';
@@ -321,10 +320,6 @@ class _ProfileViewState extends State<ProfileView> {
             .state
             .rankings
             .length;
-        // Unknown until the lists have loaded at least once.
-        final listCount = listsState is ListsLoaded || lists.isNotEmpty
-            ? lists.length
-            : null;
 
         final gallery = context.watch<GalleryCubit>().state;
 
@@ -344,25 +339,46 @@ class _ProfileViewState extends State<ProfileView> {
                       SliverToBoxAdapter(
                         child: loaded == null
                             ? const ProfileHeaderSkeleton()
-                            : BlocBuilder<CafeRankingCubit, CafeRankingState>(
-                                buildWhen: (a, b) =>
-                                    a.rankings.length != b.rankings.length,
-                                builder: (context, ranking) => ProfileHeader(
-                                  name: loaded.name,
-                                  avatarUrl: loaded.avatarUrl,
-                                  bio: loaded.bio,
-                                  countsLine: profileCountsLine(
-                                    reviews: reviews.length,
-                                    lists: listCount,
-                                    ranked: ranking.rankings.length,
+                            : ProfileHeader(
+                                name: loaded.name,
+                                avatarUrl: loaded.avatarUrl,
+                                bio: loaded.bio,
+                                stats: [
+                                  ProfileStat(
+                                    'Ranked',
+                                    rankedCount,
+                                    onTap: () => DefaultTabController.of(
+                                      context,
+                                    ).animateTo(1),
                                   ),
-                                  onEdit: _openEdit,
-                                  // No handle yet (mid sign-up): nothing
-                                  // to link to.
-                                  onShare: loaded.username.isEmpty
-                                      ? null
-                                      : () => _share(loaded),
-                                ),
+                                  ProfileStat(
+                                    'Reviews',
+                                    // Unknown, not zero, when the read failed.
+                                    loaded.reviewsFailed
+                                        ? null
+                                        : reviews.length,
+                                    onTap: () => DefaultTabController.of(
+                                      context,
+                                    ).animateTo(2),
+                                  ),
+                                  ProfileStat(
+                                    'Cups',
+                                    gallery.status == GalleryStatus.loaded
+                                        ? gallery.cupCount
+                                        : null,
+                                    onTap: () => DefaultTabController.of(
+                                      context,
+                                    ).animateTo(0),
+                                  ),
+                                ],
+                                onEdit: _openEdit,
+                                // No handle yet (mid sign-up): nothing
+                                // to link to.
+                                onShare: loaded.username.isEmpty
+                                    ? null
+                                    : () => _share(loaded),
+                                onAdd: () =>
+                                    addPhotosToGallery(context, _galleryDeps()),
                               ),
                       ),
                       SliverPersistentHeader(
@@ -373,31 +389,13 @@ class _ProfileViewState extends State<ProfileView> {
                           ),
                           child: ProfileTabs(
                             controller: DefaultTabController.of(context),
-                            tabs: [
-                              ProfileTabData(
-                                'Ranked',
-                                count: loaded == null ? null : rankedCount,
-                              ),
-                              // Second: the public-safe showcase once
-                              // profiles are public; Ranked stays private
-                              // (docs/ux/coffee-gallery.md, finding 4).
-                              ProfileTabData(
-                                'Gallery',
-                                count: gallery.status == GalleryStatus.loaded
-                                    ? gallery.cupCount
-                                    : null,
-                              ),
-                              ProfileTabData(
-                                'Reviews',
-                                // Unknown, not zero, when the read failed.
-                                count: loaded == null || loaded.reviewsFailed
-                                    ? null
-                                    : reviews.length,
-                              ),
-                              ProfileTabData(
-                                'Lists',
-                                count: loaded == null ? null : listCount,
-                              ),
+                            // Gallery first, as the profile's public face;
+                            // counts are in the header's stat row.
+                            tabs: const [
+                              ProfileTabData('Gallery'),
+                              ProfileTabData('Ranked', private: true),
+                              ProfileTabData('Reviews'),
+                              ProfileTabData('Lists'),
                             ],
                           ),
                         ),
@@ -405,17 +403,17 @@ class _ProfileViewState extends State<ProfileView> {
                     ],
                     body: TabBarView(
                       children: [
-                        ProfileRankedTab(
-                          beenListId: been?.id,
-                          onPreview: loaded == null
-                              ? null
-                              : () => _preview(loaded),
-                        ),
                         ProfileGalleryTab(
                           onAdd: () =>
                               addPhotosToGallery(context, _galleryDeps()),
                           onOpen: _openPhoto,
                           onOptions: _photoOptions,
+                        ),
+                        ProfileRankedTab(
+                          beenListId: been?.id,
+                          onPreview: loaded == null
+                              ? null
+                              : () => _preview(loaded),
                         ),
                         ProfileReviewsTab(
                           loading: loaded == null,

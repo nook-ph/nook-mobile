@@ -67,12 +67,13 @@ Future<void> addPhotosToGallery(
     photos: photos,
     cafe: cafe,
     onChangeCafe: pickCafe,
-    onSave: ({required cafe, required photos, drinkName}) async {
+    onSave: ({required cafe, required photos, drinkName, caption}) async {
       final rows = await deps.cubit.addPhotos(
         cafeId: cafe.id,
         photos: photos,
         source: GalleryPhotoSource.gallery,
         drinkName: drinkName,
+        caption: caption,
       );
       added = rows.length;
     },
@@ -127,12 +128,13 @@ Future<PickedGalleryPhoto?> addRankPhoto(
     context,
     photos: [photo],
     cafe: cafe,
-    onSave: ({required cafe, required photos, drinkName}) =>
+    onSave: ({required cafe, required photos, drinkName, caption}) =>
         deps.cubit.addPhotos(
           cafeId: cafe.id,
           photos: photos,
           source: GalleryPhotoSource.rank,
           drinkName: drinkName,
+          caption: caption,
         ),
   );
   return saved ? photo : null;

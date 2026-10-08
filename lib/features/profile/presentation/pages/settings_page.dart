@@ -211,14 +211,15 @@ class _SettingsPageState extends State<SettingsPage>
                       >(
                         builder: (context, visibility) => _SwitchRow(
                           icon: LucideIcons.eye,
-                          label: 'Show my top cafes and gallery on my profile',
+                          label: 'Show my gallery on my profile',
                           detail:
                               visibility.status ==
                                   ProfileVisibilityStatus.failed
                               ? 'Could not load this setting. Tap to try '
                                     'again.'
-                              : 'Your ranking itself always stays private. '
-                                    'Reviews show either way.',
+                              : 'Also shows how many cafes you have ranked. '
+                                    'Your ranking stays private; reviews '
+                                    'show either way.',
                           value: visibility.highlightsPublic,
                           onChanged:
                               visibility.status ==

@@ -115,7 +115,10 @@ void main() {
     expect(find.bySemanticsLabel('Cafe: Tadaima'), findsOneWidget);
     expect(find.text('Change'), findsNothing);
 
-    await tester.enterText(find.byType(TextField).last, 'Matcha latte');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Drink (optional)'),
+      'Matcha latte',
+    );
     await tester.tap(find.text('Add photo'));
     await tester.pumpAndSettle();
 
@@ -124,6 +127,7 @@ void main() {
       count: 1,
       source: GalleryPhotoSource.rank,
       drink: 'Matcha latte',
+      caption: null,
     ));
     // Back on the reveal, which now says it worked.
     expect(find.text('Added to your gallery'), findsOneWidget);

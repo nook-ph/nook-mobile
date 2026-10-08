@@ -99,12 +99,14 @@ class GalleryCubit extends Cubit<GalleryState> {
     required List<PickedGalleryPhoto> photos,
     required GalleryPhotoSource source,
     String? drinkName,
+    String? caption,
   }) async {
     final added = await _repository.addPhotos(
       cafeId: cafeId,
       photos: photos,
       source: source,
       drinkName: drinkName,
+      caption: caption,
     );
     if (!isClosed) {
       emit(
@@ -150,14 +152,22 @@ class GalleryCubit extends Cubit<GalleryState> {
     );
   }
 
-  Future<bool> setDrinkName(GalleryPhoto photo, String? drinkName) {
-    final trimmed = drinkName?.trim() ?? '';
+  /// Sets the drink and the note; empty text clears either.
+  Future<bool> setDetails(
+    GalleryPhoto photo, {
+    String? drinkName,
+    String? caption,
+  }) {
+    String? clean(String? v) => (v?.trim().isEmpty ?? true) ? null : v!.trim();
+    final drink = clean(drinkName), note = clean(caption);
     return _apply(
-      trimmed.isEmpty
-          ? photo.copyWith(clearDrinkName: true)
-          : photo.copyWith(drinkName: trimmed),
-      () =>
-          _repository.setDrinkName(photo.id, trimmed.isEmpty ? null : trimmed),
+      photo.copyWith(
+        drinkName: drink,
+        clearDrinkName: drink == null,
+        caption: note,
+        clearCaption: note == null,
+      ),
+      () => _repository.setDetails(photo.id, drinkName: drink, caption: note),
     );
   }
 

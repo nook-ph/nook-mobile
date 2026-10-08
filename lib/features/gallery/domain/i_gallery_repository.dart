@@ -8,12 +8,13 @@ abstract interface class IGalleryRepository {
   Future<List<GalleryPhoto>> getMyPhotos();
 
   /// Uploads [photos] and adds them to [cafeId]. Returns the new rows.
-  /// [drinkName] applies to every photo in the batch.
+  /// [drinkName] and [caption] apply to every photo in the batch.
   Future<List<GalleryPhoto>> addPhotos({
     required String cafeId,
     required List<PickedGalleryPhoto> photos,
     required GalleryPhotoSource source,
     String? drinkName,
+    String? caption,
   });
 
   /// Sets or clears (null) a photo's pin slot, 1–3.
@@ -21,7 +22,8 @@ abstract interface class IGalleryRepository {
 
   Future<void> setHidden(String photoId, {required bool hidden});
 
-  Future<void> setDrinkName(String photoId, String? drinkName);
+  /// Sets the drink and the note together; null clears either.
+  Future<void> setDetails(String photoId, {String? drinkName, String? caption});
 
   /// Not allowed for review photos; the server refuses it too.
   Future<void> deletePhoto(String photoId);

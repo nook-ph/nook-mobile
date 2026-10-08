@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:equatable/equatable.dart';
 
+/// The longest note on a photo (`user_photos.caption`).
+const maxGalleryCaption = 150;
+
 /// Where a gallery photo came from (`user_photos.source`).
 enum GalleryPhotoSource {
   /// Added on the ranking reveal, right after marking a cafe Been.
@@ -41,6 +44,7 @@ class GalleryPhoto extends Equatable {
     required this.source,
     this.cafeArea,
     this.drinkName,
+    this.caption,
     this.sourceId,
     this.isHidden = false,
     this.pinOrder,
@@ -59,6 +63,10 @@ class GalleryPhoto extends Equatable {
 
   /// "Iced Spanish latte". Optional.
   final String? drinkName;
+
+  /// The owner's note on this cup, up to [maxGalleryCaption] characters.
+  /// Optional; review photos have none (the review text stands in).
+  final String? caption;
 
   /// From the photo's EXIF when the device had it, else when it was added.
   final DateTime takenAt;
@@ -79,6 +87,8 @@ class GalleryPhoto extends Equatable {
   GalleryPhoto copyWith({
     String? drinkName,
     bool clearDrinkName = false,
+    String? caption,
+    bool clearCaption = false,
     bool? isHidden,
     int? pinOrder,
     bool clearPin = false,
@@ -91,6 +101,7 @@ class GalleryPhoto extends Equatable {
       cafeArea: cafeArea,
       imageUrl: imageUrl,
       drinkName: clearDrinkName ? null : (drinkName ?? this.drinkName),
+      caption: clearCaption ? null : (caption ?? this.caption),
       takenAt: takenAt,
       source: source,
       sourceId: sourceId,
@@ -108,6 +119,7 @@ class GalleryPhoto extends Equatable {
     cafeArea,
     imageUrl,
     drinkName,
+    caption,
     takenAt,
     source,
     sourceId,

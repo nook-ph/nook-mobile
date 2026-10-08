@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/content_filter.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
@@ -35,8 +36,13 @@ Future<bool> showGalleryPhotoOptions(
               onTap: () => Navigator.pop(sheetContext, _Option.pin),
             ),
           ListsSheetAction(
-            title: photo.drinkName == null ? 'Add what you had' : 'Edit drink',
-            subtitle: photo.drinkName ?? 'Like "Iced Spanish latte"',
+            title: photo.drinkName == null && photo.caption == null
+                ? 'Add what you had'
+                : 'Edit drink and note',
+            subtitle:
+                photo.drinkName ??
+                photo.caption ??
+                'The drink, and a line about it',
             onTap: () => Navigator.pop(sheetContext, _Option.drink),
           ),
           ListsSheetAction(
@@ -86,11 +92,15 @@ Future<bool> showGalleryPhotoOptions(
       }
       return false;
     case _Option.drink:
-      final drink = await showDrinkNameSheet(context, initial: photo.drinkName);
-      if (drink == null || !context.mounted) return false;
-      final ok = await cubit.setDrinkName(photo, drink);
+      final details = await showPhotoDetailsSheet(context, photo: photo);
+      if (details == null || !context.mounted) return false;
+      final ok = await cubit.setDetails(
+        photo,
+        drinkName: details.drink,
+        caption: details.note,
+      );
       if (!ok && context.mounted) {
-        showPrimaryToast(context, "Couldn't save the drink. Try again.");
+        showPrimaryToast(context, "Couldn't save your changes. Try again.");
       }
       return false;
     case _Option.hide:
@@ -148,43 +158,135 @@ Future<bool?> _confirmDelete(BuildContext context) {
   );
 }
 
-/// Asks for the drink in a photo. Returns the text (empty clears it), or
-/// null when dismissed.
-Future<String?> showDrinkNameSheet(BuildContext context, {String? initial}) {
-  return ListsSheet.show<String>(
+/// Asks for the drink and the note on [photo]. Returns both (empty text
+/// clears), or null when dismissed. A review photo has no note: its review
+/// says it.
+Future<({String drink, String note})?> showPhotoDetailsSheet(
+  BuildContext context, {
+  required GalleryPhoto photo,
+}) {
+  return ListsSheet.show<({String drink, String note})>(
     context,
-    builder: (_) => _DrinkNameSheet(initial: initial),
+    builder: (_) => _PhotoDetailsSheet(photo: photo),
   );
 }
 
-class _DrinkNameSheet extends StatefulWidget {
-  const _DrinkNameSheet({this.initial});
+class _PhotoDetailsSheet extends StatefulWidget {
+  const _PhotoDetailsSheet({required this.photo});
 
-  final String? initial;
+  final GalleryPhoto photo;
 
   @override
-  State<_DrinkNameSheet> createState() => _DrinkNameSheetState();
+  State<_PhotoDetailsSheet> createState() => _PhotoDetailsSheetState();
 }
 
-class _DrinkNameSheetState extends State<_DrinkNameSheet> {
-  late final _controller = TextEditingController(text: widget.initial ?? '');
+class _PhotoDetailsSheetState extends State<_PhotoDetailsSheet> {
+  late final _drink = TextEditingController(text: widget.photo.drinkName);
+  late final _note = TextEditingController(text: widget.photo.caption);
+  String? _error;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _drink.dispose();
+    _note.dispose();
     super.dispose();
   }
 
-  void _save() => Navigator.pop(context, _controller.text.trim());
+  void _save() {
+    final error = galleryTextError(_drink.text, _note.text);
+    if (error != null) {
+      setState(() => _error = error);
+      return;
+    }
+    Navigator.pop(context, (
+      drink: _drink.text.trim(),
+      note: _note.text.trim(),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) {
+    final error = _error;
     return ListsSheet(
-      title: 'What did you have?',
+      title: widget.photo.isFromReview ? 'What did you have?' : 'Edit photo',
       children: [
-        DrinkNameField(controller: _controller, autofocus: true, onDone: _save),
+        DrinkNameField(
+          controller: _drink,
+          autofocus: true,
+          onDone: widget.photo.isFromReview ? _save : null,
+        ),
+        if (!widget.photo.isFromReview) GalleryNoteField(controller: _note),
+        if (error != null)
+          Semantics(
+            liveRegion: true,
+            child: Text(error, style: listsText(13, color: ListsTokens.danger)),
+          ),
         ListsPillButton(label: 'Save', onTap: _save),
       ],
+    );
+  }
+}
+
+/// The community-guidelines check for a photo's drink and note, as for
+/// reviews and bios. Null when both are fine.
+String? galleryTextError(String drink, String note) =>
+    ContentFilter.containsObjectionable(drink) ||
+        ContentFilter.containsObjectionable(note)
+    ? ContentFilter.rejectionMessage
+    : null;
+
+/// The optional note on a photo: a few lines, with an n/150 counter inside
+/// the field that turns dark near the limit (PayPal's counter;
+/// docs/references/profile-v2).
+class GalleryNoteField extends StatelessWidget {
+  const GalleryNoteField({
+    super.key,
+    required this.controller,
+    this.enabled = true,
+  });
+
+  final TextEditingController controller;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(ListsTokens.radius),
+      borderSide: const BorderSide(color: ListsTokens.border),
+    );
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      minLines: 2,
+      maxLines: 4,
+      maxLength: maxGalleryCaption,
+      textCapitalization: TextCapitalization.sentences,
+      style: listsText(16),
+      buildCounter:
+          (context, {required currentLength, required isFocused, maxLength}) {
+            final near = currentLength >= maxGalleryCaption - 10;
+            return Text(
+              '$currentLength/$maxGalleryCaption',
+              style: listsText(
+                12,
+                weight: near ? FontWeight.w600 : FontWeight.w400,
+                color: near ? ListsTokens.ink : ListsTokens.muted,
+              ),
+            );
+          },
+      decoration: InputDecoration(
+        labelText: 'Say something about it (optional)',
+        labelStyle: listsText(14, color: ListsTokens.muted),
+        alignLabelWithHint: true,
+        hintText: 'Too sweet for me, but the foam held up.',
+        hintStyle: listsText(16, color: ListsTokens.muted),
+        border: border,
+        enabledBorder: border,
+        focusedBorder: border.copyWith(
+          borderSide: const BorderSide(color: ListsTokens.brand, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.all(14),
+      ),
     );
   }
 }

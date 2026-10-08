@@ -12,34 +12,19 @@ class VisitorHint extends StatelessWidget {
     super.key,
     required this.highlightsPublic,
     required this.onPreview,
-    this.likedCount = 3,
   });
 
-  /// The owner's "Show my top cafes and gallery" switch.
+  /// The owner's "Show my gallery on my profile" switch, which also shows
+  /// the ranked count.
   final bool highlightsPublic;
-
-  /// Cafes ranked "Liked it": the only ones the Top 3 is drawn from.
-  final int likedCount;
   final VoidCallback onPreview;
 
   @override
   Widget build(BuildContext context) {
-    final String text;
-    if (!highlightsPublic) {
-      text =
-          'Only you see your ranking. Your top cafes are hidden from '
-          'visitors.';
-    } else if (likedCount == 0) {
-      // The strip is drawn from "Liked it" only, so with none there is no
-      // Top 3 to promise.
-      text =
-          'Only you see your ranking. Cafes you mark Liked it become the '
-          'top 3 visitors see.';
-    } else if (likedCount < 3) {
-      text = 'Only you see your ranking. Visitors see your top $likedCount.';
-    } else {
-      text = 'Only you see your ranking. Visitors see your top 3.';
-    }
+    final text = highlightsPublic
+        ? "Only you see your ranking. Visitors see how many cafes you've "
+              'ranked.'
+        : 'Only you see your ranking.';
     return Row(
       children: [
         const Icon(LucideIcons.lock, size: 16, color: ProfileTokens.muted),

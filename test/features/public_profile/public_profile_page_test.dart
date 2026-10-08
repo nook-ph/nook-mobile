@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
+import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
+import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 
 import '../gallery/gallery_fakes.dart' show FakeGalleryRepository;
@@ -53,8 +55,8 @@ void main() {
     return repo;
   }
 
-  testWidgets('a visitor sees the header, Top 3, Gallery and Reviews; '
-      'no Ranked tab and no score', (tester) async {
+  testWidgets('a visitor sees the stat row, Gallery and Reviews; no Ranked '
+      'tab, no Top 3 and no score', (tester) async {
     final repo = await pump(
       tester,
       repository: FakePublicProfileRepository(profile: beaProfile()),
@@ -63,44 +65,44 @@ void main() {
     expect(repo.asked.single.userId, 'bea-id');
     expect(find.text('@beasantos'), findsOneWidget);
     expect(find.text('Bea Santos'), findsOneWidget);
-    expect(find.text('18 cafes ranked · 2 reviews · 2 cups'), findsOneWidget);
+    // Number over label; the old counts line is gone.
+    expect(find.bySemanticsLabel('18 Ranked'), findsOneWidget);
+    expect(find.bySemanticsLabel('2 Reviews'), findsOneWidget);
+    expect(find.bySemanticsLabel('2 Cups'), findsOneWidget);
+    expect(find.text('18 cafes ranked · 2 reviews · 2 cups'), findsNothing);
     expect(find.text('Flat whites and window seats.'), findsOneWidget);
-    expect(find.text('Top cafes'), findsOneWidget);
-    expect(
-      find.bySemanticsLabel(RegExp(r'^Number 1, Kamp Craft Coffee')),
-      findsOneWidget,
-    );
-    expect(find.bySemanticsLabel(RegExp(r'^Number 3, Pulso')), findsOneWidget);
+    // The Top 3 strip no longer exists, though the server still sends one.
+    expect(find.text('Top cafes'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp(r'^Number \d')), findsNothing);
     expect(find.text('Gallery'), findsOneWidget);
-    expect(find.text('Reviews'), findsOneWidget);
+    // "Reviews" is the stat label and the tab.
+    expect(find.text('Reviews'), findsNWidgets(2));
+    // No count badges on the tabs, and no gallery counts line.
+    expect(find.text('2 cups · 2 cafes'), findsNothing);
 
-    // Nothing private: no Ranked or Lists tab, no Edit, no score.
-    expect(find.text('Ranked'), findsNothing);
+    // Nothing private: no Ranked tab (the stat label is the only "Ranked"),
+    // no Lists tab, no Edit, no score.
+    expect(find.text('Ranked'), findsOneWidget);
     expect(find.text('Lists'), findsNothing);
     expect(find.text('Edit profile'), findsNothing);
     expect(find.textContaining(RegExp(r'\d+\.\d')), findsNothing);
     expect(find.textContaining('out of 10'), findsNothing);
   });
 
-  testWidgets('a Top 3 card opens its cafe', (tester) async {
+  testWidgets('Ranked and Cups are left off the stat row when the owner '
+      'hides them', (tester) async {
     await pump(
       tester,
-      repository: FakePublicProfileRepository(profile: beaProfile()),
+      repository: FakePublicProfileRepository(
+        profile: beaProfile(highlightsPublic: false),
+      ),
     );
-    await tester.tap(find.bySemanticsLabel(RegExp(r'^Number 2, Tadaima')));
-    expect(opened, ['cafe-2']);
+    expect(find.text('Ranked'), findsNothing);
+    expect(find.text('Cups'), findsNothing);
+    expect(find.bySemanticsLabel('2 Reviews'), findsOneWidget);
   });
 
-  testWidgets('one ranked cafe shows one card', (tester) async {
-    await pump(
-      tester,
-      repository: FakePublicProfileRepository(profile: beaProfile(top: 1)),
-    );
-    expect(find.text('Top cafes'), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp(r'^Number \d')), findsOneWidget);
-  });
-
-  testWidgets('nothing ranked: no Top 3 strip at all', (tester) async {
+  testWidgets('nothing ranked: still no Top 3, Gallery stays', (tester) async {
     await pump(
       tester,
       repository: FakePublicProfileRepository(profile: beaProfile(top: 0)),
@@ -109,7 +111,7 @@ void main() {
     expect(find.text('Gallery'), findsOneWidget);
   });
 
-  testWidgets('switch off: no Top 3, no gallery, reviews still shown', (
+  testWidgets('switch off: no gallery, a private note, reviews still shown', (
     tester,
   ) async {
     await pump(
@@ -120,10 +122,46 @@ void main() {
     );
     expect(find.text('Top cafes'), findsNothing);
     expect(find.text('Gallery'), findsNothing);
-    expect(find.text('Top cafes and gallery are private'), findsOneWidget);
-    expect(find.text('2 reviews'), findsOneWidget);
+    expect(
+      find.text('Their gallery is private. Their reviews are public.'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('2 Reviews'), findsOneWidget);
     expect(find.text('Tadaima'), findsOneWidget);
     expect(find.text('Pulso'), findsOneWidget);
+  });
+
+  testWidgets('a signed-in visitor reports a photo, choosing a reason', (
+    tester,
+  ) async {
+    final repo = await pump(
+      tester,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.tap(find.byType(GalleryTile).first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Photo options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Report this photo?'), findsOneWidget);
+    await tester.tap(find.text(PhotoReportReason.spam.label));
+    await tester.pumpAndSettle();
+
+    expect(repo.reports, [('p1', PhotoReportReason.spam)]);
+    expect(find.text('Thanks. We’ll take a look.'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a guest cannot report a photo', (tester) async {
+    await pump(
+      tester,
+      signedIn: false,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.tap(find.byType(GalleryTile).first);
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Photo options'), findsNothing);
   });
 
   testWidgets('an unknown or hidden profile says it is not available', (
@@ -169,7 +207,7 @@ void main() {
     expect(find.text('Preview'), findsOneWidget);
     expect(find.text('What visitors see on your profile'), findsOneWidget);
     expect(find.bySemanticsLabel('Share profile'), findsNothing);
-    expect(find.text('Top cafes'), findsOneWidget);
+    expect(find.text('Top cafes'), findsNothing);
   });
 
   testWidgets('a review’s cafe opens the cafe', (tester) async {
@@ -177,7 +215,8 @@ void main() {
       tester,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    await tester.tap(find.text('Reviews'));
+    // The tab, not the stat above it.
+    await tester.tap(find.text('Reviews').last);
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Tadaima').last);
     await tester.pumpAndSettle();

@@ -96,6 +96,21 @@ class PublicProfileRepositoryImpl implements IPublicProfileRepository {
       throw PublicProfileException('Could not save the setting.', cause: e);
     }
   }
+
+  @override
+  Future<void> reportPhoto(String photoId, PhotoReportReason reason) async {
+    try {
+      await _client.from('photo_reports').insert({
+        'photo_id': photoId,
+        'reporter_id': _userId,
+        'reason': reason.wire,
+      });
+    } on PostgrestException catch (e) {
+      // Already reported by this person: the report stands.
+      if (e.code == '23505') return;
+      throw PublicProfileException('Could not send the report.', cause: e);
+    }
+  }
 }
 
 /// The RPC's JSON as a [PublicProfile]. Tolerant of missing lists, so an
@@ -142,6 +157,7 @@ PublicProfile publicProfileFromJson(Map<String, dynamic> json) {
         cafeArea: row['cafe_area'] as String?,
         imageUrl: row['image_url'] as String,
         drinkName: row['drink_name'] as String?,
+        caption: row['caption'] as String?,
         takenAt:
             DateTime.tryParse(row['taken_at'] as String? ?? '') ??
             DateTime.now(),

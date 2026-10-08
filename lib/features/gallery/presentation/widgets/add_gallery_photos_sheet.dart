@@ -8,12 +8,14 @@ import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 
-/// Saves [photos] to [cafe] with an optional drink. Throws on failure.
+/// Saves [photos] to [cafe] with an optional drink and note. Throws on
+/// failure.
 typedef SaveGalleryPhotos =
     Future<void> Function({
       required PickedCafe cafe,
       required List<PickedGalleryPhoto> photos,
       String? drinkName,
+      String? caption,
     });
 
 /// Opens the add sheet. Returns true when the photos were saved.
@@ -65,12 +67,15 @@ class _AddGalleryPhotosSheetState extends State<AddGalleryPhotosSheet> {
   late List<PickedGalleryPhoto> _photos = [...widget.photos];
   late PickedCafe _cafe = widget.cafe;
   final _drink = TextEditingController();
+  final _note = TextEditingController();
   bool _saving = false;
   bool _failed = false;
+  String? _textError;
 
   @override
   void dispose() {
     _drink.dispose();
+    _note.dispose();
     super.dispose();
   }
 
@@ -89,15 +94,22 @@ class _AddGalleryPhotosSheetState extends State<AddGalleryPhotosSheet> {
   Future<void> _save() async {
     if (_saving) return;
     FocusScope.of(context).unfocus();
+    final textError = galleryTextError(_drink.text, _note.text);
+    if (textError != null) {
+      setState(() => _textError = textError);
+      return;
+    }
     setState(() {
       _saving = true;
       _failed = false;
+      _textError = null;
     });
     try {
       await widget.onSave(
         cafe: _cafe,
         photos: _photos,
         drinkName: _drink.text.trim().isEmpty ? null : _drink.text.trim(),
+        caption: _note.text.trim().isEmpty ? null : _note.text.trim(),
       );
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -148,6 +160,15 @@ class _AddGalleryPhotosSheetState extends State<AddGalleryPhotosSheet> {
           ),
           DrinkNameField(controller: _drink, enabled: !_saving, onDone: _save),
         ],
+        GalleryNoteField(controller: _note, enabled: !_saving),
+        if (_textError != null)
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              _textError!,
+              style: listsText(13, color: ListsTokens.danger),
+            ),
+          ),
         _CafeRow(
           cafe: _cafe,
           onChange: widget.onChangeCafe == null ? null : _changeCafe,

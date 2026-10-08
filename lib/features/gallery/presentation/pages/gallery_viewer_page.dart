@@ -37,6 +37,7 @@ class GalleryViewerPage extends StatefulWidget {
     required this.onOpenCafe,
     this.isOwner = true,
     this.onOpenReview,
+    this.onReport,
   });
 
   final String initialPhotoId;
@@ -44,12 +45,17 @@ class GalleryViewerPage extends StatefulWidget {
   final ValueChanged<String> onOpenCafe;
   final VoidCallback? onOpenReview;
 
+  /// A visitor's "…": report the photo on screen. Null hides it (signed
+  /// out, or the owner, who gets their own options).
+  final ValueChanged<GalleryPhoto>? onReport;
+
   /// Pushes the viewer over [context], sharing its [GalleryCubit].
   static Future<void> open(
     BuildContext context, {
     required GalleryPhoto photo,
     required ValueChanged<String> onOpenCafe,
     VoidCallback? onOpenReview,
+    ValueChanged<GalleryPhoto>? onReport,
     bool isOwner = true,
   }) {
     final cubit = context.read<GalleryCubit>();
@@ -65,6 +71,7 @@ class GalleryViewerPage extends StatefulWidget {
             isOwner: isOwner,
             onOpenCafe: onOpenCafe,
             onOpenReview: onOpenReview,
+            onReport: onReport,
           ),
         ),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
@@ -144,7 +151,11 @@ class _GalleryViewerPageState extends State<GalleryViewerPage> {
                   _TopBar(
                     position: '${index + 1} of ${photos.length}',
                     onClose: () => Navigator.of(context).pop(),
-                    onMore: widget.isOwner ? () => _more(photo) : null,
+                    onMore: widget.isOwner
+                        ? () => _more(photo)
+                        : widget.onReport == null
+                        ? null
+                        : () => widget.onReport!(photo),
                   ),
                   Expanded(
                     child: PageView.builder(
@@ -168,6 +179,7 @@ class _GalleryViewerPageState extends State<GalleryViewerPage> {
                     ),
                   ),
                   _Caption(
+                    key: ValueKey(photo.id),
                     photo: photo,
                     isOwner: widget.isOwner,
                     onOpenCafe: () => widget.onOpenCafe(photo.cafeId),
@@ -270,9 +282,12 @@ class _RoundIcon extends StatelessWidget {
   }
 }
 
-/// Under the photo: what it was, where (a chip to the cafe), and when.
-class _Caption extends StatelessWidget {
+/// Under the photo: what it was, the owner's note on it, where (a chip to
+/// the cafe), and when. A long note shows two lines and "more"; a tap opens
+/// it in place (Luma's caption panel; docs/references/profile-v2).
+class _Caption extends StatefulWidget {
   const _Caption({
+    super.key,
     required this.photo,
     required this.isOwner,
     required this.onOpenCafe,
@@ -283,8 +298,70 @@ class _Caption extends StatelessWidget {
   final VoidCallback onOpenCafe;
 
   @override
+  State<_Caption> createState() => _CaptionState();
+}
+
+class _CaptionState extends State<_Caption> {
+  bool _open = false;
+
+  static const _noteStyle = TextStyle(
+    fontFamily: 'Poppins',
+    fontSize: 15,
+    height: 1.45,
+    color: _ViewerTokens.text,
+  );
+
+  Widget _note(String note) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: note, style: _noteStyle),
+          maxLines: 2,
+          textDirection: TextDirection.ltr,
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout(maxWidth: constraints.maxWidth);
+        final long = painter.didExceedMaxLines;
+        painter.dispose();
+        if (!long || _open) {
+          return GestureDetector(
+            onTap: long ? () => setState(() => _open = false) : null,
+            child: Text(note, style: _noteStyle),
+          );
+        }
+        return Semantics(
+          button: true,
+          label: '$note. Show the whole note',
+          excludeSemantics: true,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setState(() => _open = true),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  note,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: _noteStyle,
+                ),
+                Text(
+                  'more',
+                  style: _noteStyle.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final photo = widget.photo;
+    final isOwner = widget.isOwner;
     final drink = photo.drinkName;
+    final note = photo.caption;
     final notes = [
       galleryMonthLabel(photo.takenAt),
       if (isOwner && photo.isPinned) 'Pinned',
@@ -310,14 +387,26 @@ class _Caption extends StatelessWidget {
                 color: _ViewerTokens.text,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
           ],
+          if (note != null) ...[
+            // The expanded note can be long; it scrolls rather than pushing
+            // the photo off screen.
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.3,
+              ),
+              child: SingleChildScrollView(child: _note(note)),
+            ),
+            const SizedBox(height: 4),
+          ],
+          if (drink != null || note != null) const SizedBox(height: 6),
           Semantics(
             button: true,
             label: 'Open ${photo.cafeName}',
             excludeSemantics: true,
             child: AdaptiveTap(
-              onTap: onOpenCafe,
+              onTap: widget.onOpenCafe,
               borderRadius: BorderRadius.circular(100),
               child: Container(
                 constraints: const BoxConstraints(minHeight: 44),

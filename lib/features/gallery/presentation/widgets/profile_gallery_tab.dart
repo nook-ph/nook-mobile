@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_image.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 
-/// "12 cups · 7 cafes".
-String galleryCountsLine(int cups, int cafes) =>
-    '$cups ${cups == 1 ? 'cup' : 'cups'} · '
-    '$cafes ${cafes == 1 ? 'cafe' : 'cafes'}';
-
-/// The Gallery tab: a count line with Add photos, then a tight 3-column grid
-/// with pinned photos first (TikTok's grid and pin tag; Tinder's dashed
-/// empty slots; docs/references/coffee-gallery). Long-press a photo for its
+/// The Gallery tab: a tight 3-column grid of 4:5 tiles with pinned photos
+/// first (Instagram's grid, TikTok's Pinned tag; Tinder's dashed empty
+/// slots; docs/references/coffee-gallery, profile-v2). The cup count and
+/// the add button live in the profile header. Long-press a photo for its
 /// options; tap to open it.
 class ProfileGalleryTab extends StatelessWidget {
   const ProfileGalleryTab({
@@ -29,7 +24,10 @@ class ProfileGalleryTab extends StatelessWidget {
   final ValueChanged<GalleryPhoto> onOpen;
   final ValueChanged<GalleryPhoto> onOptions;
 
-  static const _gap = 2.0;
+  static const _gap = 1.5;
+
+  /// Instagram's 4:5 profile tile.
+  static const tileAspect = 4 / 5;
 
   @override
   Widget build(BuildContext context) {
@@ -51,11 +49,8 @@ class ProfileGalleryTab extends StatelessWidget {
             if (state.photos.isEmpty) return _Empty(onAdd: onAdd);
             return CustomScrollView(
               slivers: [
-                SliverToBoxAdapter(
-                  child: _Header(state: state, onAdd: onAdd),
-                ),
                 SliverPadding(
-                  padding: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.only(top: _gap, bottom: 24),
                   sliver: SliverGrid.builder(
                     itemCount: state.photos.length,
                     gridDelegate:
@@ -63,6 +58,7 @@ class ProfileGalleryTab extends StatelessWidget {
                           crossAxisCount: 3,
                           mainAxisSpacing: _gap,
                           crossAxisSpacing: _gap,
+                          childAspectRatio: tileAspect,
                         ),
                     itemBuilder: (context, i) {
                       final photo = state.photos[i];
@@ -83,99 +79,7 @@ class ProfileGalleryTab extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.state, required this.onAdd});
-
-  final GalleryState state;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final hidden = state.hiddenCount;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        ProfileTokens.gutter,
-        12,
-        ProfileTokens.gutter - 8,
-        10,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: galleryCountsLine(state.cupCount, state.cafeCount),
-                    style: ProfileTokens.text(14, weight: FontWeight.w500),
-                  ),
-                  if (hidden > 0)
-                    TextSpan(
-                      text: ' · $hidden hidden',
-                      style: ProfileTokens.text(14, color: ProfileTokens.muted),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          _AddButton(onTap: onAdd),
-        ],
-      ),
-    );
-  }
-}
-
-class _AddButton extends StatelessWidget {
-  const _AddButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Add photos',
-      excludeSemantics: true,
-      child: AdaptiveTap(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(100),
-        child: Padding(
-          // 44 tall to the touch; 34 drawn.
-          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
-          child: Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: ProfileTokens.border),
-              borderRadius: BorderRadius.circular(100),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  LucideIcons.plus,
-                  size: 16,
-                  color: ProfileTokens.brand,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  'Add',
-                  style: ProfileTokens.text(
-                    13,
-                    weight: FontWeight.w500,
-                    color: ProfileTokens.brand,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// One square of the grid. Pinned photos carry a pin tag top-left; hidden
+/// One tile of the grid. Pinned photos carry a Pinned tag top-left; hidden
 /// ones are dimmed with an eye-off mark, so the owner can tell at a glance
 /// what visitors will not see (meaning is in the mark, not only the dim).
 class GalleryTile extends StatelessWidget {
@@ -216,11 +120,7 @@ class GalleryTile extends StatelessWidget {
               child: GalleryImage(url: photo.imageUrl, cacheWidth: 360),
             ),
             if (photo.isPinned)
-              const Positioned(
-                top: 6,
-                left: 6,
-                child: _Badge(icon: LucideIcons.pin),
-              ),
+              const Positioned(top: 6, left: 6, child: _PinnedTag()),
             if (photo.isHidden)
               const Positioned(
                 top: 6,
@@ -228,6 +128,29 @@ class GalleryTile extends StatelessWidget {
                 child: _Badge(icon: LucideIcons.eyeOff),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PinnedTag extends StatelessWidget {
+  const _PinnedTag();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: ProfileTokens.brand,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        'Pinned',
+        style: ProfileTokens.text(
+          10,
+          weight: FontWeight.w600,
+          color: Colors.white,
         ),
       ),
     );
@@ -369,10 +292,11 @@ class _GridSkeleton extends StatelessWidget {
       label: 'Loading your gallery',
       child: GridView.count(
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(top: 52),
+        padding: const EdgeInsets.only(top: ProfileGalleryTab._gap),
         crossAxisCount: 3,
         mainAxisSpacing: ProfileGalleryTab._gap,
         crossAxisSpacing: ProfileGalleryTab._gap,
+        childAspectRatio: ProfileGalleryTab.tileAspect,
         children: [
           for (var i = 0; i < 9; i++)
             const ProfileSkeleton(height: double.infinity, radius: 0),

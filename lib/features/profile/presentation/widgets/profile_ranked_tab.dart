@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
-import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/lists/presentation/widgets/ranked_been_list.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
@@ -67,12 +66,6 @@ class _ProfileRankedTabState extends State<ProfileRankedTab> {
     builder: (context, visibility) => VisitorHint(
       highlightsPublic: visibility.highlightsPublic,
       onPreview: widget.onPreview!,
-      likedCount: context
-          .watch<CafeRankingCubit>()
-          .state
-          .rankings
-          .where((r) => r.bucket == RankBucket.liked)
-          .length,
     ),
   );
 
