@@ -456,6 +456,7 @@ class _CrawlRunViewState extends State<_CrawlRunView>
             isNext: stops[i].stopId == next?.stopId,
             hereMeters: _hereMeters,
             nearMeters: _nearMeters,
+            fakeStamps: AppConstants.fakeStamps,
             // The line into a stop is "walked" once that stop is stamped.
             lineBelow: i == stops.length - 1
                 ? null
@@ -601,6 +602,7 @@ class _StopRow extends StatelessWidget {
     required this.isNext,
     required this.hereMeters,
     required this.nearMeters,
+    this.fakeStamps = false,
     required this.lineBelow,
     required this.onStamp,
     required this.onDirections,
@@ -616,6 +618,10 @@ class _StopRow extends StatelessWidget {
   final bool isNext;
   final double hereMeters;
   final double nearMeters;
+
+  /// Dev builds with FAKE_STAMPS: the next stop can always be stamped, from
+  /// anywhere, so a crawl can be walked through end to end from a desk.
+  final bool fakeStamps;
   final bool? lineBelow;
   final VoidCallback? onStamp;
   final VoidCallback onDirections;
@@ -632,7 +638,8 @@ class _StopRow extends StatelessWidget {
   /// used to show on the next stop always, even 11 km away, where a tap can
   /// only fail the server's GPS check (docs/ux/core-loops.md, finding 1).
   bool get _showStamp =>
-      !_stamped && (_near || (isNext && distanceMeters == null));
+      !_stamped &&
+      (_near || (isNext && (fakeStamps || distanceMeters == null)));
 
   /// The next stop, known to be far: the way there instead of a Stamp that
   /// cannot work yet.

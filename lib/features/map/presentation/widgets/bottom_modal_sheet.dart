@@ -18,6 +18,28 @@ import 'package:nook/core/utils/geo.dart';
 import 'package:nook/features/map/domain/entities/cafe_tags_entity.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
+/// Where the page can send the sheet: its full list, or down to its chips.
+enum MapSheetSnap { open, collapsed }
+
+/// Lets the map page move the sheet between its snaps from outside.
+class MapSheetCommands extends ChangeNotifier {
+  MapSheetSnap? _requested;
+
+  /// The last snap asked for; the sheet reads it when notified.
+  MapSheetSnap? get requested => _requested;
+
+  /// Slides the sheet up to its open snap, the full list.
+  void expand() => _request(MapSheetSnap.open);
+
+  /// Lowers the sheet to its chips, so a pin's card has room over the map.
+  void collapse() => _request(MapSheetSnap.collapsed);
+
+  void _request(MapSheetSnap snap) {
+    _requested = snap;
+    notifyListeners();
+  }
+}
+
 class BottomModalSheet extends StatefulWidget {
   final List<CafeSummary> cafes;
   final List<CafeTagsEntity> tags;
@@ -35,6 +57,9 @@ class BottomModalSheet extends StatefulWidget {
   /// The list hit its fetch limit, so the count reads "20+".
   final bool isCapped;
 
+  /// Requests from the page, such as the map/list button opening the list.
+  final MapSheetCommands? commands;
+
   const BottomModalSheet({
     super.key,
     required this.cafes,
@@ -45,6 +70,7 @@ class BottomModalSheet extends StatefulWidget {
     this.onRetry,
     this.distanceFrom,
     this.isCapped = false,
+    this.commands,
   });
 
   @override
@@ -85,14 +111,38 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
   // [OPT-1] Cache last emitted metrics to skip redundant parent setState calls.
   BottomSheetMetrics? _lastMetrics;
 
+  /// Set by [MapSheetCommands]: the asked-for snap becomes the only one, so
+  /// the panel springs to it through its own snap logic (which is what keeps
+  /// the list scrollable once it arrives). The usual snaps come back on the
+  /// next touch, when the panel's velocity reading is fresh; restoring them
+  /// earlier would re-snap on the stale fling that last moved it.
+  MapSheetSnap? _forcedSnap;
+
   @override
   void initState() {
     super.initState();
     controller.addListener(_notifyMetrics);
+    widget.commands?.addListener(_onCommand);
+  }
+
+  @override
+  void didUpdateWidget(BottomModalSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.commands != widget.commands) {
+      oldWidget.commands?.removeListener(_onCommand);
+      widget.commands?.addListener(_onCommand);
+    }
+  }
+
+  void _onCommand() {
+    final snap = widget.commands?.requested;
+    if (!mounted || snap == null) return;
+    setState(() => _forcedSnap = snap);
   }
 
   @override
   void dispose() {
+    widget.commands?.removeListener(_onCommand);
     controller.removeListener(_notifyMetrics);
     controller.dispose();
     super.dispose();
@@ -170,6 +220,7 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
       minExtent: minExtent,
       maxExtent: _maxExtent,
       topFromBottom: topFromBottom,
+      panelHeight: _panelMaxHeight,
     );
     _lastMetrics = metrics;
     callback(metrics);
@@ -202,86 +253,97 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
 
         final minExtent = _minExtent.clamp(0.0, _maxExtent).toDouble();
 
-        return SlidingPanelBuilder(
-          controller: controller,
-          minExtent: minExtent,
-          initialExtent: _maxExtent,
-          snapConfig: SlidingPanelSnapConfig(
-            extents: [minExtent, _maxExtent],
-            velocityRange: (400, 2400),
-            animation: SpringSnapAnimation.fixed(
-              SpringDescription(mass: 1, stiffness: 350, damping: 30),
-            ),
-          ),
-          handle: _handle,
-          builder: (context, handle) {
-            return SlidingPanelBody(
-              shadowColor: Colors.black.withValues(alpha: 0.1),
-              color: MapTokens.surface,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(24),
+        return Listener(
+          onPointerDown: (_) {
+            if (_forcedSnap != null) setState(() => _forcedSnap = null);
+          },
+          child: SlidingPanelBuilder(
+            controller: controller,
+            minExtent: minExtent,
+            initialExtent: _maxExtent,
+            snapConfig: SlidingPanelSnapConfig(
+              extents: switch (_forcedSnap) {
+                MapSheetSnap.open => [_maxExtent],
+                MapSheetSnap.collapsed => [minExtent],
+                null => [minExtent, _maxExtent],
+              },
+              includeBoundaryExtents: _forcedSnap == null,
+              velocityRange: (400, 2400),
+              animation: SpringSnapAnimation.fixed(
+                SpringDescription(mass: 1, stiffness: 350, damping: 30),
               ),
-              child: Column(
-                children: [
-                  if (handle != null) SizedBox(key: _handleKey, child: handle),
+            ),
+            handle: _handle,
+            builder: (context, handle) {
+              return SlidingPanelBody(
+                shadowColor: Colors.black.withValues(alpha: 0.1),
+                color: MapTokens.surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                child: Column(
+                  children: [
+                    if (handle != null)
+                      SizedBox(key: _handleKey, child: handle),
 
-                  // [OPT-4] Extracted to its own widget so FilterCubit rebuilds
-                  // are isolated here and don't invalidate the list below.
-                  if (widget.error != null)
-                    Flexible(
-                      child: MapSheetStateView.error(
-                        error: widget.error!,
-                        onRetry: widget.onRetry ?? () {},
-                        onSignIn: () => context.push('/login'),
-                      ),
-                    )
-                  else ...[
-                    _FilterChipRow(tagsRowKey: _tagsRowKey),
-
-                    const SizedBox(height: _tagsBottomGap),
-
-                    // "0 cafes in view" says nothing the empty state under it
-                    // does not, so the count shows only with cafes.
-                    if (!widget.isLoadingCafes && widget.cafes.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MapTokens.gutter,
+                    // [OPT-4] Extracted to its own widget so FilterCubit rebuilds
+                    // are isolated here and don't invalidate the list below.
+                    if (widget.error != null)
+                      Flexible(
+                        child: MapSheetStateView.error(
+                          error: widget.error!,
+                          onRetry: widget.onRetry ?? () {},
+                          onSignIn: () => context.push('/login'),
                         ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            key: _countKey,
-                            '${widget.cafes.length}${widget.isCapped ? '+' : ''} '
-                            '${widget.cafes.length == 1 && !widget.isCapped ? 'cafe' : 'cafes'} in view',
-                            style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(
-                                  fontSize: 12,
-                                  color: MapTokens.muted,
-                                ),
+                      )
+                    else ...[
+                      _FilterChipRow(tagsRowKey: _tagsRowKey),
+
+                      const SizedBox(height: _tagsBottomGap),
+
+                      // "0 cafes in view" says nothing the empty state under it
+                      // does not, so the count shows only with cafes.
+                      if (!widget.isLoadingCafes && widget.cafes.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: MapTokens.gutter,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              key: _countKey,
+                              '${widget.cafes.length}${widget.isCapped ? '+' : ''} '
+                              '${widget.cafes.length == 1 && !widget.isCapped ? 'cafe' : 'cafes'} in view',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    fontSize: 12,
+                                    color: MapTokens.muted,
+                                  ),
+                            ),
                           ),
                         ),
-                      ),
 
-                    if (!widget.isLoadingCafes && widget.cafes.isNotEmpty)
-                      const SizedBox(height: _countGap),
+                      if (!widget.isLoadingCafes && widget.cafes.isNotEmpty)
+                        const SizedBox(height: _countGap),
 
-                    // [OPT-3] Replaced inner LayoutBuilder with Flexible + direct
-                    // use of cardWidth/cardHeight derived above.
-                    Flexible(
-                      child: _CafeList(
-                        topPadding: _listTopPad,
-                        cafes: widget.cafes,
-                        isLoadingCafes: widget.isLoadingCafes,
-                        cardWidth: cardWidth,
-                        cardHeight: cardHeight,
-                        distanceFrom: widget.distanceFrom,
+                      // [OPT-3] Replaced inner LayoutBuilder with Flexible + direct
+                      // use of cardWidth/cardHeight derived above.
+                      Flexible(
+                        child: _CafeList(
+                          topPadding: _listTopPad,
+                          cafes: widget.cafes,
+                          isLoadingCafes: widget.isLoadingCafes,
+                          cardWidth: cardWidth,
+                          cardHeight: cardHeight,
+                          distanceFrom: widget.distanceFrom,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
-                ],
-              ),
-            );
-          },
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -500,12 +562,19 @@ class BottomSheetMetrics {
   final double maxExtent;
   final double topFromBottom;
 
+  /// Height of the box the sheet slides in; its top edge at full extent.
+  final double panelHeight;
+
   const BottomSheetMetrics({
     required this.extent,
     required this.minExtent,
     required this.maxExtent,
     required this.topFromBottom,
+    this.panelHeight = 0,
   });
+
+  /// Open past its collapsed snap, so list rows show.
+  bool get isExpanded => extent > minExtent + 0.01;
 }
 
 bool _anyMapFilterActive(CafeFilter f) =>
