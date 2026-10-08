@@ -70,42 +70,50 @@ class MapSheetStateView extends StatelessWidget {
     final label = actionLabel;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(40, 48, 40, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEEEEEE),
-              shape: BoxShape.circle,
+      child: SizedBox(
+        // Full width, so the block centres inside the scroll view.
+        width: double.infinity,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEEEEEE),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 24, color: iconColor),
             ),
-            child: Icon(icon, size: 24, color: iconColor),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: textTheme.bodyLarge?.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: MapTokens.ink,
+            const SizedBox(height: 20),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: textTheme.bodyLarge?.copyWith(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: MapTokens.ink,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: textTheme.bodyMedium?.copyWith(
-              fontSize: 14,
-              color: MapTokens.muted,
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(
+                fontSize: 14,
+                color: MapTokens.muted,
+              ),
             ),
-          ),
-          if (label != null) ...[
-            const SizedBox(height: 24),
-            MapPillButton(label: label, filled: primaryAction, onTap: onAction),
+            if (label != null) ...[
+              const SizedBox(height: 24),
+              MapPillButton(
+                label: label,
+                filled: primaryAction,
+                onTap: onAction,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

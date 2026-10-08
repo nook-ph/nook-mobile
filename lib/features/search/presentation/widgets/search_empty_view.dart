@@ -107,43 +107,47 @@ class SearchErrorBlock extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       // Results pad 12/20, the block 120/20 inside it.
       padding: const EdgeInsets.fromLTRB(40, 132, 40, 24),
-      child: Column(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: const BoxDecoration(
-              color: StateStyles.tint,
-              shape: BoxShape.circle,
+      child: SizedBox(
+        // Full width, so the block centres inside the scroll view.
+        width: double.infinity,
+        child: Column(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                color: StateStyles.tint,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                FullPageErrorWidget.iconFor(error.type),
+                size: 22,
+                color: StateStyles.brand,
+              ),
             ),
-            child: Icon(
-              FullPageErrorWidget.iconFor(error.type),
-              size: 22,
-              color: StateStyles.brand,
+            const SizedBox(height: 8),
+            Text(
+              error.title,
+              textAlign: TextAlign.center,
+              style: StateStyles.text(16, FontWeight.w600, StateStyles.ink),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            error.title,
-            textAlign: TextAlign.center,
-            style: StateStyles.text(16, FontWeight.w600, StateStyles.ink),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            error.subtitle,
-            textAlign: TextAlign.center,
-            style: StateStyles.text(14, FontWeight.w400, StateStyles.muted),
-          ),
-          if (retry != null) ...[
-            // The design's 8 spacer between two 8 gaps.
-            const SizedBox(height: 24),
-            StatePillButton(
-              label: signIn ? 'Sign in' : 'Try again',
-              filled: signIn,
-              onTap: retry,
+            const SizedBox(height: 8),
+            Text(
+              error.subtitle,
+              textAlign: TextAlign.center,
+              style: StateStyles.text(14, FontWeight.w400, StateStyles.muted),
             ),
+            if (retry != null) ...[
+              // The design's 8 spacer between two 8 gaps.
+              const SizedBox(height: 24),
+              StatePillButton(
+                label: signIn ? 'Sign in' : 'Try again',
+                filled: signIn,
+                onTap: retry,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
