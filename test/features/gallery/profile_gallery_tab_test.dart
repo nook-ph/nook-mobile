@@ -338,4 +338,99 @@ void main() {
       await letToastExpire(tester);
     });
   });
+
+  group('uploads', () {
+    testWidgets('an uploading photo sits after the pins with a progress bar', (
+      tester,
+    ) async {
+      await pump(tester, [
+        galleryPhoto('pinned', pin: 1),
+        galleryPhoto('older', takenAt: DateTime(2024)),
+      ]);
+      repo.writeFailure = Exception('offline');
+      await cubit.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.gallery,
+      );
+      await tester.pump();
+
+      expect(find.text('Didn’t upload'), findsOneWidget);
+      final tiles = tester
+          .widgetList(
+            find.byWidgetPredicate(
+              (w) => w is GalleryTile || w is GalleryUploadTile,
+            ),
+          )
+          .toList();
+      expect(tiles[0], isA<GalleryTile>());
+      expect(tiles[1], isA<GalleryUploadTile>());
+      expect(tiles[2], isA<GalleryTile>());
+
+      repo.writeFailure = null;
+      await tester.tap(find.bySemanticsLabel('Retry upload'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GalleryUploadTile), findsNothing);
+      expect(find.byType(GalleryTile), findsNWidgets(3));
+      expect(repo.added, hasLength(1));
+    });
+
+    testWidgets('the first photo uploading replaces the empty state', (
+      tester,
+    ) async {
+      await pump(tester, const []);
+      repo.writeFailure = Exception('offline');
+      await cubit.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.gallery,
+      );
+      await tester.pump();
+      expect(find.text('Your coffee, cup by cup'), findsNothing);
+      expect(find.byType(GalleryUploadTile), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Remove this photo'));
+      await tester.pump();
+      expect(find.text('Your coffee, cup by cup'), findsOneWidget);
+    });
+  });
+
+  testWidgets('a failed tile fits at 360 wide and text scale 1.3', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 740);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    repo = FakeGalleryRepository()..writeFailure = Exception('offline');
+    cubit = GalleryCubit(repository: repo);
+    await cubit.load();
+    await cubit.upload(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a')],
+      source: GalleryPhotoSource.gallery,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TAppTheme.lightTheme,
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(360, 740),
+            textScaler: TextScaler.linear(1.3),
+          ),
+          child: BlocProvider.value(
+            value: cubit,
+            child: Scaffold(
+              body: ProfileGalleryTab(
+                onAdd: () {},
+                onOpen: (_) {},
+                onOptions: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Didn’t upload'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

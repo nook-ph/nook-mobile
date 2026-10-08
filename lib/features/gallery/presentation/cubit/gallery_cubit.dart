@@ -11,16 +11,65 @@ const maxGalleryPins = 3;
 /// What a pin tap did.
 enum PinOutcome { pinned, unpinned, full, failed }
 
+/// A photo on its way into the gallery. The grid shows it with a progress
+/// bar until its row lands, or with Retry when it failed (Figma E2).
+class GalleryUpload extends Equatable {
+  const GalleryUpload({
+    required this.id,
+    required this.photo,
+    required this.cafeId,
+    required this.source,
+    this.drinkName,
+    this.caption,
+    this.failed = false,
+  });
+
+  /// Local only; never a `user_photos` id.
+  final String id;
+  final PickedGalleryPhoto photo;
+  final String cafeId;
+  final GalleryPhotoSource source;
+  final String? drinkName;
+  final String? caption;
+  final bool failed;
+
+  GalleryUpload copyWith({required bool failed}) => GalleryUpload(
+    id: id,
+    photo: photo,
+    cafeId: cafeId,
+    source: source,
+    drinkName: drinkName,
+    caption: caption,
+    failed: failed,
+  );
+
+  @override
+  List<Object?> get props => [
+    id,
+    photo,
+    cafeId,
+    source,
+    drinkName,
+    caption,
+    failed,
+  ];
+}
+
 class GalleryState extends Equatable {
   const GalleryState({
     this.status = GalleryStatus.initial,
     this.photos = const [],
+    this.uploads = const [],
   });
 
   final GalleryStatus status;
 
   /// Pinned first (slot 1–3), then newest first.
   final List<GalleryPhoto> photos;
+
+  /// Photos still uploading, or failed and waiting for Retry, in the order
+  /// they were added.
+  final List<GalleryUpload> uploads;
 
   Iterable<GalleryPhoto> get _shown => photos.where((p) => !p.isHidden);
 
@@ -33,14 +82,18 @@ class GalleryState extends Equatable {
   int get hiddenCount => photos.length - cupCount;
   int get pinnedCount => photos.where((p) => p.isPinned).length;
 
-  GalleryState copyWith({GalleryStatus? status, List<GalleryPhoto>? photos}) =>
-      GalleryState(
-        status: status ?? this.status,
-        photos: photos == null ? this.photos : sortGallery(photos),
-      );
+  GalleryState copyWith({
+    GalleryStatus? status,
+    List<GalleryPhoto>? photos,
+    List<GalleryUpload>? uploads,
+  }) => GalleryState(
+    status: status ?? this.status,
+    photos: photos == null ? this.photos : sortGallery(photos),
+    uploads: uploads == null ? this.uploads : List.unmodifiable(uploads),
+  );
 
   @override
-  List<Object?> get props => [status, photos];
+  List<Object?> get props => [status, photos, uploads];
 }
 
 /// Pinned photos by slot, then the rest newest first.
@@ -78,9 +131,8 @@ class GalleryCubit extends Cubit<GalleryState> {
     try {
       final photos = await _repository.getMyPhotos();
       if (isClosed) return;
-      emit(
-        GalleryState(status: GalleryStatus.loaded, photos: sortGallery(photos)),
-      );
+      // Uploads in flight stay: they are not rows yet.
+      emit(state.copyWith(status: GalleryStatus.loaded, photos: photos));
     } catch (_) {
       if (isClosed) return;
       // A failed refresh keeps the photos already on screen.
@@ -118,6 +170,98 @@ class GalleryCubit extends Cubit<GalleryState> {
     }
     return added;
   }
+
+  var _uploadSeq = 0;
+
+  /// Starts adding [photos] to [cafeId] and returns at once, so the sheet
+  /// that asked can close. Each photo shows in the grid as a
+  /// [GalleryUpload] until its row lands, or fails and offers Retry. The
+  /// future completes when every photo has landed or failed.
+  Future<({int added, int failed})> upload({
+    required String cafeId,
+    required List<PickedGalleryPhoto> photos,
+    required GalleryPhotoSource source,
+    String? drinkName,
+    String? caption,
+  }) async {
+    final batch = [
+      for (final photo in photos)
+        GalleryUpload(
+          id: 'upload-${_uploadSeq++}',
+          photo: photo,
+          cafeId: cafeId,
+          source: source,
+          drinkName: drinkName,
+          caption: caption,
+        ),
+    ];
+    emit(state.copyWith(uploads: [...state.uploads, ...batch]));
+    final results = await Future.wait(batch.map(_send));
+    final added = results.where((ok) => ok).length;
+    return (added: added, failed: results.length - added);
+  }
+
+  /// Sends a failed upload again. Does nothing while it is already going,
+  /// so a second tap on Retry never adds the photo twice.
+  Future<bool> retryUpload(String id) async {
+    final upload = state.uploads.where((u) => u.id == id).firstOrNull;
+    if (upload == null || !upload.failed) return false;
+    final again = upload.copyWith(failed: false);
+    _replaceUpload(again);
+    return _send(again);
+  }
+
+  /// Drops a failed upload from the grid.
+  void discardUpload(String id) {
+    final upload = state.uploads.where((u) => u.id == id).firstOrNull;
+    if (upload == null || !upload.failed) return;
+    emit(
+      state.copyWith(
+        uploads: [
+          for (final u in state.uploads)
+            if (u.id != id) u,
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _send(GalleryUpload upload) async {
+    try {
+      final rows = await _repository.addPhotos(
+        cafeId: upload.cafeId,
+        photos: [upload.photo],
+        source: upload.source,
+        drinkName: upload.drinkName,
+        caption: upload.caption,
+      );
+      // Signed out meanwhile: the row is saved; this gallery is not theirs.
+      if (isClosed || !state.uploads.any((u) => u.id == upload.id)) {
+        return true;
+      }
+      final rest = [
+        for (final u in state.uploads)
+          if (u.id != upload.id) u,
+      ];
+      if (state.status == GalleryStatus.loaded) {
+        emit(state.copyWith(photos: [...state.photos, ...rows], uploads: rest));
+      } else {
+        emit(state.copyWith(uploads: rest));
+        await load();
+      }
+      return true;
+    } catch (_) {
+      if (!isClosed && state.uploads.any((u) => u.id == upload.id)) {
+        _replaceUpload(upload.copyWith(failed: true));
+      }
+      return false;
+    }
+  }
+
+  void _replaceUpload(GalleryUpload next) => emit(
+    state.copyWith(
+      uploads: [for (final u in state.uploads) u.id == next.id ? next : u],
+    ),
+  );
 
   /// Pins [photo] to the first free slot, or unpins it.
   Future<PinOutcome> togglePin(GalleryPhoto photo) async {

@@ -9,7 +9,8 @@ import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 
 /// Saves [photos] to [cafe] with an optional drink and note. Throws on
-/// failure.
+/// failure. The sheet waits for it, so a callback that only starts the
+/// upload (the gallery's +) lets the sheet close at once.
 typedef SaveGalleryPhotos =
     Future<void> Function({
       required PickedCafe cafe,
@@ -19,15 +20,21 @@ typedef SaveGalleryPhotos =
     });
 
 /// Opens the add sheet. Returns true when the photos were saved.
+///
+/// [waitsForUpload] says [onSave] holds the sheet open for the whole
+/// upload (the ranking reveal). Then only the close button or Back closes
+/// it, and neither works mid-upload, so the result is never lost.
 Future<bool> showAddGalleryPhotosSheet(
   BuildContext context, {
   required List<PickedGalleryPhoto> photos,
   required PickedCafe cafe,
   required SaveGalleryPhotos onSave,
   Future<PickedCafe?> Function()? onChangeCafe,
+  bool waitsForUpload = false,
 }) async {
   final saved = await ListsSheet.show<bool>(
     context,
+    isDismissible: !waitsForUpload,
     builder: (_) => AddGalleryPhotosSheet(
       photos: photos,
       cafe: cafe,
@@ -124,77 +131,84 @@ class _AddGalleryPhotosSheetState extends State<AddGalleryPhotosSheet> {
   @override
   Widget build(BuildContext context) {
     final count = _photos.length;
-    return ListsSheet(
-      title: count == 1 ? 'Add to your gallery' : 'Add $count photos',
-      onClose: _saving ? () {} : null,
-      children: [
-        if (count == 1)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Thumb(photo: _photos.single, size: 88, busy: _saving),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DrinkNameField(
-                  controller: _drink,
-                  enabled: !_saving,
-                  onDone: _save,
+    return PopScope(
+      canPop: !_saving,
+      child: ListsSheet(
+        title: count == 1 ? 'Add to your gallery' : 'Add $count photos',
+        onClose: _saving ? () {} : null,
+        children: [
+          if (count == 1)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Thumb(photo: _photos.single, size: 88, busy: _saving),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: DrinkNameField(
+                    controller: _drink,
+                    enabled: !_saving,
+                    onDone: _save,
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            SizedBox(
+              height: 76,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: count,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, i) => _Thumb(
+                  photo: _photos[i],
+                  size: 76,
+                  busy: _saving,
+                  onRemove: _saving ? null : () => _remove(_photos[i]),
                 ),
               ),
-            ],
-          )
-        else ...[
-          SizedBox(
-            height: 76,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: count,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (_, i) => _Thumb(
-                photo: _photos[i],
-                size: 76,
-                busy: _saving,
-                onRemove: _saving ? null : () => _remove(_photos[i]),
+            ),
+            DrinkNameField(
+              controller: _drink,
+              enabled: !_saving,
+              onDone: _save,
+            ),
+          ],
+          GalleryNoteField(controller: _note, enabled: !_saving),
+          if (_textError != null)
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                _textError!,
+                style: listsText(13, color: ListsTokens.danger),
               ),
             ),
+          _CafeRow(
+            cafe: _cafe,
+            onChange: widget.onChangeCafe == null ? null : _changeCafe,
           ),
-          DrinkNameField(controller: _drink, enabled: !_saving, onDone: _save),
+          if (_failed)
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                count == 1
+                    ? "Couldn't add the photo. Check your connection and try "
+                          'again.'
+                    : "Couldn't add the photos. Check your connection and try "
+                          'again.',
+                style: listsText(13, color: ListsTokens.danger),
+              ),
+            ),
+          ListsPillButton(
+            label: _failed
+                ? 'Try again'
+                : count == 1
+                ? 'Add photo'
+                : 'Add $count photos',
+            busy: _saving,
+            onTap: _saving ? null : _save,
+          ),
         ],
-        GalleryNoteField(controller: _note, enabled: !_saving),
-        if (_textError != null)
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              _textError!,
-              style: listsText(13, color: ListsTokens.danger),
-            ),
-          ),
-        _CafeRow(
-          cafe: _cafe,
-          onChange: widget.onChangeCafe == null ? null : _changeCafe,
-        ),
-        if (_failed)
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              count == 1
-                  ? "Couldn't add the photo. Check your connection and try "
-                        'again.'
-                  : "Couldn't add the photos. Check your connection and try "
-                        'again.',
-              style: listsText(13, color: ListsTokens.danger),
-            ),
-          ),
-        ListsPillButton(
-          label: _failed
-              ? 'Try again'
-              : count == 1
-              ? 'Add photo'
-              : 'Add $count photos',
-          busy: _saving,
-          onTap: _saving ? null : _save,
-        ),
-      ],
+      ),
     );
   }
 }

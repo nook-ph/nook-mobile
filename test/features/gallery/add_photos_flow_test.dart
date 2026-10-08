@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
@@ -213,15 +215,59 @@ void main() {
       await tester.tap(find.text('Add 2 photos').last);
       await tester.pumpAndSettle();
 
-      expect(repo.added.single, (
-        cafeId: 'lorenzo',
-        count: 2,
-        source: GalleryPhotoSource.gallery,
-        drink: 'Iced Spanish latte',
-        caption: null,
-      ));
+      // One upload per photo, so a failure stays with its own tile.
+      expect(repo.added, hasLength(2));
+      for (final add in repo.added) {
+        expect(add, (
+          cafeId: 'lorenzo',
+          count: 1,
+          source: GalleryPhotoSource.gallery,
+          drink: 'Iced Spanish latte',
+          caption: null,
+        ));
+      }
       expect(cubit.state.photos, hasLength(2));
+      expect(cubit.state.uploads, isEmpty);
       expect(find.text('2 photos added'), findsOneWidget);
+      await _letToastExpire(tester);
+    });
+
+    testWidgets('the sheet closes at once; the upload carries on behind it', (
+      tester,
+    ) async {
+      usePhone(tester);
+      final gated = _GatedRepository();
+      final gatedCubit = GalleryCubit(repository: gated);
+      addTearDown(gatedCubit.close);
+      await tester.pumpWidget(
+        _launcher(
+          (context) => addPhotosToGallery(
+            context,
+            galleryDeps(
+              cubit: gatedCubit,
+              picker: FakeGalleryPhotoPicker(
+                many: [pickedPhoto('a'), pickedPhoto('b'), pickedPhoto('c')],
+              ),
+              cafes: FakeCafePickerSource(been: [kamp], near: const []),
+            ),
+          ),
+        ),
+      );
+      await _go(tester);
+      await tester.tap(find.text('Kamp Craft Coffee'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add 3 photos').last);
+      await tester.pumpAndSettle();
+
+      // Gone while nothing has landed yet.
+      expect(find.text('Add 3 photos'), findsNothing);
+      expect(gatedCubit.state.uploads, hasLength(3));
+      expect(find.text('Adding 3 photos to your gallery…'), findsOneWidget);
+
+      gated.gate.complete();
+      await tester.pumpAndSettle();
+      expect(gatedCubit.state.photos, hasLength(3));
+      expect(find.text('3 photos added'), findsOneWidget);
       await _letToastExpire(tester);
     });
 
@@ -285,7 +331,7 @@ void main() {
       await _letToastExpire(tester);
     });
 
-    testWidgets('a failed upload keeps the sheet and offers Try again', (
+    testWidgets('a failed upload leaves the photo waiting with Retry', (
       tester,
     ) async {
       usePhone(tester);
@@ -308,12 +354,16 @@ void main() {
       await tester.tap(find.text('Add photo'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining("Couldn't add the photo"), findsOneWidget);
-      repo.writeFailure = null;
-      await tester.tap(find.text('Try again'));
-      await tester.pumpAndSettle();
       expect(find.text('Add to your gallery'), findsNothing);
+      expect(
+        find.text("A photo didn't upload. Tap Retry on it."),
+        findsOneWidget,
+      );
+      expect(cubit.state.uploads.single.failed, isTrue);
+      repo.writeFailure = null;
+      await cubit.retryUpload(cubit.state.uploads.single.id);
       expect(cubit.state.photos, hasLength(1));
+      expect(cubit.state.uploads, isEmpty);
       await _letToastExpire(tester);
     });
 
@@ -332,4 +382,27 @@ void main() {
       expect(repo.calls, isEmpty);
     });
   });
+}
+
+/// Holds every add until [gate] completes.
+class _GatedRepository extends FakeGalleryRepository {
+  final gate = Completer<void>();
+
+  @override
+  Future<List<GalleryPhoto>> addPhotos({
+    required String cafeId,
+    required List<PickedGalleryPhoto> photos,
+    required GalleryPhotoSource source,
+    String? drinkName,
+    String? caption,
+  }) async {
+    await gate.future;
+    return super.addPhotos(
+      cafeId: cafeId,
+      photos: photos,
+      source: source,
+      drinkName: drinkName,
+      caption: caption,
+    );
+  }
 }

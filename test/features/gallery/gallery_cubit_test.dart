@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
@@ -167,4 +169,123 @@ void main() {
     );
     expect(repo.added.single.caption, 'Best cortado in Lahug');
   });
+
+  group('upload', () {
+    test('each photo waits in uploads until its row lands', () async {
+      final gated = _GatedRepository();
+      final c = GalleryCubit(repository: gated);
+      addTearDown(c.close);
+      await c.load();
+
+      final done = c.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a'), pickedPhoto('b')],
+        source: GalleryPhotoSource.gallery,
+        drinkName: 'Cortado',
+      );
+      expect(c.state.uploads, hasLength(2));
+      expect(c.state.uploads.every((u) => !u.failed), isTrue);
+      expect(c.state.photos, isEmpty);
+
+      gated.gate.complete();
+      final result = await done;
+      expect(result, (added: 2, failed: 0));
+      expect(c.state.uploads, isEmpty);
+      expect(c.state.photos, hasLength(2));
+      // One call per photo, so one failure never sinks the batch.
+      expect(gated.added.map((a) => a.count), [1, 1]);
+      expect(gated.added.every((a) => a.drink == 'Cortado'), isTrue);
+    });
+
+    test('a failed photo stays, and Retry adds it exactly once', () async {
+      await cubit.load();
+      repo.writeFailure = Exception('offline');
+      final result = await cubit.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.gallery,
+      );
+      expect(result, (added: 0, failed: 1));
+      final failed = cubit.state.uploads.single;
+      expect(failed.failed, isTrue);
+
+      repo.writeFailure = null;
+      // Two quick taps on Retry: the second finds it already going.
+      final first = cubit.retryUpload(failed.id);
+      final second = cubit.retryUpload(failed.id);
+      expect(await first, isTrue);
+      expect(await second, isFalse);
+      expect(repo.added, hasLength(1));
+      expect(cubit.state.uploads, isEmpty);
+      expect(ids(), contains('new-5'));
+    });
+
+    test('a failed photo can be removed instead', () async {
+      await cubit.load();
+      repo.writeFailure = Exception('offline');
+      await cubit.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.gallery,
+      );
+      cubit.discardUpload(cubit.state.uploads.single.id);
+      expect(cubit.state.uploads, isEmpty);
+    });
+
+    test('a reload keeps photos still uploading', () async {
+      final gated = _GatedRepository();
+      final c = GalleryCubit(repository: gated);
+      addTearDown(c.close);
+      await c.load();
+      final done = c.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.gallery,
+      );
+      await c.load(refresh: true);
+      expect(c.state.uploads, hasLength(1));
+      gated.gate.complete();
+      await done;
+    });
+
+    test('signing out drops uploads; a late row does not come back', () async {
+      final gated = _GatedRepository();
+      final c = GalleryCubit(repository: gated);
+      addTearDown(c.close);
+      await c.load();
+      final done = c.upload(
+        cafeId: 'cafe-9',
+        photos: [pickedPhoto('a')],
+        source: GalleryPhotoSource.gallery,
+      );
+      c.clear();
+      gated.gate.complete();
+      await done;
+      expect(c.state.photos, isEmpty);
+      expect(c.state.uploads, isEmpty);
+    });
+  });
+}
+
+/// Holds every add until [gate] completes.
+class _GatedRepository extends FakeGalleryRepository {
+  final gate = Completer<void>();
+
+  @override
+  Future<List<GalleryPhoto>> addPhotos({
+    required String cafeId,
+    required List<PickedGalleryPhoto> photos,
+    required GalleryPhotoSource source,
+    String? drinkName,
+    String? caption,
+  }) async {
+    await gate.future;
+    return super.addPhotos(
+      cafeId: cafeId,
+      photos: photos,
+      source: source,
+      drinkName: drinkName,
+      caption: caption,
+    );
+  }
 }

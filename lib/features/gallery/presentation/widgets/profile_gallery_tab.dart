@@ -46,13 +46,23 @@ class ProfileGalleryTab extends StatelessWidget {
               ),
             );
           case GalleryStatus.loaded:
-            if (state.photos.isEmpty) return _Empty(onAdd: onAdd);
+            if (state.photos.isEmpty && state.uploads.isEmpty) {
+              return _Empty(onAdd: onAdd);
+            }
+            // New photos land after the pinned ones, where they will be
+            // seen, until their rows arrive (Figma E2).
+            final pinned = state.photos.takeWhile((p) => p.isPinned).length;
+            final items = <Object>[
+              ...state.photos.take(pinned),
+              ...state.uploads,
+              ...state.photos.skip(pinned),
+            ];
             return CustomScrollView(
               slivers: [
                 SliverPadding(
                   padding: const EdgeInsets.only(top: _gap, bottom: 24),
                   sliver: SliverGrid.builder(
-                    itemCount: state.photos.length,
+                    itemCount: items.length,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 3,
@@ -60,14 +70,17 @@ class ProfileGalleryTab extends StatelessWidget {
                           crossAxisSpacing: _gap,
                           childAspectRatio: tileAspect,
                         ),
-                    itemBuilder: (context, i) {
-                      final photo = state.photos[i];
-                      return GalleryTile(
+                    itemBuilder: (context, i) => switch (items[i]) {
+                      final GalleryUpload upload => GalleryUploadTile(
+                        key: ValueKey(upload.id),
+                        upload: upload,
+                      ),
+                      final photo as GalleryPhoto => GalleryTile(
                         key: ValueKey(photo.id),
                         photo: photo,
                         onTap: () => onOpen(photo),
                         onLongPress: () => onOptions(photo),
-                      );
+                      ),
                     },
                   ),
                 ),
@@ -129,6 +142,127 @@ class GalleryTile extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A photo still on its way in: the picked image, dimmed, with a progress
+/// bar; or, when it failed, "Didn't upload" and Retry in its place (Figma
+/// E2; Savee's uploading tile, launch-review/profile-ux.md).
+class GalleryUploadTile extends StatelessWidget {
+  const GalleryUploadTile({super.key, required this.upload});
+
+  final GalleryUpload upload;
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.read<GalleryCubit>();
+    final failed = upload.failed;
+    return Semantics(
+      container: true,
+      label: failed ? 'Photo didn’t upload' : 'Uploading photo',
+      liveRegion: true,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Opacity(
+            opacity: failed ? 1 : 0.6,
+            child: GalleryImage(url: upload.photo.file.path, cacheWidth: 360),
+          ),
+          if (!failed)
+            const Positioned(
+              left: 12,
+              right: 12,
+              bottom: 10,
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(2)),
+                child: LinearProgressIndicator(
+                  minHeight: 3,
+                  color: Colors.white,
+                  backgroundColor: Color(0x66FFFFFF),
+                ),
+              ),
+            )
+          else ...[
+            const ColoredBox(color: Color(0x990A0F0D)),
+            // Scales down rather than clip in a narrow tile at large text.
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      LucideIcons.circleAlert,
+                      size: 20,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Didn’t upload',
+                      textAlign: TextAlign.center,
+                      style: ProfileTokens.text(
+                        12,
+                        weight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Semantics(
+                      button: true,
+                      label: 'Retry upload',
+                      excludeSemantics: true,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => cubit.retryUpload(upload.id),
+                        // 44 tall to the touch; the pill inside is 28.
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'Retry',
+                              style: ProfileTokens.text(
+                                12,
+                                weight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Semantics(
+                button: true,
+                label: 'Remove this photo',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => cubit.discardUpload(upload.id),
+                  child: const Padding(
+                    padding: EdgeInsets.all(6),
+                    child: _Badge(icon: LucideIcons.x),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
