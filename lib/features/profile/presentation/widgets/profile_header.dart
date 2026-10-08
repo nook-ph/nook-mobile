@@ -249,9 +249,14 @@ class _HeaderButton extends StatelessWidget {
       child: AdaptiveTap(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
+        // At least 44 tall; grows with the label at large text instead of
+        // clipping it (it did from about 2.1x).
         child: Container(
-          height: 44,
-          width: icon == null ? null : 44,
+          constraints: BoxConstraints(
+            minHeight: 44,
+            minWidth: icon == null ? 0 : 44,
+            maxWidth: icon == null ? double.infinity : 44,
+          ),
           alignment: Alignment.center,
           padding: icon == null
               ? const EdgeInsets.symmetric(horizontal: 8)
