@@ -23,6 +23,9 @@ import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
+import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
+import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/reviews_logic.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:go_router/go_router.dart';
 
@@ -82,9 +85,17 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   /// the sheet has slid up over the photo.
   static const double _fadeRange = 60;
 
+  /// A guest tapped Write a review, signed in and was brought back here:
+  /// open the review sheet once the reviews are in, unless they already
+  /// have one.
+  bool _pendingWriteReview = false;
+
   @override
   void initState() {
     super.initState();
+    _pendingWriteReview =
+        Supabase.instance.client.auth.currentSession != null &&
+        GuestActionReplay.take(CafeGuestAction.writeReview, widget.cafeId);
     _scrollController = ScrollController()
       ..addListener(() {
         _collapseProgress.value =
@@ -142,7 +153,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
 
   void _writeReview(BuildContext context) {
     if (Supabase.instance.client.auth.currentSession == null) {
-      CafeGuestSignInSheet.show(context, action: CafeGuestAction.writeReview);
+      CafeGuestSignInSheet.show(
+        context,
+        action: CafeGuestAction.writeReview,
+        cafeId: widget.cafeId,
+      );
       return;
     }
     WriteReviewSheet.show(context, cafeId: widget.cafeId);
@@ -243,231 +258,247 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
         ),
         BlocProvider(create: (_) => sl<ReviewSubmitBloc>()),
       ],
-      child: BlocListener<ReviewSubmitBloc, ReviewSubmitState>(
-        listener: (context, submitState) {
-          if (submitState is! ReviewSubmitSuccess) return;
-
-          context.read<ReviewsBloc>().add(
-            LoadReviewsRequested(cafeId: widget.cafeId),
-          );
-
-          context.read<CafeDetailsBloc>().add(
-            LoadCafeDetailsRequested(cafeId: widget.cafeId),
-          );
+      child: BlocListener<ReviewsBloc, ReviewsState>(
+        listenWhen: (_, current) =>
+            _pendingWriteReview && current is ReviewsLoaded,
+        listener: (context, reviewsState) {
+          _pendingWriteReview = false;
+          if (reviewsState is! ReviewsLoaded) return;
+          final me = Supabase.instance.client.auth.currentUser?.id;
+          if (hasOwnReview(reviewsState.reviews, me)) return;
+          _writeReview(context);
         },
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            appBarTheme: const AppBarTheme(
-              surfaceTintColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              elevation: 0,
-            ),
-          ),
-          child: Scaffold(
-            backgroundColor: Colors.white,
-            extendBodyBehindAppBar: true,
-            bottomNavigationBar: BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
-              builder: (context, state) {
-                if (state is CafeDetailsInitial ||
-                    state is CafeDetailsLoading) {
-                  return const CafeActionsBarSkeleton();
-                }
-                if (state is! CafeDetailsLoaded) {
-                  return const SizedBox.shrink();
-                }
-                return KeyedSubtree(
-                  key: _barKey,
-                  child: CafeActionsBar(cafe: state.data),
-                );
-              },
-            ),
-            body: BlocConsumer<CafeDetailsBloc, CafeDetailsState>(
-              listenWhen: (_, current) => current is CafeDetailsLoaded,
-              listener: (_, _) => _trackViewDetails(),
-              buildWhen: (previous, current) {
-                if (previous is CafeDetailsLoaded &&
-                    current is CafeDetailsLoading) {
-                  return false;
-                }
-                return previous != current;
-              },
-              builder: (context, state) {
-                final isLoading =
-                    state is CafeDetailsInitial || state is CafeDetailsLoading;
+        child: BlocListener<ReviewSubmitBloc, ReviewSubmitState>(
+          listener: (context, submitState) {
+            if (submitState is! ReviewSubmitSuccess) return;
 
-                final heroImages = state is CafeDetailsLoaded
-                    ? [
-                        if ((state.data.cafeDetails.featuredImageUrl ?? '')
-                            .isNotEmpty)
-                          state.data.cafeDetails.featuredImageUrl!,
-                        ...state.data.cafeDetails.photos.where(
-                          (url) =>
-                              url.isNotEmpty &&
-                              url != state.data.cafeDetails.featuredImageUrl,
-                        ),
-                      ]
-                    : const <String>[];
+            context.read<ReviewsBloc>().add(
+              LoadReviewsRequested(cafeId: widget.cafeId),
+            );
 
-                if (state is CafeDetailsError) {
-                  final failure = CafeLoadFailure.from(state.error);
-                  void back() => Navigator.maybePop(context);
-                  if (failure.isNotFound) {
-                    return CafeDetailsErrorView.notFound(
+            context.read<CafeDetailsBloc>().add(
+              LoadCafeDetailsRequested(cafeId: widget.cafeId),
+            );
+          },
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              appBarTheme: const AppBarTheme(
+                surfaceTintColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                elevation: 0,
+              ),
+            ),
+            child: Scaffold(
+              backgroundColor: Colors.white,
+              extendBodyBehindAppBar: true,
+              bottomNavigationBar:
+                  BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
+                    builder: (context, state) {
+                      if (state is CafeDetailsInitial ||
+                          state is CafeDetailsLoading) {
+                        return const CafeActionsBarSkeleton();
+                      }
+                      if (state is! CafeDetailsLoaded) {
+                        return const SizedBox.shrink();
+                      }
+                      return KeyedSubtree(
+                        key: _barKey,
+                        child: CafeActionsBar(cafe: state.data),
+                      );
+                    },
+                  ),
+              body: BlocConsumer<CafeDetailsBloc, CafeDetailsState>(
+                listenWhen: (_, current) => current is CafeDetailsLoaded,
+                listener: (_, _) => _trackViewDetails(),
+                buildWhen: (previous, current) {
+                  if (previous is CafeDetailsLoaded &&
+                      current is CafeDetailsLoading) {
+                    return false;
+                  }
+                  return previous != current;
+                },
+                builder: (context, state) {
+                  final isLoading =
+                      state is CafeDetailsInitial ||
+                      state is CafeDetailsLoading;
+
+                  final heroImages = state is CafeDetailsLoaded
+                      ? [
+                          if ((state.data.cafeDetails.featuredImageUrl ?? '')
+                              .isNotEmpty)
+                            state.data.cafeDetails.featuredImageUrl!,
+                          ...state.data.cafeDetails.photos.where(
+                            (url) =>
+                                url.isNotEmpty &&
+                                url != state.data.cafeDetails.featuredImageUrl,
+                          ),
+                        ]
+                      : const <String>[];
+
+                  if (state is CafeDetailsError) {
+                    final failure = CafeLoadFailure.from(state.error);
+                    void back() => Navigator.maybePop(context);
+                    if (failure.isNotFound) {
+                      return CafeDetailsErrorView.notFound(
+                        onBack: back,
+                        onSearch: () => context.push('/search'),
+                        onHome: () => context.go('/'),
+                      );
+                    }
+                    return CafeDetailsErrorView.forError(
+                      info: failure.info,
                       onBack: back,
-                      onSearch: () => context.push('/search'),
-                      onHome: () => context.go('/'),
+                      onSignIn: () => context.push('/login'),
+                      onRetry: () => context.read<CafeDetailsBloc>().add(
+                        LoadCafeDetailsRequested(cafeId: widget.cafeId),
+                      ),
                     );
                   }
-                  return CafeDetailsErrorView.forError(
-                    info: failure.info,
-                    onBack: back,
-                    onSignIn: () => context.push('/login'),
-                    onRetry: () => context.read<CafeDetailsBloc>().add(
-                      LoadCafeDetailsRequested(cafeId: widget.cafeId),
-                    ),
-                  );
-                }
 
-                final title = state is CafeDetailsLoaded
-                    ? state.data.cafeDetails.name
-                    : '';
+                  final title = state is CafeDetailsLoaded
+                      ? state.data.cafeDetails.name
+                      : '';
 
-                return CustomScrollView(
-                  controller: _scrollController,
-                  slivers: [
-                    ValueListenableBuilder<double>(
-                      valueListenable: _collapseProgress,
-                      child: RepaintBoundary(
-                        child: HeroImageSlider(
-                          images: heroImages,
-                          isLoading: isLoading,
-                          bottomInset: _sheetLip,
-                          onImageTap: (index) => showReviewPhotoViewer(
-                            context,
-                            imageUrls: heroImages,
-                            initialIndex: index,
+                  return CustomScrollView(
+                    controller: _scrollController,
+                    slivers: [
+                      ValueListenableBuilder<double>(
+                        valueListenable: _collapseProgress,
+                        child: RepaintBoundary(
+                          child: HeroImageSlider(
+                            images: heroImages,
+                            isLoading: isLoading,
+                            bottomInset: _sheetLip,
+                            onImageTap: (index) => showReviewPhotoViewer(
+                              context,
+                              imageUrls: heroImages,
+                              initialIndex: index,
+                            ),
                           ),
                         ),
-                      ),
-                      builder: (context, collapseProgress, heroSlider) {
-                        final titleOpacity = collapseProgress < 0.6
-                            ? 0.0
-                            : ((collapseProgress - 0.6) / 0.4).clamp(0.0, 1.0);
+                        builder: (context, collapseProgress, heroSlider) {
+                          final titleOpacity = collapseProgress < 0.6
+                              ? 0.0
+                              : ((collapseProgress - 0.6) / 0.4).clamp(
+                                  0.0,
+                                  1.0,
+                                );
 
-                        return SliverAppBar(
-                          expandedHeight: _expandedHeight,
-                          collapsedHeight: _collapsedHeight,
-                          pinned: true,
-                          elevation: 0,
-                          backgroundColor: Colors.white.withValues(
-                            alpha: collapseProgress,
-                          ),
-                          automaticallyImplyLeading: false,
-                          leadingWidth: 70,
-                          leading: Padding(
-                            padding: const EdgeInsets.only(left: 22.0),
-                            child: Center(
-                              child: AppBarCircleIconButton(
-                                icon: Icons.arrow_back,
-                                iconSize: 18,
-                                onTap: () => Navigator.pop(context),
-                              ),
+                          return SliverAppBar(
+                            expandedHeight: _expandedHeight,
+                            collapsedHeight: _collapsedHeight,
+                            pinned: true,
+                            elevation: 0,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: collapseProgress,
                             ),
-                          ),
-                          title: Opacity(
-                            opacity: titleOpacity,
-                            child: Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                          ),
-                          actions: [
-                            Center(
-                              child: _ShareButton(
-                                cafeId: widget.cafeId,
-                                cafeName: state is CafeDetailsLoaded
-                                    ? state.data.cafeDetails.name
-                                    : '',
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Center(
-                              child: _SavedButton(
-                                cafeId: widget.cafeId,
-                                cafeName: state is CafeDetailsLoaded
-                                    ? state.data.cafeDetails.name
-                                    : '',
-                                toastOffset: _toastOffset,
-                              ),
-                            ),
-                            const SizedBox(width: 22),
-                          ],
-                          bottom: PreferredSize(
-                            preferredSize: const Size.fromHeight(0.5),
-                            child: Divider(
-                              height: 0.5,
-                              thickness: 0.5,
-                              color: Colors.black.withValues(
-                                alpha: collapseProgress * 0.15,
-                              ),
-                            ),
-                          ),
-                          // The photo drifts up at a quarter of the scroll
-                          // speed (parallax) while the bar's bottom edge, and
-                          // the sheet lip drawn on it, move at full speed, so
-                          // the sheet slides up over the photo.
-                          flexibleSpace: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              FlexibleSpaceBar(
-                                collapseMode: CollapseMode.parallax,
-                                background: heroSlider,
-                              ),
-                              IgnorePointer(
-                                child: ColoredBox(
-                                  color: Colors.white.withValues(
-                                    alpha: collapseProgress,
-                                  ),
+                            automaticallyImplyLeading: false,
+                            leadingWidth: 70,
+                            leading: Padding(
+                              padding: const EdgeInsets.only(left: 22.0),
+                              child: Center(
+                                child: AppBarCircleIconButton(
+                                  icon: Icons.arrow_back,
+                                  iconSize: 18,
+                                  onTap: () => Navigator.pop(context),
                                 ),
                               ),
-                              // The sheet's rounded top edge, pinned to the
-                              // bar's bottom so it travels with the sheet.
-                              const Align(
-                                alignment: Alignment.bottomCenter,
-                                child: IgnorePointer(
-                                  child: SizedBox(
-                                    height: _sheetLip,
-                                    width: double.infinity,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(_sheetLip),
+                            ),
+                            title: Opacity(
+                              opacity: titleOpacity,
+                              child: Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                            ),
+                            actions: [
+                              Center(
+                                child: _ShareButton(
+                                  cafeId: widget.cafeId,
+                                  cafeName: state is CafeDetailsLoaded
+                                      ? state.data.cafeDetails.name
+                                      : '',
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Center(
+                                child: _SavedButton(
+                                  cafeId: widget.cafeId,
+                                  cafeName: state is CafeDetailsLoaded
+                                      ? state.data.cafeDetails.name
+                                      : '',
+                                  toastOffset: _toastOffset,
+                                ),
+                              ),
+                              const SizedBox(width: 22),
+                            ],
+                            bottom: PreferredSize(
+                              preferredSize: const Size.fromHeight(0.5),
+                              child: Divider(
+                                height: 0.5,
+                                thickness: 0.5,
+                                color: Colors.black.withValues(
+                                  alpha: collapseProgress * 0.15,
+                                ),
+                              ),
+                            ),
+                            // The photo drifts up at a quarter of the scroll
+                            // speed (parallax) while the bar's bottom edge, and
+                            // the sheet lip drawn on it, move at full speed, so
+                            // the sheet slides up over the photo.
+                            flexibleSpace: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                FlexibleSpaceBar(
+                                  collapseMode: CollapseMode.parallax,
+                                  background: heroSlider,
+                                ),
+                                IgnorePointer(
+                                  child: ColoredBox(
+                                    color: Colors.white.withValues(
+                                      alpha: collapseProgress,
+                                    ),
+                                  ),
+                                ),
+                                // The sheet's rounded top edge, pinned to the
+                                // bar's bottom so it travels with the sheet.
+                                const Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: IgnorePointer(
+                                    child: SizedBox(
+                                      height: _sheetLip,
+                                      width: double.infinity,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.vertical(
+                                            top: Radius.circular(_sheetLip),
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                    SliverToBoxAdapter(
-                      child: state is CafeDetailsLoaded
-                          ? _buildSections(context, state, menuCardWidth)
-                          : const CafeDetailsSkeleton(),
-                    ),
-                  ],
-                );
-              },
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      SliverToBoxAdapter(
+                        child: state is CafeDetailsLoaded
+                            ? _buildSections(context, state, menuCardWidth)
+                            : const CafeDetailsSkeleton(),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -563,6 +594,21 @@ class _SavedButtonState extends State<_SavedButton> {
   void initState() {
     super.initState();
     _savedStateLoad = _loadSavedState();
+    _finishGuestSave();
+  }
+
+  /// A guest tapped Save, signed in and was brought back here: save it now,
+  /// unless it is already in one of their lists.
+  void _finishGuestSave() {
+    if (Supabase.instance.client.auth.currentSession == null) return;
+    if (!GuestActionReplay.take(CafeGuestAction.saveToList, widget.cafeId)) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _savedStateLoad;
+      if (!mounted || _isSaved) return;
+      await _onTap();
+    });
   }
 
   @override
@@ -636,6 +682,7 @@ class _SavedButtonState extends State<_SavedButton> {
         context,
         action: CafeGuestAction.saveToList,
         cafeName: widget.cafeName,
+        cafeId: widget.cafeId,
       );
       return;
     }

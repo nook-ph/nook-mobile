@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -55,6 +56,30 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
   void initState() {
     super.initState();
     _loadStatus();
+    _finishGuestAction();
+  }
+
+  /// A guest tapped Been or Want to try, signed in, and was brought back
+  /// here: do what they tapped, unless the cafe already has that status
+  /// (a tap on the current status would clear it).
+  void _finishGuestAction() {
+    if (Supabase.instance.client.auth.currentSession == null) return;
+    final pending = GuestActionReplay.takeAny(const [
+      CafeGuestAction.been,
+      CafeGuestAction.wantToTry,
+    ], _cafeId);
+    if (pending == null) return;
+    final tapped = pending == CafeGuestAction.been
+        ? CafeStatus.been
+        : CafeStatus.wantToTry;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final cubit = context.read<CafeStatusCubit>();
+      await cubit.loadFor([_cafeId]);
+      if (!mounted || !cubit.state.isKnown(_cafeId)) return;
+      if (cubit.state.statusFor(_cafeId) == tapped) return;
+      await _onStatusTap(tapped);
+    });
   }
 
   @override
@@ -82,6 +107,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
             ? CafeGuestAction.been
             : CafeGuestAction.wantToTry,
         cafeName: widget.cafe.cafeDetails.name,
+        cafeId: _cafeId,
       );
       return;
     }

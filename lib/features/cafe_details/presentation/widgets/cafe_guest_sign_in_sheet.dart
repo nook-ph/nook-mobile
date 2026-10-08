@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -34,10 +35,13 @@ class CafeGuestSignInSheet extends StatelessWidget {
   static const _muted = Color(0xFF868584);
 
   /// Opens the sheet; "Sign in or create account" pushes `/login`.
+  /// With [cafeId], a Save, Been, Want to try or Write a review is finished
+  /// on that cafe's page once the guest is signed in ([GuestActionReplay]).
   static Future<void> show(
     BuildContext context, {
     required CafeGuestAction action,
     String cafeName = '',
+    String? cafeId,
   }) async {
     final signIn = await showModalBottomSheet<bool>(
       context: context,
@@ -49,7 +53,10 @@ class CafeGuestSignInSheet extends StatelessWidget {
       ),
       builder: (_) => CafeGuestSignInSheet(action: action, cafeName: cafeName),
     );
-    if (signIn == true && context.mounted) context.push('/login');
+    if (signIn == true && context.mounted) {
+      if (cafeId != null) GuestActionReplay.remember(action, cafeId);
+      context.push('/login');
+    }
   }
 
   static String titleFor(CafeGuestAction action, String cafeName) {
