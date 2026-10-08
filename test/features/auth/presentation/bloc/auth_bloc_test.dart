@@ -180,6 +180,35 @@ void main() {
     await authEvents.close();
   });
 
+  group('auth stream errors (SF10)', () {
+    test('an expired link says so and leaves the state as it was', () async {
+      authEvents.addError(
+        const AuthException(
+          'Email link is invalid or has expired',
+          code: 'otp_expired',
+        ),
+      );
+      await settle();
+      expect(states, [
+        const AuthLinkError(AuthBloc.expiredLinkMessage),
+        isA<AuthInitial>(),
+      ]);
+    });
+
+    test('a network blip on the stream is not reported', () async {
+      authEvents.addError(AuthRetryableFetchException(message: 'Socket'));
+      await settle();
+      expect(states, isEmpty);
+    });
+
+    test('the stream keeps working after an error', () async {
+      authEvents.addError(const AuthException('expired'));
+      await settle();
+      expect(bloc.isClosed, isFalse);
+      await signIn();
+    });
+  });
+
   group('sign out', () {
     test('a request that fails after the session is gone still logs out '
         '(A-1)', () async {

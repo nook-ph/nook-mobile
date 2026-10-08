@@ -89,10 +89,36 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthPasswordRecoveryEvent>(_onPasswordRecovery);
     on<AuthSessionCheckEvent>(_onSessionCheck);
     on<AuthSessionEndedEvent>(_onSessionEnded);
+    on<AuthLinkFailedEvent>(_onLinkFailed);
 
     _authStateSubscription =
         (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
-            .listen(_onSupabaseAuthStateChange);
+            .listen(_onSupabaseAuthStateChange, onError: _onAuthStreamError);
+  }
+
+  static const expiredLinkMessage =
+      'That link has expired or was already used. Request a new one.';
+
+  /// Supabase reports a refused link (an expired or already-used
+  /// confirmation, magic or recovery link) as an error on the auth stream.
+  /// Without a handler it was dropped and the link silently did nothing.
+  /// A network blip ([AuthRetryableFetchException]) is retried by Supabase
+  /// itself and not worth a message.
+  void _onAuthStreamError(Object error, [StackTrace? _]) {
+    debugPrint('AuthBloc: auth stream error: $error');
+    if (error is AuthRetryableFetchException) return;
+    if (error is! AuthException) return;
+    add(const AuthLinkFailedEvent(expiredLinkMessage));
+  }
+
+  Future<void> _onLinkFailed(
+    AuthLinkFailedEvent event,
+    Emitter<AuthState> emit,
+  ) async {
+    final previous = state;
+    emit(AuthLinkError(event.message));
+    // The session (or its absence) is unchanged; only the link failed.
+    emit(previous);
   }
 
   // ── Handlers ───────────────────────────────────────────────────────────────

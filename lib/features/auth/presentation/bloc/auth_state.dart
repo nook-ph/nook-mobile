@@ -110,3 +110,10 @@ class AuthError extends AuthState {
   @override
   List<Object?> get props => [message];
 }
+
+/// A sign-in, confirmation or recovery link that Supabase refused (expired,
+/// already used). Raised from the auth stream, so no page is waiting for
+/// it; the app shows it as a toast wherever the user is.
+class AuthLinkError extends AuthError {
+  const AuthLinkError(super.message);
+}

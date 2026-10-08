@@ -27,6 +27,7 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:nook/features/search/data/search_origin_store.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
@@ -156,12 +157,24 @@ class _MyAppState extends State<MyApp> {
                 sl<SearchOriginStore>().set(null);
               }
             },
-            child: MaterialApp.router(
-              debugShowCheckedModeBanner: false,
-              title: 'Nook',
-              theme: TAppTheme.lightTheme,
-              routerConfig: _router,
-              builder: (context, child) => child ?? const SizedBox.shrink(),
+            child: BlocListener<AuthBloc, AuthState>(
+              listenWhen: (_, current) => current is AuthLinkError,
+              listener: (context, state) {
+                // No page asked for this one (it came from a link), so show
+                // it over whatever is on screen.
+                final shown =
+                    _router?.routerDelegate.navigatorKey.currentContext;
+                if (shown != null && state is AuthLinkError) {
+                  showPrimaryToast(shown, state.message);
+                }
+              },
+              child: MaterialApp.router(
+                debugShowCheckedModeBanner: false,
+                title: 'Nook',
+                theme: TAppTheme.lightTheme,
+                routerConfig: _router,
+                builder: (context, child) => child ?? const SizedBox.shrink(),
+              ),
             ),
           );
         },

@@ -67,6 +67,16 @@ class AuthSignInWithGoogleEvent extends AuthEvent {
   const AuthSignInWithGoogleEvent();
 }
 
+/// The auth stream reported an error: a link that could not be used.
+class AuthLinkFailedEvent extends AuthEvent {
+  final String message;
+
+  const AuthLinkFailedEvent(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
 class AuthSignOutEvent extends AuthEvent {
   const AuthSignOutEvent();
 }
