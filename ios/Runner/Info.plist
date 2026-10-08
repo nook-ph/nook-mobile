@@ -27,7 +27,11 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Nook uses your camera to take a photo for your crawl share image.</string>
+	<string>Nook uses your camera to take photos of your coffee for your gallery, your reviews and your crawl share images.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Nook saves your crawl share image to your photos when you choose Save Image.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Nook uses your photos so you can add them to your coffee gallery, your reviews and your profile picture.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Nook uses your location to show your position on the map and find cafes near you.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
