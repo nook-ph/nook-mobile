@@ -369,6 +369,26 @@ void main() {
     expect(find.byType(GalleryTile), findsNothing);
     expect(find.text('Quiet upstairs, good Wi-Fi.'), findsOneWidget);
   });
+
+  testWidgets('a visitor sees no Ranked stat when nothing is ranked', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      repository: FakePublicProfileRepository(
+        profile: const PublicProfile(
+          userId: 'bea-id',
+          username: 'beasantos',
+          reviewCount: 4,
+          rankedCount: 0,
+          cupCount: 8,
+        ),
+      ),
+    );
+    expect(find.text('Ranked'), findsNothing);
+    expect(find.bySemanticsLabel('4 Reviews'), findsOneWidget);
+    expect(find.bySemanticsLabel('8 Cups'), findsOneWidget);
+  });
 }
 
 /// Records blocks.

@@ -457,9 +457,11 @@ class _Loaded extends StatelessWidget {
         name: profile.displayName,
         avatarUrl: profile.avatarUrl,
         bio: profile.bio ?? '',
-        // Ranked and Cups only when the owner shows them.
+        // Ranked and Cups only when the owner shows them. A zero Ranked
+        // is left off: beside their reviews it reads as a verdict on the
+        // person, and it says nothing a visitor can act on.
         stats: [
-          if (ranked != null) ProfileStat('Ranked', ranked),
+          if (ranked != null && ranked > 0) ProfileStat('Ranked', ranked),
           ProfileStat('Reviews', profile.reviewCount),
           if (cups != null) ProfileStat('Cups', cups),
         ],
