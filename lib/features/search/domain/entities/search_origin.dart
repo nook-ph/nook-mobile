@@ -1,9 +1,15 @@
 import 'package:equatable/equatable.dart';
 
-enum SearchOriginKind { place, pin }
+enum SearchOriginKind {
+  place,
+  pin,
+
+  /// One of the user's saved places ("Home", "Lola's house").
+  saved,
+}
 
 /// Where search measures distances from when it is not the phone's location:
-/// a place picked from the list, or a pin dropped on the map.
+/// a place picked from the list, a saved place, or a pin dropped on the map.
 class SearchOrigin extends Equatable {
   const SearchOrigin({
     required this.label,
@@ -13,13 +19,15 @@ class SearchOrigin extends Equatable {
     this.kind = SearchOriginKind.place,
   });
 
-  /// A dropped pin. There is no reverse geocoding, so it is named after the
-  /// neighbourhood it landed [near] when Nook knows one, and "Pinned
-  /// location" otherwise.
-  const SearchOrigin.pin({required this.lat, required this.lng, String? near})
-    : label = near ?? pinnedLabel,
-      subtitle = null,
-      kind = SearchOriginKind.pin;
+  /// A dropped pin, named after what it landed [near] ("Near Ayala Center
+  /// Cebu", "Lahug, Cebu City"), or "Pinned location" when nothing is known.
+  const SearchOrigin.pin({
+    required this.lat,
+    required this.lng,
+    String? near,
+    this.subtitle,
+  }) : label = near ?? pinnedLabel,
+       kind = SearchOriginKind.pin;
 
   static const pinnedLabel = 'Pinned location';
 
@@ -31,10 +39,13 @@ class SearchOrigin extends Equatable {
 
   bool get isPin => kind == SearchOriginKind.pin;
 
-  /// "IT Park, Cebu City" for the "Near …" row.
+  bool get isSaved => kind == SearchOriginKind.saved;
+
+  /// "IT Park, Cebu City" for the "Near …" row. A saved place is its name
+  /// alone: "Near Home".
   String get fullLabel {
     final sub = subtitle?.trim() ?? '';
-    if (isPin || sub.isEmpty || label.contains(sub)) return label;
+    if (isPin || isSaved || sub.isEmpty || label.contains(sub)) return label;
     return '$label, $sub';
   }
 
@@ -59,9 +70,10 @@ class SearchOrigin extends Equatable {
       subtitle: json['subtitle'] as String?,
       lat: lat,
       lng: lng,
-      kind: json['kind'] == SearchOriginKind.pin.name
-          ? SearchOriginKind.pin
-          : SearchOriginKind.place,
+      kind: SearchOriginKind.values.firstWhere(
+        (k) => k.name == json['kind'],
+        orElse: () => SearchOriginKind.place,
+      ),
     );
   }
 

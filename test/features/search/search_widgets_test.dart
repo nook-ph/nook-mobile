@@ -8,6 +8,8 @@ import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/features/search/data/search_location.dart';
 import 'package:nook/features/search/domain/entities/search_origin.dart';
 import 'package:nook/features/search/domain/search_place_index.dart';
+import 'package:nook/features/search/presentation/cubit/place_search_cubit.dart';
+import 'package:nook/features/search/presentation/cubit/saved_places_cubit.dart';
 import 'package:nook/features/search/presentation/pages/search_pick_on_map_page.dart';
 import 'package:nook/features/search/presentation/widgets/search_empty_view.dart';
 import 'package:nook/features/search/presentation/widgets/search_filters.dart';
@@ -17,6 +19,8 @@ import 'package:nook/features/search/presentation/widgets/search_origin_sheet.da
 import 'package:nook/features/search/presentation/widgets/search_rows.dart';
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+
+import 'place_search_fakes.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) async {
@@ -667,7 +671,13 @@ void main() {
               current: null,
               currentLocationLabel: null,
               recentPlaces: const [],
-              places: Future.value(index),
+              search: PlaceSearchCubit(
+                repository: FakePlaceSearchRepository(),
+                places: Future.value(index),
+                debounce: Duration.zero,
+              ),
+              saved: SavedPlacesCubit(FakeSavedPlacesRepository())..load(),
+              openEditor: (_, {place, required kind}) async => null,
             ),
             child: const Text('open'),
           ),

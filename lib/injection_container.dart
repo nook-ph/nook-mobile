@@ -1,6 +1,13 @@
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
+import 'package:nook/features/search/data/place_search_config.dart';
+import 'package:nook/features/search/data/edge_place_search_repository.dart';
+import 'package:nook/features/search/data/photon_place_search_repository.dart';
+import 'package:nook/features/search/data/local_saved_places_repository.dart';
+import 'package:nook/features/search/data/supabase_saved_places_repository.dart';
+import 'package:nook/features/search/domain/repositories/i_place_search_repository.dart';
+import 'package:nook/features/search/domain/repositories/i_saved_places_repository.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/preferences/review_draft_store.dart';
@@ -423,6 +430,20 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<SearchOriginStore>(SearchOriginStore.new);
   sl.registerLazySingleton<SearchPlaces>(
     () => SearchPlaces(sl<SearchCafesUseCase>()),
+  );
+  // Place search and saved places. A debug build run with
+  // --dart-define=PLACE_SEARCH_DIRECT=true talks to Photon directly and
+  // keeps saved places on the device, until the place-search function and
+  // the saved_places table are deployed.
+  sl.registerLazySingleton<IPlaceSearchRepository>(
+    () => kPlaceSearchDirect
+        ? PhotonPlaceSearchRepository()
+        : EdgePlaceSearchRepository.supabase(sl<SupabaseClient>()),
+  );
+  sl.registerLazySingleton<ISavedPlacesRepository>(
+    () => kPlaceSearchDirect
+        ? LocalSavedPlacesRepository()
+        : SupabaseSavedPlacesRepository(sl<SupabaseClient>()),
   );
 
   sl.registerFactory<SearchBloc>(

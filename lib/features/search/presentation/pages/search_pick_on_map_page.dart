@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/search/data/spot_namer.dart';
 import 'package:nook/features/search/domain/entities/search_origin.dart';
 import 'package:nook/features/search/domain/search_place_index.dart';
 import 'package:nook/features/search/presentation/widgets/search_filters.dart';
@@ -10,10 +13,31 @@ import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 
 /// Move the map under a fixed pin, then "Search here". Pops a pin origin.
 ///
-/// There is no reverse geocoding: the spot is named after the neighbourhood
-/// it is in when [places] knows one nearby, and "Pinned location" otherwise.
+/// The spot is named by [namer] once the map stops ("Near Ayala Center
+/// Cebu"), else after the Nook neighbourhood it is in when [places] knows
+/// one nearby, and "Pinned location" otherwise.
 class SearchPickOnMapPage extends StatefulWidget {
-  const SearchPickOnMapPage({super.key, required this.start, this.places});
+  const SearchPickOnMapPage({
+    super.key,
+    required this.start,
+    this.places,
+    this.namer,
+    this.heading = 'Move the map to set the spot',
+    this.confirmLabel = 'Search here',
+    this.caption = 'Search near',
+  });
+
+  /// The small line above the spot's name.
+  final String caption;
+
+  /// Names the spot from the map service, falling back to [places].
+  final SpotNamer? namer;
+
+  /// The hint in the pill at the top.
+  final String heading;
+
+  /// The button that takes the spot.
+  final String confirmLabel;
 
   /// The places Nook knows, to name the spot under the pin.
   final Future<SearchPlaceIndex>? places;
@@ -38,8 +62,13 @@ class _SearchPickOnMapPageState extends State<SearchPickOnMapPage> {
   MapLibreMapController? _controller;
   SearchPlaceIndex _index = SearchPlaceIndex.empty;
 
-  /// The neighbourhood under the pin, or null for "Pinned location".
+  /// What is under the pin, or null for "Pinned location".
   String? _near;
+  String? _nearSubtitle;
+
+  /// Waits for the map to settle before asking the map service.
+  Timer? _nameTimer;
+  int _nameGeneration = 0;
 
   @override
   void initState() {
@@ -61,7 +90,15 @@ class _SearchPickOnMapPageState extends State<SearchPickOnMapPage> {
 
   LatLng get _target => _controller?.cameraPosition?.target ?? widget.start;
 
-  /// Names the spot under the pin again, once the map stops moving.
+  @override
+  void dispose() {
+    _nameTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Names the spot under the pin again, once the map stops moving: the
+  /// Nook neighbourhood at once, then the map service's name when it
+  /// answers.
   void _rename() {
     final target = _target;
     final near = SearchPickOnMapPage.nearLabel(
@@ -69,7 +106,21 @@ class _SearchPickOnMapPageState extends State<SearchPickOnMapPage> {
       target.latitude,
       target.longitude,
     );
-    if (near != _near && mounted) setState(() => _near = near);
+    final namer = widget.namer;
+    if (namer == null) {
+      if (near != _near && mounted) setState(() => _near = near);
+      return;
+    }
+    final generation = ++_nameGeneration;
+    _nameTimer?.cancel();
+    _nameTimer = Timer(const Duration(milliseconds: 600), () async {
+      final name = await namer.name(target.latitude, target.longitude);
+      if (!mounted || generation != _nameGeneration) return;
+      setState(() {
+        _near = name?.label ?? near;
+        _nearSubtitle = name?.subtitle;
+      });
+    });
   }
 
   void _confirm() {
@@ -78,11 +129,14 @@ class _SearchPickOnMapPageState extends State<SearchPickOnMapPage> {
       SearchOrigin.pin(
         lat: target.latitude,
         lng: target.longitude,
-        near: SearchPickOnMapPage.nearLabel(
-          _index,
-          target.latitude,
-          target.longitude,
-        ),
+        near:
+            _near ??
+            SearchPickOnMapPage.nearLabel(
+              _index,
+              target.latitude,
+              target.longitude,
+            ),
+        subtitle: _nearSubtitle,
       ),
     );
   }
@@ -164,7 +218,7 @@ class _SearchPickOnMapPageState extends State<SearchPickOnMapPage> {
                       borderRadius: BorderRadius.circular(22),
                     ),
                     child: Text(
-                      'Move the map to set the spot',
+                      widget.heading,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: SearchTokens.text(
@@ -198,7 +252,7 @@ class _SearchPickOnMapPageState extends State<SearchPickOnMapPage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Search near',
+                    widget.caption,
                     style: SearchTokens.text(
                       context,
                       size: 12,
@@ -216,8 +270,19 @@ class _SearchPickOnMapPageState extends State<SearchPickOnMapPage> {
                       weight: FontWeight.w600,
                     ),
                   ),
+                  if ((_nearSubtitle ?? '').isNotEmpty)
+                    Text(
+                      _nearSubtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: SearchTokens.text(
+                        context,
+                        size: 12,
+                        color: SearchTokens.muted,
+                      ),
+                    ),
                   const SizedBox(height: 12),
-                  SearchPillButton(label: 'Search here', onTap: _confirm),
+                  SearchPillButton(label: widget.confirmLabel, onTap: _confirm),
                 ],
               ),
             ),
