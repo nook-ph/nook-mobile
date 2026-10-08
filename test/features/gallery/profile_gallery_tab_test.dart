@@ -7,6 +7,7 @@ import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/pages/gallery_viewer_page.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options.dart';
 import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
+import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/utils/theme/theme.dart';
 
 import '../lists/lists_fixtures.dart' show usePhone;
@@ -274,10 +275,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Edit photo'), findsOneWidget);
       // Nothing changed yet: Save is off (Figma G6).
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('Save')),
-        isNot(containsSemantics(isEnabled: true)),
-      );
+      expect(_saveOn(tester), isFalse);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(find.text('Edit photo'), findsOneWidget);
@@ -286,10 +284,7 @@ void main() {
         'Ube latte',
       );
       await tester.pump();
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('Save')),
-        containsSemantics(isEnabled: true),
-      );
+      expect(_saveOn(tester), isTrue);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(repo.calls, ['details a Ube latte null']);
@@ -503,18 +498,12 @@ void main() {
       expect(change, findsOneWidget);
       await tester.tap(change);
       await tester.pumpAndSettle();
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('Save')),
-        containsSemantics(isEnabled: true),
-      );
+      expect(_saveOn(tester), isTrue);
 
       next = PickedCafe(id: kamp.cafeId, name: kamp.cafeName);
       await tester.tap(find.bySemanticsLabel("Cafe: Lorenzo's Cafe. Change"));
       await tester.pumpAndSettle();
-      expect(
-        tester.getSemantics(find.bySemanticsLabel('Save')),
-        isNot(containsSemantics(isEnabled: true)),
-      );
+      expect(_saveOn(tester), isFalse);
 
       next = lorenzo;
       await tester.tap(
@@ -552,3 +541,10 @@ void main() {
     });
   });
 }
+
+/// Whether the edit sheet's Save can be tapped.
+bool _saveOn(WidgetTester tester) =>
+    tester
+        .widget<ListsPillButton>(find.widgetWithText(ListsPillButton, 'Save'))
+        .onTap !=
+    null;
