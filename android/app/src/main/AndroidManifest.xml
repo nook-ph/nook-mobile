@@ -59,6 +59,18 @@
                 <category android:name="android.intent.category.BROWSABLE" />
             </intent-filter>
 
+            <!-- App Links: profile (/u/<username>) and crawl / crew (/c/<code>)
+                 share links open the app. Verification needs
+                 https://www.nookph.app/.well-known/assetlinks.json with the
+                 Play app-signing SHA-256; until then they open the browser. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.nookph.app" android:pathPrefix="/u/" />
+                <data android:scheme="https" android:host="www.nookph.app" android:pathPrefix="/c/" />
+            </intent-filter>
+
         </activity>
 
 

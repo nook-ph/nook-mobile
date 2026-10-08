@@ -9,6 +9,9 @@ import 'package:nook/features/public_profile/presentation/pages/public_profile_p
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_state.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
+import 'package:nook/core/router/web_links.dart';
+import 'package:nook/features/crawls/presentation/pages/crawl_detail_page.dart';
+import 'package:nook/features/crawls/presentation/pages/crew_invite_page.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/pages/email_entry_page.dart';
 import 'package:nook/features/auth/presentation/pages/email_confirmation_pending_page.dart';
@@ -77,6 +80,9 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       debugPrint('No redirect (fallback)');
       return null;
     },
+    // An unknown path (a mistyped or retired link) gets a way Home rather
+    // than go_router's dead "Page Not Found".
+    errorBuilder: (context, state) => const LinkNotFoundPage(),
     routes: [
       /// 1. Root Route (Auth & Onboarding Logic)
       GoRoute(
@@ -130,6 +136,40 @@ GoRouter createAppRouter(AuthBloc authBloc) {
             },
           );
         },
+        // The https://www.nookph.app links the app opens (App Links /
+        // Universal Links). Nested under `/` so a link that cold-starts the
+        // app still builds the root (which releases the native splash) and
+        // Back from the linked page lands on Home instead of closing the app.
+        routes: [
+          /// A person's public profile; the web's `/u/<username>`.
+          GoRoute(
+            path: 'u/:username',
+            builder: (context, state) {
+              final username = WebLinks.username(
+                state.pathParameters['username'],
+              );
+              return username == null
+                  ? const LinkNotFoundPage()
+                  : PublicProfilePage(username: username);
+            },
+          ),
+
+          /// A shared crawl (`/c/<share code>`) or a crew invite
+          /// (`/c/<share code>?crew=<invite code>`).
+          GoRoute(
+            path: 'c/:code',
+            builder: (context, state) {
+              final target = WebLinks.crawl(
+                state.pathParameters['code'],
+                state.uri.queryParameters['crew'],
+              );
+              if (target == null) return const LinkNotFoundPage();
+              return target.isInvite
+                  ? CrewInvitePage(inviteCode: target.code)
+                  : CrawlDetailPage(shareCode: target.code);
+            },
+          ),
+        ],
       ),
 
       /// 2. Authentication Routes
@@ -200,13 +240,6 @@ GoRouter createAppRouter(AuthBloc authBloc) {
           final id = state.pathParameters['id'] ?? '';
           return CafeDetailsPage(cafeId: id);
         },
-      ),
-
-      /// A person's public profile; the web's `/u/<username>`.
-      GoRoute(
-        path: '/u/:username',
-        builder: (context, state) =>
-            PublicProfilePage(username: state.pathParameters['username']),
       ),
 
       GoRoute(
