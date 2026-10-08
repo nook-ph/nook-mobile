@@ -4,19 +4,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 
+import '../../core/analytics/recording_analytics.dart';
 import '../gallery/gallery_fakes.dart' show FakeGalleryRepository;
 import 'public_profile_fakes.dart';
 
 void main() {
   late List<({String username, String name, bool own})> shared;
   late List<String> opened;
+  late RecordingAnalytics analytics;
 
   setUp(() {
     shared = [];
     opened = [];
+    analytics = RecordingAnalytics.install(addTearDown);
   });
 
   Future<FakePublicProfileRepository> pump(
@@ -149,6 +153,7 @@ void main() {
 
     expect(repo.reports, [('p1', PhotoReportReason.spam)]);
     expect(find.text('Thanks. We’ll take a look.'), findsOneWidget);
+    expect(analytics.propertiesOf('photo_reported'), {'reason': 'spam'});
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
   });
@@ -210,6 +215,59 @@ void main() {
     expect(find.text('Top cafes'), findsNothing);
   });
 
+  // The Preview bar carries a subtitle; at large text the fixed 56pt bar
+  // overflowed (about 28pt at 2.0).
+  testWidgets('the preview bar grows with large text instead of overflowing', (
+    tester,
+  ) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await pump(
+      tester,
+      preview: true,
+      repository: FakePublicProfileRepository(
+        profile: beaProfile(isSelf: true),
+      ),
+    );
+    final bar = tester.getRect(find.byType(ProfileNavBar));
+    final title = tester.getRect(find.text('Preview'));
+    final subtitle = tester.getRect(
+      find.text('What visitors see on your profile'),
+    );
+    expect(title.top, greaterThanOrEqualTo(bar.top));
+    expect(subtitle.bottom, lessThanOrEqualTo(bar.bottom));
+  });
+
+  testWidgets('a loaded profile is logged as one view, with where from', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.pump();
+    expect(analytics.names, ['public_profile_viewed']);
+    expect(analytics.propertiesOf('public_profile_viewed'), {
+      'source': 'link',
+      'is_self': false,
+      'highlights_public': true,
+    });
+  });
+
+  testWidgets('the owner’s preview is logged as a preview', (tester) async {
+    await pump(
+      tester,
+      preview: true,
+      repository: FakePublicProfileRepository(
+        profile: beaProfile(isSelf: true),
+      ),
+    );
+    expect(
+      analytics.propertiesOf('public_profile_viewed')?['source'],
+      'preview',
+    );
+  });
+
   testWidgets('a review’s cafe opens the cafe', (tester) async {
     await pump(
       tester,
@@ -241,6 +299,7 @@ void main() {
     await tester.tap(find.text('Block'));
     await tester.pumpAndSettle();
     expect(blocks.blocked, ['bea-id']);
+    expect(analytics.propertiesOf('user_blocked'), {'from': 'profile'});
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
   });

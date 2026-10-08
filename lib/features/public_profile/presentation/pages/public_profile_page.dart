@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/profile_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/toast_helper.dart';
@@ -48,7 +50,11 @@ class PublicProfilePage extends StatelessWidget {
     this.shareProfile,
     this.onOpenCafe,
     this.isSignedIn,
+    this.source = ProfileViewSource.link,
   }) : assert(username != null || userId != null);
+
+  /// Where it was opened from, for analytics ([ProfileViewSource]).
+  final String source;
 
   /// Whether someone is signed in, for Block. Defaults to the session.
   final bool Function()? isSignedIn;
@@ -75,6 +81,7 @@ class PublicProfilePage extends StatelessWidget {
     String? userId,
     String? nameHint,
     bool preview = false,
+    required String source,
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
@@ -83,6 +90,7 @@ class PublicProfilePage extends StatelessWidget {
           userId: userId,
           nameHint: nameHint,
           preview: preview,
+          source: source,
         ),
       ),
     );
@@ -97,20 +105,38 @@ class PublicProfilePage extends StatelessWidget {
         username: username,
         userId: userId,
       )..load(),
-      child: _PublicProfileView(
-        repository: repo,
-        title: username != null ? '@$username' : (nameHint ?? ''),
-        preview: preview,
-        shareProfile:
-            shareProfile ??
-            ({required username, required name, own = false}) =>
-                sl<ShareService>().shareProfile(
-                  username: username,
-                  name: name,
-                  own: own,
-                ),
-        onOpenCafe: onOpenCafe,
-        signedIn: (isSignedIn ?? _sessionSignedIn)(),
+      child: BlocListener<PublicProfileCubit, PublicProfileState>(
+        // Once per open: a retry after a failure is still one view.
+        listenWhen: (before, now) =>
+            before.status != PublicProfileStatus.loaded &&
+            now.status == PublicProfileStatus.loaded,
+        listener: (_, state) {
+          final profile = state.profile;
+          if (profile == null) return;
+          logAppEvent(
+            ProfileEvents.profileViewed,
+            properties: {
+              'source': preview ? ProfileViewSource.preview : source,
+              'is_self': profile.isSelf,
+              'highlights_public': profile.highlightsPublic,
+            },
+          );
+        },
+        child: _PublicProfileView(
+          repository: repo,
+          title: username != null ? '@$username' : (nameHint ?? ''),
+          preview: preview,
+          shareProfile:
+              shareProfile ??
+              ({required username, required name, own = false}) =>
+                  sl<ShareService>().shareProfile(
+                    username: username,
+                    name: name,
+                    own: own,
+                  ),
+          onOpenCafe: onOpenCafe,
+          signedIn: (isSignedIn ?? _sessionSignedIn)(),
+        ),
       ),
     );
   }
@@ -165,6 +191,10 @@ class _PublicProfileView extends StatelessWidget {
     if (reason == null || !context.mounted) return;
     try {
       await repository.reportPhoto(photo.id, reason);
+      logAppEvent(
+        ProfileEvents.photoReported,
+        properties: {'reason': reason.wire},
+      );
       if (context.mounted) {
         showPrimaryToast(context, 'Thanks. We’ll take a look.');
       }
@@ -191,6 +221,7 @@ class _PublicProfileView extends StatelessWidget {
     if (!confirmed || !context.mounted) return;
     try {
       await blocks.block(profile.userId);
+      logAppEvent(ProfileEvents.userBlocked, properties: {'from': 'profile'});
       if (!context.mounted) return;
       showPrimaryToast(context, '@${profile.username} blocked');
       Navigator.of(context).maybePop();
@@ -222,6 +253,7 @@ class _PublicProfileView extends StatelessWidget {
                 ? 'Preview'
                 : (profile != null ? '@${profile.username}' : title),
             subtitle: preview ? 'What visitors see on your profile' : null,
+            textScaler: MediaQuery.textScalerOf(context),
             actions: [
               if (profile != null && !preview)
                 AdaptiveTap(

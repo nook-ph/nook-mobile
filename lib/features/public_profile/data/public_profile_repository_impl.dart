@@ -33,33 +33,25 @@ class PublicProfileRepositoryImpl implements IPublicProfileRepository {
 
   @override
   Future<List<PersonMatch>> searchPeople(String prefix, {int limit = 5}) async {
-    // `_` is a wildcard to LIKE and allowed in usernames: match it literally.
-    final pattern = '${prefix.replaceAll('_', r'\_')}%';
+    // The RPC matches the prefix literally (LIKE wildcards escaped), skips
+    // suspended and inactive accounts and blocks in either direction, and
+    // returns the shortest usernames first (nook-supabase
+    // 20261008161000_blocks_both_ways_gallery_and_search.sql).
     try {
-      final rows = await _client
-          .from('profiles')
-          .select('id, username, full_name, avatar_url')
-          .ilike('username', pattern)
-          .eq('is_suspended', false)
-          .eq('account_status', 'active')
-          .limit(20);
-      final people =
-          [
-            for (final row in rows)
-              if (row['username'] is String)
-                PersonMatch(
-                  userId: row['id'] as String,
-                  username: row['username'] as String,
-                  fullName: row['full_name'] as String?,
-                  avatarUrl: row['avatar_url'] as String?,
-                ),
-          ]..sort((a, b) {
-            final byLength = a.username.length.compareTo(b.username.length);
-            return byLength != 0
-                ? byLength
-                : a.username.toLowerCase().compareTo(b.username.toLowerCase());
-          });
-      return people.take(limit).toList();
+      final rows = await _client.rpc(
+        'search_people',
+        params: {'p_prefix': prefix, 'p_limit': limit},
+      );
+      return [
+        for (final row in (rows as List? ?? const []).whereType<Map>())
+          if (row['username'] is String && row['id'] is String)
+            PersonMatch(
+              userId: row['id'] as String,
+              username: row['username'] as String,
+              fullName: row['full_name'] as String?,
+              avatarUrl: row['avatar_url'] as String?,
+            ),
+      ].take(limit).toList();
     } on PostgrestException catch (e) {
       throw PublicProfileException('Could not search people.', cause: e);
     }

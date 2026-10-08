@@ -135,6 +135,11 @@ class ReviewsPreviewSection extends StatelessWidget {
                 itemBuilder: (context, index) => _ReviewPreviewCard(
                   review: reviews[index],
                   onTap: onSeeAllTap,
+                  // Your own name is not a link, as in the full list: it
+                  // would open a visitor's view of yourself.
+                  isOwn:
+                      currentUserId != null &&
+                      reviews[index].userId == currentUserId,
                 ),
               ),
             ),
@@ -360,10 +365,15 @@ class ReviewStars extends StatelessWidget {
 }
 
 class _ReviewPreviewCard extends StatelessWidget {
-  const _ReviewPreviewCard({required this.review, required this.onTap});
+  const _ReviewPreviewCard({
+    required this.review,
+    required this.onTap,
+    this.isOwn = false,
+  });
 
   final ReviewEntity review;
   final VoidCallback onTap;
+  final bool isOwn;
 
   static const height = 150.0;
   static const _width = 290.0;
@@ -414,6 +424,7 @@ class _ReviewPreviewCard extends StatelessWidget {
                   child: ReviewAuthorLink(
                     userId: review.userId,
                     name: name,
+                    isOwn: isOwn,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(

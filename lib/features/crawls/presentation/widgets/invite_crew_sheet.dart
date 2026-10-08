@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:flutter/services.dart';
@@ -173,7 +174,11 @@ class _MemberRow extends StatelessWidget {
       button: true,
       label: 'Open @$username’s profile',
       child: AdaptiveTap(
-        onTap: () => PublicProfilePage.open(context, username: username),
+        onTap: () => PublicProfilePage.open(
+          context,
+          username: username,
+          source: ProfileViewSource.crew,
+        ),
         borderRadius: BorderRadius.circular(8),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 44),

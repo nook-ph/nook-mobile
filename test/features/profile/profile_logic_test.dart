@@ -107,4 +107,14 @@ void main() {
     expect(socialProviderName(userWith('google')), 'Google');
     expect(socialProviderName(userWith('apple')), 'Apple');
   });
+
+  test(
+    'profileDisplayName falls back to the username, then the placeholder',
+    () {
+      expect(profileDisplayName('Sai', 'sai'), 'Sai');
+      expect(profileDisplayName('No name', 'sai'), 'sai');
+      expect(profileDisplayName('  ', 'sai'), 'sai');
+      expect(profileDisplayName('No name', ''), 'No name');
+    },
+  );
 }

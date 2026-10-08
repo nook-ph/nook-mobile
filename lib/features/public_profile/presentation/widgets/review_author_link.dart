@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 
@@ -26,8 +27,12 @@ class ReviewAuthorLink extends StatelessWidget {
       button: true,
       label: 'Open $name’s profile',
       child: AdaptiveTap(
-        onTap: () =>
-            PublicProfilePage.open(context, userId: userId, nameHint: name),
+        onTap: () => PublicProfilePage.open(
+          context,
+          userId: userId,
+          nameHint: name,
+          source: ProfileViewSource.review,
+        ),
         borderRadius: BorderRadius.circular(8),
         child: child,
       ),

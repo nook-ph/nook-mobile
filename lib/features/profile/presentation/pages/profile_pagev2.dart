@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
@@ -25,6 +26,7 @@ import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
 import 'package:nook/features/profile/presentation/pages/settings_page.dart';
+import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_lists_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_review_sheets.dart';
@@ -138,7 +140,11 @@ class _ProfileViewState extends State<ProfileView> {
         widget.shareProfile ??
         ({required username, required name, own = false}) => sl<ShareService>()
             .shareProfile(username: username, name: name, own: own);
-    share(username: profile.username, name: profile.name, own: true);
+    share(
+      username: profile.username,
+      name: profileDisplayName(profile.name, profile.username),
+      own: true,
+    );
   }
 
   void _preview(ProfileLoaded profile) {
@@ -147,7 +153,12 @@ class _ProfileViewState extends State<ProfileView> {
       open(profile.userId);
       return;
     }
-    PublicProfilePage.open(context, userId: profile.userId, preview: true);
+    PublicProfilePage.open(
+      context,
+      userId: profile.userId,
+      preview: true,
+      source: ProfileViewSource.preview,
+    );
   }
 
   @override
@@ -156,6 +167,10 @@ class _ProfileViewState extends State<ProfileView> {
     if (widget.isActive && !oldWidget.isActive) {
       context.read<ProfileCubit>().loadProfile(refresh: true);
       context.read<GalleryCubit>().load(refresh: true);
+      // The sign-in prefetch may have failed (offline): try again, so the
+      // Ranked count stops being a dash.
+      final ranking = context.read<CafeRankingCubit>();
+      if (!ranking.state.loaded) ranking.load();
     }
   }
 
@@ -315,11 +330,9 @@ class _ProfileViewState extends State<ProfileView> {
             ? listsState.lists
             : bloc.userLists;
         final been = lists.where((l) => l.listType == 'been').firstOrNull;
-        final rankedCount = context
-            .watch<CafeRankingCubit>()
-            .state
-            .rankings
-            .length;
+        // Unknown (a dash), not zero, until the ranking has loaded.
+        final ranking = context.watch<CafeRankingCubit>().state;
+        final rankedCount = ranking.loaded ? ranking.rankings.length : null;
 
         final gallery = context.watch<GalleryCubit>().state;
 
@@ -340,7 +353,10 @@ class _ProfileViewState extends State<ProfileView> {
                         child: loaded == null
                             ? const ProfileHeaderSkeleton()
                             : ProfileHeader(
-                                name: loaded.name,
+                                name: profileDisplayName(
+                                  loaded.name,
+                                  loaded.username,
+                                ),
                                 avatarUrl: loaded.avatarUrl,
                                 bio: loaded.bio,
                                 stats: [

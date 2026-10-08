@@ -18,10 +18,15 @@ class ProfileNavBar extends StatelessWidget implements PreferredSizeWidget {
     this.onBack,
     this.backEnabled = true,
     this.actions = const [],
+    this.textScaler = TextScaler.noScaling,
   });
 
   final String title;
   final String? subtitle;
+
+  /// The page's `MediaQuery.textScalerOf(context)`. [preferredSize] can't
+  /// read it, and a title with a subtitle outgrows 56 at large text.
+  final TextScaler textScaler;
 
   /// 44pt icon buttons at the right end (Share on a public profile).
   final List<Widget> actions;
@@ -31,7 +36,16 @@ class ProfileNavBar extends StatelessWidget implements PreferredSizeWidget {
   final bool backEnabled;
 
   @override
-  Size get preferredSize => const Size.fromHeight(56);
+  Size get preferredSize =>
+      Size.fromHeight(heightFor(textScaler, hasSubtitle: subtitle != null));
+
+  /// 56, or the title (16) and subtitle (12) lines at 1.5 line height plus
+  /// 8 of breathing room, whichever is taller.
+  static double heightFor(TextScaler scaler, {required bool hasSubtitle}) {
+    final text =
+        scaler.scale(16) * 1.5 + (hasSubtitle ? scaler.scale(12) * 1.5 : 0);
+    return text + 8 > 56 ? text + 8 : 56;
+  }
 
   @override
   Widget build(BuildContext context) {

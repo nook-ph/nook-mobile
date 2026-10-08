@@ -88,6 +88,15 @@ List<WrittenReview> filterAndSortReviews(
 /// value: it must never be written back to `profiles.full_name`.
 const noNamePlaceholder = 'No name';
 
+/// The name the profile header and share show: the name, else the
+/// username (as visitors and Preview see it), else the placeholder. Display
+/// only; the state keeps the placeholder so the edit form starts empty.
+String profileDisplayName(String name, String username) {
+  final trimmed = name.trim();
+  if (trimmed.isNotEmpty && trimmed != noNamePlaceholder) return name;
+  return username.trim().isNotEmpty ? username : noNamePlaceholder;
+}
+
 /// The name the edit form starts from: empty when the account has none, so
 /// the placeholder is never offered as text to save.
 String editableName(String name) =>

@@ -26,7 +26,8 @@ Future<bool> showGalleryPhotoOptions(
         title: 'Photo options',
         gap: 4,
         children: [
-          if (!photo.isHidden)
+          // A moderated photo can still be unpinned, never pinned.
+          if (!photo.isHidden && (photo.isPinned || !photo.isModerated))
             ListsSheetAction(
               title: photo.isPinned ? 'Unpin' : 'Pin to top',
               subtitle: photo.isPinned
@@ -49,6 +50,9 @@ Future<bool> showGalleryPhotoOptions(
             title: photo.isHidden ? 'Show on profile' : 'Hide from profile',
             subtitle: photo.isHidden
                 ? 'Everyone can see it again.'
+                // A review photo stays on the review, which is public.
+                : photo.isFromReview
+                ? 'Takes it off your gallery. It still shows on your review.'
                 : 'Only you will see it. You can show it again any time.',
             onTap: () => Navigator.pop(sheetContext, _Option.hide),
           ),
@@ -111,9 +115,11 @@ Future<bool> showGalleryPhotoOptions(
         context,
         !ok
             ? "Couldn't update the photo. Try again."
-            : hide
-            ? 'Hidden from your profile'
-            : 'Showing on your profile',
+            : !hide
+            ? 'Showing on your profile'
+            : photo.isFromReview
+            ? 'Hidden from your gallery'
+            : 'Hidden from your profile',
       );
       return false;
     case _Option.review:

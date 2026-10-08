@@ -48,6 +48,7 @@ class GalleryPhoto extends Equatable {
     this.sourceId,
     this.isHidden = false,
     this.pinOrder,
+    this.isModerated = false,
   });
 
   final String id;
@@ -81,6 +82,11 @@ class GalleryPhoto extends Equatable {
   /// 1–3 when pinned to the top of the gallery.
   final int? pinOrder;
 
+  /// Nook's moderation took it off the profile (`moderation_status` is not
+  /// `visible`). Only the owner still sees it: it is not a cup, and it can't
+  /// be pinned.
+  final bool isModerated;
+
   bool get isPinned => pinOrder != null;
   bool get isFromReview => source == GalleryPhotoSource.review;
 
@@ -107,6 +113,7 @@ class GalleryPhoto extends Equatable {
       sourceId: sourceId,
       isHidden: isHidden ?? this.isHidden,
       pinOrder: clearPin ? null : (pinOrder ?? this.pinOrder),
+      isModerated: isModerated,
     );
   }
 
@@ -125,6 +132,7 @@ class GalleryPhoto extends Equatable {
     sourceId,
     isHidden,
     pinOrder,
+    isModerated,
   ];
 }
 

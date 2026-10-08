@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/widgets.dart' show StringCharacters, debugPrint;
 import 'package:nook/core/upload/domain/entities/uploaded_file.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// The edge function that deletes a gallery photo's file from Spaces.
+const deleteGalleryObjectFunction = 'delete-gallery-object';
 
 /// Uploads one gallery photo's file for [cafeId] and returns where it landed.
 typedef GalleryFileUploader =
@@ -25,7 +30,8 @@ class GalleryRepositoryImpl implements IGalleryRepository {
 
   static const _columns =
       'id, user_id, cafe_id, image_url, drink_name, caption, taken_at, source, '
-      'source_id, is_hidden, pin_order, cafes(name, neighborhood, city)';
+      'source_id, is_hidden, pin_order, moderation_status, '
+      'cafes(name, neighborhood, city)';
 
   String get _userId {
     final id = _client.auth.currentUser?.id;
@@ -60,10 +66,7 @@ class GalleryRepositoryImpl implements IGalleryRepository {
     final userId = _userId;
     final drink = _cleanDrink(drinkName);
     final note = _cleanCaption(caption);
-    // Side by side, as review photos are; a batch waits for its slowest.
-    final uploaded = await Future.wait([
-      for (final photo in photos) _upload(file: photo.file, cafeId: cafeId),
-    ]);
+    final uploaded = await _uploadAll(photos, cafeId);
     final now = DateTime.now().toUtc();
     try {
       final rows = await _client
@@ -85,8 +88,51 @@ class GalleryRepositoryImpl implements IGalleryRepository {
           .select(_columns);
       return [for (final row in rows) galleryPhotoFromRow(row)];
     } on PostgrestException catch (e) {
+      // "Try again" uploads the files again, so these would be orphans.
+      _deleteFiles([for (final file in uploaded) file.objectKey]);
       throw GalleryException('Could not save the photos.', cause: e);
     }
+  }
+
+  /// Uploads side by side, as review photos are; a batch waits for its
+  /// slowest. If any upload fails, the ones that made it are deleted again
+  /// before the error is passed on.
+  Future<List<UploadedFile>> _uploadAll(
+    List<PickedGalleryPhoto> photos,
+    String cafeId,
+  ) async {
+    final results = await Future.wait([
+      for (final photo in photos)
+        _upload(file: photo.file, cafeId: cafeId).then<Object>(
+          (file) => file,
+          onError: (Object e, StackTrace st) => AsyncError(e, st),
+        ),
+    ]);
+    final failure = results.whereType<AsyncError>().firstOrNull;
+    final uploaded = results.whereType<UploadedFile>().toList();
+    if (failure != null) {
+      _deleteFiles([for (final file in uploaded) file.objectKey]);
+      Error.throwWithStackTrace(failure.error, failure.stackTrace);
+    }
+    return uploaded;
+  }
+
+  /// Asks `delete-gallery-object` to remove files no row points at any more
+  /// (nook-supabase `supabase/functions/delete-gallery-object`). Best-effort
+  /// and not awaited: the row change already happened, and a file left
+  /// behind is only an orphan.
+  void _deleteFiles(List<String?> objectKeys) {
+    final keys = objectKeys.whereType<String>().toSet().toList();
+    if (keys.isEmpty) return;
+    unawaited(
+      _client.functions
+          .invoke(deleteGalleryObjectFunction, body: {'objectKeys': keys})
+          .then<void>(
+            (_) {},
+            onError: (Object e) =>
+                debugPrint('[Gallery] files not deleted ($keys): $e'),
+          ),
+    );
   }
 
   @override
@@ -111,7 +157,13 @@ class GalleryRepositoryImpl implements IGalleryRepository {
   @override
   Future<void> deletePhoto(String photoId) async {
     try {
-      await _client.from('user_photos').delete().eq('id', photoId);
+      final rows = await _client
+          .from('user_photos')
+          .delete()
+          .eq('id', photoId)
+          .select('object_key');
+      // Then the file itself, so it stops being public.
+      _deleteFiles([for (final row in rows) row['object_key'] as String?]);
     } on PostgrestException catch (e) {
       throw GalleryException('Could not delete the photo.', cause: e);
     }
@@ -125,18 +177,28 @@ class GalleryRepositoryImpl implements IGalleryRepository {
     }
   }
 
-  static String? _cleanDrink(String? value) {
-    final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return null;
-    return trimmed.length > 60 ? trimmed.substring(0, 60) : trimmed;
-  }
+  static String? _cleanDrink(String? value) => _clip(value, 60);
 
-  static String? _cleanCaption(String? value) {
+  static String? _cleanCaption(String? value) =>
+      _clip(value, maxGalleryCaption);
+
+  /// Trims [value] and keeps at most [max] characters. The field counts
+  /// characters as people see them (grapheme clusters) and the DB checks
+  /// code points, so whole characters are kept while both fit: never cut
+  /// inside an emoji, and never more than the DB allows. Blank is null.
+  static String? _clip(String? value, int max) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) return null;
-    return trimmed.length > maxGalleryCaption
-        ? trimmed.substring(0, maxGalleryCaption)
-        : trimmed;
+    if (trimmed.runes.length <= max) return trimmed;
+    final kept = StringBuffer();
+    var codePoints = 0;
+    for (final character in trimmed.characters) {
+      codePoints += character.runes.length;
+      if (codePoints > max) break;
+      kept.write(character);
+    }
+    final clipped = kept.toString().trim();
+    return clipped.isEmpty ? null : clipped;
   }
 }
 
@@ -168,5 +230,7 @@ GalleryPhoto galleryPhotoFromRow(Map<String, dynamic> row) {
     sourceId: row['source_id'] as String?,
     isHidden: row['is_hidden'] == true,
     pinOrder: (row['pin_order'] as num?)?.toInt(),
+    // Rows without the column (older selects) count as visible.
+    isModerated: (row['moderation_status'] ?? 'visible') != 'visible',
   );
 }

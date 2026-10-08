@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 
+import '../../core/analytics/recording_analytics.dart';
 import 'gallery_fakes.dart';
 
 void main() {
@@ -135,6 +138,85 @@ void main() {
     expect(repo.added.single.drink, 'Cortado');
     // Newest, so first after the pins.
     expect(ids()[2], 'new-5');
+  });
+
+  // A photo Nook's moderation took off the profile is the owner's only: it
+  // is not a cup visitors see, and pinning it would only use up a slot.
+  group('a moderated photo', () {
+    setUp(() {
+      repo.photos.add(
+        galleryPhoto('modded', takenAt: DateTime(2026, 9, 9), moderated: true),
+      );
+    });
+
+    test('is not counted as a cup', () async {
+      await cubit.load();
+      expect(ids(), contains('modded'));
+      // Same as without it: old, new, pinned-2, pinned-1.
+      expect(cubit.state.cupCount, 4);
+      expect(cubit.state.cafeCount, 2);
+    });
+
+    test('is never pinned', () async {
+      await cubit.load();
+      final photo = cubit.state.photos.firstWhere((p) => p.id == 'modded');
+      expect(await cubit.togglePin(photo), PinOutcome.failed);
+      expect(repo.calls, isEmpty);
+    });
+  });
+
+  // The ranking reveal can add a photo before the Profile tab ever loaded
+  // the gallery. The grid must then hold the whole gallery, not just the
+  // new photo.
+  test('a photo added before the gallery loaded brings the rest', () async {
+    expect(cubit.state.status, GalleryStatus.initial);
+    await cubit.addPhotos(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a', takenAt: DateTime(2026, 10, 1))],
+      source: GalleryPhotoSource.rank,
+    );
+    await pumpEventQueue();
+    expect(cubit.state.status, GalleryStatus.loaded);
+    expect(ids(), ['pinned-1', 'pinned-2', 'new-5', 'new', 'hidden', 'old']);
+    expect(cubit.state.cupCount, 5);
+  });
+
+  test('a photo added while the gallery loads is not lost', () async {
+    final gate = Completer<void>();
+    repo.readGate = gate.future;
+    // The read starts (and snapshots) before the photo is saved ...
+    final loading = cubit.load();
+    await cubit.addPhotos(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a', takenAt: DateTime(2026, 10, 1))],
+      source: GalleryPhotoSource.rank,
+    );
+    // ... and returns after it.
+    repo.readGate = null;
+    gate.complete();
+    await loading;
+    await pumpEventQueue();
+    expect(cubit.state.status, GalleryStatus.loaded);
+    expect(ids(), contains('new-5'));
+    expect(ids(), hasLength(6));
+  });
+
+  test('added photos are logged with their count and source', () async {
+    final analytics = RecordingAnalytics.install(addTearDown);
+    await cubit.load();
+    await cubit.addPhotos(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a'), pickedPhoto('b')],
+      source: GalleryPhotoSource.rank,
+      drinkName: 'Cortado',
+      caption: '  ',
+    );
+    expect(analytics.propertiesOf('gallery_photos_added'), {
+      'count': 2,
+      'source': 'rank',
+      'has_drink': true,
+      'has_note': false,
+    });
   });
 
   test('drink and note are trimmed, and blank clears them', () async {
