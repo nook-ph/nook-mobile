@@ -106,6 +106,22 @@ void main() {
     expect(search.queries, isEmpty);
   });
 
+  test('Top rated rows keep their distance (UX S8)', () async {
+    search.answer = (_) => const [
+      CafeSummary(id: 'a', name: 'A', rating: 5, lat: 10.31, lng: 123.9),
+      CafeSummary(id: 'b', name: 'B', rating: 5),
+    ];
+    final bloc = build();
+    bloc.add(const SearchSortChanged('top_rated'));
+    final state = await bloc.stream.firstWhere(
+      (s) => s.status == SearchStatus.success,
+    );
+    expect(search.queries.last.sort, 'top_rated');
+    // About 1.1 km from _here (10.3, 123.9).
+    expect(state.cafes.first.distanceMeters, closeTo(1112, 20));
+    expect(state.cafes.last.distanceMeters, isNull);
+  });
+
   group('location', () {
     test('with a position, nearest stays nearest', () async {
       final state = await searchByTag(build());

@@ -46,6 +46,28 @@ class CafeSummary {
     this.note,
   });
 
+  /// This cafe with [meters] as its distance; everything else unchanged.
+  CafeSummary withDistance(double meters) => CafeSummary(
+    id: id,
+    name: name,
+    address: address,
+    neighborhood: neighborhood,
+    city: city,
+    coverImage: coverImage,
+    photoUrls: photoUrls,
+    rating: rating,
+    reviewCount: reviewCount,
+    tags: tags,
+    lat: lat,
+    lng: lng,
+    distanceMeters: meters,
+    isFeatured: isFeatured,
+    isNew: isNew,
+    isFavorited: isFavorited,
+    operatingHours: operatingHours,
+    note: note,
+  );
+
   String get locationLabel {
     final parts = [neighborhood, city]
         .where((s) => s != null && s.trim().isNotEmpty)

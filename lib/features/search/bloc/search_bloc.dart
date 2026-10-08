@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:nook/core/cafe/cafe_data_revision.dart';
+import 'package:nook/core/utils/geo.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -319,6 +320,27 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     );
   }
 
+  /// get_cafes returns a distance only for the Nearest sort; with Top rated
+  /// (or any other sort) the rows lost their km even with a place chosen.
+  /// Fill in what the server left out, from the same point the query was
+  /// measured from. (UX S8)
+  static List<CafeSummary> withDistances(
+    List<CafeSummary> cafes,
+    double? lat,
+    double? lng,
+  ) {
+    if (lat == null || lng == null) return cafes;
+    final from = GeoPoint(lat: lat, lng: lng);
+    return [
+      for (final c in cafes)
+        c.distanceMeters == null && c.lat != null && c.lng != null
+            ? c.withDistance(
+                haversineMeters(from, GeoPoint(lat: c.lat!, lng: c.lng!)),
+              )
+            : c,
+    ];
+  }
+
   /// Counts fetches. Only the query is debounced and switch-mapped; tags,
   /// sort, place, refresh and load-more overlap freely, so a response is
   /// applied only while its fetch is still the latest one.
@@ -331,7 +353,11 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       const limit = _limit;
       final built = await _buildQuery(page: currentPage, limit: limit);
 
-      final cafes = await searchCafesUseCase.call(built.query);
+      final cafes = withDistances(
+        await searchCafesUseCase.call(built.query),
+        built.query.lat,
+        built.query.lng,
+      );
       if (request != _fetchSeq) return;
 
       emit(
