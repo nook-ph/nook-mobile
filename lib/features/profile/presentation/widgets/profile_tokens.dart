@@ -21,6 +21,10 @@ class ProfileTokens {
   /// The avatar's fill behind an initial.
   static const avatar = Color(0xFFDAD7CD);
 
+  /// The header's buttons (Edit profile, Share profile, +). A lighter step
+  /// of [avatar]; the app had no grey-button fill.
+  static const fill = Color(0xFFF1F0EC);
+
   static const gutter = 20.0;
 
   /// Poppins at [size] with Figma's auto line height (1.5).

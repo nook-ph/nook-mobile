@@ -7,6 +7,7 @@ import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/profile_pagev2.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 
 import 'profile_test_support.dart';
@@ -18,18 +19,28 @@ void main() {
     cafeList('3', 'Want to Try', places: 1),
   ];
 
+  /// A tab's label, not the stat of the same name above it.
+  Finder tabLabel(String label) =>
+      find.descendant(of: find.byType(ProfileTabs), matching: find.text(label));
+
   Future<void> pump(
     WidgetTester tester, {
     required FakeProfileCubit cubit,
     FakeListsBloc? listsBloc,
   }) async {
+    // The stat row and action buttons make the header taller than the
+    // default 800x600 test surface leaves room for under it.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       profileHost(page: const ProfileView(), cubit: cubit, lists: listsBloc),
     );
     await tester.pump();
-    // Ranked is the first tab; these tests are about Reviews. Error and
-    // signed-out pages have no tabs.
-    final reviewsTab = find.text('Reviews');
+    // Gallery is the first tab; these tests are about Reviews. "Reviews" is
+    // also a stat label, so look inside the tab row. Error and signed-out
+    // pages have no tabs.
+    final reviewsTab = tabLabel('Reviews');
     if (reviewsTab.evaluate().isNotEmpty) {
       await tester.tap(reviewsTab);
       await tester.pump();
@@ -50,8 +61,8 @@ void main() {
     expect(find.text('@…'), findsOneWidget);
     expect(find.bySemanticsLabel('Loading profile'), findsOneWidget);
     expect(find.bySemanticsLabel('Loading reviews'), findsOneWidget);
-    expect(find.text('Reviews'), findsOneWidget);
-    expect(find.text('Lists'), findsOneWidget);
+    expect(tabLabel('Reviews'), findsOneWidget);
+    expect(tabLabel('Lists'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     // The header needs the list count, so the lists load with the profile.
     expect(listsBloc.events.whereType<LoadUserLists>(), hasLength(1));
@@ -87,7 +98,7 @@ void main() {
     expect(tester.state(find.byType(ProfileView)), same(state));
   });
 
-  testWidgets('loaded: handle, name, counts under the name and on the tabs', (
+  testWidgets('loaded: handle, name, the stat row, bio and actions', (
     tester,
   ) async {
     await pump(
@@ -105,15 +116,21 @@ void main() {
 
     expect(find.text('@saiimonn_'), findsOneWidget);
     expect(find.text('Sai'), findsOneWidget);
-    // The app says "lists" where the design file says "collections".
-    expect(find.text('2 reviews · 3 lists'), findsOneWidget);
+    // The stat row: number over label. The fixture has no ranked cafes and
+    // an empty gallery.
+    expect(find.bySemanticsLabel('2 Reviews'), findsOneWidget);
+    expect(find.bySemanticsLabel('0 Ranked'), findsOneWidget);
+    expect(find.bySemanticsLabel('0 Cups'), findsOneWidget);
+    // The old counts line under the name is gone.
+    expect(find.text('2 reviews · 3 lists'), findsNothing);
     expect(find.text('Cebu. Remote most days.'), findsOneWidget);
     expect(find.text('Edit profile'), findsOneWidget);
+    expect(find.text('Share profile'), findsOneWidget);
+    expect(find.bySemanticsLabel('Add photos'), findsOneWidget);
     // No photo: the initial stands in.
     expect(find.text('S'), findsOneWidget);
-    // Tab pills.
-    expect(find.text('2'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
+    // Tabs carry no count badges.
+    expect(find.text('3'), findsNothing);
 
     // Reviews are led by the cafe, dated in words.
     expect(find.text('Tadaima'), findsOneWidget);
@@ -160,8 +177,7 @@ void main() {
       find.text('When you share reviews, they will appear here.'),
       findsOneWidget,
     );
-    // Reviews 0, and Ranked 0 (nothing ranked in the test cubit).
-    expect(find.text('0'), findsNWidgets(2));
+    expect(find.bySemanticsLabel('0 Reviews'), findsOneWidget);
   });
 
   testWidgets('a review is deleted through options, then a confirm sheet', (
@@ -244,7 +260,7 @@ void main() {
 
   group('Lists tab', () {
     Future<void> openLists(WidgetTester tester) async {
-      await tester.tap(find.text('Lists'));
+      await tester.tap(tabLabel('Lists'));
       await tester.pumpAndSettle();
     }
 
@@ -279,8 +295,8 @@ void main() {
       expect(find.text('Create new list'), findsOneWidget);
       expect(find.byType(ProfileSkeleton), findsWidgets);
       expect(find.text('No lists yet'), findsNothing);
-      // The count is unknown, so the header does not guess one.
-      expect(find.text('0 reviews'), findsOneWidget);
+      // The reviews count is known (none); the lists count is not shown.
+      expect(find.bySemanticsLabel('0 Reviews'), findsOneWidget);
     });
 
     testWidgets('empty keeps the create row over the message', (tester) async {

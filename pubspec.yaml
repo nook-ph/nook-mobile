@@ -77,6 +77,7 @@ dependencies:
   map_launcher: ^4.5.0
   google_sign_in_ios: ^6.3.0
   crypto: ^3.0.6
+  exif: ^3.3.0
 
 dev_dependencies:
   flutter_test:

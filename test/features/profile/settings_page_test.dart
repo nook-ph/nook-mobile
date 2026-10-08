@@ -15,6 +15,10 @@ void main() {
     String provider = 'email',
     SettingsLocationStatus location = SettingsLocationStatus.on,
   }) async {
+    // Tall enough that every group, Privacy included, is on screen.
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final auth = FakeAuthBloc();
     await tester.pumpWidget(
       profileHost(

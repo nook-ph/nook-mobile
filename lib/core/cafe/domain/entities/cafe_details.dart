@@ -136,6 +136,10 @@ class WrittenReview {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// The cafe's photo, for the row's thumbnail. Only the public profile's
+  /// read carries it so far.
+  final String? cafeImageUrl;
+
   const WrittenReview({
     required this.id,
     required this.cafeId,
@@ -145,5 +149,6 @@ class WrittenReview {
     this.imageUrls = const [],
     required this.createdAt,
     required this.updatedAt,
+    this.cafeImageUrl,
   });
 }

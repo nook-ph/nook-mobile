@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
@@ -10,6 +11,13 @@ import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
+import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
+import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
+import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
+import 'package:nook/features/gallery/presentation/gallery_flows.dart';
+import 'package:nook/features/gallery/presentation/widgets/gallery_image.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/injection_container.dart';
@@ -50,6 +58,7 @@ Future<RankingFlowOutcome?> showCafeRankingFlow(
   required String cafeName,
   String? cafeImageUrl,
   String? cafeLocation,
+  GalleryFlowDeps? gallery,
 }) {
   return ListsSheet.show<RankingFlowOutcome>(
     context,
@@ -59,7 +68,22 @@ Future<RankingFlowOutcome?> showCafeRankingFlow(
       cafeName: cafeName,
       cafeImageUrl: cafeImageUrl,
       cafeLocation: cafeLocation,
+      gallery: gallery ?? _appGallery(),
     ),
+  );
+}
+
+/// The app's gallery, when it is set up (it is not in most widget tests).
+GalleryFlowDeps? _appGallery() {
+  if (!sl.isRegistered<GalleryCubit>() ||
+      !sl.isRegistered<GalleryPhotoPicker>() ||
+      !sl.isRegistered<ICafePickerSource>()) {
+    return null;
+  }
+  return GalleryFlowDeps(
+    cubit: sl<GalleryCubit>(),
+    picker: sl<GalleryPhotoPicker>(),
+    cafes: sl<ICafePickerSource>(),
   );
 }
 
@@ -99,6 +123,7 @@ class CafeRankingFlow extends StatefulWidget {
     required this.cafeName,
     this.cafeImageUrl,
     this.cafeLocation,
+    this.gallery,
   });
 
   final CafeRankingCubit cubit;
@@ -106,6 +131,9 @@ class CafeRankingFlow extends StatefulWidget {
   final String cafeName;
   final String? cafeImageUrl;
   final String? cafeLocation;
+
+  /// Offers "Add a photo of what you had" on the reveal. Null hides it.
+  final GalleryFlowDeps? gallery;
 
   @override
   State<CafeRankingFlow> createState() => _CafeRankingFlowState();
@@ -165,6 +193,29 @@ class _CafeRankingFlowState extends State<CafeRankingFlow> {
 
   /// True while the rankings are being read for a bucket tap.
   bool _loadingRankings = false;
+
+  /// The photo added from the reveal, shown in place of the prompt.
+  PickedGalleryPhoto? _addedPhoto;
+
+  Future<void> _addPhoto() async {
+    final gallery = widget.gallery;
+    if (gallery == null) return;
+    _track('rank_photo_tapped');
+    final location = widget.cafeLocation?.trim() ?? '';
+    final photo = await addRankPhoto(
+      context,
+      gallery,
+      cafe: PickedCafe(
+        id: widget.cafeId,
+        name: widget.cafeName,
+        area: location.isEmpty ? null : location,
+        imageUrl: widget.cafeImageUrl,
+      ),
+    );
+    if (!mounted || photo == null) return;
+    _track('rank_photo_added');
+    setState(() => _addedPhoto = photo);
+  }
 
   void _finish(RankingFlowOutcome outcome) {
     _outcome = outcome;
@@ -362,6 +413,9 @@ class _CafeRankingFlowState extends State<CafeRankingFlow> {
               overallRank: _overallRank,
               rankedCount: _rankedCount,
               tooCloseTo: _tooCloseTo,
+              photo: widget.gallery == null
+                  ? null
+                  : RankPhotoPrompt(added: _addedPhoto, onTap: _addPhoto),
               onDone: () => _finish(RankingFlowOutcome.completed),
               onAddNote: () => _finish(RankingFlowOutcome.completedAddNote),
               onViewList: () => _finish(RankingFlowOutcome.completedViewList),
@@ -756,6 +810,7 @@ class _RevealStep extends StatelessWidget {
     required this.overallRank,
     required this.rankedCount,
     required this.tooCloseTo,
+    this.photo,
     required this.onDone,
     required this.onAddNote,
     required this.onViewList,
@@ -769,6 +824,9 @@ class _RevealStep extends StatelessWidget {
 
   /// The cafe this one was placed beside by "Too close — skip".
   final String? tooCloseTo;
+
+  /// "Add a photo of what you had", between the score and the buttons.
+  final Widget? photo;
   final VoidCallback onDone;
   final VoidCallback onAddNote;
   final VoidCallback onViewList;
@@ -814,7 +872,8 @@ class _RevealStep extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: listsText(14, color: ListsTokens.muted),
           ),
-          const SizedBox(height: 22),
+          if (photo != null) ...[const SizedBox(height: 18), photo!],
+          SizedBox(height: photo == null ? 22 : 16),
           Row(
             children: [
               Expanded(
@@ -843,6 +902,101 @@ class _RevealStep extends StatelessWidget {
           // Neither CTA is the way out, so dismissal gets its own affordance.
           ListsTextButton(label: 'Done', onTap: onDone),
         ],
+      ),
+    );
+  }
+}
+
+/// The reveal's optional photo prompt: a compact row, quieter than the two
+/// buttons under it, so it reads as an offer and not a step (finding 2).
+/// Once a photo is added the same row shows it with a check (Body Coach's
+/// camera tile, Airbnb's added state; docs/references/coffee-gallery).
+class RankPhotoPrompt extends StatelessWidget {
+  const RankPhotoPrompt({super.key, required this.onTap, this.added});
+
+  final VoidCallback onTap;
+  final PickedGalleryPhoto? added;
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = added;
+    final tile = SizedBox.square(
+      dimension: 52,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: photo == null
+            ? const ColoredBox(
+                color: ListsTokens.tint,
+                child: Icon(
+                  LucideIcons.camera,
+                  size: 22,
+                  color: ListsTokens.brand,
+                ),
+              )
+            : Stack(
+                fit: StackFit.expand,
+                children: [
+                  GalleryImage(url: photo.file.path, cacheWidth: 156),
+                  const ColoredBox(color: Color(0x59000000)),
+                  const Center(
+                    child: Icon(
+                      LucideIcons.circleCheck,
+                      size: 22,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+    final row = Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        border: Border.all(color: ListsTokens.border),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          tile,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  photo == null
+                      ? 'Add a photo of what you had'
+                      : 'Added to your gallery',
+                  style: listsText(14, weight: FontWeight.w500),
+                ),
+                Text(
+                  photo == null
+                      ? 'Optional · it goes on your profile'
+                      : 'Find it on your profile',
+                  style: listsText(12, color: ListsTokens.muted),
+                ),
+              ],
+            ),
+          ),
+          if (photo == null)
+            const Icon(
+              LucideIcons.chevronRight,
+              size: 18,
+              color: ListsTokens.muted,
+            ),
+        ],
+      ),
+    );
+    if (photo != null) return Semantics(liveRegion: true, child: row);
+    return Semantics(
+      button: true,
+      label: 'Add a photo of what you had. Optional',
+      excludeSemantics: true,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: row,
       ),
     );
   }

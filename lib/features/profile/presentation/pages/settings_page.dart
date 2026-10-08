@@ -14,6 +14,7 @@ import 'package:nook/features/profile/presentation/widgets/delete_account_sheet.
 import 'package:nook/features/profile/presentation/widgets/profile_sheet.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -57,6 +58,19 @@ class _SettingsPageState extends State<SettingsPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _refreshLocationStatus();
+    final visibility = context.read<ProfileVisibilityCubit>();
+    if (visibility.state.status != ProfileVisibilityStatus.loaded) {
+      visibility.load();
+    }
+  }
+
+  Future<void> _setHighlights(bool value) async {
+    final ok = await context.read<ProfileVisibilityCubit>().setHighlightsPublic(
+      value,
+    );
+    if (!ok && mounted) {
+      showPrimaryToast(context, 'Could not save that. Please try again.');
+    }
   }
 
   @override
@@ -185,6 +199,41 @@ class _SettingsPageState extends State<SettingsPage>
                         valueColor: denied ? ProfileTokens.danger : null,
                         trailing: LucideIcons.chevronRight,
                         onTap: _openLocationSettings,
+                      ),
+                    ],
+                  ),
+                  _Group(
+                    title: 'Privacy',
+                    rows: [
+                      BlocBuilder<
+                        ProfileVisibilityCubit,
+                        ProfileVisibilityState
+                      >(
+                        builder: (context, visibility) => _SwitchRow(
+                          icon: LucideIcons.eye,
+                          label: 'Show my gallery on my profile',
+                          detail:
+                              visibility.status ==
+                                  ProfileVisibilityStatus.failed
+                              ? 'Could not load this setting. Tap to try '
+                                    'again.'
+                              : 'Also shows how many cafes you have ranked. '
+                                    'Your ranking stays private; reviews '
+                                    'show either way.',
+                          value: visibility.highlightsPublic,
+                          onChanged:
+                              visibility.status ==
+                                  ProfileVisibilityStatus.loaded
+                              ? _setHighlights
+                              : null,
+                          onRetry:
+                              visibility.status ==
+                                  ProfileVisibilityStatus.failed
+                              ? () => context
+                                    .read<ProfileVisibilityCubit>()
+                                    .load()
+                              : null,
+                        ),
                       ),
                     ],
                   ),
@@ -366,6 +415,69 @@ class _SettingsRow extends StatelessWidget {
                 const SizedBox(width: 14),
                 Icon(glyph, size: 18, color: ProfileTokens.muted),
               ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A settings row with a switch: icon, label and a muted line under it.
+/// The whole row toggles. While the value is unknown the switch is
+/// disabled; after a failed read, a tap on the row reads it again.
+class _SwitchRow extends StatelessWidget {
+  const _SwitchRow({
+    required this.icon,
+    required this.label,
+    required this.detail,
+    required this.value,
+    required this.onChanged,
+    this.onRetry,
+  });
+
+  final IconData icon;
+  final String label;
+  final String detail;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final change = onChanged;
+    return MergeSemantics(
+      child: AdaptiveTap(
+        onTap: change != null ? () => change(!value) : onRetry,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(icon, size: 20, color: ProfileTokens.ink),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: ProfileTokens.text(14)),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      style: ProfileTokens.text(12, color: ProfileTokens.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Switch.adaptive(
+                value: value,
+                onChanged: change,
+                activeTrackColor: ProfileTokens.brand,
+              ),
             ],
           ),
         ),

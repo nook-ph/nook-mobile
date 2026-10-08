@@ -17,10 +17,14 @@ class ProfileNavBar extends StatelessWidget implements PreferredSizeWidget {
     this.subtitle,
     this.onBack,
     this.backEnabled = true,
+    this.actions = const [],
   });
 
   final String title;
   final String? subtitle;
+
+  /// 44pt icon buttons at the right end (Share on a public profile).
+  final List<Widget> actions;
 
   /// Defaults to popping the route.
   final VoidCallback? onBack;
@@ -36,7 +40,10 @@ class ProfileNavBar extends StatelessWidget implements PreferredSizeWidget {
       bottom: false,
       child: Padding(
         // The 22 arrow sits 20 from the edge inside a 44 touch target.
-        padding: const EdgeInsets.only(left: 9, right: ProfileTokens.gutter),
+        padding: EdgeInsets.only(
+          left: 9,
+          right: actions.isEmpty ? ProfileTokens.gutter : 9,
+        ),
         child: Row(
           children: [
             AdaptiveTap(
@@ -79,6 +86,7 @@ class ProfileNavBar extends StatelessWidget implements PreferredSizeWidget {
                 ],
               ),
             ),
+            ...actions,
           ],
         ),
       ),

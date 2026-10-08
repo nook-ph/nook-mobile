@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:nook/core/upload/data/upload_exception.dart.dart';
 import 'package:nook/core/upload/domain/entities/uploaded_avatar.dart';
+import 'package:nook/core/upload/domain/entities/uploaded_file.dart';
 import 'package:nook/core/upload/domain/entities/uploaded_review_image.dart';
 
 class UploadRemoteDataSource {
@@ -73,6 +74,36 @@ class UploadRemoteDataSource {
       objectKey: presign.objectKey,
       publicUrl: presign.publicUrl,
       slot: slot,
+    );
+  }
+
+  // ── Gallery photos ─────────────────────────────────────────────────────────
+
+  /// One coffee-gallery photo for [cafeId]. The presign function files it
+  /// under `gallery/<user>/<cafe>/` (`uploadType: gallery_photo`). The file
+  /// must already be re-encoded without EXIF: uploads are public-read.
+  Future<UploadedFile> uploadGalleryPhoto({
+    required File file,
+    required String cafeId,
+    String? accessToken,
+  }) async {
+    final contentType = _contentTypeFor(file);
+    final presign = await _requestPresign(
+      payload: {
+        'uploadType': 'gallery_photo',
+        'cafeId': cafeId,
+        'contentType': contentType,
+      },
+      accessToken: accessToken,
+    );
+    await _putToS3(
+      file: file,
+      uploadUrl: presign.uploadUrl,
+      contentType: contentType,
+    );
+    return UploadedFile(
+      objectKey: presign.objectKey,
+      publicUrl: presign.publicUrl,
     );
   }
 

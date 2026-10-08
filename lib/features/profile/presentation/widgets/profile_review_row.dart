@@ -14,10 +14,18 @@ import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 /// name, the date, the stars, the text and its photos. [onMore] opens the
 /// options for it.
 class ProfileReviewRow extends StatelessWidget {
-  const ProfileReviewRow({super.key, required this.review, this.onMore});
+  const ProfileReviewRow({
+    super.key,
+    required this.review,
+    this.onMore,
+    this.onOpenCafe,
+  });
 
   final WrittenReview review;
   final VoidCallback? onMore;
+
+  /// Opens the cafe from its photo and name. Null leaves them plain.
+  final VoidCallback? onOpenCafe;
 
   static const _photoSize = 72.0;
   static const _maxPhotos = 4;
@@ -40,25 +48,7 @@ class ProfileReviewRow extends StatelessWidget {
       children: [
         Row(
           children: [
-            const _CafeThumb(),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    review.cafeName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: ProfileTokens.text(14, weight: FontWeight.w500),
-                  ),
-                  Text(
-                    date,
-                    style: ProfileTokens.text(10, color: ProfileTokens.muted),
-                  ),
-                ],
-              ),
-            ),
+            Expanded(child: _cafe()),
             if (more != null)
               AdaptiveTap(
                 onTap: more,
@@ -140,15 +130,62 @@ class ProfileReviewRow extends StatelessWidget {
       ],
     );
   }
+
+  Widget _cafe() {
+    final date = formatReviewDate(review.createdAt);
+    final row = Row(
+      children: [
+        _CafeThumb(url: review.cafeImageUrl),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                review.cafeName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: ProfileTokens.text(14, weight: FontWeight.w500),
+              ),
+              Text(
+                date,
+                style: ProfileTokens.text(10, color: ProfileTokens.muted),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    final open = onOpenCafe;
+    if (open == null) return row;
+    return Semantics(
+      button: true,
+      label: 'Open ${review.cafeName}',
+      child: AdaptiveTap(
+        onTap: open,
+        borderRadius: BorderRadius.circular(10),
+        child: row,
+      ),
+    );
+  }
 }
 
-/// The 40pt square that leads a review row. The reviews query carries no
-/// cafe photo yet, so this is a tinted tile until it does.
+/// The 40pt square that leads a review row: the cafe's photo when the read
+/// carries one, else a tinted tile.
 class _CafeThumb extends StatelessWidget {
-  const _CafeThumb();
+  const _CafeThumb({this.url});
+
+  final String? url;
 
   @override
   Widget build(BuildContext context) {
+    final image = url;
+    if (image != null && image.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: CafeCardImage(imageUrl: image, width: 40, height: 40),
+      );
+    }
     return Container(
       width: 40,
       height: 40,
@@ -197,14 +234,22 @@ class ProfileReviewList extends StatelessWidget {
   const ProfileReviewList({
     super.key,
     required this.reviews,
-    required this.onMore,
+    this.onMore,
+    this.onOpenCafe,
   });
 
   final List<WrittenReview> reviews;
-  final ValueChanged<WrittenReview> onMore;
+
+  /// Opens a review's cafe. Null leaves the cafes plain.
+  final ValueChanged<String>? onOpenCafe;
+
+  /// Opens the options for one review. Null leaves the ⋯ off (another
+  /// person's reviews on their public profile).
+  final ValueChanged<WrittenReview>? onMore;
 
   @override
   Widget build(BuildContext context) {
+    final more = onMore;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -217,7 +262,10 @@ class ProfileReviewList extends StatelessWidget {
           ProfileReviewRow(
             key: ValueKey('review-${reviews[i].id}'),
             review: reviews[i],
-            onMore: () => onMore(reviews[i]),
+            onMore: more == null ? null : () => more(reviews[i]),
+            onOpenCafe: onOpenCafe == null
+                ? null
+                : () => onOpenCafe!(reviews[i].cafeId),
           ),
         ],
       ],

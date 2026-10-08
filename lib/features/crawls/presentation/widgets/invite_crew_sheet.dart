@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:flutter/services.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/toast_helper.dart';
@@ -163,6 +165,25 @@ class _MemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final username = member.username;
+    final row = _row();
+    // Someone else with a handle: the row opens their profile.
+    if (member.isMe || username == null || username.isEmpty) return row;
+    return Semantics(
+      button: true,
+      label: 'Open @$username’s profile',
+      child: AdaptiveTap(
+        onTap: () => PublicProfilePage.open(context, username: username),
+        borderRadius: BorderRadius.circular(8),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: row,
+        ),
+      ),
+    );
+  }
+
+  Widget _row() {
     return Row(
       children: [
         CrewAvatars(crew: [member], size: 32),

@@ -8,6 +8,15 @@ import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
+import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
+import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
+import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
+import 'package:nook/features/gallery/presentation/gallery_flows.dart';
+import 'package:nook/features/gallery/presentation/pages/gallery_viewer_page.dart';
+import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options.dart';
+import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
@@ -16,7 +25,6 @@ import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
 import 'package:nook/features/profile/presentation/pages/settings_page.dart';
-import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_lists_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_review_sheets.dart';
@@ -24,6 +32,9 @@ import 'package:nook/features/profile/presentation/widgets/profile_reviews_tab.d
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ranked_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/core/services/share_service.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
+import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
@@ -57,6 +68,7 @@ class ProfileRedesignPage extends StatelessWidget {
             current is AuthAccountDeleted,
         listener: (context, state) {
           context.read<ProfileCubit>().clear();
+          context.read<ProfileVisibilityCubit>().clear();
         },
         child: ProfileView(isActive: isActive),
       ),
@@ -68,7 +80,24 @@ class ProfileRedesignPage extends StatelessWidget {
 /// failed or signed out. Reads the lists from [ListsBloc] for the counts and
 /// the Lists tab.
 class ProfileView extends StatefulWidget {
-  const ProfileView({super.key, this.isActive = true});
+  const ProfileView({
+    super.key,
+    this.isActive = true,
+    this.galleryFlows,
+    this.shareProfile,
+    this.openPreview,
+  });
+
+  /// Shares the profile's web link. Defaults to the system share sheet.
+  final ShareProfile? shareProfile;
+
+  /// Opens "View as visitor" for the signed-in user. Defaults to pushing
+  /// [PublicProfilePage] in preview mode.
+  final void Function(String userId)? openPreview;
+
+  /// What the Gallery tab's + needs (picker, cafe sources). Defaults to the
+  /// app's; tests pass fakes.
+  final GalleryFlowDeps Function(BuildContext context)? galleryFlows;
 
   /// Whether the Profile tab is the one on screen. Coming back to it reloads
   /// the profile behind what is already shown, so a review written elsewhere
@@ -92,6 +121,33 @@ class _ProfileViewState extends State<ProfileView> {
         listsBloc.state is! ListsLoading) {
       listsBloc.add(LoadUserLists());
     }
+    final gallery = context.read<GalleryCubit>();
+    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated &&
+        gallery.state.status == GalleryStatus.initial) {
+      gallery.load();
+    }
+    final visibility = context.read<ProfileVisibilityCubit>();
+    if (context.read<ProfileCubit>().state is! ProfileUnauthenticated &&
+        visibility.state.status == ProfileVisibilityStatus.initial) {
+      visibility.load();
+    }
+  }
+
+  void _share(ProfileLoaded profile) {
+    final share =
+        widget.shareProfile ??
+        ({required username, required name, own = false}) => sl<ShareService>()
+            .shareProfile(username: username, name: name, own: own);
+    share(username: profile.username, name: profile.name, own: true);
+  }
+
+  void _preview(ProfileLoaded profile) {
+    final open = widget.openPreview;
+    if (open != null) {
+      open(profile.userId);
+      return;
+    }
+    PublicProfilePage.open(context, userId: profile.userId, preview: true);
   }
 
   @override
@@ -99,7 +155,41 @@ class _ProfileViewState extends State<ProfileView> {
     super.didUpdateWidget(oldWidget);
     if (widget.isActive && !oldWidget.isActive) {
       context.read<ProfileCubit>().loadProfile(refresh: true);
+      context.read<GalleryCubit>().load(refresh: true);
     }
+  }
+
+  GalleryFlowDeps _galleryDeps() =>
+      widget.galleryFlows?.call(context) ??
+      GalleryFlowDeps(
+        cubit: context.read<GalleryCubit>(),
+        picker: sl<GalleryPhotoPicker>(),
+        cafes: sl<ICafePickerSource>(),
+      );
+
+  void _openCafe(String cafeId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CafeDetailsPage(cafeId: cafeId)),
+    );
+  }
+
+  void _openPhoto(GalleryPhoto photo) {
+    GalleryViewerPage.open(
+      context,
+      photo: photo,
+      onOpenCafe: _openCafe,
+      onOpenReview: _openReviews,
+    );
+  }
+
+  void _photoOptions(GalleryPhoto photo) {
+    showGalleryPhotoOptions(
+      context,
+      cubit: context.read<GalleryCubit>(),
+      photo: photo,
+      onOpenReview: _openReviews,
+    );
   }
 
   void _openSettings() {
@@ -230,13 +320,11 @@ class _ProfileViewState extends State<ProfileView> {
             .state
             .rankings
             .length;
-        // Unknown until the lists have loaded at least once.
-        final listCount = listsState is ListsLoaded || lists.isNotEmpty
-            ? lists.length
-            : null;
+
+        final gallery = context.watch<GalleryCubit>().state;
 
         return DefaultTabController(
-          length: 3,
+          length: 4,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -251,20 +339,46 @@ class _ProfileViewState extends State<ProfileView> {
                       SliverToBoxAdapter(
                         child: loaded == null
                             ? const ProfileHeaderSkeleton()
-                            : BlocBuilder<CafeRankingCubit, CafeRankingState>(
-                                buildWhen: (a, b) =>
-                                    a.rankings.length != b.rankings.length,
-                                builder: (context, ranking) => ProfileHeader(
-                                  name: loaded.name,
-                                  avatarUrl: loaded.avatarUrl,
-                                  bio: loaded.bio,
-                                  countsLine: profileCountsLine(
-                                    reviews: reviews.length,
-                                    lists: listCount,
-                                    ranked: ranking.rankings.length,
+                            : ProfileHeader(
+                                name: loaded.name,
+                                avatarUrl: loaded.avatarUrl,
+                                bio: loaded.bio,
+                                stats: [
+                                  ProfileStat(
+                                    'Ranked',
+                                    rankedCount,
+                                    onTap: () => DefaultTabController.of(
+                                      context,
+                                    ).animateTo(1),
                                   ),
-                                  onEdit: _openEdit,
-                                ),
+                                  ProfileStat(
+                                    'Reviews',
+                                    // Unknown, not zero, when the read failed.
+                                    loaded.reviewsFailed
+                                        ? null
+                                        : reviews.length,
+                                    onTap: () => DefaultTabController.of(
+                                      context,
+                                    ).animateTo(2),
+                                  ),
+                                  ProfileStat(
+                                    'Cups',
+                                    gallery.status == GalleryStatus.loaded
+                                        ? gallery.cupCount
+                                        : null,
+                                    onTap: () => DefaultTabController.of(
+                                      context,
+                                    ).animateTo(0),
+                                  ),
+                                ],
+                                onEdit: _openEdit,
+                                // No handle yet (mid sign-up): nothing
+                                // to link to.
+                                onShare: loaded.username.isEmpty
+                                    ? null
+                                    : () => _share(loaded),
+                                onAdd: () =>
+                                    addPhotosToGallery(context, _galleryDeps()),
                               ),
                       ),
                       SliverPersistentHeader(
@@ -275,22 +389,13 @@ class _ProfileViewState extends State<ProfileView> {
                           ),
                           child: ProfileTabs(
                             controller: DefaultTabController.of(context),
-                            tabs: [
-                              ProfileTabData(
-                                'Ranked',
-                                count: loaded == null ? null : rankedCount,
-                              ),
-                              ProfileTabData(
-                                'Reviews',
-                                // Unknown, not zero, when the read failed.
-                                count: loaded == null || loaded.reviewsFailed
-                                    ? null
-                                    : reviews.length,
-                              ),
-                              ProfileTabData(
-                                'Lists',
-                                count: loaded == null ? null : listCount,
-                              ),
+                            // Gallery first, as the profile's public face;
+                            // counts are in the header's stat row.
+                            tabs: const [
+                              ProfileTabData('Gallery'),
+                              ProfileTabData('Ranked', private: true),
+                              ProfileTabData('Reviews'),
+                              ProfileTabData('Lists'),
                             ],
                           ),
                         ),
@@ -298,7 +403,18 @@ class _ProfileViewState extends State<ProfileView> {
                     ],
                     body: TabBarView(
                       children: [
-                        ProfileRankedTab(beenListId: been?.id),
+                        ProfileGalleryTab(
+                          onAdd: () =>
+                              addPhotosToGallery(context, _galleryDeps()),
+                          onOpen: _openPhoto,
+                          onOptions: _photoOptions,
+                        ),
+                        ProfileRankedTab(
+                          beenListId: been?.id,
+                          onPreview: loaded == null
+                              ? null
+                              : () => _preview(loaded),
+                        ),
                         ProfileReviewsTab(
                           loading: loaded == null,
                           failed: loaded?.reviewsFailed ?? false,

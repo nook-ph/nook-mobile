@@ -57,3 +57,6 @@ app.*.map.json
 
 # graphify knowledge graph (generated)
 /graphify-out/
+
+# UX research: other products' screenshots stay local
+/docs/ux/*/ref-*.png
