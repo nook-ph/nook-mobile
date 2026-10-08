@@ -92,18 +92,29 @@ class _MainShellState extends State<MainShell> {
         builder: (context, state) {
           _visited.add(state.tabIndex);
           final pages = widget.pagesBuilder(state.tabIndex);
-          return Scaffold(
-            backgroundColor: Colors.white,
-            body: IndexedStack(
-              index: state.tabIndex,
-              children: [
-                for (var i = 0; i < pages.length; i++)
-                  _visited.contains(i) ? pages[i] : const SizedBox.shrink(),
-              ],
-            ),
-            bottomNavigationBar: BottomNav(
-              currentIndex: state.tabIndex,
-              onTap: (index) => _onTabTap(context, index),
+          // System Back on Map, Saved or Profile goes to Home first, as in
+          // other tabbed apps; only Back on Home leaves the app. PopScope
+          // only acts while this route is on top, so pushed pages pop
+          // normally.
+          return PopScope(
+            canPop: state.tabIndex == 0,
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
+            },
+            child: Scaffold(
+              backgroundColor: Colors.white,
+              body: IndexedStack(
+                index: state.tabIndex,
+                children: [
+                  for (var i = 0; i < pages.length; i++)
+                    _visited.contains(i) ? pages[i] : const SizedBox.shrink(),
+                ],
+              ),
+              bottomNavigationBar: BottomNav(
+                currentIndex: state.tabIndex,
+                onTap: (index) => _onTabTap(context, index),
+              ),
             ),
           );
         },
