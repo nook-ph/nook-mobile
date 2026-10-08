@@ -100,6 +100,9 @@
   	<key>com.posthog.posthog.CAPTURE_APPLICATION_LIFECYCLE_EVENTS</key>
   	<true/>
   	<key>com.posthog.posthog.DEBUG</key>
-  	<true/>
+  	<false/>
+  	<!-- Dart (lib/main.dart) is the only init; see AndroidManifest.xml. -->
+  	<key>com.posthog.posthog.AUTO_INIT</key>
+  	<false/>
 </dict>
 </plist>

@@ -67,7 +67,11 @@
         <meta-data android:name="com.posthog.posthog.PROJECT_TOKEN" android:value="phc_oCivSbJrTGNZrAewbvByXvyAdM4e5Wkdehqyzav2fQoH" />
         <meta-data android:name="com.posthog.posthog.POSTHOG_HOST" android:value="https://us.i.posthog.com" />
         <meta-data android:name="com.posthog.posthog.TRACK_APPLICATION_LIFECYCLE_EVENTS" android:value="true" />
-        <meta-data android:name="com.posthog.posthog.DEBUG" android:value="true" />
+        <meta-data android:name="com.posthog.posthog.DEBUG" android:value="false" />
+        <!-- Dart (lib/main.dart) is the only init: it reads the .env keys and
+             skips setup outside release (kAnalyticsEnabled). Native auto-init
+             would start first, ignore that gate and send debug builds to prod. -->
+        <meta-data android:name="com.posthog.posthog.AUTO_INIT" android:value="false" />
 
 
         <!-- Flutter plugin metadata -->
