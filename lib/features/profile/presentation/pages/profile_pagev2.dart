@@ -354,6 +354,18 @@ class _ProfileViewState extends State<ProfileView> {
                     onAction: () => context.push('/login'),
                     top: 180,
                   )
+                : info.type == ErrorType.offline
+                // Offline reads as offline, as on Home, not as our fault.
+                ? ProfileMessage(
+                    icon: LucideIcons.wifiOff,
+                    title: info.title,
+                    subtitle: info.subtitle,
+                    actionLabel: 'Retry',
+                    actionStyle: ProfilePillStyle.brand,
+                    isError: true,
+                    onAction: () => context.read<ProfileCubit>().loadProfile(),
+                    top: 180,
+                  )
                 : ProfileMessage.error(
                     title: 'Something went wrong',
                     subtitle:

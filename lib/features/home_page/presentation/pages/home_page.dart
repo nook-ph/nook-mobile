@@ -57,76 +57,78 @@ class HomePage extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
-          child: BlocListener<HomeBloc, HomeState>(
-            // Fires for a first load and for a refresh, but not for a banner
-            // dismissal, which re-emits the same lists.
-            listenWhen: (prev, curr) =>
-                curr is HomeLoadedState &&
-                (prev is! HomeLoadedState ||
-                    curr.refreshError != null ||
-                    !identical(prev.featuredCafes, curr.featuredCafes)),
-            listener: (context, state) {
-              if (state is! HomeLoadedState) return;
-
-              final refreshError = state.refreshError;
-              if (refreshError != null) {
-                showPrimaryToast(
-                  context,
-                  HomeStateView.errorCopy(refreshError).title,
-                );
-                return;
-              }
-
-              // One batched get_cafe_statuses for everything on the feed, so
-              // the Been / Want to Try badges can render per card without a
-              // request per card (spec §3.2).
-              // A load that emits twice only asks about the cafes the second
-              // emission added.
-              final ids = state.newCafeIds ?? state.cafeIds;
-              if (ids.isNotEmpty) {
-                context.read<CafeStatusCubit>().loadFor(ids.toList());
-              }
-
-              if (state.featuredCafes.isNotEmpty) {
-                final first = state.featuredCafes.first;
-                final url = first.coverImage?.trim().isNotEmpty == true
-                    ? first.coverImage!.trim()
-                    : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
-                precacheImage(
-                  CachedNetworkImageProvider(
-                    url,
-                    cacheManager: CustomCacheManager.instance,
-                  ),
-                  context,
-                );
-              }
-            },
-            // The top bar sits outside the feed's scroll view: search stays
-            // reachable in every state, and the refresh spinner appears
-            // under it.
-            child: BlocListener<AuthBloc, AuthState>(
-              // Signing in from a guest sheet keeps this screen alive, so the
-              // feed does not reload and its badges have to be asked for.
+          child: RetryOnResume(
+            child: BlocListener<HomeBloc, HomeState>(
+              // Fires for a first load and for a refresh, but not for a banner
+              // dismissal, which re-emits the same lists.
               listenWhen: (prev, curr) =>
-                  curr is AuthAuthenticated && prev is! AuthAuthenticated,
-              listener: (context, _) {
-                final home = context.read<HomeBloc>().state;
-                if (home is HomeLoadedState && home.hasCafes) {
-                  context.read<CafeStatusCubit>().loadFor(
-                    home.cafeIds.toList(),
+                  curr is HomeLoadedState &&
+                  (prev is! HomeLoadedState ||
+                      curr.refreshError != null ||
+                      !identical(prev.featuredCafes, curr.featuredCafes)),
+              listener: (context, state) {
+                if (state is! HomeLoadedState) return;
+
+                final refreshError = state.refreshError;
+                if (refreshError != null) {
+                  showPrimaryToast(
+                    context,
+                    HomeStateView.errorCopy(refreshError).title,
+                  );
+                  return;
+                }
+
+                // One batched get_cafe_statuses for everything on the feed, so
+                // the Been / Want to Try badges can render per card without a
+                // request per card (spec §3.2).
+                // A load that emits twice only asks about the cafes the second
+                // emission added.
+                final ids = state.newCafeIds ?? state.cafeIds;
+                if (ids.isNotEmpty) {
+                  context.read<CafeStatusCubit>().loadFor(ids.toList());
+                }
+
+                if (state.featuredCafes.isNotEmpty) {
+                  final first = state.featuredCafes.first;
+                  final url = first.coverImage?.trim().isNotEmpty == true
+                      ? first.coverImage!.trim()
+                      : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+
+                  precacheImage(
+                    CachedNetworkImageProvider(
+                      url,
+                      cacheManager: CustomCacheManager.instance,
+                    ),
+                    context,
                   );
                 }
               },
-              child: Column(
-                children: [
-                  const HomeTopBar(),
-                  Expanded(
-                    child: BlocBuilder<HomeBloc, HomeState>(
-                      builder: (context, state) => _feedArea(context, state),
+              // The top bar sits outside the feed's scroll view: search stays
+              // reachable in every state, and the refresh spinner appears
+              // under it.
+              child: BlocListener<AuthBloc, AuthState>(
+                // Signing in from a guest sheet keeps this screen alive, so the
+                // feed does not reload and its badges have to be asked for.
+                listenWhen: (prev, curr) =>
+                    curr is AuthAuthenticated && prev is! AuthAuthenticated,
+                listener: (context, _) {
+                  final home = context.read<HomeBloc>().state;
+                  if (home is HomeLoadedState && home.hasCafes) {
+                    context.read<CafeStatusCubit>().loadFor(
+                      home.cafeIds.toList(),
+                    );
+                  }
+                },
+                child: Column(
+                  children: [
+                    const HomeTopBar(),
+                    Expanded(
+                      child: BlocBuilder<HomeBloc, HomeState>(
+                        builder: (context, state) => _feedArea(context, state),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -438,4 +440,43 @@ class _Bone extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Loads the feed again when the app comes back to the foreground while
+/// Home shows an error: the usual way back from offline is to fix the
+/// connection in Settings and return, and Home sat on "You're offline"
+/// until Try again was tapped. (No connectivity package is in the app, so
+/// resume is the signal.)
+class RetryOnResume extends StatefulWidget {
+  const RetryOnResume({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<RetryOnResume> createState() => _RetryOnResumeState();
+}
+
+class _RetryOnResumeState extends State<RetryOnResume> {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _onResume);
+  }
+
+  void _onResume() {
+    if (!mounted) return;
+    final bloc = context.read<HomeBloc>();
+    if (bloc.state is HomeError) bloc.add(LoadHomeDataEvent());
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

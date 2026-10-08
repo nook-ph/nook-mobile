@@ -53,7 +53,21 @@ class _ListsPageState extends State<ListsPage> {
       listener: (context, state) {
         if (state is ListsError) {
           final info = AppErrorCopy.fromException(state.error);
-          showPrimaryToast(context, '${info.title} · ${info.subtitle}');
+          // A toast only when it adds something: not over this page's own
+          // full-page error (no lists to show), and not from a hidden tab
+          // (the page is kept alive behind Profile and Home, where it
+          // stacked an offline toast over their own offline state).
+          final failedCreate = _pendingCreateName != null;
+          final showsFullPageError = context
+              .read<ListsBloc>()
+              .userLists
+              .isEmpty;
+          final visible =
+              TickerMode.valuesOf(context).enabled &&
+              (ModalRoute.of(context)?.isCurrent ?? true);
+          if (visible && (failedCreate || !showsFullPageError)) {
+            showPrimaryToast(context, '${info.title} · ${info.subtitle}');
+          }
           _pendingCreateName = null;
           if (mounted) setState(() => _isCreating = false);
           return;

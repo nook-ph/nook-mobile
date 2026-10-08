@@ -397,7 +397,7 @@ void main() {
     });
   });
 
-  testWidgets('page error: plain title, one message, Retry reloads', (
+  testWidgets('offline: says offline, like Home, and Retry reloads (UX S9)', (
     tester,
   ) async {
     final cubit = FakeProfileCubit(
@@ -406,16 +406,25 @@ void main() {
     await pump(tester, cubit: cubit);
 
     expect(find.text('Profile'), findsOneWidget);
-    expect(find.text('Something went wrong'), findsOneWidget);
-    expect(
-      find.text(
-        'We could not load your profile. Check your connection and try again.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.byIcon(LucideIcons.triangleAlert), findsOneWidget);
+    expect(find.text("You're offline"), findsOneWidget);
+    expect(find.text('Check your connection and try again'), findsOneWidget);
+    expect(find.text('Something went wrong'), findsNothing);
+    expect(find.byIcon(LucideIcons.wifiOff), findsOneWidget);
     expect(find.bySemanticsLabel('Settings'), findsOneWidget);
 
+    await tester.tap(find.text('Retry'));
+    await tester.pump();
+    expect(cubit.loads, 1);
+  });
+
+  testWidgets('page error: plain title, one message, Retry reloads', (
+    tester,
+  ) async {
+    final cubit = FakeProfileCubit(ProfileError(Exception('boom')));
+    await pump(tester, cubit: cubit);
+
+    expect(find.text('Something went wrong'), findsOneWidget);
+    expect(find.byIcon(LucideIcons.triangleAlert), findsOneWidget);
     await tester.tap(find.text('Retry'));
     await tester.pump();
     expect(cubit.loads, 1);
