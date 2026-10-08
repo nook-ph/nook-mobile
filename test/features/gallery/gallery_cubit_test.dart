@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
@@ -135,6 +137,42 @@ void main() {
     expect(repo.added.single.drink, 'Cortado');
     // Newest, so first after the pins.
     expect(ids()[2], 'new-5');
+  });
+
+  // The ranking reveal can add a photo before the Profile tab ever loaded
+  // the gallery. The grid must then hold the whole gallery, not just the
+  // new photo.
+  test('a photo added before the gallery loaded brings the rest', () async {
+    expect(cubit.state.status, GalleryStatus.initial);
+    await cubit.addPhotos(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a', takenAt: DateTime(2026, 10, 1))],
+      source: GalleryPhotoSource.rank,
+    );
+    await pumpEventQueue();
+    expect(cubit.state.status, GalleryStatus.loaded);
+    expect(ids(), ['pinned-1', 'pinned-2', 'new-5', 'new', 'hidden', 'old']);
+    expect(cubit.state.cupCount, 5);
+  });
+
+  test('a photo added while the gallery loads is not lost', () async {
+    final gate = Completer<void>();
+    repo.readGate = gate.future;
+    // The read starts (and snapshots) before the photo is saved ...
+    final loading = cubit.load();
+    await cubit.addPhotos(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a', takenAt: DateTime(2026, 10, 1))],
+      source: GalleryPhotoSource.rank,
+    );
+    // ... and returns after it.
+    repo.readGate = null;
+    gate.complete();
+    await loading;
+    await pumpEventQueue();
+    expect(cubit.state.status, GalleryStatus.loaded);
+    expect(ids(), contains('new-5'));
+    expect(ids(), hasLength(6));
   });
 
   test('drink and note are trimmed, and blank clears them', () async {

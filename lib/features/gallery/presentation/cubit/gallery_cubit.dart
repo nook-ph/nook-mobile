@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
@@ -69,12 +71,17 @@ class GalleryCubit extends Cubit<GalleryState> {
 
   final IGalleryRepository _repository;
 
+  /// A write landed while a load was in flight; that load's read may predate
+  /// it, so load again when it finishes.
+  bool _reloadAfterLoad = false;
+
   /// Loads the gallery. [refresh] keeps what is shown while it reloads.
   Future<void> load({bool refresh = false}) async {
     if (state.status == GalleryStatus.loading) return;
     if (!refresh || state.status != GalleryStatus.loaded) {
       emit(state.copyWith(status: GalleryStatus.loading));
     }
+    _reloadAfterLoad = false;
     try {
       final photos = await _repository.getMyPhotos();
       if (isClosed) return;
@@ -89,6 +96,10 @@ class GalleryCubit extends Cubit<GalleryState> {
       } else {
         emit(state.copyWith(status: GalleryStatus.failed));
       }
+    }
+    if (_reloadAfterLoad && !isClosed) {
+      _reloadAfterLoad = false;
+      await load(refresh: true);
     }
   }
 
@@ -108,13 +119,19 @@ class GalleryCubit extends Cubit<GalleryState> {
       drinkName: drinkName,
       caption: caption,
     );
-    if (!isClosed) {
-      emit(
-        state.copyWith(
-          status: GalleryStatus.loaded,
-          photos: [...state.photos, ...added],
-        ),
-      );
+    if (isClosed) return added;
+    switch (state.status) {
+      case GalleryStatus.loaded:
+        emit(state.copyWith(photos: [...state.photos, ...added]));
+      case GalleryStatus.loading:
+        // The read in flight may have started before this save.
+        _reloadAfterLoad = true;
+      case GalleryStatus.initial:
+      case GalleryStatus.failed:
+        // Never loaded (e.g. a photo added on the ranking reveal before the
+        // Profile tab opened): showing only [added] would hide the rest of
+        // the gallery, so load all of it.
+        unawaited(load());
     }
     return added;
   }

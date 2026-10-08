@@ -71,11 +71,18 @@ class FakeGalleryRepository implements IGalleryRepository {
     if (failure != null) throw failure;
   }
 
+  /// When set, a read takes its snapshot at once but returns only when this
+  /// completes, like a slow network read that started before a write.
+  Future<void>? readGate;
+
   @override
   Future<List<GalleryPhoto>> getMyPhotos() async {
     final failure = readFailure;
     if (failure != null) throw failure;
-    return List.of(photos);
+    final snapshot = List.of(photos);
+    final gate = readGate;
+    if (gate != null) await gate;
+    return snapshot;
   }
 
   @override
