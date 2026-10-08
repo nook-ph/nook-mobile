@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nook/core/presentation/widgets/adaptive_buttons.dart';
+import 'package:nook/core/widgets/prototype_height.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/pages/menu_full_page.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
@@ -27,7 +28,9 @@ class MenuHighlights extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const CafeSectionTitle('Menu highlights'),
+              // Expanded: at large text the title gives way to "See all"
+              // instead of pushing it off the row.
+              const Expanded(child: CafeSectionTitle('Menu highlights')),
               AdaptiveTextButton(
                 onPressed: () {
                   Navigator.push(
@@ -59,9 +62,12 @@ class MenuHighlights extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        SizedBox(
-          height: MenuHighlightCard.listHeight,
-          child: ListView.separated(
+        PrototypeHeight(
+          prototype: MenuHighlightCard(
+            item: MenuHighlightCard.prototypeItem,
+            width: width,
+          ),
+          listView: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 22),
             itemCount: highlights.length,

@@ -19,11 +19,12 @@ class MapListToggleButton extends StatelessWidget {
   final bool listOpen;
   final VoidCallback onTap;
 
-  /// As tall as the search field beside it.
-  static const double size = MapSearchPill.height;
+  /// As tall as the search field beside it, at the reader's text size.
+  static double sizeFor(TextScaler scaler) => MapSearchPill.heightFor(scaler);
 
   @override
   Widget build(BuildContext context) {
+    final size = sizeFor(MediaQuery.textScalerOf(context));
     return Semantics(
       button: true,
       label: listOpen ? 'Hide list' : 'Show list',

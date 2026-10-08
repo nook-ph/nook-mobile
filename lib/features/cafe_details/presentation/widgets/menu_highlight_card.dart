@@ -30,8 +30,17 @@ class MenuHighlightCard extends StatelessWidget {
 
   static const double imageHeight = 106;
 
-  /// Total height a horizontal list needs to show this card without clipping.
-  static const double listHeight = 178;
+  /// A card with one line of name and one of price, the most a card can
+  /// have (both are single-line), for sizing a horizontal strip with
+  /// [PrototypeHeight] at the reader's text scale. A fixed 178 clipped from
+  /// text scale 1.5.
+  static MenuItemEntity get prototypeItem => MenuItemEntity(
+    id: 'prototype',
+    cafeId: '',
+    name: 'Prototype',
+    price: 0,
+    isHighlight: true,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +81,9 @@ class MenuHighlightCard extends StatelessWidget {
           // displayPrice, not price: items with variants cover a range, and
           // the highlights strip used to flatten that to the base price.
           '₱${item.displayPrice}',
+          // One line, so the strip's prototype height always holds it.
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(
             context,
           ).textTheme.bodyLarge?.copyWith(color: const Color(0xFF767574)),

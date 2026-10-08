@@ -304,9 +304,9 @@ class _SearchOriginSheetState extends State<SearchOriginSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SheetGrabber(),
-            const SizedBox(height: 14),
+            const SizedBox(height: SheetTitleRow.gap),
             SheetTitleRow(title: 'Search near'),
-            const SizedBox(height: 14),
+            const SizedBox(height: SheetTitleRow.gap),
             PlaceField(
               controller: _controller,
               hint: 'Place, landmark or street',
@@ -356,14 +356,21 @@ class SheetGrabber extends StatelessWidget {
 }
 
 /// SemiBold 16 title with a close X at the end.
+///
+/// 44 tall (the close target), growing with the title at large text; a
+/// fixed 24 clipped the title from about 1.1x. Callers keep 4 above and
+/// below, which puts the title where the old 14 + 24 + 14 did.
 class SheetTitleRow extends StatelessWidget {
   const SheetTitleRow({super.key, required this.title});
 
   final String title;
 
+  /// The gap callers leave above and below.
+  static const gap = 4.0;
+
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 24,
+  Widget build(BuildContext context) => ConstrainedBox(
+    constraints: const BoxConstraints(minHeight: 44),
     child: Row(
       children: [
         Expanded(
@@ -383,7 +390,14 @@ class SheetTitleRow extends StatelessWidget {
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(LucideIcons.x, size: 20, color: SearchTokens.ink),
+            // 44 x 44 target; the glyph stays at the row's end.
+            child: const SizedBox.square(
+              dimension: 44,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Icon(LucideIcons.x, size: 20, color: SearchTokens.ink),
+              ),
+            ),
           ),
         ),
       ],

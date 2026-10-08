@@ -21,7 +21,16 @@ class MapSearchPill extends StatelessWidget {
   /// Opens the "Search near" sheet. Null leaves the line as plain text.
   final VoidCallback? onOriginTap;
 
+  /// The design's height at the default text size.
   static const double height = 52;
+
+  /// The height at [scaler]: 8 above and below the two lines (14pt and
+  /// 10pt, line height 1.5), never under [height]. A fixed 52 overflowed
+  /// from about 2.1x.
+  static double heightFor(TextScaler scaler) {
+    final text = scaler.scale(14) * 1.5 + scaler.scale(10) * 1.5;
+    return (16 + text).ceilToDouble().clamp(height, double.infinity);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +64,7 @@ class MapSearchPill extends StatelessWidget {
       onTap: () => context.push('/search'),
       borderRadius: BorderRadius.circular(100),
       child: Container(
-        height: height,
+        height: heightFor(MediaQuery.textScalerOf(context)),
         padding: const EdgeInsets.only(left: 16),
         decoration: BoxDecoration(
           color: MapTokens.surface,

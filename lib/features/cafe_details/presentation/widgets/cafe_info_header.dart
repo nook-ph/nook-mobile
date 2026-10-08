@@ -138,7 +138,9 @@ class _StatusLine extends StatelessWidget {
             ),
             if (detail != null) ...[
               const SizedBox(width: 5),
-              Text(detail, style: regular),
+              // Flexible: "Closed · opens 7 AM Wednesday" wraps inside the
+              // line at large text instead of overflowing it.
+              Flexible(child: Text(detail, style: regular)),
             ],
           ],
         ),

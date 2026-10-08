@@ -179,9 +179,11 @@ class _ReviewRowState extends State<ReviewRow> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 44 tall for the ⋯ target; the avatar and names keep their 36.
-        SizedBox(
-          height: 44,
+        // At least 44 tall for the ⋯ target; the avatar and names keep their
+        // 36. A minimum, not a fixed height: name + date outgrow 44 from
+        // about 1.2x text and clipped.
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
           child: Row(
             children: [
               Expanded(
@@ -189,8 +191,8 @@ class _ReviewRowState extends State<ReviewRow> {
                   userId: review.userId,
                   name: name,
                   isOwn: widget.isOwn,
-                  child: SizedBox(
-                    height: 44,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 44),
                     child: Row(
                       children: [
                         Container(

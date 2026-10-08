@@ -77,9 +77,9 @@ class _FindPlaceSheetState extends State<FindPlaceSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SheetGrabber(),
-            const SizedBox(height: 14),
+            const SizedBox(height: SheetTitleRow.gap),
             const SheetTitleRow(title: 'Find a place'),
-            const SizedBox(height: 14),
+            const SizedBox(height: SheetTitleRow.gap),
             PlaceField(
               controller: _controller,
               hint: 'Place, landmark or street',

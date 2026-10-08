@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/widgets/prototype_height.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
@@ -123,9 +124,17 @@ class ReviewsPreviewSection extends StatelessWidget {
               child: _Summary(distribution: distribution),
             ),
             const SizedBox(height: 14),
-            SizedBox(
-              height: _ReviewPreviewCard.height,
-              child: ListView.separated(
+            // As tall as the tallest card can be at the reader's text size
+            // (a fixed 150 clipped the review from about 1.3x), and never
+            // shorter than the design's 150.
+            PrototypeHeight(
+              prototype: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: _ReviewPreviewCard.height,
+                ),
+                child: _ReviewPreviewCard.prototype(),
+              ),
+              listView: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(
                   horizontal: CafeDetailsTokens.gutter,
@@ -175,11 +184,20 @@ class _Shell extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(child: CafeSectionTitle('Reviews')),
-              if (onWrite != null) _WriteReviewPill(onTap: onWrite),
-            ],
+          // A Wrap, so at large text "Write a review" drops under the
+          // heading instead of overflowing the line.
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                const CafeSectionTitle('Reviews'),
+                if (onWrite != null) _WriteReviewPill(onTap: onWrite),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           child,
@@ -203,8 +221,9 @@ class _WriteReviewPill extends StatelessWidget {
       // touch target 44.
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
+        // At least 32; grows (and wraps its label) at large text.
         child: Container(
-          height: 32,
+          constraints: const BoxConstraints(minHeight: 32),
           padding: const EdgeInsets.only(left: 10, right: 14),
           decoration: BoxDecoration(
             color: CafeDetailsTokens.brand,
@@ -215,11 +234,13 @@ class _WriteReviewPill extends StatelessWidget {
             children: [
               Icon(PhosphorIcons.plus(), size: 14, color: Colors.white),
               const SizedBox(width: 4),
-              Text(
-                'Write a review',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
+              Flexible(
+                child: Text(
+                  'Write a review',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ],
@@ -239,7 +260,12 @@ class _Summary extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final total = distribution.total;
-    return Row(
+    // A Wrap, so at large text the stars and count drop under the average
+    // instead of running off the line.
+    final score = Wrap(
+      spacing: 12,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text(
           distribution.average.toStringAsFixed(1),
@@ -250,7 +276,7 @@ class _Summary extends StatelessWidget {
             height: 1.1,
           ),
         ),
-        const SizedBox(width: 12),
+
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -265,65 +291,77 @@ class _Summary extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(width: 20),
-        Expanded(
-          child: Semantics(
-            label: [
-              for (var star = 5; star >= 1; star--)
-                '$star stars: ${distribution.countFor(star)}',
-            ].join(', '),
-            child: ExcludeSemantics(
-              child: Column(
-                children: [
-                  for (var star = 5; star >= 1; star--)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 10,
-                            child: Text(
-                              '$star',
-                              style: textTheme.bodySmall?.copyWith(
-                                fontSize: 10,
-                                color: CafeDetailsTokens.muted,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(2),
-                              child: SizedBox(
-                                height: 4,
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    const ColoredBox(
-                                      color: CafeDetailsTokens.tint,
-                                    ),
-                                    FractionallySizedBox(
-                                      alignment: Alignment.centerLeft,
-                                      widthFactor: distribution.fractionFor(
-                                        star,
-                                      ),
-                                      child: const ColoredBox(
-                                        color: CafeDetailsTokens.brand,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+      ],
+    );
+    final bars = Semantics(
+      label: [
+        for (var star = 5; star >= 1; star--)
+          '$star stars: ${distribution.countFor(star)}',
+      ].join(', '),
+      child: ExcludeSemantics(
+        child: Column(
+          children: [
+            for (var star = 5; star >= 1; star--)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    // The digit's column grows with the text; a fixed
+                    // 10 overflowed from 1.3x.
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: MediaQuery.textScalerOf(context).scale(10),
+                      ),
+                      child: Text(
+                        '$star',
+                        style: textTheme.bodySmall?.copyWith(
+                          fontSize: 10,
+                          color: CafeDetailsTokens.muted,
+                        ),
                       ),
                     ),
-                ],
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: SizedBox(
+                          height: 4,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              const ColoredBox(color: CafeDetailsTokens.tint),
+                              FractionallySizedBox(
+                                alignment: Alignment.centerLeft,
+                                widthFactor: distribution.fractionFor(star),
+                                child: const ColoredBox(
+                                  color: CafeDetailsTokens.brand,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
+          ],
         ),
+      ),
+    );
+    // Side by side at normal sizes; at large text the score stacks above
+    // the bars, which otherwise had no width left and overflowed.
+    if (MediaQuery.textScalerOf(context).scale(1) >= 1.25) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [score, const SizedBox(height: 12), bars],
+      );
+    }
+    return Row(
+      children: [
+        score,
+        const SizedBox(width: 20),
+        Expanded(child: bars),
       ],
     );
   }
@@ -369,12 +407,39 @@ class _ReviewPreviewCard extends StatelessWidget {
     required this.review,
     required this.onTap,
     this.isOwn = false,
-  });
+  }) : _sizesToContent = false;
+
+  /// The tallest card there can be: a linked name (its chevron scales with
+  /// the text), all three lines of review, and the Helpful row. Laid out
+  /// at its own height, so the strip can take it.
+  _ReviewPreviewCard.prototype()
+    : review = ReviewEntity(
+        id: 'prototype',
+        cafeId: '',
+        userId: 'prototype',
+        rating: 5,
+        content: 'Line one\nLine two\nLine three',
+        createdAt: DateTime(2026, 12, 31),
+        updatedAt: DateTime(2026, 12, 31),
+        name: 'Prototype',
+        helpfulCount: 1,
+      ),
+      onTap = _noTap,
+      isOwn = false,
+      _sizesToContent = true;
+
+  static void _noTap() {}
 
   final ReviewEntity review;
   final VoidCallback onTap;
   final bool isOwn;
 
+  /// True for the prototype: the body takes its own height instead of
+  /// filling the card (an unbounded Column can't hold an Expanded).
+  final bool _sizesToContent;
+
+  /// The design's height at the default text size; the strip grows from
+  /// here with the text scale.
   static const height = 150.0;
   static const _width = 290.0;
 
@@ -402,6 +467,16 @@ class _ReviewPreviewCard extends StatelessWidget {
     final name = (review.name ?? '').trim().isEmpty
         ? 'Anonymous'
         : review.name!.trim();
+
+    final body = Text(
+      review.content,
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+      style: textTheme.bodySmall?.copyWith(
+        color: CafeDetailsTokens.ink,
+        height: 1.5,
+      ),
+    );
 
     return AdaptiveTap(
       onTap: onTap,
@@ -477,17 +552,7 @@ class _ReviewPreviewCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Expanded(
-              child: Text(
-                review.content,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: textTheme.bodySmall?.copyWith(
-                  color: CafeDetailsTokens.ink,
-                  height: 1.5,
-                ),
-              ),
-            ),
+            if (_sizesToContent) body else Expanded(child: body),
             if (review.helpfulCount > 0)
               Row(
                 children: [

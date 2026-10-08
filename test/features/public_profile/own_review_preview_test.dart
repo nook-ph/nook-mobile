@@ -7,6 +7,7 @@ import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_preview_section.dart';
+import 'package:nook/features/public_profile/presentation/widgets/review_author_link.dart';
 
 import '../profile/profile_test_support.dart' show FakeBlockCubit;
 
@@ -86,6 +87,14 @@ void main() {
     );
     // And only theirs carries the profile chevron: on your own card it
     // promised a link that isn't there.
-    expect(find.byIcon(LucideIcons.chevronRight), findsOneWidget);
+    Finder chevronOn(String name) => find.descendant(
+      of: find.ancestor(
+        of: find.text(name),
+        matching: find.byType(ReviewAuthorLink),
+      ),
+      matching: find.byIcon(LucideIcons.chevronRight),
+    );
+    expect(chevronOn('Cris Lucero'), findsNothing);
+    expect(chevronOn('Bea Santos'), findsOneWidget);
   });
 }

@@ -108,8 +108,10 @@ class ListsSheet extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: gap),
-                SizedBox(
-                  height: 32,
+                // At least 32; grows with the title at large text (a fixed
+                // 32 clipped the 16pt title from about 1.33x).
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 32),
                   child: Row(
                     children: [
                       if (back != null) ...[
