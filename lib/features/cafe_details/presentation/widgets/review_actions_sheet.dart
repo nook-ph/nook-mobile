@@ -342,7 +342,7 @@ class ReviewConfirmSheet extends StatelessWidget {
 
 /// Report reason picker with an optional one-line detail. Pops true once
 /// [onSubmit] completes; stays open with a toast when it throws.
-class ReviewReportSheet extends StatefulWidget {
+class ReviewReportSheet extends StatelessWidget {
   const ReviewReportSheet({super.key, required this.onSubmit});
 
   final Future<void> Function(ReportReason reason, String details) onSubmit;
@@ -351,11 +351,44 @@ class ReviewReportSheet extends StatefulWidget {
       'Thanks for reporting. Our team reviews reports within 24 hours.';
 
   @override
-  State<ReviewReportSheet> createState() => _ReviewReportSheetState();
+  Widget build(BuildContext context) {
+    return ReportReasonSheet<ReportReason>(
+      title: 'Why are you reporting this review?',
+      reasons: ReportReason.values,
+      labelOf: (reason) => reason.label,
+      onSubmit: onSubmit,
+    );
+  }
 }
 
-class _ReviewReportSheetState extends State<ReviewReportSheet> {
-  ReportReason? _selected;
+/// The report sheet every report in the app shares: why (one of
+/// [reasons]), an optional detail, then Submit report. Nothing is sent until
+/// Submit, so a stray tap on a reason never files a report. Pops true once
+/// [onSubmit] completes; stays open with a toast when it throws.
+class ReportReasonSheet<T> extends StatefulWidget {
+  const ReportReasonSheet({
+    super.key,
+    required this.title,
+    required this.reasons,
+    required this.labelOf,
+    required this.onSubmit,
+    this.message,
+  });
+
+  final String title;
+
+  /// One line under the title, such as who will know.
+  final String? message;
+  final List<T> reasons;
+  final String Function(T reason) labelOf;
+  final Future<void> Function(T reason, String details) onSubmit;
+
+  @override
+  State<ReportReasonSheet<T>> createState() => _ReportReasonSheetState<T>();
+}
+
+class _ReportReasonSheetState<T> extends State<ReportReasonSheet<T>> {
+  T? _selected;
   final TextEditingController _detailController = TextEditingController();
   bool _submitting = false;
 
@@ -371,7 +404,7 @@ class _ReviewReportSheetState extends State<ReviewReportSheet> {
 
     setState(() => _submitting = true);
     try {
-      await widget.onSubmit(reason, _detailController.text);
+      await widget.onSubmit(reason, _detailController.text.trim());
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (_) {
@@ -390,15 +423,26 @@ class _ReviewReportSheetState extends State<ReviewReportSheet> {
   @override
   Widget build(BuildContext context) {
     return ReviewSheetShell(
-      title: 'Why are you reporting this review?',
+      title: widget.title,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (widget.message case final message?) ...[
+            const SizedBox(height: 2),
+            Text(
+              message,
+              style: context.textTheme.bodySmall?.copyWith(
+                color: ReviewTokens.muted,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
           const SizedBox(height: 2),
-          for (final reason in ReportReason.values)
+          for (final reason in widget.reasons)
             _ReasonRow(
-              label: reason.label,
+              label: widget.labelOf(reason),
               selected: reason == _selected,
               onTap: _submitting
                   ? null

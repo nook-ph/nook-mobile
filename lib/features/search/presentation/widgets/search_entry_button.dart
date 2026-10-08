@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
 class SearchEntryButton extends StatelessWidget {
   const SearchEntryButton({

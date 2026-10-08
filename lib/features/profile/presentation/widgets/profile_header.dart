@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
@@ -326,18 +327,29 @@ class ProfileHeaderSkeleton extends StatelessWidget {
 
 /// One tab of [ProfileTabs]: a label and, once known, how many it holds.
 class ProfileTabData {
-  const ProfileTabData(this.label, {this.count, this.private = false});
+  const ProfileTabData(
+    this.label, {
+    this.count,
+    this.private = false,
+    this.icon,
+  });
 
+  /// The tab's name. With [icon] it is not drawn, but it is still what a
+  /// screen reader says and what a long-press shows.
   final String label;
   final int? count;
+
+  /// Draws the tab as this icon instead of [label], as Instagram, TikTok
+  /// and Pinterest profiles do: regular when idle, filled when selected.
+  final PhosphorIconData Function(PhosphorIconsStyle style)? icon;
 
   /// Only the owner sees this tab's content: drawn with a lock.
   final bool private;
 }
 
-/// The profile's tabs: equal-width labels (a lock on a private one), a 2pt
-/// brand underline on the selected one and a hairline under the row. Counts
-/// live in the header's stat row, so tabs usually pass none.
+/// The profile's tabs: equal-width labels or icons (a lock on a private
+/// one), a 2pt brand underline on the selected one and a hairline under the
+/// row. Counts live in the header's stat row, so tabs usually pass none.
 class ProfileTabs extends StatelessWidget {
   const ProfileTabs({super.key, required this.tabs, required this.controller});
 
@@ -387,6 +399,59 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final count = data.count;
+    final icon = data.icon;
+    final color = selected ? ProfileTokens.ink : ProfileTokens.muted;
+    if (icon != null) {
+      // Same 2pt underline and height as the word tabs; the word stays as
+      // the semantics label and the long-press tooltip.
+      final size = MediaQuery.textScalerOf(context).scale(22);
+      return Semantics(
+        button: true,
+        selected: selected,
+        label: data.private ? '${data.label}, only you can see it' : data.label,
+        excludeSemantics: true,
+        child: Tooltip(
+          message: data.label,
+          excludeFromSemantics: true,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    width: 2,
+                    color: selected ? ProfileTokens.brand : Colors.transparent,
+                  ),
+                ),
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon(
+                        selected
+                            ? PhosphorIconsStyle.fill
+                            : PhosphorIconsStyle.regular,
+                      ),
+                      size: size,
+                      color: color,
+                    ),
+                    if (data.private) ...[
+                      const SizedBox(width: 3),
+                      Icon(LucideIcons.lock, size: size * 0.5, color: color),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return Semantics(
       button: true,
       selected: selected,

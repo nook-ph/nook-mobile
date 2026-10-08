@@ -90,18 +90,50 @@ class PublicProfileRepositoryImpl implements IPublicProfileRepository {
   }
 
   @override
-  Future<void> reportPhoto(String photoId, PhotoReportReason reason) async {
+  Future<void> reportPhoto(
+    String photoId,
+    PhotoReportReason reason, {
+    String? details,
+  }) async {
     try {
       await _client.from('photo_reports').insert({
         'photo_id': photoId,
         'reporter_id': _userId,
         'reason': reason.wire,
+        'details': ?_details(details),
       });
     } on PostgrestException catch (e) {
       // Already reported by this person: the report stands.
       if (e.code == '23505') return;
       throw PublicProfileException('Could not send the report.', cause: e);
     }
+  }
+
+  @override
+  Future<void> reportProfile(
+    String userId,
+    ProfileReportReason reason, {
+    String? details,
+  }) async {
+    try {
+      await _client.from('profile_reports').insert({
+        'profile_id': userId,
+        'reporter_id': _userId,
+        'reason': reason.wire,
+        'details': ?_details(details),
+      });
+    } on PostgrestException catch (e) {
+      // Already reported by this person: the report stands.
+      if (e.code == '23505') return;
+      throw PublicProfileException('Could not send the report.', cause: e);
+    }
+  }
+
+  /// The optional detail, trimmed, or none. The sheet's field already caps
+  /// it at the DB's 500.
+  static String? _details(String? text) {
+    final trimmed = text?.trim() ?? '';
+    return trimmed.isEmpty ? null : trimmed;
   }
 }
 

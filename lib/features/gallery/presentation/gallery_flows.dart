@@ -61,27 +61,51 @@ Future<void> addPhotosToGallery(
   final cafe = await pickCafe();
   if (cafe == null || !context.mounted) return;
 
-  var added = 0;
-  final saved = await showAddGalleryPhotosSheet(
+  // The sheet only starts the upload and closes: the photos then wait in
+  // the grid with a progress bar, and a failed one offers Retry there
+  // (Figma E2), so nothing holds the person or can be lost by a swipe.
+  Future<({int added, int failed})>? upload;
+  final started = await showAddGalleryPhotosSheet(
     context,
     photos: photos,
     cafe: cafe,
     onChangeCafe: pickCafe,
     onSave: ({required cafe, required photos, drinkName, caption}) async {
-      final rows = await deps.cubit.addPhotos(
+      upload = deps.cubit.upload(
         cafeId: cafe.id,
         photos: photos,
         source: GalleryPhotoSource.gallery,
         drinkName: drinkName,
         caption: caption,
       );
-      added = rows.length;
     },
   );
-  if (saved && context.mounted) {
+  final pending = upload;
+  if (!started || pending == null) return;
+  final count = photos.length;
+  if (context.mounted) {
     showPrimaryToast(
       context,
-      added == 1 ? 'Photo added to your gallery' : '$added photos added',
+      count == 1
+          ? 'Adding your photo to your gallery…'
+          : 'Adding $count photos to your gallery…',
+    );
+  }
+  final result = await pending;
+  if (!context.mounted) return;
+  if (result.failed == 0) {
+    showPrimaryToast(
+      context,
+      result.added == 1
+          ? 'Photo added to your gallery'
+          : '${result.added} photos added',
+    );
+  } else {
+    showPrimaryToast(
+      context,
+      result.failed == 1
+          ? "A photo didn't upload. Tap Retry on it."
+          : "${result.failed} photos didn't upload. Tap Retry on them.",
     );
   }
 }
@@ -128,6 +152,7 @@ Future<PickedGalleryPhoto?> addRankPhoto(
     context,
     photos: [photo],
     cafe: cafe,
+    waitsForUpload: true,
     onSave: ({required cafe, required photos, drinkName, caption}) =>
         deps.cubit.addPhotos(
           cafeId: cafe.id,

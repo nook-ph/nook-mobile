@@ -1,13 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/gallery_flows.dart';
 import 'package:nook/features/gallery/presentation/widgets/cafe_picker_sheet.dart';
+import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/utils/theme/theme.dart';
 
 import '../lists/lists_fixtures.dart' show usePhone;
+import '../public_profile/public_profile_fakes.dart';
 import 'gallery_fakes.dart';
 
 /// A page with one button that runs [run] from a live context.
@@ -213,15 +219,59 @@ void main() {
       await tester.tap(find.text('Add 2 photos').last);
       await tester.pumpAndSettle();
 
-      expect(repo.added.single, (
-        cafeId: 'lorenzo',
-        count: 2,
-        source: GalleryPhotoSource.gallery,
-        drink: 'Iced Spanish latte',
-        caption: null,
-      ));
+      // One upload per photo, so a failure stays with its own tile.
+      expect(repo.added, hasLength(2));
+      for (final add in repo.added) {
+        expect(add, (
+          cafeId: 'lorenzo',
+          count: 1,
+          source: GalleryPhotoSource.gallery,
+          drink: 'Iced Spanish latte',
+          caption: null,
+        ));
+      }
       expect(cubit.state.photos, hasLength(2));
+      expect(cubit.state.uploads, isEmpty);
       expect(find.text('2 photos added'), findsOneWidget);
+      await _letToastExpire(tester);
+    });
+
+    testWidgets('the sheet closes at once; the upload carries on behind it', (
+      tester,
+    ) async {
+      usePhone(tester);
+      final gated = _GatedRepository();
+      final gatedCubit = GalleryCubit(repository: gated);
+      addTearDown(gatedCubit.close);
+      await tester.pumpWidget(
+        _launcher(
+          (context) => addPhotosToGallery(
+            context,
+            galleryDeps(
+              cubit: gatedCubit,
+              picker: FakeGalleryPhotoPicker(
+                many: [pickedPhoto('a'), pickedPhoto('b'), pickedPhoto('c')],
+              ),
+              cafes: FakeCafePickerSource(been: [kamp], near: const []),
+            ),
+          ),
+        ),
+      );
+      await _go(tester);
+      await tester.tap(find.text('Kamp Craft Coffee'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add 3 photos').last);
+      await tester.pumpAndSettle();
+
+      // Gone while nothing has landed yet.
+      expect(find.text('Add 3 photos'), findsNothing);
+      expect(gatedCubit.state.uploads, hasLength(3));
+      expect(find.text('Adding 3 photos to your gallery…'), findsOneWidget);
+
+      gated.gate.complete();
+      await tester.pumpAndSettle();
+      expect(gatedCubit.state.photos, hasLength(3));
+      expect(find.text('3 photos added'), findsOneWidget);
       await _letToastExpire(tester);
     });
 
@@ -244,6 +294,14 @@ void main() {
       await _go(tester);
       await tester.tap(find.text('Kamp Craft Coffee'));
       await tester.pumpAndSettle();
+      // Says who reads it before anything is written.
+      expect(
+        find.text(
+          'Photos and notes are public on your profile. Keep opinions about '
+          'the whole cafe for a review.',
+        ),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.widgetWithText(TextField, 'Say something about it (optional)'),
         'Best cortado in town',
@@ -285,7 +343,7 @@ void main() {
       await _letToastExpire(tester);
     });
 
-    testWidgets('a failed upload keeps the sheet and offers Try again', (
+    testWidgets('a failed upload leaves the photo waiting with Retry', (
       tester,
     ) async {
       usePhone(tester);
@@ -308,12 +366,16 @@ void main() {
       await tester.tap(find.text('Add photo'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining("Couldn't add the photo"), findsOneWidget);
-      repo.writeFailure = null;
-      await tester.tap(find.text('Try again'));
-      await tester.pumpAndSettle();
       expect(find.text('Add to your gallery'), findsNothing);
+      expect(
+        find.text("A photo didn't upload. Tap Retry on it."),
+        findsOneWidget,
+      );
+      expect(cubit.state.uploads.single.failed, isTrue);
+      repo.writeFailure = null;
+      await cubit.retryUpload(cubit.state.uploads.single.id);
       expect(cubit.state.photos, hasLength(1));
+      expect(cubit.state.uploads, isEmpty);
       await _letToastExpire(tester);
     });
 
@@ -332,4 +394,64 @@ void main() {
       expect(repo.calls, isEmpty);
     });
   });
+
+  group('public note', () {
+    Future<void> pumpNote(WidgetTester tester, {required bool public}) async {
+      final visibility = ProfileVisibilityCubit(
+        repository: FakePublicProfileRepository(highlights: public),
+      );
+      addTearDown(visibility.close);
+      await visibility.load();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider.value(
+            value: visibility,
+            child: const Scaffold(body: GalleryPublicNote()),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('says notes are public', (tester) async {
+      await pumpNote(tester, public: true);
+      expect(
+        find.text(
+          'Notes are public on your profile. Keep opinions about the whole '
+          'cafe for a review.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('with the gallery switched off, says it is hidden', (
+      tester,
+    ) async {
+      await pumpNote(tester, public: false);
+      expect(find.textContaining('Your gallery is hidden'), findsOneWidget);
+      expect(find.textContaining('are public'), findsNothing);
+    });
+  });
+}
+
+/// Holds every add until [gate] completes.
+class _GatedRepository extends FakeGalleryRepository {
+  final gate = Completer<void>();
+
+  @override
+  Future<List<GalleryPhoto>> addPhotos({
+    required String cafeId,
+    required List<PickedGalleryPhoto> photos,
+    required GalleryPhotoSource source,
+    String? drinkName,
+    String? caption,
+  }) async {
+    await gate.future;
+    return super.addPhotos(
+      cafeId: cafeId,
+      photos: photos,
+      source: source,
+      drinkName: drinkName,
+      caption: caption,
+    );
+  }
 }

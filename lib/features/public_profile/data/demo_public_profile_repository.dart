@@ -156,6 +156,16 @@ class DemoPublicProfileRepository implements IPublicProfileRepository {
   }
 
   @override
-  Future<void> reportPhoto(String photoId, PhotoReportReason reason) =>
-      Future<void>.delayed(const Duration(milliseconds: 400));
+  Future<void> reportPhoto(
+    String photoId,
+    PhotoReportReason reason, {
+    String? details,
+  }) => Future<void>.delayed(const Duration(milliseconds: 400));
+
+  @override
+  Future<void> reportProfile(
+    String userId,
+    ProfileReportReason reason, {
+    String? details,
+  }) => Future<void>.delayed(const Duration(milliseconds: 400));
 }

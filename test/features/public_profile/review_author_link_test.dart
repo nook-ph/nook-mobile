@@ -5,6 +5,7 @@ import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.d
 import 'package:nook/features/cafe_details/presentation/widgets/review_row.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
+import 'package:nook/features/public_profile/presentation/widgets/review_author_link.dart';
 
 import 'public_profile_fakes.dart';
 
@@ -46,6 +47,34 @@ void main() {
     expect(find.byType(PublicProfilePage), findsOneWidget);
     expect(repo.asked.single.userId, 'bea-id');
     expect(find.text('@beasantos'), findsOneWidget);
+  });
+
+  testWidgets('a linked name carries a chevron; your own does not', (
+    tester,
+  ) async {
+    await pump(tester, ReviewRow(review: review(), currentUserId: 'me'));
+    expect(
+      find.descendant(
+        of: find.byType(ReviewAuthorName),
+        matching: find.byType(Icon),
+      ),
+      findsOneWidget,
+    );
+    await pump(
+      tester,
+      ReviewRow(
+        review: review(userId: 'me'),
+        currentUserId: 'me',
+        isOwn: true,
+      ),
+    );
+    expect(
+      find.descendant(
+        of: find.byType(ReviewAuthorName),
+        matching: find.byType(Icon),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('your own review does not link to a profile', (tester) async {

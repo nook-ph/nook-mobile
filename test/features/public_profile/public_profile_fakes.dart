@@ -51,12 +51,31 @@ class FakePublicProfileRepository implements IPublicProfileRepository {
   }
 
   final reports = <(String, PhotoReportReason)>[];
+  final reportDetails = <String?>[];
 
   @override
-  Future<void> reportPhoto(String photoId, PhotoReportReason reason) async {
+  Future<void> reportPhoto(
+    String photoId,
+    PhotoReportReason reason, {
+    String? details,
+  }) async {
     final error = writeFailure;
     if (error != null) throw error;
     reports.add((photoId, reason));
+    reportDetails.add(details);
+  }
+
+  final profileReports = <(String, ProfileReportReason, String?)>[];
+
+  @override
+  Future<void> reportProfile(
+    String userId,
+    ProfileReportReason reason, {
+    String? details,
+  }) async {
+    final error = writeFailure;
+    if (error != null) throw error;
+    profileReports.add((userId, reason, details));
   }
 }
 

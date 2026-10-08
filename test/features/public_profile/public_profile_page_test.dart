@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/block/block_cubit.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
+import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/features/public_profile/domain/entities/public_profile.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 
 import '../../core/analytics/recording_analytics.dart';
-import '../gallery/gallery_fakes.dart' show FakeGalleryRepository;
+import '../gallery/gallery_fakes.dart' show FakeGalleryRepository, galleryPhoto;
 import 'public_profile_fakes.dart';
 
 void main() {
@@ -78,16 +81,17 @@ void main() {
     // There is no Top 3 strip: the ranking is private.
     expect(find.text('Top cafes'), findsNothing);
     expect(find.bySemanticsLabel(RegExp(r'^Number \d')), findsNothing);
-    expect(find.text('Gallery'), findsOneWidget);
-    // "Reviews" is the stat label and the tab.
-    expect(find.text('Reviews'), findsNWidgets(2));
+    // Icon tabs, named for screen readers.
+    expect(find.bySemanticsLabel('Gallery'), findsOneWidget);
+    expect(find.bySemanticsLabel('Reviews'), findsOneWidget);
+    expect(find.text('Reviews'), findsOneWidget); // the stat
     // No count badges on the tabs, and no gallery counts line.
     expect(find.text('2 cups · 2 cafes'), findsNothing);
 
     // Nothing private: no Ranked tab (the stat label is the only "Ranked"),
     // no Lists tab, no Edit, no score.
     expect(find.text('Ranked'), findsOneWidget);
-    expect(find.text('Lists'), findsNothing);
+    expect(find.byTooltip('Lists'), findsNothing);
     expect(find.text('Edit profile'), findsNothing);
     expect(find.textContaining(RegExp(r'\d+\.\d')), findsNothing);
     expect(find.textContaining('out of 10'), findsNothing);
@@ -112,7 +116,7 @@ void main() {
       repository: FakePublicProfileRepository(profile: beaProfile(ranked: 0)),
     );
     expect(find.text('Top cafes'), findsNothing);
-    expect(find.text('Gallery'), findsOneWidget);
+    expect(find.bySemanticsLabel('Gallery'), findsOneWidget);
   });
 
   testWidgets('switch off: no gallery, a private note, reviews still shown', (
@@ -125,7 +129,7 @@ void main() {
       ),
     );
     expect(find.text('Top cafes'), findsNothing);
-    expect(find.text('Gallery'), findsNothing);
+    expect(find.bySemanticsLabel('Gallery'), findsNothing);
     expect(
       find.text('Their gallery is private. Their reviews are public.'),
       findsOneWidget,
@@ -148,11 +152,17 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Photo options'));
     await tester.pumpAndSettle();
     expect(find.text('Report this photo?'), findsOneWidget);
+    // Picking a reason sends nothing yet: Submit report does.
     await tester.tap(find.text(PhotoReportReason.spam.label));
+    await tester.pumpAndSettle();
+    expect(repo.reports, isEmpty);
+    await tester.enterText(find.byType(TextField), '  A shop ad  ');
+    await tester.tap(find.text('Submit report'));
     await tester.pumpAndSettle();
 
     expect(repo.reports, [('p1', PhotoReportReason.spam)]);
-    expect(find.text('Thanks. We’ll take a look.'), findsOneWidget);
+    expect(repo.reportDetails, ['A shop ad']);
+    expect(find.text(ReviewReportSheet.sentMessage), findsOneWidget);
     expect(analytics.propertiesOf('photo_reported'), {'reason': 'spam'});
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
@@ -194,7 +204,10 @@ void main() {
       tester,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    await tester.tap(find.bySemanticsLabel('Share profile'));
+    await tester.tap(find.bySemanticsLabel('Profile options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Share profile'));
+    await tester.pumpAndSettle();
     expect(shared.single.username, 'beasantos');
     expect(shared.single.own, isFalse);
   });
@@ -211,7 +224,7 @@ void main() {
     );
     expect(find.text('Preview'), findsOneWidget);
     expect(find.text('What visitors see on your profile'), findsOneWidget);
-    expect(find.bySemanticsLabel('Share profile'), findsNothing);
+    expect(find.bySemanticsLabel('Profile options'), findsNothing);
     expect(find.text('Top cafes'), findsNothing);
   });
 
@@ -274,7 +287,7 @@ void main() {
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
     // The tab, not the stat above it.
-    await tester.tap(find.text('Reviews').last);
+    await tester.tap(find.byTooltip('Reviews'));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Tadaima').last);
     await tester.pumpAndSettle();
@@ -291,7 +304,7 @@ void main() {
       blocks: blocks,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    await tester.tap(find.byTooltip('More'));
+    await tester.tap(find.bySemanticsLabel('Profile options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Block @beasantos'));
     await tester.pumpAndSettle();
@@ -304,13 +317,137 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('a guest has no Block', (tester) async {
+  testWidgets('a guest can share but not report or block', (tester) async {
     await pump(
       tester,
       signedIn: false,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    expect(find.byTooltip('More'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('Profile options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Share profile'), findsOneWidget);
+    expect(find.text('Report @beasantos'), findsNothing);
+    expect(find.text('Block @beasantos'), findsNothing);
+  });
+
+  testWidgets('signed in: Report profile asks why, then sends it', (
+    tester,
+  ) async {
+    final repo = await pump(
+      tester,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.tap(find.bySemanticsLabel('Profile options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report @beasantos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Report @beasantos?'), findsOneWidget);
+    for (final reason in ProfileReportReason.values) {
+      expect(find.text(reason.label), findsOneWidget);
+    }
+    await tester.tap(find.text(ProfileReportReason.impersonation.label));
+    await tester.pumpAndSettle();
+    expect(repo.profileReports, isEmpty);
+    await tester.tap(find.text('Submit report'));
+    await tester.pumpAndSettle();
+
+    expect(repo.profileReports, [
+      ('bea-id', ProfileReportReason.impersonation, null),
+    ]);
+    expect(find.text(ReviewReportSheet.sentMessage), findsOneWidget);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a failed profile report keeps the sheet open', (tester) async {
+    final repo = await pump(
+      tester,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    repo.writeFailure = Exception('offline');
+    await tester.tap(find.bySemanticsLabel('Profile options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report @beasantos'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ProfileReportReason.spam.label));
+    await tester.tap(find.text('Submit report'));
+    await tester.pumpAndSettle();
+    expect(find.text('Report @beasantos?'), findsOneWidget);
+    expect(find.text(ReviewReportSheet.sentMessage), findsNothing);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('their review rows have ⋯ for a signed-in visitor only', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.tap(find.byTooltip('Reviews'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Review options'), findsWidgets);
+    await tester.tap(find.bySemanticsLabel('Review options').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Report review'), findsOneWidget);
+  });
+
+  testWidgets('a guest sees no ⋯ on review rows', (tester) async {
+    await pump(
+      tester,
+      signedIn: false,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.tap(find.byTooltip('Reviews'));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Review options'), findsNothing);
+  });
+
+  testWidgets('a review photo shows its review and opens it', (tester) async {
+    await pump(
+      tester,
+      repository: FakePublicProfileRepository(
+        profile: PublicProfile(
+          userId: 'bea-id',
+          username: 'beasantos',
+          fullName: 'Bea Santos',
+          reviewCount: 1,
+          photos: [galleryPhoto('rp', source: GalleryPhotoSource.review)],
+          reviews: [publicReview('review-1', 'Kamp Craft Coffee')],
+        ),
+      ),
+    );
+    await tester.tap(find.byType(GalleryTile).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quiet upstairs, good Wi-Fi.'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('View the review'));
+    await tester.pumpAndSettle();
+    // Back on the profile, on the Reviews tab.
+    expect(find.byType(GalleryTile), findsNothing);
+    expect(find.text('Quiet upstairs, good Wi-Fi.'), findsOneWidget);
+  });
+
+  testWidgets('a visitor sees no Ranked stat when nothing is ranked', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      repository: FakePublicProfileRepository(
+        profile: const PublicProfile(
+          userId: 'bea-id',
+          username: 'beasantos',
+          reviewCount: 4,
+          rankedCount: 0,
+          cupCount: 8,
+        ),
+      ),
+    );
+    expect(find.text('Ranked'), findsNothing);
+    expect(find.bySemanticsLabel('4 Reviews'), findsOneWidget);
+    expect(find.bySemanticsLabel('8 Cups'), findsOneWidget);
   });
 }
 

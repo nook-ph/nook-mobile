@@ -20,7 +20,15 @@ class PeopleMatches extends StatefulWidget {
     required this.prefix,
     this.repository,
     this.onOpen,
+    this.quiet = false,
+    this.limit = 5,
   });
+
+  /// Under cafe matches for a plain query: shows only when someone
+  /// matches, with no "Looking…", error or "No one" line.
+  final bool quiet;
+
+  final int limit;
 
   /// The username start, without "@".
   final String prefix;
@@ -70,7 +78,10 @@ class _PeopleMatchesState extends State<PeopleMatches> {
     final generation = ++_generation;
     final repo = widget.repository ?? sl<IPublicProfileRepository>();
     try {
-      final people = await repo.searchPeople(widget.prefix);
+      final people = await repo.searchPeople(
+        widget.prefix,
+        limit: widget.limit,
+      );
       if (!mounted || generation != _generation) return;
       setState(() {
         _people = people;
@@ -85,6 +96,9 @@ class _PeopleMatchesState extends State<PeopleMatches> {
   @override
   Widget build(BuildContext context) {
     final people = _people;
+    if (widget.quiet && (people == null || people.isEmpty)) {
+      return const SizedBox.shrink();
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

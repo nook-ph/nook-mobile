@@ -42,6 +42,8 @@ class ListsSheet extends StatelessWidget {
   final Widget? footer;
 
   /// Opens [builder]'s widget as a modal sheet that grows with its content.
+  /// With [isDismissible] false, neither a tap outside nor a drag closes
+  /// it; its own close button and Back still can.
   static Future<T?> show<T>(
     BuildContext context, {
     required WidgetBuilder builder,
@@ -52,6 +54,7 @@ class ListsSheet extends StatelessWidget {
       isScrollControlled: true,
       useSafeArea: true,
       isDismissible: isDismissible,
+      enableDrag: isDismissible,
       backgroundColor: Colors.transparent,
       barrierColor: const Color(0x66000000),
       builder: builder,

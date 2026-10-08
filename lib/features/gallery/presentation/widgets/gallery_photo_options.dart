@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/utils/content_filter.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
+import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
+import 'package:nook/features/gallery/presentation/widgets/add_gallery_photos_sheet.dart';
+import 'package:nook/features/gallery/presentation/widgets/cafe_picker_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
+import 'package:nook/injection_container.dart';
 
 /// What the owner can do to one photo. Delete is last and red; a review
 /// photo offers its review instead, because deleting it here would quietly
@@ -17,6 +24,7 @@ Future<bool> showGalleryPhotoOptions(
   required GalleryCubit cubit,
   required GalleryPhoto photo,
   VoidCallback? onOpenReview,
+  Future<PickedCafe?> Function()? pickCafe,
 }) async {
   final choice = await ListsSheet.show<_Option>(
     context,
@@ -96,12 +104,17 @@ Future<bool> showGalleryPhotoOptions(
       }
       return false;
     case _Option.drink:
-      final details = await showPhotoDetailsSheet(context, photo: photo);
+      final details = await showPhotoDetailsSheet(
+        context,
+        photo: photo,
+        pickCafe: pickCafe ?? _appCafePicker(context),
+      );
       if (details == null || !context.mounted) return false;
       final ok = await cubit.setDetails(
         photo,
         drinkName: details.drink,
         caption: details.note,
+        cafe: details.cafe,
       );
       if (!ok && context.mounted) {
         showPrimaryToast(context, "Couldn't save your changes. Try again.");
@@ -111,15 +124,22 @@ Future<bool> showGalleryPhotoOptions(
       final hide = !photo.isHidden;
       final ok = await cubit.setHidden(photo, hidden: hide);
       if (!context.mounted) return false;
+      if (ok && hide) {
+        showPrimaryToastWithAction(
+          context,
+          photo.isFromReview
+              ? 'Hidden from your gallery'
+              : 'Hidden from your profile',
+          actionLabel: 'Undo',
+          onAction: () => _undoHide(cubit, photo),
+        );
+        return false;
+      }
       showPrimaryToast(
         context,
         !ok
             ? "Couldn't update the photo. Try again."
-            : !hide
-            ? 'Showing on your profile'
-            : photo.isFromReview
-            ? 'Hidden from your gallery'
-            : 'Hidden from your profile',
+            : 'Showing on your profile',
       );
       return false;
     case _Option.review:
@@ -139,6 +159,17 @@ Future<bool> showGalleryPhotoOptions(
 }
 
 enum _Option { pin, drink, hide, review, delete }
+
+/// Undo for Hide: shows [before] again and, as hiding unpinned it, pins it
+/// back when it was pinned (the first free slot, if its own was taken).
+Future<void> _undoHide(GalleryCubit cubit, GalleryPhoto before) async {
+  final hidden = cubit.state.photos.where((p) => p.id == before.id).firstOrNull;
+  if (hidden == null || !hidden.isHidden) return;
+  final shown = await cubit.setHidden(hidden, hidden: false);
+  if (!shown || !before.isPinned) return;
+  final again = cubit.state.photos.where((p) => p.id == before.id).firstOrNull;
+  if (again != null && !again.isPinned) await cubit.togglePin(again);
+}
 
 Future<bool?> _confirmDelete(BuildContext context) {
   return ListsSheet.show<bool>(
@@ -164,23 +195,38 @@ Future<bool?> _confirmDelete(BuildContext context) {
   );
 }
 
-/// Asks for the drink and the note on [photo]. Returns both (empty text
-/// clears), or null when dismissed. A review photo has no note: its review
-/// says it.
-Future<({String drink, String note})?> showPhotoDetailsSheet(
+/// The app's cafe picker, or null where it isn't set up (tests).
+Future<PickedCafe?> Function()? _appCafePicker(BuildContext context) {
+  if (!sl.isRegistered<ICafePickerSource>()) return null;
+  return () => showCafePickerSheet(context, source: sl<ICafePickerSource>());
+}
+
+/// What the edit sheet returns: the drink and the note (empty text clears),
+/// and the cafe when it changed.
+typedef PhotoDetails = ({String drink, String note, PickedCafe? cafe});
+
+/// Asks for the drink, the note and the cafe of [photo]. Returns them, or
+/// null when dismissed. A review photo has no note (its review says it)
+/// and keeps its review's cafe. Save stays off until something changes
+/// (Figma G6).
+Future<PhotoDetails?> showPhotoDetailsSheet(
   BuildContext context, {
   required GalleryPhoto photo,
+  Future<PickedCafe?> Function()? pickCafe,
 }) {
-  return ListsSheet.show<({String drink, String note})>(
+  return ListsSheet.show<PhotoDetails>(
     context,
-    builder: (_) => _PhotoDetailsSheet(photo: photo),
+    builder: (_) => _PhotoDetailsSheet(photo: photo, pickCafe: pickCafe),
   );
 }
 
 class _PhotoDetailsSheet extends StatefulWidget {
-  const _PhotoDetailsSheet({required this.photo});
+  const _PhotoDetailsSheet({required this.photo, this.pickCafe});
 
   final GalleryPhoto photo;
+
+  /// Change cafe. Null leaves the cafe fixed.
+  final Future<PickedCafe?> Function()? pickCafe;
 
   @override
   State<_PhotoDetailsSheet> createState() => _PhotoDetailsSheetState();
@@ -189,7 +235,34 @@ class _PhotoDetailsSheet extends StatefulWidget {
 class _PhotoDetailsSheetState extends State<_PhotoDetailsSheet> {
   late final _drink = TextEditingController(text: widget.photo.drinkName);
   late final _note = TextEditingController(text: widget.photo.caption);
+  late PickedCafe _cafe = PickedCafe(
+    id: widget.photo.cafeId,
+    name: widget.photo.cafeName,
+    area: widget.photo.cafeArea,
+  );
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Save follows the fields.
+    _drink.addListener(_changed);
+    _note.addListener(_changed);
+  }
+
+  void _changed() => setState(() {});
+
+  bool get _dirty =>
+      _drink.text.trim() != (widget.photo.drinkName ?? '') ||
+      _note.text.trim() != (widget.photo.caption ?? '') ||
+      _cafe.id != widget.photo.cafeId;
+
+  Future<void> _changeCafe() async {
+    final pick = widget.pickCafe;
+    if (pick == null) return;
+    final next = await pick();
+    if (next != null && mounted) setState(() => _cafe = next);
+  }
 
   @override
   void dispose() {
@@ -207,27 +280,38 @@ class _PhotoDetailsSheetState extends State<_PhotoDetailsSheet> {
     Navigator.pop(context, (
       drink: _drink.text.trim(),
       note: _note.text.trim(),
+      cafe: _cafe.id == widget.photo.cafeId ? null : _cafe,
     ));
   }
 
   @override
   Widget build(BuildContext context) {
     final error = _error;
+    final review = widget.photo.isFromReview;
     return ListsSheet(
-      title: widget.photo.isFromReview ? 'What did you have?' : 'Edit photo',
+      title: review ? 'What did you have?' : 'Edit photo',
       children: [
         DrinkNameField(
           controller: _drink,
           autofocus: true,
-          onDone: widget.photo.isFromReview ? _save : null,
+          onDone: review && _dirty ? _save : null,
         ),
-        if (!widget.photo.isFromReview) GalleryNoteField(controller: _note),
+        if (!widget.photo.isFromReview) ...[
+          GalleryNoteField(controller: _note),
+          const GalleryPublicNote(),
+        ],
         if (error != null)
           Semantics(
             liveRegion: true,
             child: Text(error, style: listsText(13, color: ListsTokens.danger)),
           ),
-        ListsPillButton(label: 'Save', onTap: _save),
+        // A review photo stays with its review's cafe.
+        if (!review)
+          GalleryCafeRow(
+            cafe: _cafe,
+            onChange: widget.pickCafe == null ? null : _changeCafe,
+          ),
+        ListsPillButton(label: 'Save', onTap: _dirty ? _save : null),
       ],
     );
   }
@@ -240,6 +324,36 @@ String? galleryTextError(String drink, String note) =>
         ContentFilter.containsObjectionable(note)
     ? ContentFilter.rejectionMessage
     : null;
+
+/// One line under the note field saying who reads it (Figma G6), so no one
+/// writes a note thinking it is private. When the person has switched
+/// their gallery off, it says that instead. [adding] names the photos too.
+class GalleryPublicNote extends StatelessWidget {
+  const GalleryPublicNote({super.key, this.adding = false});
+
+  final bool adding;
+
+  /// The privacy switch, or null where the app's cubit isn't provided.
+  static bool? _galleryPublic(BuildContext context) {
+    try {
+      return context.watch<ProfileVisibilityCubit>().state.highlightsPublic;
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final public = _galleryPublic(context) ?? true;
+    final text = public
+        ? '${adding ? 'Photos and notes' : 'Notes'} are public on your '
+              'profile. Keep opinions about the whole cafe for a review.'
+        : 'Your gallery is hidden from visitors. If you show it again in '
+              'Settings, ${adding ? 'photos and notes show' : 'notes show'} '
+              'on your profile.';
+    return Text(text, style: listsText(12, color: ListsTokens.muted));
+  }
+}
 
 /// The optional note on a photo: a few lines, with an n/150 counter inside
 /// the field that turns dark near the limit (PayPal's counter;
