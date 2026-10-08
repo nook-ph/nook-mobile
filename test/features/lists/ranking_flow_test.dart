@@ -198,7 +198,9 @@ void main() {
     expect(find.text('Coffee Bear'), findsOneWidget);
     expect(find.text('IT Park, Cebu City'), findsOneWidget);
     expect(
-      find.text('Your answers order your list — nothing is public.'),
+      find.text(
+        "Your answers order your list. Only how many cafes you've ranked shows on your profile.",
+      ),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

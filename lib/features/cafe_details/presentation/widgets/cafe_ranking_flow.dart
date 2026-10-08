@@ -688,7 +688,7 @@ class _CompareStepState extends State<_CompareStep> {
         // which card was picked last time.
         Text(
           picked == null
-              ? 'Your answers order your list — nothing is public.'
+              ? "Your answers order your list. Only how many cafes you've ranked shows on your profile."
               : 'You picked ${picked ? widget.cafeName : opponentName} here. '
                     'Tap either card to change it.',
           textAlign: TextAlign.center,
