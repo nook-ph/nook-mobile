@@ -22,11 +22,14 @@ class RecordingAnalytics extends AnalyticsService {
   ) {
     final analytics = RecordingAnalytics();
     final sl = GetIt.instance;
-    if (sl.isRegistered<AnalyticsService>()) sl.unregister<AnalyticsService>();
+    if (sl.isRegistered<AnalyticsService>()) {
+      sl.unregister<AnalyticsService>();
+    }
     sl.registerSingleton<AnalyticsService>(analytics);
     addTearDown(() {
-      if (sl.isRegistered<AnalyticsService>())
+      if (sl.isRegistered<AnalyticsService>()) {
         sl.unregister<AnalyticsService>();
+      }
     });
     return analytics;
   }
