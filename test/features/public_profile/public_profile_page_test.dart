@@ -3,12 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
+import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
+import 'package:nook/features/public_profile/domain/entities/public_profile.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 
-import '../gallery/gallery_fakes.dart' show FakeGalleryRepository;
+import '../gallery/gallery_fakes.dart' show FakeGalleryRepository, galleryPhoto;
 import 'public_profile_fakes.dart';
 
 void main() {
@@ -341,6 +343,31 @@ void main() {
     await tester.tap(find.text('Reviews').last);
     await tester.pumpAndSettle();
     expect(find.bySemanticsLabel('Review options'), findsNothing);
+  });
+
+  testWidgets('a review photo shows its review and opens it', (tester) async {
+    await pump(
+      tester,
+      repository: FakePublicProfileRepository(
+        profile: PublicProfile(
+          userId: 'bea-id',
+          username: 'beasantos',
+          fullName: 'Bea Santos',
+          reviewCount: 1,
+          photos: [galleryPhoto('rp', source: GalleryPhotoSource.review)],
+          reviews: [publicReview('review-1', 'Kamp Craft Coffee')],
+        ),
+      ),
+    );
+    await tester.tap(find.byType(GalleryTile).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quiet upstairs, good Wi-Fi.'), findsOneWidget);
+    await tester.tap(find.bySemanticsLabel('View the review'));
+    await tester.pumpAndSettle();
+    // Back on the profile, on the Reviews tab.
+    expect(find.byType(GalleryTile), findsNothing);
+    expect(find.text('Quiet upstairs, good Wi-Fi.'), findsOneWidget);
   });
 }
 

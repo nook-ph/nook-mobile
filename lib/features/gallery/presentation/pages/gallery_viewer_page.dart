@@ -38,6 +38,7 @@ class GalleryViewerPage extends StatefulWidget {
     this.isOwner = true,
     this.onOpenReview,
     this.onReport,
+    this.reviewTextOf,
   });
 
   final String initialPhotoId;
@@ -49,6 +50,10 @@ class GalleryViewerPage extends StatefulWidget {
   /// out, or the owner, who gets their own options).
   final ValueChanged<GalleryPhoto>? onReport;
 
+  /// The text of the review a review photo came from, shown in place of a
+  /// note (Figma G5). Null, or a null result, shows none.
+  final String? Function(GalleryPhoto photo)? reviewTextOf;
+
   /// Pushes the viewer over [context], sharing its [GalleryCubit].
   static Future<void> open(
     BuildContext context, {
@@ -56,6 +61,7 @@ class GalleryViewerPage extends StatefulWidget {
     required ValueChanged<String> onOpenCafe,
     VoidCallback? onOpenReview,
     ValueChanged<GalleryPhoto>? onReport,
+    String? Function(GalleryPhoto photo)? reviewTextOf,
     bool isOwner = true,
   }) {
     final cubit = context.read<GalleryCubit>();
@@ -72,6 +78,7 @@ class GalleryViewerPage extends StatefulWidget {
             onOpenCafe: onOpenCafe,
             onOpenReview: onOpenReview,
             onReport: onReport,
+            reviewTextOf: reviewTextOf,
           ),
         ),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
@@ -183,6 +190,16 @@ class _GalleryViewerPageState extends State<GalleryViewerPage> {
                     photo: photo,
                     isOwner: widget.isOwner,
                     onOpenCafe: () => widget.onOpenCafe(photo.cafeId),
+                    reviewText: photo.isFromReview
+                        ? widget.reviewTextOf?.call(photo)
+                        : null,
+                    onOpenReview:
+                        photo.isFromReview && widget.onOpenReview != null
+                        ? () {
+                            Navigator.of(context).pop();
+                            widget.onOpenReview!();
+                          }
+                        : null,
                   ),
                 ],
               ),
@@ -291,11 +308,19 @@ class _Caption extends StatefulWidget {
     required this.photo,
     required this.isOwner,
     required this.onOpenCafe,
+    this.reviewText,
+    this.onOpenReview,
   });
 
   final GalleryPhoto photo;
   final bool isOwner;
   final VoidCallback onOpenCafe;
+
+  /// A review photo's review, standing in for the note.
+  final String? reviewText;
+
+  /// "View review", on a review photo.
+  final VoidCallback? onOpenReview;
 
   @override
   State<_Caption> createState() => _CaptionState();
@@ -361,7 +386,11 @@ class _CaptionState extends State<_Caption> {
     final photo = widget.photo;
     final isOwner = widget.isOwner;
     final drink = photo.drinkName;
-    final note = photo.caption;
+    final review = widget.reviewText?.trim();
+    // A review photo has no note of its own: its review says it (G5).
+    final note =
+        photo.caption ?? (review == null || review.isEmpty ? null : review);
+    final openReview = widget.onOpenReview;
     final notes = [
       galleryMonthLabel(photo.takenAt),
       if (isOwner && photo.isPinned) 'Pinned',
@@ -401,67 +430,80 @@ class _CaptionState extends State<_Caption> {
             const SizedBox(height: 4),
           ],
           if (drink != null || note != null) const SizedBox(height: 6),
-          Semantics(
-            button: true,
-            label: 'Open ${photo.cafeName}',
-            excludeSemantics: true,
-            child: AdaptiveTap(
-              onTap: widget.onOpenCafe,
-              borderRadius: BorderRadius.circular(100),
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 44),
-                padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
-                decoration: BoxDecoration(
-                  color: _ViewerTokens.chip,
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Semantics(
+                button: true,
+                label: 'Open ${photo.cafeName}',
+                excludeSemantics: true,
+                child: AdaptiveTap(
+                  onTap: widget.onOpenCafe,
                   borderRadius: BorderRadius.circular(100),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      LucideIcons.mapPin,
-                      size: 16,
-                      color: _ViewerTokens.text,
+                  child: Container(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+                    decoration: BoxDecoration(
+                      color: _ViewerTokens.chip,
+                      borderRadius: BorderRadius.circular(100),
                     ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        photo.cafeName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          LucideIcons.mapPin,
+                          size: 16,
                           color: _ViewerTokens.text,
                         ),
-                      ),
-                    ),
-                    if (photo.cafeArea != null) ...[
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          photo.cafeArea!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 12,
-                            color: _ViewerTokens.muted,
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            photo.cafeName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: _ViewerTokens.text,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                    const SizedBox(width: 2),
-                    const Icon(
-                      LucideIcons.chevronRight,
-                      size: 16,
-                      color: _ViewerTokens.muted,
+                        if (photo.cafeArea != null) ...[
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              photo.cafeArea!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Poppins',
+                                fontSize: 12,
+                                color: _ViewerTokens.muted,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(width: 2),
+                        const Icon(
+                          LucideIcons.chevronRight,
+                          size: 16,
+                          color: _ViewerTokens.muted,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              if (openReview != null)
+                _Chip(
+                  icon: LucideIcons.messageSquare,
+                  label: 'View review',
+                  semanticsLabel: 'View the review',
+                  onTap: openReview,
+                ),
+            ],
           ),
           const SizedBox(height: 10),
           Text(
@@ -473,6 +515,58 @@ class _CaptionState extends State<_Caption> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A round dark chip under the photo, like the cafe chip.
+class _Chip extends StatelessWidget {
+  const _Chip({
+    required this.icon,
+    required this.label,
+    required this.semanticsLabel,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String semanticsLabel;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      excludeSemantics: true,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(100),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.fromLTRB(12, 8, 14, 8),
+          decoration: BoxDecoration(
+            color: _ViewerTokens.chip,
+            borderRadius: BorderRadius.circular(100),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: _ViewerTokens.text),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: _ViewerTokens.text,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -632,6 +632,10 @@ class _GalleryBody extends StatelessWidget {
                 onOpenCafe: onOpenCafe,
                 onOpenReview: onOpenReviews,
                 onReport: onReportPhoto,
+                reviewTextOf: (photo) => profile.reviews
+                    .where((r) => r.id == photo.sourceId)
+                    .firstOrNull
+                    ?.content,
               ),
             ),
           ),
