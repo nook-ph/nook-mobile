@@ -76,7 +76,8 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         .timeout(_mapLoadTimeout);
     _counted = (viewport: viewport, filter: filter, cafes: cafes);
     if (cafes.length >= GetCafesForViewportUseCase.fetchCap) return null;
-    return cafes.length;
+    // "Show N cafes" counts what the map will show, Open now included.
+    return _openNowOnly(cafes, filter: filter).length;
   }
 
   /// The rows the last [countFor] fetched. Applying that draft asks for the
@@ -100,8 +101,11 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
   /// The Open now chip: cafes whose hours say they are open this minute.
   /// Rows without hours are dropped too, since they cannot be shown open.
-  List<CafeSummary> _openNowOnly(List<CafeSummary> cafes) {
-    if (!_filter.openNow) return cafes;
+  List<CafeSummary> _openNowOnly(
+    List<CafeSummary> cafes, {
+    CafeFilter? filter,
+  }) {
+    if (!(filter ?? _filter).openNow) return cafes;
     // Rows from get_cafes carry no hours until its migration is applied;
     // filtering those would empty the map for a reason the person cannot
     // see, so they stay until a viewport fetch brings hours.

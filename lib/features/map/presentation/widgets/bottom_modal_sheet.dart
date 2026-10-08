@@ -14,6 +14,7 @@ import 'package:nook/features/map/presentation/widgets/map_filter_content.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_sub_sheet.dart';
 import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/location/device_location.dart';
 import 'package:nook/core/utils/geo.dart';
 import 'package:nook/features/map/domain/entities/cafe_tags_entity.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -512,7 +513,20 @@ class _CafeList extends StatelessWidget {
       );
     }
 
-    final itemCount = showSkeleton ? 4 : cafes.length;
+    // "Nearby" lists the cafes by distance from where distances are
+    // measured (the chosen place, else the phone), the same point the rows
+    // show; the fetch order read 1.7, 1.2, 3.7, 1.5 km. (UX S7)
+    final sort = context.select<FilterCubit, String>((c) => c.state.sort);
+    final phone = DeviceLocation.instance.position.value;
+    final origin =
+        distanceFrom ??
+        (phone == null
+            ? null
+            : GeoPoint(lat: phone.latitude, lng: phone.longitude));
+    final rows = sort == 'nearby' && origin != null
+        ? sortByDistance(cafes, origin)
+        : cafes;
+    final itemCount = showSkeleton ? 4 : rows.length;
 
     // Rows scrolling up fade out over the first [_fade] points of the list
     // instead of being cut flat just under the count.
@@ -540,7 +554,7 @@ class _CafeList extends StatelessWidget {
           separatorBuilder: (context, _) =>
               const Divider(height: 29, thickness: 1, color: MapTokens.border),
           itemBuilder: (context, index) {
-            final cafe = showSkeleton ? _skeletonCafe : cafes[index];
+            final cafe = showSkeleton ? _skeletonCafe : rows[index];
             return MapSheetCafeCard(
               width: cardWidth,
               cafe: cafe,
@@ -575,6 +589,24 @@ class BottomSheetMetrics {
 
   /// Open past its collapsed snap, so list rows show.
   bool get isExpanded => extent > minExtent + 0.01;
+}
+
+/// [cafes] nearest to [from] first; cafes without coordinates go last, in
+/// their original order.
+List<CafeSummary> sortByDistance(List<CafeSummary> cafes, GeoPoint from) {
+  double key(CafeSummary c) {
+    final lat = c.lat, lng = c.lng;
+    if (lat == null || lng == null) return double.infinity;
+    return haversineMeters(from, GeoPoint(lat: lat, lng: lng));
+  }
+
+  final indexed =
+      [for (var i = 0; i < cafes.length; i++) (i: i, d: key(cafes[i]))]
+        ..sort((a, b) {
+          final byDistance = a.d.compareTo(b.d);
+          return byDistance != 0 ? byDistance : a.i.compareTo(b.i);
+        });
+  return [for (final e in indexed) cafes[e.i]];
 }
 
 bool _anyMapFilterActive(CafeFilter f) =>

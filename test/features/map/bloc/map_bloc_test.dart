@@ -321,6 +321,43 @@ void main() {
       expect(state.isRefreshing, false);
     });
 
+    test('Open now is counted the way the map will show it (UX S7)', () async {
+      const days = [
+        'sunday',
+        'monday',
+        'tuesday',
+        'wednesday',
+        'thursday',
+        'friday',
+        'saturday',
+      ];
+      Map<String, dynamic> hours(String open, String close) => {
+        for (final d in days) d: {'open': open, 'close': close},
+      };
+      final viewportUseCase = _FakeViewportUseCase()
+        ..result = [
+          CafeSummary(
+            id: 'open',
+            name: 'Open',
+            rating: 4,
+            operatingHours: hours('00:00', '24:00'),
+          ),
+          CafeSummary(
+            id: 'closed',
+            name: 'Closed',
+            rating: 4,
+            operatingHours: hours('00:00', '00:01'),
+          ),
+        ];
+      final bloc = _buildBloc(viewportUseCase: viewportUseCase);
+      addTearDown(bloc.close);
+      await _loadInitial(bloc);
+      bloc.add(MapViewportChangedEvent(_viewport));
+      await _settleDebounce();
+
+      expect(await bloc.countFor(const CafeFilter(openNow: true)), 1);
+    });
+
     test('is null until the map has reported a viewport', () async {
       final viewportUseCase = _FakeViewportUseCase();
       final bloc = _buildBloc(viewportUseCase: viewportUseCase);
