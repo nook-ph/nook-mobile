@@ -27,7 +27,7 @@
          (docs/ux/core-loops.md, finding 5). The session lives on the server;
          nothing a user needs is only on the device. -->
     <application
-        android:label="nook"
+        android:label="Nook"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:allowBackup="false">
