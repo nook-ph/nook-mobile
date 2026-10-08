@@ -33,6 +33,7 @@ import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ranked_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/core/services/share_service.dart';
+import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 import 'package:nook/injection_container.dart';
@@ -139,6 +140,53 @@ class _ProfileViewState extends State<ProfileView> {
         ({required username, required name, own = false}) => sl<ShareService>()
             .shareProfile(username: username, name: name, own: own);
     share(username: profile.username, name: profile.name, own: true);
+  }
+
+  /// Share profile opens what the link shows and who sees it, not only the
+  /// share sheet: Share, See what visitors see, and the gallery switch.
+  /// Preview and privacy were otherwise only behind the Ranked tab's hint
+  /// and Settings (launch-review/profile-ux.md, finding 10).
+  Future<void> _shareOptions(ProfileLoaded profile) async {
+    final public = context
+        .read<ProfileVisibilityCubit>()
+        .state
+        .highlightsPublic;
+    final choice = await ListsSheet.show<_ShareOption>(
+      context,
+      builder: (sheetContext) => ListsSheet(
+        title: 'Your profile',
+        gap: 4,
+        children: [
+          ListsSheetAction(
+            title: 'Share profile',
+            subtitle: 'Send a link to your profile',
+            onTap: () => Navigator.pop(sheetContext, _ShareOption.share),
+          ),
+          ListsSheetAction(
+            title: 'See what visitors see',
+            subtitle: 'Your profile as anyone else sees it',
+            onTap: () => Navigator.pop(sheetContext, _ShareOption.preview),
+          ),
+          ListsSheetAction(
+            title: 'Gallery privacy',
+            subtitle: public
+                ? 'Visitors see your gallery. Change it in Settings.'
+                : 'Your gallery is hidden from visitors. Change it in '
+                      'Settings.',
+            onTap: () => Navigator.pop(sheetContext, _ShareOption.privacy),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case _ShareOption.share:
+        _share(profile);
+      case _ShareOption.preview:
+        _preview(profile);
+      case _ShareOption.privacy:
+        _openSettings();
+    }
   }
 
   void _preview(ProfileLoaded profile) {
@@ -376,7 +424,7 @@ class _ProfileViewState extends State<ProfileView> {
                                 // to link to.
                                 onShare: loaded.username.isEmpty
                                     ? null
-                                    : () => _share(loaded),
+                                    : () => _shareOptions(loaded),
                                 onAdd: () =>
                                     addPhotosToGallery(context, _galleryDeps()),
                               ),
@@ -463,3 +511,5 @@ class _PinnedTabs extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(_PinnedTabs oldDelegate) =>
       child != oldDelegate.child || height != oldDelegate.height;
 }
+
+enum _ShareOption { share, preview, privacy }

@@ -105,7 +105,7 @@ class SearchHeader extends StatelessWidget {
                             decoration: InputDecoration(
                               isCollapsed: true,
                               border: InputBorder.none,
-                              hintText: 'Search cafes',
+                              hintText: 'Search cafes or people',
                               hintStyle: SearchTokens.text(
                                 context,
                                 color: SearchTokens.muted,

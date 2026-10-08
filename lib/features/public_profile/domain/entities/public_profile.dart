@@ -132,3 +132,12 @@ String? peopleQuery(String query) {
   final match = RegExp(r'^@([A-Za-z0-9_]{1,20})$').firstMatch(query.trim());
   return match?.group(1);
 }
+
+/// A plain query that could be the start of a username ("bea", not "flat
+/// white"), so search can offer matching people under the cafes without an
+/// "@". Null for anything else, and for an "@" query, which [peopleQuery]
+/// covers.
+String? looseUsernameQuery(String query) {
+  final match = RegExp(r'^([A-Za-z0-9_]{3,20})$').firstMatch(query.trim());
+  return match?.group(1);
+}

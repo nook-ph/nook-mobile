@@ -439,10 +439,9 @@ class _ReviewPreviewCard extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                ReviewAuthorName(
+                                  name: name,
+                                  linked: review.userId.isNotEmpty,
                                   style: textTheme.bodySmall?.copyWith(
                                     fontWeight: FontWeight.w500,
                                     color: CafeDetailsTokens.ink,

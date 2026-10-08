@@ -215,10 +215,10 @@ class _ReviewRowState extends State<ReviewRow> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                              ReviewAuthorName(
+                                name: name,
+                                linked:
+                                    !widget.isOwn && review.userId.isNotEmpty,
                                 style: context.textTheme.bodyMediumMed.copyWith(
                                   color: ReviewTokens.ink,
                                   fontSize: 14,

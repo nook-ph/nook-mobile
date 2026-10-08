@@ -437,6 +437,16 @@ class _Matches extends StatelessWidget {
             SearchTagSuggestionRow(tag: tag, onTap: () => onTag(tag)),
         for (final cafe in matches)
           SearchMatchRow(cafe: cafe, query: state.query, onOpen: onMatchTap),
+        // A word that could be a username also finds people, so no one
+        // has to know about "@" (launch-review/profile-ux.md, finding 8).
+        if (looseUsernameQuery(state.query) case final username?)
+          PeopleMatches(
+            key: const ValueKey('people-under-cafes'),
+            prefix: username,
+            quiet: true,
+            limit: 3,
+            onOpen: onMatchTap,
+          ),
         if (matches.isNotEmpty) const SearchDivider(),
         SearchSeeAllRow(query: state.query, onTap: onSeeAll),
       ],

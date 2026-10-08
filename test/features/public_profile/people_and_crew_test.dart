@@ -49,6 +49,40 @@ void main() {
     expect(repo.asked.single.username, 'beasantos');
   });
 
+  test('a plain word that could be a username also looks for people', () {
+    expect(looseUsernameQuery('bea'), 'bea');
+    expect(looseUsernameQuery(' bea_s '), 'bea_s');
+    expect(looseUsernameQuery('be'), isNull);
+    expect(looseUsernameQuery('flat white'), isNull);
+    expect(looseUsernameQuery('@bea'), isNull);
+  });
+
+  testWidgets('under cafe matches, people show only when someone matches', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: PeopleMatches(prefix: 'zz', quiet: true)),
+      ),
+    );
+    expect(find.text('Looking…'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('People'), findsNothing);
+    expect(find.textContaining('No one goes by'), findsNothing);
+
+    repo.people = const [
+      PersonMatch(userId: 'bea-id', username: 'beasantos', fullName: 'Bea'),
+    ];
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: PeopleMatches(prefix: 'bea', quiet: true)),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('People'), findsOneWidget);
+    expect(find.text('@beasantos'), findsOneWidget);
+  });
+
   testWidgets('no match says so', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(

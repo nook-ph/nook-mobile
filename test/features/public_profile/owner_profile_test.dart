@@ -96,8 +96,39 @@ void main() {
     testWidgets('Share profile shares their own link', (tester) async {
       await pump(tester);
       await tester.tap(find.bySemanticsLabel('Share profile'));
+      await tester.pumpAndSettle();
+      // The sheet also says what the link shows and who can see it.
+      expect(find.text('See what visitors see'), findsOneWidget);
+      expect(find.text('Gallery privacy'), findsOneWidget);
+      await tester.tap(find.text('Share profile').last);
+      await tester.pumpAndSettle();
       expect(shared.single.username, 'saiimonn_');
       expect(shared.single.own, isTrue);
+    });
+
+    testWidgets('Preview is reachable from Share profile too', (tester) async {
+      await pump(tester);
+      await tester.tap(find.bySemanticsLabel('Share profile'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('See what visitors see'));
+      await tester.pumpAndSettle();
+      expect(previewed, ['user-1']);
+    });
+
+    testWidgets('the Share sheet says when the gallery is hidden', (
+      tester,
+    ) async {
+      final visibility = ProfileVisibilityCubit(
+        repository: FakePublicProfileRepository(highlights: false),
+      );
+      await pump(tester, visibility: visibility);
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Share profile'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Your gallery is hidden from visitors'),
+        findsOneWidget,
+      );
     });
   });
 
