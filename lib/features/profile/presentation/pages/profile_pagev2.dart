@@ -69,8 +69,18 @@ class ProfileRedesignPage extends StatelessWidget {
         listenWhen: (previous, current) =>
             current is AuthUnauthenticated ||
             current is AuthLoggedOut ||
-            current is AuthAccountDeleted,
+            current is AuthAccountDeleted ||
+            (current is AuthAuthenticated && previous is! AuthAuthenticated),
         listener: (context, state) {
+          if (state is AuthAuthenticated) {
+            // Signed back in on a tab that survived the sign-out (a session
+            // that ended without navigating): load the new session's
+            // profile instead of staying on "Sign in to see your profile".
+            context.read<ProfileCubit>().loadProfile();
+            context.read<GalleryCubit>().load();
+            context.read<ProfileVisibilityCubit>().load();
+            return;
+          }
           context.read<ProfileCubit>().clear();
           context.read<ProfileVisibilityCubit>().clear();
         },
