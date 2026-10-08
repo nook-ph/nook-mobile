@@ -175,6 +175,25 @@ void main() {
     expect(find.bySemanticsLabel('– Ranked'), findsOneWidget);
   });
 
+  // Visitors and Preview see the @username when there is no name; the
+  // owner's own header said "No name" (and an "N" avatar) instead.
+  testWidgets('no name: the header shows the username, like visitors see', (
+    tester,
+  ) async {
+    await pump(tester, cubit: FakeProfileCubit(profile(name: 'No name')));
+    expect(find.text('No name'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(ProfileHeader),
+        matching: find.text('saiimonn_'),
+      ),
+      findsOneWidget,
+    );
+    // The initial follows the username, not "N".
+    expect(find.text('N'), findsNothing);
+    expect(find.text('S'), findsOneWidget);
+  });
+
   testWidgets('more than four reviews link through to Your reviews', (
     tester,
   ) async {

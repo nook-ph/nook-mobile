@@ -25,6 +25,7 @@ import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
 import 'package:nook/features/profile/presentation/pages/editprofile_page.dart';
 import 'package:nook/features/profile/presentation/pages/reviews_page.dart';
 import 'package:nook/features/profile/presentation/pages/settings_page.dart';
+import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_lists_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_review_sheets.dart';
@@ -138,7 +139,11 @@ class _ProfileViewState extends State<ProfileView> {
         widget.shareProfile ??
         ({required username, required name, own = false}) => sl<ShareService>()
             .shareProfile(username: username, name: name, own: own);
-    share(username: profile.username, name: profile.name, own: true);
+    share(
+      username: profile.username,
+      name: profileDisplayName(profile.name, profile.username),
+      own: true,
+    );
   }
 
   void _preview(ProfileLoaded profile) {
@@ -342,7 +347,10 @@ class _ProfileViewState extends State<ProfileView> {
                         child: loaded == null
                             ? const ProfileHeaderSkeleton()
                             : ProfileHeader(
-                                name: loaded.name,
+                                name: profileDisplayName(
+                                  loaded.name,
+                                  loaded.username,
+                                ),
                                 avatarUrl: loaded.avatarUrl,
                                 bio: loaded.bio,
                                 stats: [
