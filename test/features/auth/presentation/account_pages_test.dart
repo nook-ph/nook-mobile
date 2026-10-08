@@ -73,6 +73,15 @@ void main() {
       await tester.pump();
     }
 
+    testWidgets('"Use a different account" signs out (SF9)', (tester) async {
+      await pumpUsername(tester, check: (_) async => true);
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.ensureVisible(find.text('Use a different account'));
+      await tester.tap(find.text('Use a different account'));
+      await tester.pump();
+      expect(bloc.events.single, isA<AuthSignOutEvent>());
+    });
+
     testWidgets('checks the suggestion, then unlocks on available (C11–C13)', (
       tester,
     ) async {

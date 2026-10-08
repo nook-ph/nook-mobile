@@ -216,6 +216,20 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
               loadingLabel: 'Saving…',
               onPressed: _canSubmit ? _onConfirmPressed : null,
             ),
+            // The router holds a signed-in account without a username on
+            // this page, so this is the way out: signed in with the wrong
+            // Google or Apple account, or just not now.
+            Center(
+              child: AuthTextLink(
+                label: 'Use a different account',
+                color: AuthColors.muted,
+                onTap: isSubmitting
+                    ? null
+                    : () => context.read<AuthBloc>().add(
+                        const AuthSignOutEvent(),
+                      ),
+              ),
+            ),
           ],
         );
       },

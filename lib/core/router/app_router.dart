@@ -69,6 +69,9 @@ GoRouter createAppRouter(AuthBloc authBloc) {
       }
 
       if (authState is AuthUnauthenticated || authState is AuthLoggedOut) {
+        // Signed out from username setup ("Use a different account"): the
+        // page needs a session, so leave it.
+        if (location == '/username-setup') return '/';
         if (isProtectedRoute) {
           debugPrint('Redirect unauthenticated from protected route -> /login');
           return '/login';
