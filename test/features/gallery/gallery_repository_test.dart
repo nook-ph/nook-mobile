@@ -111,7 +111,7 @@ void main() {
       ],
     );
     await r.deletePhoto('p1');
-    await pumpEventQueue();
+    await pumpEventQueue(times: 200);
 
     final delete = requests.firstWhere((q) => q.method == 'DELETE');
     expect(delete.url.queryParameters['id'], 'eq.p1');
@@ -126,7 +126,7 @@ void main() {
       ],
     );
     await r.deletePhoto('p1');
-    await pumpEventQueue();
+    await pumpEventQueue(times: 200);
     expect(functionCalls(), isEmpty);
   });
 
@@ -140,7 +140,7 @@ void main() {
       ),
       throwsA(isA<GalleryException>()),
     );
-    await pumpEventQueue();
+    await pumpEventQueue(times: 200);
     expect(deletedKeys(), ['gallery/$_me/c1/a.jpg', 'gallery/$_me/c1/b.jpg']);
   });
 
@@ -154,7 +154,7 @@ void main() {
       ),
       throwsA(isA<SocketException>()),
     );
-    await pumpEventQueue();
+    await pumpEventQueue(times: 200);
     expect(uploads, ['a.jpg']);
     expect(deletedKeys(), ['gallery/$_me/c1/a.jpg']);
     // Nothing was saved.
@@ -185,7 +185,7 @@ void main() {
       photos: [pickedPhoto('a')],
       source: GalleryPhotoSource.gallery,
     );
-    await pumpEventQueue();
+    await pumpEventQueue(times: 200);
     expect(added.single.id, 'p1');
     expect(functionCalls(), isEmpty);
   });
@@ -211,5 +211,43 @@ void main() {
     await r.getMyPhotos();
     final get = requests.firstWhere((q) => q.method == 'GET');
     expect(get.url.queryParameters['select'], contains('moderation_status'));
+  });
+
+  // The note field counts characters as people see them (grapheme
+  // clusters), and the DB counts code points. Cutting at 150 UTF-16 units
+  // dropped emoji the counter allowed, and could split one into "\uFFFD".
+  group('notes and drinks keep whole characters', () {
+    Future<Map<String, dynamic>> saved({String? drink, String? note}) async {
+      final r = await repo();
+      await r.setDetails('p1', drinkName: drink, caption: note);
+      final patch = requests.firstWhere((q) => q.method == 'PATCH');
+      return jsonDecode(patch.body) as Map<String, dynamic>;
+    }
+
+    test('a note the field allowed is saved whole', () async {
+      final note = '${'a' * 100}${'😀' * 50}'; // 150 characters
+      expect((await saved(note: note))['caption'], note);
+    });
+
+    test('a long note is cut at 150 characters, never inside one', () async {
+      final note = '${'a' * 149}${'😀' * 3}';
+      final caption = (await saved(note: note))['caption'] as String;
+      expect(caption, '${'a' * 149}😀');
+      expect(caption.contains('\uFFFD'), isFalse);
+      expect(caption.runes.length, lessThanOrEqualTo(150));
+    });
+
+    test('never more code points than the DB check allows', () async {
+      // One family emoji is one character but seven code points.
+      const family = '👨‍👩‍👧‍👦';
+      final caption =
+          (await saved(note: '${'a' * 145}$family'))['caption'] as String;
+      expect(caption, 'a' * 145);
+    });
+
+    test('the drink name is cut at 60 characters the same way', () async {
+      final drink = '${'b' * 59}${'🍵' * 2}';
+      expect((await saved(drink: drink))['drink_name'], '${'b' * 59}🍵');
+    });
   });
 }

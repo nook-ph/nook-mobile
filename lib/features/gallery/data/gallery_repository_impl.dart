@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show StringCharacters, debugPrint;
 import 'package:nook/core/upload/domain/entities/uploaded_file.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
@@ -177,18 +177,28 @@ class GalleryRepositoryImpl implements IGalleryRepository {
     }
   }
 
-  static String? _cleanDrink(String? value) {
-    final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return null;
-    return trimmed.length > 60 ? trimmed.substring(0, 60) : trimmed;
-  }
+  static String? _cleanDrink(String? value) => _clip(value, 60);
 
-  static String? _cleanCaption(String? value) {
+  static String? _cleanCaption(String? value) =>
+      _clip(value, maxGalleryCaption);
+
+  /// Trims [value] and keeps at most [max] characters. The field counts
+  /// characters as people see them (grapheme clusters) and the DB checks
+  /// code points, so whole characters are kept while both fit: never cut
+  /// inside an emoji, and never more than the DB allows. Blank is null.
+  static String? _clip(String? value, int max) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) return null;
-    return trimmed.length > maxGalleryCaption
-        ? trimmed.substring(0, maxGalleryCaption)
-        : trimmed;
+    if (trimmed.runes.length <= max) return trimmed;
+    final kept = StringBuffer();
+    var codePoints = 0;
+    for (final character in trimmed.characters) {
+      codePoints += character.runes.length;
+      if (codePoints > max) break;
+      kept.write(character);
+    }
+    final clipped = kept.toString().trim();
+    return clipped.isEmpty ? null : clipped;
   }
 }
 
