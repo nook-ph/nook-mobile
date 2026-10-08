@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
@@ -83,5 +84,8 @@ void main() {
       find.bySemanticsLabel(RegExp('^Open Bea Santos’s profile')),
       findsOneWidget,
     );
+    // And only theirs carries the profile chevron: on your own card it
+    // promised a link that isn't there.
+    expect(find.byIcon(LucideIcons.chevronRight), findsOneWidget);
   });
 }

@@ -452,7 +452,7 @@ class _ReviewPreviewCard extends StatelessWidget {
                               children: [
                                 ReviewAuthorName(
                                   name: name,
-                                  linked: review.userId.isNotEmpty,
+                                  linked: !isOwn && review.userId.isNotEmpty,
                                   style: textTheme.bodySmall?.copyWith(
                                     fontWeight: FontWeight.w500,
                                     color: CafeDetailsTokens.ink,
