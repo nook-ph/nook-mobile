@@ -213,6 +213,32 @@ void main() {
       await letToastExpire(tester);
     });
 
+    // A review photo stays on the review (cafe page, the profile's Reviews
+    // tab), so "Only you will see it" would be false.
+    testWidgets('hiding a review photo says it still shows on the review', (
+      tester,
+    ) async {
+      await pump(tester, [
+        galleryPhoto(
+          'r',
+          drink: 'Flat white',
+          source: GalleryPhotoSource.review,
+        ),
+      ]);
+      await tester.longPress(tile('Flat white'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Only you will see it'), findsNothing);
+      expect(
+        find.text('Takes it off your gallery. It still shows on your review.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Hide from profile'));
+      await tester.pumpAndSettle();
+      expect(repo.calls, ['hide r true']);
+      expect(find.text('Hidden from your gallery'), findsOneWidget);
+      await letToastExpire(tester);
+    });
+
     testWidgets('Delete asks first, and Cancel keeps the photo', (
       tester,
     ) async {
