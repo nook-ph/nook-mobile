@@ -100,6 +100,21 @@ class _GalleryViewerPageState extends State<GalleryViewerPage> {
     super.dispose();
   }
 
+  /// Pin, Unpin or a failed write's rollback re-sorts the gallery, which
+  /// moves the photo on screen to another index. The bar and caption follow
+  /// [_currentId], so move the page there too; otherwise the page shows
+  /// whichever photo now sits at the old index, and "…" acts on another one.
+  void _keepPageOn(int index) {
+    final controller = _controller;
+    if (controller == null || !controller.hasClients) return;
+    final page = controller.page;
+    if (page == null || page.round() == index) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !controller.hasClients) return;
+      if (controller.page?.round() != index) controller.jumpToPage(index);
+    });
+  }
+
   Future<void> _more(GalleryPhoto photo) async {
     final deleted = await showGalleryPhotoOptions(
       context,
@@ -140,6 +155,7 @@ class _GalleryViewerPageState extends State<GalleryViewerPage> {
               _currentId = photos[index].id;
             }
             _controller ??= PageController(initialPage: index);
+            _keepPageOn(index);
             final photo = photos[index];
 
             return SafeArea(
