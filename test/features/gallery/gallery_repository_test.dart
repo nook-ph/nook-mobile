@@ -189,4 +189,27 @@ void main() {
     expect(added.single.id, 'p1');
     expect(functionCalls(), isEmpty);
   });
+
+  test('reads moderation_status; anything but visible is moderated', () {
+    Map<String, dynamic> row(String? status) => {
+      'id': 'p1',
+      'user_id': _me,
+      'cafe_id': 'c1',
+      'image_url': 'https://cdn/x.jpg',
+      'taken_at': '2026-10-01T00:00:00Z',
+      'source': 'gallery',
+      'moderation_status': ?status,
+    };
+    expect(galleryPhotoFromRow(row('visible')).isModerated, isFalse);
+    expect(galleryPhotoFromRow(row(null)).isModerated, isFalse);
+    expect(galleryPhotoFromRow(row('hidden')).isModerated, isTrue);
+    expect(galleryPhotoFromRow(row('removed')).isModerated, isTrue);
+  });
+
+  test('the gallery read asks for moderation_status', () async {
+    final r = await repo();
+    await r.getMyPhotos();
+    final get = requests.firstWhere((q) => q.method == 'GET');
+    expect(get.url.queryParameters['select'], contains('moderation_status'));
+  });
 }

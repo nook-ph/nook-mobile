@@ -26,7 +26,8 @@ Future<bool> showGalleryPhotoOptions(
         title: 'Photo options',
         gap: 4,
         children: [
-          if (!photo.isHidden)
+          // A moderated photo can still be unpinned, never pinned.
+          if (!photo.isHidden && (photo.isPinned || !photo.isModerated))
             ListsSheetAction(
               title: photo.isPinned ? 'Unpin' : 'Pin to top',
               subtitle: photo.isPinned

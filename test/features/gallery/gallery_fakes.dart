@@ -20,6 +20,7 @@ GalleryPhoto galleryPhoto(
   GalleryPhotoSource source = GalleryPhotoSource.gallery,
   bool hidden = false,
   int? pin,
+  bool moderated = false,
 }) {
   return GalleryPhoto(
     id: id,
@@ -34,6 +35,7 @@ GalleryPhoto galleryPhoto(
     sourceId: source == GalleryPhotoSource.review ? 'review-1' : null,
     isHidden: hidden,
     pinOrder: pin,
+    isModerated: moderated,
   );
 }
 

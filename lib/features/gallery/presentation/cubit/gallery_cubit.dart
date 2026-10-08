@@ -24,7 +24,8 @@ class GalleryState extends Equatable {
   /// Pinned first (slot 1–3), then newest first.
   final List<GalleryPhoto> photos;
 
-  Iterable<GalleryPhoto> get _shown => photos.where((p) => !p.isHidden);
+  Iterable<GalleryPhoto> get _shown =>
+      photos.where((p) => !p.isHidden && !p.isModerated);
 
   /// Photos visitors can see: the "cups" in the header.
   int get cupCount => _shown.length;
@@ -145,6 +146,8 @@ class GalleryCubit extends Cubit<GalleryState> {
       );
       return ok ? PinOutcome.unpinned : PinOutcome.failed;
     }
+    // Visitors can't see it, so a pin would only use up a slot.
+    if (photo.isModerated) return PinOutcome.failed;
     final used = state.photos.map((p) => p.pinOrder).whereType<int>().toSet();
     final free = [
       for (var slot = 1; slot <= maxGalleryPins; slot++)

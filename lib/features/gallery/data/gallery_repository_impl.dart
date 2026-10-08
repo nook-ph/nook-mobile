@@ -30,7 +30,8 @@ class GalleryRepositoryImpl implements IGalleryRepository {
 
   static const _columns =
       'id, user_id, cafe_id, image_url, drink_name, caption, taken_at, source, '
-      'source_id, is_hidden, pin_order, cafes(name, neighborhood, city)';
+      'source_id, is_hidden, pin_order, moderation_status, '
+      'cafes(name, neighborhood, city)';
 
   String get _userId {
     final id = _client.auth.currentUser?.id;
@@ -219,5 +220,7 @@ GalleryPhoto galleryPhotoFromRow(Map<String, dynamic> row) {
     sourceId: row['source_id'] as String?,
     isHidden: row['is_hidden'] == true,
     pinOrder: (row['pin_order'] as num?)?.toInt(),
+    // Rows without the column (older selects) count as visible.
+    isModerated: (row['moderation_status'] ?? 'visible') != 'visible',
   );
 }

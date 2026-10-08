@@ -139,6 +139,31 @@ void main() {
     expect(ids()[2], 'new-5');
   });
 
+  // A photo Nook's moderation took off the profile is the owner's only: it
+  // is not a cup visitors see, and pinning it would only use up a slot.
+  group('a moderated photo', () {
+    setUp(() {
+      repo.photos.add(
+        galleryPhoto('modded', takenAt: DateTime(2026, 9, 9), moderated: true),
+      );
+    });
+
+    test('is not counted as a cup', () async {
+      await cubit.load();
+      expect(ids(), contains('modded'));
+      // Same as without it: old, new, pinned-2, pinned-1.
+      expect(cubit.state.cupCount, 4);
+      expect(cubit.state.cafeCount, 2);
+    });
+
+    test('is never pinned', () async {
+      await cubit.load();
+      final photo = cubit.state.photos.firstWhere((p) => p.id == 'modded');
+      expect(await cubit.togglePin(photo), PinOutcome.failed);
+      expect(repo.calls, isEmpty);
+    });
+  });
+
   // The ranking reveal can add a photo before the Profile tab ever loaded
   // the gallery. The grid must then hold the whole gallery, not just the
   // new photo.
