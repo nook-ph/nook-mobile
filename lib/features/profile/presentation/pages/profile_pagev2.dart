@@ -156,6 +156,10 @@ class _ProfileViewState extends State<ProfileView> {
     if (widget.isActive && !oldWidget.isActive) {
       context.read<ProfileCubit>().loadProfile(refresh: true);
       context.read<GalleryCubit>().load(refresh: true);
+      // The sign-in prefetch may have failed (offline): try again, so the
+      // Ranked count stops being a dash.
+      final ranking = context.read<CafeRankingCubit>();
+      if (!ranking.state.loaded) ranking.load();
     }
   }
 
@@ -315,11 +319,9 @@ class _ProfileViewState extends State<ProfileView> {
             ? listsState.lists
             : bloc.userLists;
         final been = lists.where((l) => l.listType == 'been').firstOrNull;
-        final rankedCount = context
-            .watch<CafeRankingCubit>()
-            .state
-            .rankings
-            .length;
+        // Unknown (a dash), not zero, until the ranking has loaded.
+        final ranking = context.watch<CafeRankingCubit>().state;
+        final rankedCount = ranking.loaded ? ranking.rankings.length : null;
 
         final gallery = context.watch<GalleryCubit>().state;
 

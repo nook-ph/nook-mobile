@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/profile/presentation/cubit/profile_cubit.dart';
@@ -10,6 +13,7 @@ import 'package:nook/features/profile/presentation/pages/profile_pagev2.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 
+import '../lists/lists_fixtures.dart' show FakeRankingRepository, rankingCubit;
 import 'profile_test_support.dart';
 
 void main() {
@@ -27,6 +31,7 @@ void main() {
     WidgetTester tester, {
     required FakeProfileCubit cubit,
     FakeListsBloc? listsBloc,
+    CafeRankingCubit? ranking,
   }) async {
     // The stat row and action buttons make the header taller than the
     // default 800x600 test surface leaves room for under it.
@@ -34,7 +39,12 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
-      profileHost(page: const ProfileView(), cubit: cubit, lists: listsBloc),
+      profileHost(
+        page: const ProfileView(),
+        cubit: cubit,
+        lists: listsBloc,
+        ranking: ranking,
+      ),
     );
     await tester.pump();
     // Gallery is the first tab; these tests are about Reviews. "Reviews" is
@@ -101,6 +111,10 @@ void main() {
   testWidgets('loaded: handle, name, the stat row, bio and actions', (
     tester,
   ) async {
+    // The app loads the ranking at start; here it has no ranked cafes.
+    final ranking = rankingCubit(FakeRankingRepository());
+    addTearDown(ranking.close);
+    await ranking.load();
     await pump(
       tester,
       cubit: FakeProfileCubit(
@@ -112,6 +126,7 @@ void main() {
         ),
       ),
       listsBloc: FakeListsBloc(ListsLoaded(lists)),
+      ranking: ranking,
     );
 
     expect(find.text('@saiimonn_'), findsOneWidget);
@@ -137,6 +152,27 @@ void main() {
     expect(find.text('Coffee Bear'), findsOneWidget);
     expect(find.text('May 23, 2026'), findsNWidgets(2));
     expect(find.bySemanticsLabel('4 out of 5 stars'), findsOneWidget);
+  });
+
+  // Before the ranking has loaded (or when it failed), the count is
+  // unknown: a dash, never "0 Ranked" for someone with ranked cafes.
+  testWidgets('Ranked is a dash until the ranking has loaded', (tester) async {
+    final ranking = rankingCubit(_NeverLoadsRankingRepository());
+    addTearDown(ranking.close);
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      profileHost(
+        page: const ProfileView(),
+        cubit: FakeProfileCubit(profile()),
+        ranking: ranking,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.bySemanticsLabel('0 Ranked'), findsNothing);
+    expect(find.bySemanticsLabel('– Ranked'), findsOneWidget);
   });
 
   testWidgets('more than four reviews link through to Your reviews', (
@@ -387,4 +423,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('route:/login'), findsOneWidget);
   });
+}
+
+/// A ranking read that never comes back, like a cold start offline.
+class _NeverLoadsRankingRepository extends FakeRankingRepository {
+  @override
+  Future<List<CafeRanking>> getCafeRankings() =>
+      Completer<List<CafeRanking>>().future;
 }
