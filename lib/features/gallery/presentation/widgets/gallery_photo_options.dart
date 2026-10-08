@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/utils/content_filter.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 
 /// What the owner can do to one photo. Delete is last and red; a review
 /// photo offers its review instead, because deleting it here would quietly
@@ -215,7 +217,10 @@ class _PhotoDetailsSheetState extends State<_PhotoDetailsSheet> {
           autofocus: true,
           onDone: widget.photo.isFromReview ? _save : null,
         ),
-        if (!widget.photo.isFromReview) GalleryNoteField(controller: _note),
+        if (!widget.photo.isFromReview) ...[
+          GalleryNoteField(controller: _note),
+          const GalleryPublicNote(),
+        ],
         if (error != null)
           Semantics(
             liveRegion: true,
@@ -234,6 +239,36 @@ String? galleryTextError(String drink, String note) =>
         ContentFilter.containsObjectionable(note)
     ? ContentFilter.rejectionMessage
     : null;
+
+/// One line under the note field saying who reads it (Figma G6), so no one
+/// writes a note thinking it is private. When the person has switched
+/// their gallery off, it says that instead. [adding] names the photos too.
+class GalleryPublicNote extends StatelessWidget {
+  const GalleryPublicNote({super.key, this.adding = false});
+
+  final bool adding;
+
+  /// The privacy switch, or null where the app's cubit isn't provided.
+  static bool? _galleryPublic(BuildContext context) {
+    try {
+      return context.watch<ProfileVisibilityCubit>().state.highlightsPublic;
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final public = _galleryPublic(context) ?? true;
+    final text = public
+        ? '${adding ? 'Photos and notes' : 'Notes'} are public on your '
+              'profile. Keep opinions about the whole cafe for a review.'
+        : 'Your gallery is hidden from visitors. If you show it again in '
+              'Settings, ${adding ? 'photos and notes show' : 'notes show'} '
+              'on your profile.';
+    return Text(text, style: listsText(12, color: ListsTokens.muted));
+  }
+}
 
 /// The optional note on a photo: a few lines, with an n/150 counter inside
 /// the field that turns dark near the limit (PayPal's counter;

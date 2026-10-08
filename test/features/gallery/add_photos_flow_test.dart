@@ -1,15 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/gallery_flows.dart';
 import 'package:nook/features/gallery/presentation/widgets/cafe_picker_sheet.dart';
+import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options.dart';
+import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/utils/theme/theme.dart';
 
 import '../lists/lists_fixtures.dart' show usePhone;
+import '../public_profile/public_profile_fakes.dart';
 import 'gallery_fakes.dart';
 
 /// A page with one button that runs [run] from a live context.
@@ -290,6 +294,14 @@ void main() {
       await _go(tester);
       await tester.tap(find.text('Kamp Craft Coffee'));
       await tester.pumpAndSettle();
+      // Says who reads it before anything is written.
+      expect(
+        find.text(
+          'Photos and notes are public on your profile. Keep opinions about '
+          'the whole cafe for a review.',
+        ),
+        findsOneWidget,
+      );
       await tester.enterText(
         find.widgetWithText(TextField, 'Say something about it (optional)'),
         'Best cortado in town',
@@ -380,6 +392,43 @@ void main() {
       await _go(tester);
       expect(find.text('Which cafe is this from?'), findsNothing);
       expect(repo.calls, isEmpty);
+    });
+  });
+
+  group('public note', () {
+    Future<void> pumpNote(WidgetTester tester, {required bool public}) async {
+      final visibility = ProfileVisibilityCubit(
+        repository: FakePublicProfileRepository(highlights: public),
+      );
+      addTearDown(visibility.close);
+      await visibility.load();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider.value(
+            value: visibility,
+            child: const Scaffold(body: GalleryPublicNote()),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('says notes are public', (tester) async {
+      await pumpNote(tester, public: true);
+      expect(
+        find.text(
+          'Notes are public on your profile. Keep opinions about the whole '
+          'cafe for a review.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('with the gallery switched off, says it is hidden', (
+      tester,
+    ) async {
+      await pumpNote(tester, public: false);
+      expect(find.textContaining('Your gallery is hidden'), findsOneWidget);
+      expect(find.textContaining('are public'), findsNothing);
     });
   });
 }

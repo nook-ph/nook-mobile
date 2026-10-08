@@ -174,6 +174,7 @@ class _AddGalleryPhotosSheetState extends State<AddGalleryPhotosSheet> {
             ),
           ],
           GalleryNoteField(controller: _note, enabled: !_saving),
+          const GalleryPublicNote(adding: true),
           if (_textError != null)
             Semantics(
               liveRegion: true,
