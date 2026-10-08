@@ -32,3 +32,26 @@ Instagram's convention.
 - [Pinterest](https://refero.design/screens/2585f44d-c48a-4196-b969-92324501617a)
 - [HYPE](https://refero.design/screens/32487331-0264-4b11-b292-d60c99a25df0)
 - [PayPal](https://refero.design/screens/0cba43c5-c0dd-43fd-9b28-74f12c9a63bd)
+
+## Pre-launch UI fixes (2026-10-08)
+Researched in `launch-review/profile-ux.md` (Refero flows saved under
+`launch-review/profile-shots/ref/`, not committed); built against Figma
+"Profile — redesign v2" (1775:5261). No new scouting: each part reuses
+those flows and the Figma frame that covers it.
+
+- **Visitor ⋯ sheet and reports** (`public_profile_page.dart`,
+  `review_actions_sheet.dart` `ReportReasonSheet`). Figma B2 plus Report.
+  Spotify (flows/213): Share, Report and Block in one sheet. TikTok
+  (flows/2760): a reason for the account itself. Instagram (flows/2846):
+  reason first, nothing sent until Submit. Not taken: Instagram's
+  sub-reasons and "Also block?" step.
+- **Uploading tiles** (`profile_gallery_tab.dart` `GalleryUploadTile`).
+  Figma E2. Savee (flows/5275): the picked photo waits in the grid as a tile
+  instead of a modal.
+- **Review photo in the viewer** (`gallery_viewer_page.dart`). Figma G5:
+  review text in place of the note, View review beside the cafe chip.
+- **Edit sheet** (`gallery_photo_options.dart`). Figma G6: Save off until
+  something changes, public-note line. Change cafe reuses the add sheet's
+  cafe row.
+- **Own Share sheet** (`profile_pagev2.dart`). komoot (flows/8368): share
+  says what the link opens; here as See what visitors see.
