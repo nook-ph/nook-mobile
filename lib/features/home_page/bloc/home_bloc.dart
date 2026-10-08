@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/cafe/cafe_data_revision.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
@@ -10,6 +11,20 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   HomeBloc({required this.getHomeFeedUseCase}) : super(HomeInitialState()) {
     on<LoadHomeDataEvent>(_onLoadHomeData);
     on<HomeDismissLocationBannerEvent>(_onDismissLocationBanner);
+    CafeDataRevision.reviews.addListener(_onReviewsChanged);
+  }
+
+  /// A review was posted or deleted: the shelves' ratings and counts are
+  /// stale, so refresh in place (UX S6).
+  void _onReviewsChanged() {
+    if (isClosed || state is! HomeLoadedState) return;
+    add(LoadHomeDataEvent(refresh: true));
+  }
+
+  @override
+  Future<void> close() {
+    CafeDataRevision.reviews.removeListener(_onReviewsChanged);
+    return super.close();
   }
 
   Future<void> _onLoadHomeData(

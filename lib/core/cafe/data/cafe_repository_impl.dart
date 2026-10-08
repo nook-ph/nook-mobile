@@ -1,3 +1,4 @@
+import 'package:nook/core/cafe/cafe_data_revision.dart';
 import 'package:nook/core/cafe/data/cafe_remote_data_source.dart';
 import 'package:nook/core/cafe/data/cafe_store.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_bundle.dart';
@@ -273,6 +274,8 @@ class CafeRepositoryImpl implements ICafeRepository {
       content: content,
       imageUrls: imageUrls,
     );
+    // Lists showing this cafe's rating and count fetch again.
+    CafeDataRevision.reviewsChanged();
     // The cafe's rating and count just changed on the server.
     store.bust(cafeId);
 
@@ -295,6 +298,7 @@ class CafeRepositoryImpl implements ICafeRepository {
     // Only the review id is known here, so every cached cafe is dropped
     // rather than leaving one with a stale rating and count.
     store.bustAll();
+    CafeDataRevision.reviewsChanged();
   }
 
   @override

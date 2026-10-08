@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:nook/core/cafe/cafe_data_revision.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -50,6 +51,20 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     on<SearchOpenNowToggled>(_onOpenNowToggled);
     on<SearchFiltersCleared>(_onFiltersCleared);
     on<SearchLocationChecked>(_onLocationChecked);
+    CafeDataRevision.reviews.addListener(_onReviewsChanged);
+  }
+
+  /// A review was posted or deleted: rows on screen carry the old rating
+  /// and count, so fetch them again (UX S6).
+  void _onReviewsChanged() {
+    if (isClosed || state.status != SearchStatus.success) return;
+    add(const SearchRefresh());
+  }
+
+  @override
+  Future<void> close() {
+    CafeDataRevision.reviews.removeListener(_onReviewsChanged);
+    return super.close();
   }
 
   /// Rows fetched to count a draft filter. A result this long may have been

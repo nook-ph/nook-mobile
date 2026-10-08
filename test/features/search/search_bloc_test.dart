@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/core/cafe/cafe_data_revision.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
@@ -83,6 +84,26 @@ void main() {
   setUp(() {
     search = _FakeSearch();
     location = _here;
+  });
+
+  test('a posted or deleted review fetches the rows again (UX S6)', () async {
+    final bloc = build();
+    await searchByTag(bloc);
+    expect(search.queries, hasLength(1));
+    search.answer = (_) => const [CafeSummary(id: 'a', name: 'A', rating: 3)];
+    CafeDataRevision.reviewsChanged();
+    final next = await bloc.stream.firstWhere(
+      (s) => s.status == SearchStatus.success,
+    );
+    expect(search.queries, hasLength(2));
+    expect(next.cafes.single.rating, 3);
+  });
+
+  test('a review change before any search fetches nothing', () async {
+    build();
+    CafeDataRevision.reviewsChanged();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(search.queries, isEmpty);
   });
 
   group('location', () {
