@@ -92,13 +92,14 @@ class GalleryPhoto extends Equatable {
     bool? isHidden,
     int? pinOrder,
     bool clearPin = false,
+    ({String id, String name, String? area})? cafe,
   }) {
     return GalleryPhoto(
       id: id,
       userId: userId,
-      cafeId: cafeId,
-      cafeName: cafeName,
-      cafeArea: cafeArea,
+      cafeId: cafe?.id ?? cafeId,
+      cafeName: cafe?.name ?? cafeName,
+      cafeArea: cafe == null ? cafeArea : cafe.area,
       imageUrl: imageUrl,
       drinkName: clearDrinkName ? null : (drinkName ?? this.drinkName),
       caption: clearCaption ? null : (caption ?? this.caption),

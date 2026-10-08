@@ -22,8 +22,15 @@ abstract interface class IGalleryRepository {
 
   Future<void> setHidden(String photoId, {required bool hidden});
 
-  /// Sets the drink and the note together; null clears either.
-  Future<void> setDetails(String photoId, {String? drinkName, String? caption});
+  /// Sets the drink and the note together; null clears either. A
+  /// [cafeId] moves the photo to that cafe (never a review photo); null
+  /// leaves the cafe as it is.
+  Future<void> setDetails(
+    String photoId, {
+    String? drinkName,
+    String? caption,
+    String? cafeId,
+  });
 
   /// Not allowed for review photos; the server refuses it too.
   Future<void> deletePhoto(String photoId);

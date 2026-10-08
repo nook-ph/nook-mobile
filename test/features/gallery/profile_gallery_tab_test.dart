@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/pages/gallery_viewer_page.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options.dart';
@@ -272,9 +273,22 @@ void main() {
       await tester.tap(find.text('Add what you had'));
       await tester.pumpAndSettle();
       expect(find.text('Edit photo'), findsOneWidget);
+      // Nothing changed yet: Save is off (Figma G6).
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Save')),
+        isNot(containsSemantics(isEnabled: true)),
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('Edit photo'), findsOneWidget);
       await tester.enterText(
         find.widgetWithText(TextField, 'Drink (optional)'),
         'Ube latte',
+      );
+      await tester.pump();
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Save')),
+        containsSemantics(isEnabled: true),
       );
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
@@ -432,5 +446,90 @@ void main() {
     await tester.pump();
     expect(find.text('Didn’t upload'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  group('edit sheet', () {
+    testWidgets('Change cafe moves the photo; going back to the same cafe '
+        'turns Save off again', (tester) async {
+      usePhone(tester);
+      final kamp = galleryPhoto('a');
+      const lorenzo = PickedCafe(
+        id: 'lorenzo',
+        name: "Lorenzo's Cafe",
+        area: 'Lahug, Cebu City',
+      );
+      var next = lorenzo;
+      PhotoDetails? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TAppTheme.lightTheme,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async => result = await showPhotoDetailsSheet(
+                  context,
+                  photo: kamp,
+                  pickCafe: () async => next,
+                ),
+                child: const Text('go'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+
+      final change = find.bySemanticsLabel('Cafe: Kamp Craft Coffee. Change');
+      expect(change, findsOneWidget);
+      await tester.tap(change);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Save')),
+        containsSemantics(isEnabled: true),
+      );
+
+      next = PickedCafe(id: kamp.cafeId, name: kamp.cafeName);
+      await tester.tap(find.bySemanticsLabel("Cafe: Lorenzo's Cafe. Change"));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('Save')),
+        isNot(containsSemantics(isEnabled: true)),
+      );
+
+      next = lorenzo;
+      await tester.tap(
+        find.bySemanticsLabel('Cafe: Kamp Craft Coffee. Change'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(result?.cafe, lorenzo);
+    });
+
+    testWidgets('a review photo keeps its cafe', (tester) async {
+      usePhone(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TAppTheme.lightTheme,
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showPhotoDetailsSheet(
+                  context,
+                  photo: galleryPhoto('r', source: GalleryPhotoSource.review),
+                  pickCafe: () async => null,
+                ),
+                child: const Text('go'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Cafe:'), findsNothing);
+      expect(find.bySemanticsLabel(RegExp('^Cafe:')), findsNothing);
+    });
   });
 }

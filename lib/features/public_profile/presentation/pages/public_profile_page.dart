@@ -422,6 +422,7 @@ class _ReadOnlyGallery implements IGalleryRepository {
     String photoId, {
     String? drinkName,
     String? caption,
+    String? cafeId,
   }) => throw UnsupportedError('Read only');
 
   @override

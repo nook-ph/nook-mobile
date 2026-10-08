@@ -103,9 +103,11 @@ class GalleryRepositoryImpl implements IGalleryRepository {
     String photoId, {
     String? drinkName,
     String? caption,
+    String? cafeId,
   }) => _update(photoId, {
     'drink_name': _cleanDrink(drinkName),
     'caption': _cleanCaption(caption),
+    'cafe_id': ?cafeId,
   });
 
   @override

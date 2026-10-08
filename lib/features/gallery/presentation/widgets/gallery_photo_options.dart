@@ -3,10 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/utils/content_filter.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
+import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
+import 'package:nook/features/gallery/presentation/widgets/add_gallery_photos_sheet.dart';
+import 'package:nook/features/gallery/presentation/widgets/cafe_picker_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
+import 'package:nook/injection_container.dart';
 
 /// What the owner can do to one photo. Delete is last and red; a review
 /// photo offers its review instead, because deleting it here would quietly
@@ -19,6 +24,7 @@ Future<bool> showGalleryPhotoOptions(
   required GalleryCubit cubit,
   required GalleryPhoto photo,
   VoidCallback? onOpenReview,
+  Future<PickedCafe?> Function()? pickCafe,
 }) async {
   final choice = await ListsSheet.show<_Option>(
     context,
@@ -94,12 +100,17 @@ Future<bool> showGalleryPhotoOptions(
       }
       return false;
     case _Option.drink:
-      final details = await showPhotoDetailsSheet(context, photo: photo);
+      final details = await showPhotoDetailsSheet(
+        context,
+        photo: photo,
+        pickCafe: pickCafe ?? _appCafePicker(context),
+      );
       if (details == null || !context.mounted) return false;
       final ok = await cubit.setDetails(
         photo,
         drinkName: details.drink,
         caption: details.note,
+        cafe: details.cafe,
       );
       if (!ok && context.mounted) {
         showPrimaryToast(context, "Couldn't save your changes. Try again.");
@@ -160,23 +171,38 @@ Future<bool?> _confirmDelete(BuildContext context) {
   );
 }
 
-/// Asks for the drink and the note on [photo]. Returns both (empty text
-/// clears), or null when dismissed. A review photo has no note: its review
-/// says it.
-Future<({String drink, String note})?> showPhotoDetailsSheet(
+/// The app's cafe picker, or null where it isn't set up (tests).
+Future<PickedCafe?> Function()? _appCafePicker(BuildContext context) {
+  if (!sl.isRegistered<ICafePickerSource>()) return null;
+  return () => showCafePickerSheet(context, source: sl<ICafePickerSource>());
+}
+
+/// What the edit sheet returns: the drink and the note (empty text clears),
+/// and the cafe when it changed.
+typedef PhotoDetails = ({String drink, String note, PickedCafe? cafe});
+
+/// Asks for the drink, the note and the cafe of [photo]. Returns them, or
+/// null when dismissed. A review photo has no note (its review says it)
+/// and keeps its review's cafe. Save stays off until something changes
+/// (Figma G6).
+Future<PhotoDetails?> showPhotoDetailsSheet(
   BuildContext context, {
   required GalleryPhoto photo,
+  Future<PickedCafe?> Function()? pickCafe,
 }) {
-  return ListsSheet.show<({String drink, String note})>(
+  return ListsSheet.show<PhotoDetails>(
     context,
-    builder: (_) => _PhotoDetailsSheet(photo: photo),
+    builder: (_) => _PhotoDetailsSheet(photo: photo, pickCafe: pickCafe),
   );
 }
 
 class _PhotoDetailsSheet extends StatefulWidget {
-  const _PhotoDetailsSheet({required this.photo});
+  const _PhotoDetailsSheet({required this.photo, this.pickCafe});
 
   final GalleryPhoto photo;
+
+  /// Change cafe. Null leaves the cafe fixed.
+  final Future<PickedCafe?> Function()? pickCafe;
 
   @override
   State<_PhotoDetailsSheet> createState() => _PhotoDetailsSheetState();
@@ -185,7 +211,34 @@ class _PhotoDetailsSheet extends StatefulWidget {
 class _PhotoDetailsSheetState extends State<_PhotoDetailsSheet> {
   late final _drink = TextEditingController(text: widget.photo.drinkName);
   late final _note = TextEditingController(text: widget.photo.caption);
+  late PickedCafe _cafe = PickedCafe(
+    id: widget.photo.cafeId,
+    name: widget.photo.cafeName,
+    area: widget.photo.cafeArea,
+  );
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Save follows the fields.
+    _drink.addListener(_changed);
+    _note.addListener(_changed);
+  }
+
+  void _changed() => setState(() {});
+
+  bool get _dirty =>
+      _drink.text.trim() != (widget.photo.drinkName ?? '') ||
+      _note.text.trim() != (widget.photo.caption ?? '') ||
+      _cafe.id != widget.photo.cafeId;
+
+  Future<void> _changeCafe() async {
+    final pick = widget.pickCafe;
+    if (pick == null) return;
+    final next = await pick();
+    if (next != null && mounted) setState(() => _cafe = next);
+  }
 
   @override
   void dispose() {
@@ -203,19 +256,21 @@ class _PhotoDetailsSheetState extends State<_PhotoDetailsSheet> {
     Navigator.pop(context, (
       drink: _drink.text.trim(),
       note: _note.text.trim(),
+      cafe: _cafe.id == widget.photo.cafeId ? null : _cafe,
     ));
   }
 
   @override
   Widget build(BuildContext context) {
     final error = _error;
+    final review = widget.photo.isFromReview;
     return ListsSheet(
-      title: widget.photo.isFromReview ? 'What did you have?' : 'Edit photo',
+      title: review ? 'What did you have?' : 'Edit photo',
       children: [
         DrinkNameField(
           controller: _drink,
           autofocus: true,
-          onDone: widget.photo.isFromReview ? _save : null,
+          onDone: review && _dirty ? _save : null,
         ),
         if (!widget.photo.isFromReview) ...[
           GalleryNoteField(controller: _note),
@@ -226,7 +281,13 @@ class _PhotoDetailsSheetState extends State<_PhotoDetailsSheet> {
             liveRegion: true,
             child: Text(error, style: listsText(13, color: ListsTokens.danger)),
           ),
-        ListsPillButton(label: 'Save', onTap: _save),
+        // A review photo stays with its review's cafe.
+        if (!review)
+          GalleryCafeRow(
+            cafe: _cafe,
+            onChange: widget.pickCafe == null ? null : _changeCafe,
+          ),
+        ListsPillButton(label: 'Save', onTap: _dirty ? _save : null),
       ],
     );
   }

@@ -183,7 +183,7 @@ class _AddGalleryPhotosSheetState extends State<AddGalleryPhotosSheet> {
                 style: listsText(13, color: ListsTokens.danger),
               ),
             ),
-          _CafeRow(
+          GalleryCafeRow(
             cafe: _cafe,
             onChange: widget.onChangeCafe == null ? null : _changeCafe,
           ),
@@ -296,9 +296,9 @@ class _Thumb extends StatelessWidget {
 }
 
 /// The cafe the photos go to. A chevron row when it can change; a plain row
-/// when it is fixed.
-class _CafeRow extends StatelessWidget {
-  const _CafeRow({required this.cafe, this.onChange});
+/// when it is fixed. Shared by the add and edit sheets.
+class GalleryCafeRow extends StatelessWidget {
+  const GalleryCafeRow({super.key, required this.cafe, this.onChange});
 
   final PickedCafe cafe;
   final VoidCallback? onChange;

@@ -121,7 +121,11 @@ class FakeGalleryRepository implements IGalleryRepository {
     String photoId, {
     String? drinkName,
     String? caption,
-  }) async => _write('details $photoId $drinkName $caption');
+    String? cafeId,
+  }) async => _write(
+    'details $photoId $drinkName $caption'
+    '${cafeId == null ? '' : ' cafe $cafeId'}',
+  );
 
   @override
   Future<void> deletePhoto(String photoId) async => _write('delete $photoId');

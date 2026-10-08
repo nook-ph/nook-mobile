@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
 
 enum GalleryStatus { initial, loading, loaded, failed }
@@ -296,22 +297,35 @@ class GalleryCubit extends Cubit<GalleryState> {
     );
   }
 
-  /// Sets the drink and the note; empty text clears either.
+  /// Sets the drink and the note; empty text clears either. A [cafe]
+  /// other than the photo's moves it there (not a review photo's).
   Future<bool> setDetails(
     GalleryPhoto photo, {
     String? drinkName,
     String? caption,
+    PickedCafe? cafe,
   }) {
     String? clean(String? v) => (v?.trim().isEmpty ?? true) ? null : v!.trim();
     final drink = clean(drinkName), note = clean(caption);
+    final move = cafe != null && cafe.id != photo.cafeId && !photo.isFromReview
+        ? cafe
+        : null;
     return _apply(
       photo.copyWith(
         drinkName: drink,
         clearDrinkName: drink == null,
         caption: note,
         clearCaption: note == null,
+        cafe: move == null
+            ? null
+            : (id: move.id, name: move.name, area: move.area),
       ),
-      () => _repository.setDetails(photo.id, drinkName: drink, caption: note),
+      () => _repository.setDetails(
+        photo.id,
+        drinkName: drink,
+        caption: note,
+        cafeId: move?.id,
+      ),
     );
   }
 

@@ -159,6 +159,7 @@ class DemoGalleryRepository implements IGalleryRepository {
     String photoId, {
     String? drinkName,
     String? caption,
+    String? cafeId,
   }) async => _replace(
     photoId,
     (p) => p.copyWith(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 
 import 'gallery_fakes.dart';
@@ -168,6 +169,26 @@ void main() {
       caption: 'Best cortado in Lahug',
     );
     expect(repo.added.single.caption, 'Best cortado in Lahug');
+  });
+
+  test('a new cafe moves a photo; a review photo stays put', () async {
+    await cubit.load();
+    final photo = cubit.state.photos.firstWhere((p) => p.id == 'old');
+    const lorenzo = PickedCafe(
+      id: 'lorenzo',
+      name: "Lorenzo's Cafe",
+      area: 'Lahug, Cebu City',
+    );
+    expect(await cubit.setDetails(photo, cafe: lorenzo), isTrue);
+    expect(repo.calls.last, 'details old null null cafe lorenzo');
+    final moved = cubit.state.photos.firstWhere((p) => p.id == 'old');
+    expect(moved.cafeId, 'lorenzo');
+    expect(moved.cafeName, "Lorenzo's Cafe");
+    expect(moved.cafeArea, 'Lahug, Cebu City');
+
+    final review = galleryPhoto('rv', source: GalleryPhotoSource.review);
+    await cubit.setDetails(review, cafe: lorenzo);
+    expect(repo.calls.last, 'details rv null null');
   });
 
   group('upload', () {
