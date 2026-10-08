@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
@@ -176,6 +177,33 @@ void main() {
       expect(tester.getSize(find.byKey(const Key('placeholder'))).height, real);
     });
   }
+
+  // The feed's scroll view starts its children on the left; a state view as
+  // wide as its longest line sat off-centre there.
+  testWidgets('a state view is centred in a start-aligned feed', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          HomeStateView.error(
+            error: const ErrorInfo(
+              type: ErrorType.offline,
+              // Short copy: test glyphs are square, so the real wording
+              // already fills the width and would hide the bug.
+              title: 'Offline',
+              subtitle: 'Try again',
+            ),
+            onRetry: () {},
+          ),
+        ],
+      ),
+    );
+    final icon = tester.getCenter(find.byIcon(LucideIcons.wifiOff));
+    expect(icon.dx, 180);
+  });
 
   testWidgets('state views and both location banners fit', (tester) async {
     await pump(
