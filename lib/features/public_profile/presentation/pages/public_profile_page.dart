@@ -3,11 +3,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/block/block_cubit.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_details.dart'
+    show WrittenReview;
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/review_sheet_shell.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
@@ -143,36 +147,125 @@ class _PublicProfileView extends StatelessWidget {
   final ValueChanged<String>? onOpenCafe;
 
   /// Asks why, then reports the photo. Signed-in visitors only.
-  Future<void> _reportPhoto(BuildContext context, GalleryPhoto photo) async {
-    final reason = await ListsSheet.show<PhotoReportReason>(
+  Future<void> _reportPhoto(BuildContext context, GalleryPhoto photo) {
+    return _report<PhotoReportReason>(
+      context,
+      title: 'Report this photo?',
+      message:
+          'For the photo or what it says. They won’t know who reported it.',
+      reasons: PhotoReportReason.values,
+      labelOf: (reason) => reason.label,
+      send: (reason, details) =>
+          repository.reportPhoto(photo.id, reason, details: details),
+    );
+  }
+
+  /// Asks why, then reports the person: their name, avatar or bio.
+  Future<void> _reportProfile(BuildContext context, PublicProfile profile) {
+    return _report<ProfileReportReason>(
+      context,
+      title: 'Report @${profile.username}?',
+      message:
+          'For their name, photo or bio. To report a review or a photo, use '
+          'its ⋯. They won’t know who reported them.',
+      reasons: ProfileReportReason.values,
+      labelOf: (reason) => reason.label,
+      send: (reason, details) =>
+          repository.reportProfile(profile.userId, reason, details: details),
+    );
+  }
+
+  /// The app's one report sheet: a reason, an optional detail, then Submit
+  /// report. Thanks the person once it is sent.
+  Future<void> _report<T>(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required List<T> reasons,
+    required String Function(T) labelOf,
+    required Future<void> Function(T reason, String? details) send,
+  }) async {
+    final sent = await ReviewSheetShell.show<bool>(
+      context,
+      builder: (_) => ReportReasonSheet<T>(
+        title: title,
+        message: message,
+        reasons: reasons,
+        labelOf: labelOf,
+        onSubmit: (reason, details) =>
+            send(reason, details.isEmpty ? null : details),
+      ),
+    );
+    if (sent == true && context.mounted) {
+      showPrimaryToast(context, ReviewReportSheet.sentMessage);
+    }
+  }
+
+  /// ⋯ on one of their reviews: Report review or Block, as on a cafe page.
+  /// Blocking there leaves this profile too.
+  Future<void> _reviewOptions(
+    BuildContext context,
+    PublicProfile profile,
+    WrittenReview review,
+  ) async {
+    final blocks = context.read<BlockCubit>();
+    await showReviewActionsSheet(
+      context,
+      reviewId: review.id,
+      cafeId: review.cafeId,
+      authorId: profile.userId,
+      authorName: profile.displayName,
+    );
+    if (context.mounted && blocks.isBlocked(profile.userId)) {
+      Navigator.of(context).maybePop();
+    }
+  }
+
+  /// The bar's ⋯ (Figma B2): Share profile, then Report and Block for a
+  /// signed-in visitor.
+  Future<void> _openOptions(BuildContext context, PublicProfile profile) async {
+    final moderate = signedIn && !profile.isSelf;
+    final choice = await ListsSheet.show<_ProfileOption>(
       context,
       builder: (sheetContext) => ListsSheet(
-        title: 'Report this photo?',
+        title: '@${profile.username}',
         gap: 4,
         children: [
-          Text(
-            'For the photo or what it says. They won’t know who reported '
-            'it.',
-            style: ProfileTokens.text(14, color: ProfileTokens.muted),
+          ListsSheetAction(
+            title: 'Share profile',
+            subtitle: profile.isSelf
+                ? 'Send a link to your profile'
+                : 'Send a link to their profile',
+            onTap: () => Navigator.pop(sheetContext, _ProfileOption.share),
           ),
-          for (final reason in PhotoReportReason.values)
+          if (moderate) ...[
             ListsSheetAction(
-              title: reason.label,
-              onTap: () => Navigator.pop(sheetContext, reason),
+              title: 'Report @${profile.username}',
+              subtitle: 'Their name, photo or bio breaks the guidelines',
+              onTap: () => Navigator.pop(sheetContext, _ProfileOption.report),
             ),
+            ListsSheetAction(
+              title: 'Block @${profile.username}',
+              subtitle: 'Hide their reviews and profile from you',
+              destructive: true,
+              onTap: () => Navigator.pop(sheetContext, _ProfileOption.block),
+            ),
+          ],
         ],
       ),
     );
-    if (reason == null || !context.mounted) return;
-    try {
-      await repository.reportPhoto(photo.id, reason);
-      if (context.mounted) {
-        showPrimaryToast(context, 'Thanks. We’ll take a look.');
-      }
-    } catch (_) {
-      if (context.mounted) {
-        showPrimaryToast(context, 'Could not send the report. Try again.');
-      }
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case _ProfileOption.share:
+        await shareProfile(
+          username: profile.username,
+          name: profile.displayName,
+          own: profile.isSelf,
+        );
+      case _ProfileOption.report:
+        await _reportProfile(context, profile);
+      case _ProfileOption.block:
+        await _block(context, profile);
     }
   }
 
@@ -226,46 +319,20 @@ class _PublicProfileView extends StatelessWidget {
             actions: [
               if (profile != null && !preview)
                 AdaptiveTap(
-                  onTap: () => shareProfile(
-                    username: profile.username,
-                    name: profile.displayName,
-                    own: profile.isSelf,
-                  ),
+                  onTap: () => _openOptions(context, profile),
                   borderRadius: BorderRadius.circular(22),
                   child: Semantics(
                     button: true,
-                    label: 'Share profile',
+                    label: 'Profile options',
                     child: const SizedBox.square(
                       dimension: 44,
                       child: Icon(
-                        LucideIcons.share,
+                        LucideIcons.ellipsis,
                         size: 20,
                         color: ProfileTokens.ink,
                       ),
                     ),
                   ),
-                ),
-              if (profile != null && !preview && !profile.isSelf && signedIn)
-                PopupMenuButton<String>(
-                  tooltip: 'More',
-                  icon: const Icon(
-                    LucideIcons.ellipsisVertical,
-                    size: 20,
-                    color: ProfileTokens.ink,
-                  ),
-                  onSelected: (_) => _block(context, profile),
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      value: 'block',
-                      child: Text(
-                        'Block @${profile.username}',
-                        style: ProfileTokens.text(
-                          14,
-                          color: ProfileTokens.danger,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
             ],
           ),
@@ -298,6 +365,9 @@ class _PublicProfileView extends StatelessWidget {
                 onReportPhoto: signedIn && !profile.isSelf && !preview
                     ? (photo) => _reportPhoto(context, photo)
                     : null,
+                onReviewMore: signedIn && !profile.isSelf && !preview
+                    ? (review) => _reviewOptions(context, profile, review)
+                    : null,
               ),
             },
           ),
@@ -306,6 +376,8 @@ class _PublicProfileView extends StatelessWidget {
     );
   }
 }
+
+enum _ProfileOption { share, report, block }
 
 class _Loading extends StatelessWidget {
   const _Loading();
@@ -366,11 +438,15 @@ class _Loaded extends StatelessWidget {
     required this.profile,
     required this.onOpenCafe,
     this.onReportPhoto,
+    this.onReviewMore,
   });
 
   final PublicProfile profile;
   final ValueChanged<String> onOpenCafe;
   final ValueChanged<GalleryPhoto>? onReportPhoto;
+
+  /// ⋯ on a review row. Null leaves it off (guests, Preview, yourself).
+  final ValueChanged<WrittenReview>? onReviewMore;
 
   @override
   Widget build(BuildContext context) {
@@ -410,6 +486,7 @@ class _Loaded extends StatelessWidget {
               child: _ReviewsBody(
                 profile: profile,
                 onOpenCafe: onOpenCafe,
+                onMore: onReviewMore,
                 shrinkWrap: true,
               ),
             ),
@@ -464,7 +541,11 @@ class _Loaded extends StatelessWidget {
                     ProfileTokens.gutter,
                     24,
                   ),
-                  child: _ReviewsBody(profile: profile, onOpenCafe: onOpenCafe),
+                  child: _ReviewsBody(
+                    profile: profile,
+                    onOpenCafe: onOpenCafe,
+                    onMore: onReviewMore,
+                  ),
                 ),
               ],
             ),
@@ -564,11 +645,13 @@ class _ReviewsBody extends StatelessWidget {
   const _ReviewsBody({
     required this.profile,
     required this.onOpenCafe,
+    this.onMore,
     this.shrinkWrap = false,
   });
 
   final PublicProfile profile;
   final ValueChanged<String> onOpenCafe;
+  final ValueChanged<WrittenReview>? onMore;
   final bool shrinkWrap;
 
   @override
@@ -581,7 +664,11 @@ class _ReviewsBody extends StatelessWidget {
         top: shrinkWrap ? 24 : 80,
       );
     }
-    return ProfileReviewList(reviews: profile.reviews, onOpenCafe: onOpenCafe);
+    return ProfileReviewList(
+      reviews: profile.reviews,
+      onOpenCafe: onOpenCafe,
+      onMore: onMore,
+    );
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/block/block_cubit.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
@@ -144,11 +145,17 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Photo options'));
     await tester.pumpAndSettle();
     expect(find.text('Report this photo?'), findsOneWidget);
+    // Picking a reason sends nothing yet: Submit report does.
     await tester.tap(find.text(PhotoReportReason.spam.label));
+    await tester.pumpAndSettle();
+    expect(repo.reports, isEmpty);
+    await tester.enterText(find.byType(TextField), '  A shop ad  ');
+    await tester.tap(find.text('Submit report'));
     await tester.pumpAndSettle();
 
     expect(repo.reports, [('p1', PhotoReportReason.spam)]);
-    expect(find.text('Thanks. We’ll take a look.'), findsOneWidget);
+    expect(repo.reportDetails, ['A shop ad']);
+    expect(find.text(ReviewReportSheet.sentMessage), findsOneWidget);
     await tester.pump(const Duration(seconds: 6));
     await tester.pumpAndSettle();
   });
@@ -189,7 +196,10 @@ void main() {
       tester,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    await tester.tap(find.bySemanticsLabel('Share profile'));
+    await tester.tap(find.bySemanticsLabel('Profile options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Share profile'));
+    await tester.pumpAndSettle();
     expect(shared.single.username, 'beasantos');
     expect(shared.single.own, isFalse);
   });
@@ -206,7 +216,7 @@ void main() {
     );
     expect(find.text('Preview'), findsOneWidget);
     expect(find.text('What visitors see on your profile'), findsOneWidget);
-    expect(find.bySemanticsLabel('Share profile'), findsNothing);
+    expect(find.bySemanticsLabel('Profile options'), findsNothing);
     expect(find.text('Top cafes'), findsNothing);
   });
 
@@ -233,7 +243,7 @@ void main() {
       blocks: blocks,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    await tester.tap(find.byTooltip('More'));
+    await tester.tap(find.bySemanticsLabel('Profile options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Block @beasantos'));
     await tester.pumpAndSettle();
@@ -245,13 +255,92 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('a guest has no Block', (tester) async {
+  testWidgets('a guest can share but not report or block', (tester) async {
     await pump(
       tester,
       signedIn: false,
       repository: FakePublicProfileRepository(profile: beaProfile()),
     );
-    expect(find.byTooltip('More'), findsNothing);
+    await tester.tap(find.bySemanticsLabel('Profile options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Share profile'), findsOneWidget);
+    expect(find.text('Report @beasantos'), findsNothing);
+    expect(find.text('Block @beasantos'), findsNothing);
+  });
+
+  testWidgets('signed in: Report profile asks why, then sends it', (
+    tester,
+  ) async {
+    final repo = await pump(
+      tester,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.tap(find.bySemanticsLabel('Profile options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report @beasantos'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Report @beasantos?'), findsOneWidget);
+    for (final reason in ProfileReportReason.values) {
+      expect(find.text(reason.label), findsOneWidget);
+    }
+    await tester.tap(find.text(ProfileReportReason.impersonation.label));
+    await tester.pumpAndSettle();
+    expect(repo.profileReports, isEmpty);
+    await tester.tap(find.text('Submit report'));
+    await tester.pumpAndSettle();
+
+    expect(repo.profileReports, [
+      ('bea-id', ProfileReportReason.impersonation, null),
+    ]);
+    expect(find.text(ReviewReportSheet.sentMessage), findsOneWidget);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a failed profile report keeps the sheet open', (tester) async {
+    final repo = await pump(
+      tester,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    repo.writeFailure = Exception('offline');
+    await tester.tap(find.bySemanticsLabel('Profile options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report @beasantos'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(ProfileReportReason.spam.label));
+    await tester.tap(find.text('Submit report'));
+    await tester.pumpAndSettle();
+    expect(find.text('Report @beasantos?'), findsOneWidget);
+    expect(find.text(ReviewReportSheet.sentMessage), findsNothing);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('their review rows have ⋯ for a signed-in visitor only', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.tap(find.text('Reviews').last);
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Review options'), findsWidgets);
+    await tester.tap(find.bySemanticsLabel('Review options').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Report review'), findsOneWidget);
+  });
+
+  testWidgets('a guest sees no ⋯ on review rows', (tester) async {
+    await pump(
+      tester,
+      signedIn: false,
+      repository: FakePublicProfileRepository(profile: beaProfile()),
+    );
+    await tester.tap(find.text('Reviews').last);
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Review options'), findsNothing);
   });
 }
 

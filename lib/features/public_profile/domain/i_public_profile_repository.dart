@@ -21,7 +21,19 @@ abstract interface class IPublicProfileRepository {
 
   /// Reports someone else's photo (the image or its note) for review.
   /// Reporting the same photo twice is not an error.
-  Future<void> reportPhoto(String photoId, PhotoReportReason reason);
+  Future<void> reportPhoto(
+    String photoId,
+    PhotoReportReason reason, {
+    String? details,
+  });
+
+  /// Reports someone else's profile (their name, avatar or bio) for review
+  /// (`profile_reports`). Reporting the same person twice is not an error.
+  Future<void> reportProfile(
+    String userId,
+    ProfileReportReason reason, {
+    String? details,
+  });
 }
 
 /// Why a photo was reported (`photo_reports.reason`).
@@ -32,6 +44,19 @@ enum PhotoReportReason {
   other('other', 'Something else');
 
   const PhotoReportReason(this.wire, this.label);
+
+  final String wire;
+  final String label;
+}
+
+/// Why a profile was reported (`profile_reports.reason`).
+enum ProfileReportReason {
+  offensive('offensive', 'Offensive name, photo or bio'),
+  spam('spam', 'Spam or a fake account'),
+  impersonation('impersonation', 'Pretending to be someone else'),
+  other('other', 'Something else');
+
+  const ProfileReportReason(this.wire, this.label);
 
   final String wire;
   final String label;
