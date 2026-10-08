@@ -49,6 +49,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
             subtitle: loaded == null
                 ? null
                 : reviewCountLabel(loaded.reviews.length),
+            textScaler: MediaQuery.textScalerOf(context),
           ),
           body: SafeArea(
             top: false,

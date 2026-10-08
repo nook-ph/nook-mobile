@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 
@@ -208,6 +209,29 @@ void main() {
     expect(find.text('What visitors see on your profile'), findsOneWidget);
     expect(find.bySemanticsLabel('Share profile'), findsNothing);
     expect(find.text('Top cafes'), findsNothing);
+  });
+
+  // The Preview bar carries a subtitle; at large text the fixed 56pt bar
+  // overflowed (about 28pt at 2.0).
+  testWidgets('the preview bar grows with large text instead of overflowing', (
+    tester,
+  ) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await pump(
+      tester,
+      preview: true,
+      repository: FakePublicProfileRepository(
+        profile: beaProfile(isSelf: true),
+      ),
+    );
+    final bar = tester.getRect(find.byType(ProfileNavBar));
+    final title = tester.getRect(find.text('Preview'));
+    final subtitle = tester.getRect(
+      find.text('What visitors see on your profile'),
+    );
+    expect(title.top, greaterThanOrEqualTo(bar.top));
+    expect(subtitle.bottom, lessThanOrEqualTo(bar.bottom));
   });
 
   testWidgets('a review’s cafe opens the cafe', (tester) async {

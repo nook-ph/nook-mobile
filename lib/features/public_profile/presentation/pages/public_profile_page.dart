@@ -223,6 +223,7 @@ class _PublicProfileView extends StatelessWidget {
                 ? 'Preview'
                 : (profile != null ? '@${profile.username}' : title),
             subtitle: preview ? 'What visitors see on your profile' : null,
+            textScaler: MediaQuery.textScalerOf(context),
             actions: [
               if (profile != null && !preview)
                 AdaptiveTap(
