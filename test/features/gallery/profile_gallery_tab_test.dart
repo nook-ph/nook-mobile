@@ -448,6 +448,25 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('Undo after Hide shows it again and puts the pin back', (
+    tester,
+  ) async {
+    await pump(tester, [galleryPhoto('a', drink: 'Flat white', pin: 1)]);
+    await tester.longPress(tile('Flat white'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hide from profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hidden from your profile'), findsOneWidget);
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+
+    expect(repo.calls, ['hide a true', 'hide a false', 'pin a 1']);
+    final photo = cubit.state.photos.single;
+    expect(photo.isHidden, isFalse);
+    expect(photo.pinOrder, 1);
+    await letToastExpire(tester);
+  });
+
   group('edit sheet', () {
     testWidgets('Change cafe moves the photo; going back to the same cafe '
         'turns Save off again', (tester) async {

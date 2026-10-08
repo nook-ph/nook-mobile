@@ -120,12 +120,19 @@ Future<bool> showGalleryPhotoOptions(
       final hide = !photo.isHidden;
       final ok = await cubit.setHidden(photo, hidden: hide);
       if (!context.mounted) return false;
+      if (ok && hide) {
+        showPrimaryToastWithAction(
+          context,
+          'Hidden from your profile',
+          actionLabel: 'Undo',
+          onAction: () => _undoHide(cubit, photo),
+        );
+        return false;
+      }
       showPrimaryToast(
         context,
         !ok
             ? "Couldn't update the photo. Try again."
-            : hide
-            ? 'Hidden from your profile'
             : 'Showing on your profile',
       );
       return false;
@@ -146,6 +153,17 @@ Future<bool> showGalleryPhotoOptions(
 }
 
 enum _Option { pin, drink, hide, review, delete }
+
+/// Undo for Hide: shows [before] again and, as hiding unpinned it, pins it
+/// back when it was pinned (the first free slot, if its own was taken).
+Future<void> _undoHide(GalleryCubit cubit, GalleryPhoto before) async {
+  final hidden = cubit.state.photos.where((p) => p.id == before.id).firstOrNull;
+  if (hidden == null || !hidden.isHidden) return;
+  final shown = await cubit.setHidden(hidden, hidden: false);
+  if (!shown || !before.isPinned) return;
+  final again = cubit.state.photos.where((p) => p.id == before.id).firstOrNull;
+  if (again != null && !again.isPinned) await cubit.togglePin(again);
+}
 
 Future<bool?> _confirmDelete(BuildContext context) {
   return ListsSheet.show<bool>(
