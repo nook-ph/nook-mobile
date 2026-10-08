@@ -12,8 +12,61 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseAuthRemoteDataSource {
   final SupabaseClient _client;
 
-  SupabaseAuthRemoteDataSource({SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+  /// A fresh Sign in with Apple authorization code, for account deletion.
+  /// Null where Apple can't be asked (not iOS). Overridable for tests.
+  final Future<String?> Function() _appleReauthCode;
+
+  /// Calls `delete-user` with [body]; returns the HTTP status. Overridable
+  /// for tests.
+  final Future<int> Function(Map<String, dynamic> body)? _invokeDeleteUser;
+
+  final User? Function()? _currentUser;
+
+  SupabaseAuthRemoteDataSource({
+    SupabaseClient? client,
+    Future<String?> Function()? appleReauthCode,
+    Future<int> Function(Map<String, dynamic> body)? invokeDeleteUser,
+    User? Function()? currentUser,
+  }) : _client = client ?? Supabase.instance.client,
+       _appleReauthCode = appleReauthCode ?? _appleCodeFromDevice,
+       _invokeDeleteUser = invokeDeleteUser,
+       _currentUser = currentUser;
+
+  /// Whether [user] has an Apple identity (signed up or linked with Apple).
+  static bool usesApple(User? user) {
+    if (user == null) return false;
+    final meta = user.appMetadata;
+    if (meta['provider'] == 'apple') return true;
+    final providers = meta['providers'];
+    if (providers is List && providers.contains('apple')) return true;
+    return (user.identities ?? const <UserIdentity>[]).any(
+      (i) => i.provider == 'apple',
+    );
+  }
+
+  /// Asks Apple to confirm the user again, for a fresh authorization code
+  /// the server exchanges and revokes (App Store guideline 5.1.1(v)).
+  static Future<String?> _appleCodeFromDevice() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return null;
+    try {
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [],
+      );
+      return credential.authorizationCode;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        throw const AuthException(appleDeleteCanceled);
+      }
+      throw const AuthException(appleDeleteFailed);
+    } on SignInWithAppleNotSupportedException catch (_) {
+      return null;
+    }
+  }
+
+  static const appleDeleteCanceled =
+      'Confirm with Apple to delete your account.';
+  static const appleDeleteFailed =
+      'Apple couldn’t confirm it’s you. Please try again.';
 
   Future<bool> checkEmailExists(String email) async {
     developer.log(
@@ -199,12 +252,28 @@ class SupabaseAuthRemoteDataSource {
     }
   }
 
+  /// Deletes the account through the `delete-user` function. An Apple
+  /// account is first re-confirmed with Apple, and the fresh authorization
+  /// code goes with the request so the server can revoke the app's Apple
+  /// tokens. Cancelling Apple's sheet cancels the deletion.
   Future<void> deleteAccount() async {
-    final response = await _client.functions.invoke(
-      'delete-user',
-      method: HttpMethod.post,
-    );
-    if (response.status != 200) {
+    final user = _currentUser?.call() ?? _client.auth.currentUser;
+    final body = <String, dynamic>{};
+    if (usesApple(user)) {
+      final code = await _appleReauthCode();
+      if (code != null && code.isNotEmpty) {
+        body['appleAuthorizationCode'] = code;
+      }
+    }
+    final invoke = _invokeDeleteUser;
+    final status = invoke != null
+        ? await invoke(body)
+        : (await _client.functions.invoke(
+            'delete-user',
+            method: HttpMethod.post,
+            body: body,
+          )).status;
+    if (status != 200) {
       throw AuthException('Account deletion failed. Please try again later.');
     }
   }
