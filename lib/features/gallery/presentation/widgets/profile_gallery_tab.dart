@@ -151,6 +151,7 @@ class GalleryTile extends StatelessWidget {
       'at ${photo.cafeName}',
       if (photo.isPinned) 'pinned',
       if (photo.isHidden) 'hidden from your profile',
+      if (photo.isModerated) 'removed by Nook, visitors can’t see it',
     ].join(', ');
 
     return Semantics(
@@ -165,9 +166,18 @@ class GalleryTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             Opacity(
-              opacity: photo.isHidden ? 0.4 : 1,
+              opacity: photo.isHidden || photo.isModerated ? 0.4 : 1,
               child: GalleryImage(url: photo.imageUrl, cacheWidth: 360),
             ),
+            // Taken down by moderation: not a Cup and can't be pinned, so
+            // the owner is told why the counts and the grid disagree.
+            if (photo.isModerated)
+              const Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _ModeratedBar(),
+              ),
             if (photo.isPinned)
               const Positioned(top: 6, left: 6, child: _PinnedTag()),
             if (photo.isHidden)
@@ -177,6 +187,30 @@ class GalleryTile extends StatelessWidget {
                 child: _Badge(icon: LucideIcons.eyeOff),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Removed by Nook" along the bottom of a moderated photo's tile.
+class _ModeratedBar extends StatelessWidget {
+  const _ModeratedBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xCC0A0F0D),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Text(
+        'Removed by Nook',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: ProfileTokens.text(
+          11,
+          weight: FontWeight.w500,
+          color: Colors.white,
         ),
       ),
     );

@@ -109,6 +109,20 @@ void main() {
   });
 
   group('grid', () {
+    testWidgets('a moderated photo says it was removed by Nook (NH3)', (
+      tester,
+    ) async {
+      await pump(tester, [
+        galleryPhoto('a', drink: 'Flat white'),
+        galleryPhoto('b', drink: 'Cortado', moderated: true),
+      ]);
+      expect(find.text('Removed by Nook'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp('^Cortado, .*removed by Nook')),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('hidden photos stay in the grid, marked as hidden', (
       tester,
     ) async {
