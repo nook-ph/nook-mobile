@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/analytics/profile_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 
 enum ProfileVisibilityStatus { initial, loading, loaded, failed }
@@ -69,6 +71,10 @@ class ProfileVisibilityCubit extends Cubit<ProfileVisibilityState> {
     );
     try {
       await _repository.setMyHighlightsPublic(value);
+      logAppEvent(
+        ProfileEvents.visibilityChanged,
+        properties: {'public': value},
+      );
       return true;
     } catch (_) {
       if (!isClosed) emit(before);

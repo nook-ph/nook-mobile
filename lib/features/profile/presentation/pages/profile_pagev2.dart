@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
@@ -152,7 +153,12 @@ class _ProfileViewState extends State<ProfileView> {
       open(profile.userId);
       return;
     }
-    PublicProfilePage.open(context, userId: profile.userId, preview: true);
+    PublicProfilePage.open(
+      context,
+      userId: profile.userId,
+      preview: true,
+      source: ProfileViewSource.preview,
+    );
   }
 
   @override

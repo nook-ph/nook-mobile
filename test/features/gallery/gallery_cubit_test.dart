@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 
+import '../../core/analytics/recording_analytics.dart';
 import 'gallery_fakes.dart';
 
 void main() {
@@ -198,6 +199,24 @@ void main() {
     expect(cubit.state.status, GalleryStatus.loaded);
     expect(ids(), contains('new-5'));
     expect(ids(), hasLength(6));
+  });
+
+  test('added photos are logged with their count and source', () async {
+    final analytics = RecordingAnalytics.install(addTearDown);
+    await cubit.load();
+    await cubit.addPhotos(
+      cafeId: 'cafe-9',
+      photos: [pickedPhoto('a'), pickedPhoto('b')],
+      source: GalleryPhotoSource.rank,
+      drinkName: 'Cortado',
+      caption: '  ',
+    );
+    expect(analytics.propertiesOf('gallery_photos_added'), {
+      'count': 2,
+      'source': 'rank',
+      'has_drink': true,
+      'has_note': false,
+    });
   });
 
   test('drink and note are trimmed, and blank clears them', () async {

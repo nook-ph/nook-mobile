@@ -1,5 +1,7 @@
 import 'dart:ui' show Rect;
 
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/profile_events.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// Shares a cafe as its public web page.
@@ -42,12 +44,16 @@ class ShareService {
     Rect? sharePositionOrigin,
   }) async {
     final title = own ? 'Find me on Nook' : '$name on Nook';
-    await SharePlus.instance.share(
+    final result = await SharePlus.instance.share(
       ShareParams(
         text: '$title\n\n${profileLink(username)}',
         subject: title,
         sharePositionOrigin: sharePositionOrigin,
       ),
+    );
+    logAppEvent(
+      ProfileEvents.profileShared,
+      properties: {'own': own, 'result': result.status.name},
     );
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -117,6 +118,7 @@ class _PeopleMatchesState extends State<PeopleMatches> {
                   context,
                   username: person.username,
                   nameHint: person.fullName,
+                  source: ProfileViewSource.search,
                 );
               },
             ),

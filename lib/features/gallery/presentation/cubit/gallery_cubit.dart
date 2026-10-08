@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/analytics/profile_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
 
@@ -119,6 +121,15 @@ class GalleryCubit extends Cubit<GalleryState> {
       source: source,
       drinkName: drinkName,
       caption: caption,
+    );
+    logAppEvent(
+      ProfileEvents.galleryPhotosAdded,
+      properties: {
+        'count': added.length,
+        'source': source.wire,
+        'has_drink': (drinkName?.trim() ?? '').isNotEmpty,
+        'has_note': (caption?.trim() ?? '').isNotEmpty,
+      },
     );
     if (isClosed) return added;
     switch (state.status) {
