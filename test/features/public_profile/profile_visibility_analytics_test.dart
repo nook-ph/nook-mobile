@@ -27,4 +27,15 @@ void main() {
     expect(await cubit.setHighlightsPublic(false), isFalse);
     expect(analytics.events, isEmpty);
   });
+
+  test('a load that finishes after sign-out is dropped', () async {
+    final cubit = ProfileVisibilityCubit(
+      repository: FakePublicProfileRepository(),
+    );
+    addTearDown(cubit.close);
+    final loading = cubit.load();
+    cubit.clear();
+    await loading;
+    expect(cubit.state, const ProfileVisibilityState());
+  });
 }

@@ -81,6 +81,15 @@ void main() {
 
   tearDown(() => cubit.close());
 
+  test('a load that finishes after sign-out is dropped', () async {
+    repo.serverRankings = [r('a', RankBucket.liked, 1, 10.0)];
+    final loading = cubit.load();
+    cubit.reset();
+    await loading;
+    expect(cubit.state.loaded, isFalse);
+    expect(cubit.state.rankedCount, 0);
+  });
+
   test('load populates rankings and flips loaded', () async {
     repo.serverRankings = [
       r('a', RankBucket.liked, 1, 10.0),

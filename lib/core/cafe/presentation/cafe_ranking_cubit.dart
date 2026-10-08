@@ -33,8 +33,11 @@ class CafeRankingCubit extends Cubit<CafeRankingState> {
   /// Loads the whole ranking. Cheap — it is one user's own cafes — so callers
   /// can just call it on sign-in and after a Been list change.
   Future<void> load() async {
+    final epoch = _epoch;
     try {
       final rankings = await getCafeRankingsUseCase();
+      // Signed out (or switched account) meanwhile: not theirs to show.
+      if (isClosed || epoch != _epoch) return;
       emit(state.copyWith(rankings: rankings, loaded: true));
     } catch (e, st) {
       // Scores silently stay hidden; the write path surfaces its own errors.
@@ -187,8 +190,14 @@ class CafeRankingCubit extends Cubit<CafeRankingState> {
     }
   }
 
+  /// Bumped by [reset], so a load that finishes after sign-out is dropped.
+  int _epoch = 0;
+
   /// Drops everything (sign-out) — rankings are per-user.
-  void reset() => emit(const CafeRankingState());
+  void reset() {
+    _epoch++;
+    emit(const CafeRankingState());
+  }
 }
 
 class CafeRankingState extends Equatable {

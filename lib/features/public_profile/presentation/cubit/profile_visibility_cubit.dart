@@ -33,6 +33,7 @@ class ProfileVisibilityCubit extends Cubit<ProfileVisibilityState> {
 
   Future<void> load() async {
     if (state.status == ProfileVisibilityStatus.loading) return;
+    final epoch = _epoch;
     emit(
       ProfileVisibilityState(
         status: ProfileVisibilityStatus.loading,
@@ -41,7 +42,8 @@ class ProfileVisibilityCubit extends Cubit<ProfileVisibilityState> {
     );
     try {
       final value = await _repository.getMyHighlightsPublic();
-      if (isClosed) return;
+      // Signed out (or switched account) meanwhile: not theirs to show.
+      if (isClosed || epoch != _epoch) return;
       emit(
         ProfileVisibilityState(
           status: ProfileVisibilityStatus.loaded,
@@ -49,7 +51,7 @@ class ProfileVisibilityCubit extends Cubit<ProfileVisibilityState> {
         ),
       );
     } catch (_) {
-      if (isClosed) return;
+      if (isClosed || epoch != _epoch) return;
       emit(
         ProfileVisibilityState(
           status: ProfileVisibilityStatus.failed,
@@ -82,6 +84,12 @@ class ProfileVisibilityCubit extends Cubit<ProfileVisibilityState> {
     }
   }
 
+  /// Bumped by [clear], so a load that finishes after sign-out is dropped.
+  int _epoch = 0;
+
   /// Signed out: back to the default.
-  void clear() => emit(const ProfileVisibilityState());
+  void clear() {
+    _epoch++;
+    emit(const ProfileVisibilityState());
+  }
 }

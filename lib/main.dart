@@ -25,6 +25,7 @@ import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
+import 'package:nook/features/search/data/search_origin_store.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
@@ -143,7 +144,10 @@ class _MyAppState extends State<MyApp> {
                 context.read<CafeStatusCubit>().reset();
                 context.read<CafeRankingCubit>().reset();
                 context.read<GalleryCubit>().clear();
+                context.read<ProfileVisibilityCubit>().clear();
                 context.read<MyCrawlsCubit>().reset();
+                // "Near Home" was measured from the last user's place.
+                sl<SearchOriginStore>().set(null);
               }
             },
             child: MaterialApp.router(
