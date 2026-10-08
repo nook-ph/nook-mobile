@@ -30,16 +30,49 @@ enum SettingsLocationStatus {
   final String label;
 }
 
+/// What the Location row says for [permission].
+///
+/// [LocationPermission.denied] is also Android's never-asked state (and a
+/// refusal the app may still ask about again), so it reads "Not set" and a
+/// tap asks. Only [LocationPermission.deniedForever] (which is also what
+/// iOS reports after a refusal) is "Denied" and goes to the system
+/// settings.
+SettingsLocationStatus settingsLocationStatusFor(
+  LocationPermission permission, {
+  required bool serviceEnabled,
+}) {
+  final granted =
+      permission == LocationPermission.whileInUse ||
+      permission == LocationPermission.always;
+  if (granted) {
+    return serviceEnabled
+        ? SettingsLocationStatus.on
+        : SettingsLocationStatus.off;
+  }
+  if (permission == LocationPermission.deniedForever) {
+    return SettingsLocationStatus.denied;
+  }
+  return SettingsLocationStatus.unknown;
+}
+
 /// Settings, in groups: Permissions, Account, Legal, then Log out and
 /// Delete account on their own.
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key, this.currentUser, this.readLocationStatus});
+  const SettingsPage({
+    super.key,
+    this.currentUser,
+    this.readLocationStatus,
+    this.requestLocation,
+  });
 
   /// Who is signed in. Defaults to the Supabase session.
   final ValueGetter<supabase.User?>? currentUser;
 
   /// Reads the location permission. Defaults to asking Geolocator.
   final Future<SettingsLocationStatus> Function()? readLocationStatus;
+
+  /// Asks for location permission. Overridable for tests.
+  final Future<Object?> Function()? requestLocation;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -102,24 +135,27 @@ class _SettingsPageState extends State<SettingsPage>
 
   static Future<SettingsLocationStatus> _readLocationStatus() async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      final permission = await Geolocator.checkPermission();
-      final granted =
-          permission == LocationPermission.whileInUse ||
-          permission == LocationPermission.always;
-      if (granted && serviceEnabled) return SettingsLocationStatus.on;
-      if (granted && !serviceEnabled) return SettingsLocationStatus.off;
-      if (permission == LocationPermission.deniedForever ||
-          permission == LocationPermission.denied) {
-        return SettingsLocationStatus.denied;
-      }
-      return SettingsLocationStatus.unknown;
+      return settingsLocationStatusFor(
+        await Geolocator.checkPermission(),
+        serviceEnabled: await Geolocator.isLocationServiceEnabled(),
+      );
     } catch (_) {
       return SettingsLocationStatus.unknown;
     }
   }
 
+  /// Not asked yet: ask, here. Otherwise the system settings, the only
+  /// place a refusal can be undone.
   Future<void> _openLocationSettings() async {
+    if (_locationStatus == SettingsLocationStatus.unknown) {
+      try {
+        await (widget.requestLocation ?? Geolocator.requestPermission)();
+      } catch (_) {
+        // Fall through to a refresh; the row keeps its status.
+      }
+      await _refreshLocationStatus();
+      return;
+    }
     await Geolocator.openAppSettings();
   }
 

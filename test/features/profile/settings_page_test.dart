@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/profile/presentation/pages/settings_page.dart';
@@ -66,6 +67,68 @@ void main() {
 
     final delete = tester.widget<Text>(find.text('Delete account'));
     expect(delete.style?.color, ProfileTokens.danger);
+  });
+
+  test('never asked (denied on Android) reads Not set; only deniedForever '
+      'is Denied (SF11)', () {
+    expect(
+      settingsLocationStatusFor(
+        LocationPermission.denied,
+        serviceEnabled: true,
+      ),
+      SettingsLocationStatus.unknown,
+    );
+    expect(
+      settingsLocationStatusFor(
+        LocationPermission.deniedForever,
+        serviceEnabled: true,
+      ),
+      SettingsLocationStatus.denied,
+    );
+    expect(
+      settingsLocationStatusFor(
+        LocationPermission.whileInUse,
+        serviceEnabled: false,
+      ),
+      SettingsLocationStatus.off,
+    );
+    expect(
+      settingsLocationStatusFor(
+        LocationPermission.always,
+        serviceEnabled: true,
+      ),
+      SettingsLocationStatus.on,
+    );
+  });
+
+  testWidgets('tapping a Not set location asks, then shows the answer', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    var status = SettingsLocationStatus.unknown;
+    var asks = 0;
+    await tester.pumpWidget(
+      profileHost(
+        auth: FakeAuthBloc(),
+        page: SettingsPage(
+          currentUser: () => userWith('email'),
+          readLocationStatus: () async => status,
+          requestLocation: () async {
+            asks++;
+            status = SettingsLocationStatus.on;
+            return null;
+          },
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Not set'), findsOneWidget);
+    await tester.tap(find.text('Location'));
+    await tester.pumpAndSettle();
+    expect(asks, 1);
+    expect(find.text('On'), findsOneWidget);
   });
 
   testWidgets('location shows its status; Denied is red', (tester) async {

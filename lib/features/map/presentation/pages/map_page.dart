@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' show Point;
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
@@ -219,8 +220,35 @@ class _MapPageState extends State<MapPage>
       if (permission == LocationPermission.deniedForever) {
         return;
       }
-      await Geolocator.requestPermission();
+      if (!mounted) return;
+      // Say why before the system asks, and offer the alternative: a
+      // cold prompt that was refused left the map on Cebu with nothing
+      // said.
+      final useLocation = await showConfirmSheet(
+        context,
+        title: 'Show cafes near you?',
+        message:
+            'Nook uses your location to centre the map on you and show how '
+            'far each cafe is. You can choose an area instead.',
+        confirmLabel: 'Use my location',
+        cancelLabel: 'Choose an area',
+        destructive: false,
+      );
+      if (!mounted) return;
+      if (!useLocation) {
+        await _chooseOrigin();
+        return;
+      }
+      final answer = await Geolocator.requestPermission();
       await _syncLocationEnabledFromPermission();
+      if (!mounted) return;
+      if (answer != LocationPermission.whileInUse &&
+          answer != LocationPermission.always) {
+        showPrimaryToast(
+          context,
+          'Location is off. Tap "Near" in the search bar to choose an area.',
+        );
+      }
     } catch (_) {
       // Best-effort: the user can re-enable via Settings.
     }
