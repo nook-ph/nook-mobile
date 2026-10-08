@@ -129,6 +129,10 @@ class FeaturedCard extends StatelessWidget {
               lat: cafe.lat,
               lng: cafe.lng,
             ),
+            if (isSkeleton)
+              const HomeOpenLine.placeholder()
+            else
+              HomeOpenLine(hours: cafe.operatingHours),
             if (cafe.tags.isNotEmpty) ...[
               // Figma: 2 between the lines plus the tag row's own 6 on top.
               const SizedBox(height: 8),

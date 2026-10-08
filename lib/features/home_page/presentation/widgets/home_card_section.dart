@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
 import 'package:nook/core/widgets/prototype_height.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
@@ -12,11 +15,17 @@ class HomeCafeSection extends StatelessWidget {
   final List<CafeSummary> cafes;
   final bool isSkeleton;
 
+  /// The search sort that lists this shelf in full ("nearby", "newest",
+  /// "trending", "top_rated"); the title then opens that list. Null keeps
+  /// the title plain.
+  final String? sort;
+
   const HomeCafeSection({
     super.key,
     required this.title,
     required this.cafes,
     this.isSkeleton = false,
+    this.sort,
   });
 
   // Dummy cafe for the prototype: same shape as real data.
@@ -39,7 +48,12 @@ class HomeCafeSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        HomeSectionTitle(title),
+        HomeSectionTitle(
+          title,
+          onSeeAll: sort == null || isSkeleton
+              ? null
+              : () => context.push('/search?sort=$sort'),
+        ),
         const SizedBox(height: 12),
         PrototypeHeight(
           // Same widget as the real cards, so the row is exactly one card
@@ -72,25 +86,63 @@ class HomeCafeSection extends StatelessWidget {
 }
 
 class HomeSectionTitle extends StatelessWidget {
-  const HomeSectionTitle(this.text, {super.key});
+  const HomeSectionTitle(this.text, {super.key, this.onSeeAll});
 
   final String text;
 
+  /// Opens the shelf's full list. With it the whole title row is a button
+  /// ending in "See all" (docs/ux/find-a-cafe.md, finding 4: shelves were a
+  /// dead end after a few cards).
+  final VoidCallback? onSeeAll;
+
   @override
   Widget build(BuildContext context) {
+    final title = Text(
+      text,
+      style: context.textTheme.titleMediumSemi.copyWith(
+        color: context.colorScheme.black,
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
+        height: 1.5,
+      ),
+    );
+    final seeAll = onSeeAll;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: ResponsiveCardSizes.homeGutter,
       ),
-      child: Text(
-        text,
-        style: context.textTheme.titleMediumSemi.copyWith(
-          color: context.colorScheme.black,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-          height: 1.5,
-        ),
-      ),
+      child: seeAll == null
+          ? title
+          : AdaptiveTap(
+              onTap: seeAll,
+              child: Semantics(
+                button: true,
+                label: '$text, see all',
+                excludeSemantics: true,
+                // 8 above and below brings the row to a 40pt tap target.
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      Expanded(child: title),
+                      Text(
+                        'See all',
+                        style: context.textTheme.bodySmall?.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: context.colorScheme.primary,
+                        ),
+                      ),
+                      Icon(
+                        LucideIcons.chevronRight,
+                        size: 16,
+                        color: context.colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
     );
   }
 }

@@ -17,6 +17,10 @@ class FilterCubit extends Cubit<CafeFilter> {
     emit(filter);
   }
 
+  void toggleOpenNow() {
+    emit(state.copyWith(openNow: !state.openNow));
+  }
+
   void reset() {
     emit(const CafeFilter());
   }

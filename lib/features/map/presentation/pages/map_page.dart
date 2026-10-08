@@ -270,6 +270,13 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
       // sees the map tab selected; this is the first time the map is opened.
       unawaited(_maybeRequestPermissionOnce());
       unawaited(_syncLocationEnabledFromPermission());
+      // The tab is built hidden at app start, so its first camera idle comes
+      // while inactive and was dropped: nothing fitted the camera or fetched
+      // the viewport until the person panned, which left the first load's 20
+      // hour-less rows ("20+ cafes", Open now with nothing to filter). Replay
+      // the idle once the tab has been on screen for a moment; the delay
+      // keeps the camera fit off the frame the native view is created on.
+      unawaited(_replayFirstIdle());
       final cafes = _lastSyncedCafes;
       if (!_cameraFitted && cafes != null && _mapController != null) {
         unawaited(
@@ -332,6 +339,11 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                         _queueSyncMapData(s.cafes);
                       }
                       _queueApplyOrigin(moveCamera: _origin != null);
+                      // The camera's first idle often lands before the style
+                      // and is dropped; run it now instead.
+                      if (widget.isActive && !_mapIdleSeen) {
+                        unawaited(_replayFirstIdle());
+                      }
                     },
                   )
                 else
@@ -466,6 +478,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
                             cafes: state.cafes,
                             tags: state.tags,
                             isLoadingCafes: false,
+                            isCapped: state.isCapped,
                             distanceFrom: _originPoint,
                             onMetricsChanged: _onSheetMetricsChanged,
                           )
@@ -531,6 +544,20 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
   }
 
   // --- Viewport-driven fetching -------------------------------------------
+
+  /// Runs the first camera idle once the opened tab's map is ready: its style
+  /// can still be loading when the tab appears, so this waits for it (up to
+  /// ten seconds) and steps aside if a real idle got there first.
+  Future<void> _replayFirstIdle() async {
+    for (var i = 0; i < 20; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted || !widget.isActive || _mapIdleSeen) return;
+      if (_mapController != null && _styleLoaded) {
+        _onCameraIdle();
+        return;
+      }
+    }
+  }
 
   void _onCameraIdle() {
     final controller = _mapController;
@@ -899,6 +926,7 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
     List<CafeSummary> cafes,
   ) async {
     if (cafes.isEmpty) return false;
+    cafes = mapCoreCafes(cafes);
 
     // The map is built on every tab (MainScreen keeps all four in an
     // IndexedStack), so this can run while it has never been laid out. There
@@ -1234,4 +1262,25 @@ class _MapSelection {
       animateDismiss: animateDismiss ?? this.animateDismiss,
     );
   }
+}
+
+/// The cafes the first view frames: those within 10 km of the median cafe,
+/// when they are most of the set. Fitting every cafe let one outlying town
+/// zoom the map out to the whole region, with the city's pins merged into one
+/// blob (docs/ux/find-a-cafe.md, finding 3). Mirrors the web map.
+List<CafeSummary> mapCoreCafes(List<CafeSummary> cafes) {
+  if (cafes.length < 3) return cafes;
+  double median(Iterable<double> values) {
+    final sorted = values.toList()..sort();
+    return sorted[sorted.length ~/ 2];
+  }
+
+  final lat = median(cafes.map((c) => c.lat!));
+  final lng = median(cafes.map((c) => c.lng!));
+  final core = cafes
+      .where(
+        (c) => Geolocator.distanceBetween(lat, lng, c.lat!, c.lng!) <= 10000,
+      )
+      .toList();
+  return core.length >= cafes.length * 0.6 ? core : cafes;
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -55,6 +56,7 @@ class _EmailConfirmationPendingScreenState
   void _verify() {
     if (!_isComplete) return;
     FocusManager.instance.primaryFocus?.unfocus();
+    logAppEvent('signup_code_submitted');
     context.read<AuthBloc>().add(AuthVerifyOtpEvent(_codeController.text));
   }
 

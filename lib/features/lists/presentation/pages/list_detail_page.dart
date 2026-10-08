@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
@@ -322,6 +324,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
       onOpenCafe: _openCafe,
       onCafeMore: _showCafeActions,
       onFindCafe: () => context.push('/search'),
+      onMakeCrawl: _canMakeCrawl ? _openCrawlBuilder : null,
     );
   }
 }
@@ -338,6 +341,7 @@ class ListDetailView extends StatelessWidget {
     required this.onOpenCafe,
     required this.onCafeMore,
     required this.onFindCafe,
+    this.onMakeCrawl,
   });
 
   final String title;
@@ -347,6 +351,11 @@ class ListDetailView extends StatelessWidget {
   final ValueChanged<CafeSummary> onOpenCafe;
   final ValueChanged<CafeSummary> onCafeMore;
   final VoidCallback onFindCafe;
+
+  /// Opens the crawl builder. Shown under the title on lists with enough
+  /// cafes; it used to be only in the "…" menu (docs/ux/core-loops.md,
+  /// finding 4).
+  final VoidCallback? onMakeCrawl;
 
   bool get _isBeen => listType == 'been';
 
@@ -393,6 +402,24 @@ class ListDetailView extends StatelessWidget {
           )
         else
           _ListTitle(title: title, subtitle: _plainSubtitle()),
+        if (!_isBeen && onMakeCrawl != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              ListsTokens.gutter,
+              0,
+              ListsTokens.gutter,
+              12,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: CrawlPillButton(
+                label: 'Make it a crawl',
+                icon: LucideIcons.route,
+                outlined: true,
+                onTap: onMakeCrawl,
+              ),
+            ),
+          ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: ListsTokens.gutter),
           child: _isBeen

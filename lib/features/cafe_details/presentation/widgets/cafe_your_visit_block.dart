@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
@@ -232,6 +233,19 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
                         ),
                       ],
                     ),
+                    // The note is private; this makes it a public review in
+                    // one step, without writing it again
+                    // (docs/ux/core-loops.md, finding 2).
+                    if (hasNote && ranking != null)
+                      _TextAction(
+                        icon: PhosphorIcons.chatCircleText(),
+                        label: 'Post it as a review',
+                        onTap: () => WriteReviewSheet.show(
+                          context,
+                          cafeId: widget.cafeId,
+                          initialText: note,
+                        ),
+                      ),
                   ],
                 ),
               ),

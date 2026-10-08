@@ -17,12 +17,17 @@ class MapLoadedState extends MapState {
   /// stay visible; the UI shows a small "Updating" chip instead of a skeleton.
   final bool isRefreshing;
 
+  /// The fetch hit its row limit, so [cafes] may not be everything in view
+  /// and its length is not a count ("20+ cafes", not "20 cafes").
+  final bool isCapped;
+
   MapLoadedState({
     required this.cafes,
     required this.tags,
     this.locationDenied = false,
     this.locationBannerDismissed = false,
     this.isRefreshing = false,
+    this.isCapped = false,
   });
 
   MapLoadedState copyWith({
@@ -31,6 +36,7 @@ class MapLoadedState extends MapState {
     bool? locationDenied,
     bool? locationBannerDismissed,
     bool? isRefreshing,
+    bool? isCapped,
   }) {
     return MapLoadedState(
       cafes: cafes ?? this.cafes,
@@ -39,6 +45,7 @@ class MapLoadedState extends MapState {
       locationBannerDismissed:
           locationBannerDismissed ?? this.locationBannerDismissed,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      isCapped: isCapped ?? this.isCapped,
     );
   }
 }

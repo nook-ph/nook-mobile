@@ -4,6 +4,8 @@ import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/geo.dart';
+import 'package:nook/features/crawls/domain/crawl_stats.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/crawls/domain/entities/crawl_exception.dart';
 import 'package:nook/features/crawls/domain/use_cases/create_crawl_usecase.dart';
@@ -220,6 +222,16 @@ class _CrawlBuilderViewState extends State<_CrawlBuilderView> {
                 'From ${widget.listName} · hold and drag to reorder',
                 style: crawlText(12, color: ListsTokens.muted),
               ),
+              // How far the order walks, and the shortest one, so a route
+              // that criss-crosses shows before it is created
+              // (docs/ux/core-loops.md, finding 4).
+              if (selected.length >= 2) ...[
+                const SizedBox(height: 6),
+                _RouteLine(
+                  stops: selected,
+                  onShortest: submitting ? null : (ids) => cubit.setOrder(ids),
+                ),
+              ],
               const SizedBox(height: 10),
               ReorderableListView.builder(
                 shrinkWrap: true,
@@ -235,14 +247,38 @@ class _CrawlBuilderViewState extends State<_CrawlBuilderView> {
                     order: index + 1,
                     showDivider: index > 0,
                     onTap: submitting ? null : () => cubit.toggle(cafe.id),
+                    // Drag the handle, or tap it for Move up / Move down.
                     trailing: ReorderableDragStartListener(
                       index: index,
-                      child: const Padding(
-                        padding: EdgeInsets.fromLTRB(12, 10, 0, 10),
-                        child: Icon(
-                          LucideIcons.equal,
-                          size: 20,
-                          color: ListsTokens.muted,
+                      child: PopupMenuButton<int>(
+                        tooltip: 'Reorder ${cafe.name}',
+                        color: ListsTokens.surface,
+                        surfaceTintColor: Colors.transparent,
+                        elevation: 6,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabled: !submitting,
+                        onSelected: (delta) => cubit.move(index, delta),
+                        itemBuilder: (_) => [
+                          if (index > 0)
+                            const PopupMenuItem(
+                              value: -1,
+                              child: Text('Move up'),
+                            ),
+                          if (index < selected.length - 1)
+                            const PopupMenuItem(
+                              value: 1,
+                              child: Text('Move down'),
+                            ),
+                        ],
+                        child: const Padding(
+                          padding: EdgeInsets.fromLTRB(12, 10, 0, 10),
+                          child: Icon(
+                            LucideIcons.equal,
+                            size: 20,
+                            color: ListsTokens.muted,
+                          ),
                         ),
                       ),
                     ),
@@ -417,6 +453,87 @@ class _CafeRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// "About 5.5 km between stops", with "Shortest order" when another order of
+/// the same stops walks less.
+class _RouteLine extends StatelessWidget {
+  const _RouteLine({required this.stops, required this.onShortest});
+
+  final List<CafeSummary> stops;
+  final ValueChanged<List<String>>? onShortest;
+
+  static double _length(List<CafeSummary> order) {
+    var total = 0.0;
+    for (var i = 1; i < order.length; i++) {
+      final a = order[i - 1], b = order[i];
+      if (a.lat == null || a.lng == null || b.lat == null || b.lng == null) {
+        continue;
+      }
+      total += haversineMeters(
+        GeoPoint(lat: a.lat!, lng: a.lng!),
+        GeoPoint(lat: b.lat!, lng: b.lng!),
+      );
+    }
+    return total;
+  }
+
+  /// Every order of at most six stops (720), keeping the shortest.
+  static List<CafeSummary> _shortest(List<CafeSummary> stops) {
+    var best = stops;
+    var bestLength = _length(stops);
+    void permute(List<CafeSummary> prefix, List<CafeSummary> rest) {
+      if (rest.isEmpty) {
+        final length = _length(prefix);
+        if (length < bestLength - 1) {
+          best = List.of(prefix);
+          bestLength = length;
+        }
+        return;
+      }
+      for (var i = 0; i < rest.length; i++) {
+        permute([...prefix, rest[i]], [...rest]..removeAt(i));
+      }
+    }
+
+    permute(const [], stops);
+    return best;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final length = _length(stops);
+    if (length <= 0) return const SizedBox.shrink();
+    final shortest = _shortest(stops);
+    final saves = length - _length(shortest);
+    // Only worth a button when it saves a real walk.
+    final offer = onShortest != null && saves >= 300;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'About ${CrawlStats.formatDistance(length)} between stops',
+            style: crawlText(12, color: ListsTokens.muted),
+          ),
+        ),
+        if (offer)
+          AdaptiveTap(
+            onTap: () => onShortest!([for (final c in shortest) c.id]),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                'Shortest order · saves ${CrawlStats.formatDistance(saves)}',
+                style: crawlText(
+                  12,
+                  weight: FontWeight.w600,
+                  color: ListsTokens.brand,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

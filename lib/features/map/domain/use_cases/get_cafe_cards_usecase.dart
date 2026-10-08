@@ -10,9 +10,12 @@ class GetCafeCardUseCase {
   final ICafeRepository repository;
   GetCafeCardUseCase(this.repository);
 
+  /// Rows the first map load asks for. A full page may have been cut off.
+  static const int defaultLimit = 20;
+
   Future<CafeCardResult> call({
     int page = 0,
-    int limit = 20,
+    int limit = defaultLimit,
     CafeFilter filter = const CafeFilter(),
   }) async {
     double? lat = filter.lat;

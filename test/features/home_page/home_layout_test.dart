@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_card_section.dart';
+import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_featured_card.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_tag_chip.dart';
 import 'package:nook/utils/theme/theme.dart';
@@ -146,7 +149,61 @@ void main() {
         tester.getSize(find.byKey(const Key('real'))).height,
       );
     });
+
+    // The carousels take their height from a skeleton card. A skeleton that
+    // left the open line out made every row 20pt short of a real card.
+    testWidgets('a placeholder open line is as tall as a real one at $scale', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            HomeOpenLine(
+              key: const Key('real'),
+              hours: {
+                for (final day in CafeOpenStatus.orderedDays)
+                  day: {'open': '07:00', 'close': '22:00'},
+              },
+            ),
+            const HomeOpenLine.placeholder(key: Key('placeholder')),
+          ],
+        ),
+        textScale: scale,
+      );
+      final real = tester.getSize(find.byKey(const Key('real'))).height;
+      expect(real, greaterThan(0));
+      expect(tester.getSize(find.byKey(const Key('placeholder'))).height, real);
+    });
   }
+
+  // The feed's scroll view starts its children on the left; a state view as
+  // wide as its longest line sat off-centre there.
+  testWidgets('a state view is centred in a start-aligned feed', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          HomeStateView.error(
+            error: const ErrorInfo(
+              type: ErrorType.offline,
+              // Short copy: test glyphs are square, so the real wording
+              // already fills the width and would hide the bug.
+              title: 'Offline',
+              subtitle: 'Try again',
+            ),
+            onRetry: () {},
+          ),
+        ],
+      ),
+    );
+    final icon = tester.getCenter(find.byIcon(LucideIcons.wifiOff));
+    expect(icon.dx, 180);
+  });
 
   testWidgets('state views and both location banners fit', (tester) async {
     await pump(

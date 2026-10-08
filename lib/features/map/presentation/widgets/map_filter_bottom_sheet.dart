@@ -68,6 +68,7 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
       query: prev.query,
       lat: prev.lat,
       lng: prev.lng,
+      openNow: prev.openNow,
     );
   }
 

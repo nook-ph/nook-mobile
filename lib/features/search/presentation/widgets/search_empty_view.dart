@@ -34,11 +34,18 @@ class SearchEmptyView extends StatelessWidget {
     required this.line,
     this.onClearFilters,
     this.onSearchNearMe,
+    this.suggestedTag,
+    this.onSuggestedTag,
   });
 
   final String line;
   final VoidCallback? onClearFilters;
   final VoidCallback? onSearchNearMe;
+
+  /// A filter the typed words probably meant ("wifi" → Free WiFi), offered
+  /// first so a dead end has a way on.
+  final String? suggestedTag;
+  final VoidCallback? onSuggestedTag;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +67,13 @@ class SearchEmptyView extends StatelessWidget {
           textAlign: TextAlign.center,
           style: SearchTokens.text(context, color: SearchTokens.muted),
         ),
+        if (suggestedTag != null && onSuggestedTag != null) ...[
+          const SizedBox(height: 20),
+          SearchPillButton(
+            label: 'Show cafes with $suggestedTag',
+            onTap: onSuggestedTag!,
+          ),
+        ],
         if (clear != null || nearMe != null) const SizedBox(height: 20),
         if (clear != null)
           SearchPillButton(label: 'Clear filters', onTap: clear),

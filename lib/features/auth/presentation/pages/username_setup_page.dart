@@ -2,12 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
+import 'package:nook/core/auth/auth_return.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/content_filter.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+import 'package:nook/core/analytics/log_app_event.dart';
 
 /// Asks the server whether a username is free. Swappable in tests.
 typedef UsernameAvailabilityCheck = Future<bool> Function(String username);
@@ -154,7 +155,17 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          context.go('/');
+          final suggested = widget.fullName?.trim();
+          logAppEvent(
+            'signup_username_set',
+            properties: {
+              'kept_suggestion':
+                  suggested != null &&
+                  suggested.isNotEmpty &&
+                  _usernameController.text == suggestUsername(suggested),
+            },
+          );
+          finishSignIn(context);
           return;
         }
         if (state is AuthError) {

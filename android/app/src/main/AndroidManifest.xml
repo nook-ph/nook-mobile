@@ -22,10 +22,15 @@
     </queries>
 
 
+    <!-- allowBackup off: Auto Backup restored local flags such as
+         hasSeenOnboarding on reinstall, so a new install skipped onboarding
+         (docs/ux/core-loops.md, finding 5). The session lives on the server;
+         nothing a user needs is only on the device. -->
     <application
         android:label="nook"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:allowBackup="false">
 
         <activity
             android:name=".MainActivity"

@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:nook/injection_container.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 
 /// Which action put the page into [AuthLoading], so only that control spins
 /// (B4 "Checking…" on Continue, B9 the provider's own button).
@@ -30,6 +32,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   String? _emailError;
   bool _didPrefillFromExtra = false;
   bool _agreedToTerms = false;
+  bool _termsNudge = false;
   _Pending? _pending;
   late final TapGestureRecognizer _eulaTap;
   late final TapGestureRecognizer _privacyTap;
@@ -56,6 +59,9 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_didPrefillFromExtra) return;
+
+    // The page under this screen is where sign-in should return to.
+    AuthReturn.rememberOrigin(GoRouter.of(context));
 
     final email = GoRouterState.of(context).extra as String?;
     if (email != null && email.trim().isNotEmpty) {
@@ -92,6 +98,8 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       }
     }
   }
+
+  void _nudgeTerms() => setState(() => _termsNudge = true);
 
   void _onContinuePressed() {
     final email = _emailController.text.trim();
@@ -132,10 +140,17 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
       listener: (context, state) {
         if (state is! AuthLoading) setState(() => _pending = null);
         if (state is AuthEmailChecked) {
+          logAppEvent(
+            'auth_email_checked',
+            properties: {'account_exists': state.exists},
+          );
+          // Pushed, not `go`: `go` replaced the whole stack, so the system
+          // Back button on the next screen closed the app (docs/ux/signup.md,
+          // finding 1). Pushed, Back returns here with the email still typed.
           if (state.exists) {
-            context.go('/login-password', extra: state.email);
+            context.push('/login-password', extra: state.email);
           } else {
-            context.go('/signup-details', extra: state.email);
+            context.push('/signup-details', extra: state.email);
           }
           return;
         }
@@ -151,7 +166,7 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
           return;
         }
         if (state is AuthAuthenticated) {
-          context.go('/');
+          finishSignIn(context);
           return;
         }
         if (state is AuthError) {
@@ -219,47 +234,88 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
             ),
             AuthTermsAgreement(
               value: _agreedToTerms,
-              onChanged: (value) => setState(() => _agreedToTerms = value),
+              onChanged: (value) => setState(() {
+                _agreedToTerms = value;
+                if (value) _termsNudge = false;
+              }),
+              showNudge: _termsNudge,
               eulaRecognizer: _eulaTap,
               privacyRecognizer: _privacyTap,
             ),
-            AuthPrimaryButton(
-              label: 'Continue',
-              loading: pending == _Pending.email,
-              loadingLabel: 'Checking…',
-              onPressed: canSubmit ? _onContinuePressed : null,
+            _TermsGate(
+              locked: !_agreedToTerms && !isLoading,
+              onLockedTap: _nudgeTerms,
+              child: AuthPrimaryButton(
+                label: 'Continue',
+                loading: pending == _Pending.email,
+                loadingLabel: 'Checking…',
+                onPressed: canSubmit ? _onContinuePressed : null,
+              ),
             ),
             const AuthOrDivider(),
-            AuthOutlineButton(
-              label: 'Continue with Google',
-              icon: Image.asset(
-                'assets/logos/googleLogo.png',
-                width: 18,
-                height: 18,
-                cacheWidth: (18 * MediaQuery.devicePixelRatioOf(context))
-                    .ceil(),
+            _TermsGate(
+              locked: !_agreedToTerms && !isLoading,
+              onLockedTap: _nudgeTerms,
+              child: AuthOutlineButton(
+                label: 'Continue with Google',
+                icon: Image.asset(
+                  'assets/logos/googleLogo.png',
+                  width: 18,
+                  height: 18,
+                  cacheWidth: (18 * MediaQuery.devicePixelRatioOf(context))
+                      .ceil(),
+                ),
+                loading: pending == _Pending.google,
+                onPressed: providersEnabled
+                    ? () => _signInWith(_Pending.google)
+                    : null,
               ),
-              loading: pending == _Pending.google,
-              onPressed: providersEnabled
-                  ? () => _signInWith(_Pending.google)
-                  : null,
             ),
             if (Platform.isIOS)
-              AuthOutlineButton(
-                label: 'Continue with Apple',
-                icon: const Icon(
-                  LucideIcons.apple,
-                  size: 18,
-                  color: AuthColors.ink,
+              _TermsGate(
+                locked: !_agreedToTerms && !isLoading,
+                onLockedTap: _nudgeTerms,
+                child: AuthOutlineButton(
+                  label: 'Continue with Apple',
+                  icon: const Icon(
+                    LucideIcons.apple,
+                    size: 18,
+                    color: AuthColors.ink,
+                  ),
+                  loading: pending == _Pending.apple,
+                  onPressed: providersEnabled
+                      ? () => _signInWith(_Pending.apple)
+                      : null,
                 ),
-                loading: pending == _Pending.apple,
-                onPressed: providersEnabled
-                    ? () => _signInWith(_Pending.apple)
-                    : null,
               ),
           ],
         );
       },
+    );
+  }
+}
+
+/// Keeps a button disabled until the terms box is ticked (App Store review
+/// records it that way), but catches a tap on it and asks for the tick
+/// instead of letting the tap do nothing.
+class _TermsGate extends StatelessWidget {
+  const _TermsGate({
+    required this.locked,
+    required this.onLockedTap,
+    required this.child,
+  });
+
+  final bool locked;
+  final VoidCallback onLockedTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!locked) return child;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onLockedTap,
+      child: child,
     );
   }
 }

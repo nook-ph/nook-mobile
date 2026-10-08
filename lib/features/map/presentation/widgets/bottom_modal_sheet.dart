@@ -32,6 +32,9 @@ class BottomModalSheet extends StatefulWidget {
   /// The place distances are measured from; null means the phone.
   final GeoPoint? distanceFrom;
 
+  /// The list hit its fetch limit, so the count reads "20+".
+  final bool isCapped;
+
   const BottomModalSheet({
     super.key,
     required this.cafes,
@@ -41,6 +44,7 @@ class BottomModalSheet extends StatefulWidget {
     this.error,
     this.onRetry,
     this.distanceFrom,
+    this.isCapped = false,
   });
 
   @override
@@ -247,8 +251,8 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             key: _countKey,
-                            '${widget.cafes.length} '
-                            '${widget.cafes.length == 1 ? 'cafe' : 'cafes'} in view',
+                            '${widget.cafes.length}${widget.isCapped ? '+' : ''} '
+                            '${widget.cafes.length == 1 && !widget.isCapped ? 'cafe' : 'cafes'} in view',
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   fontSize: 12,
@@ -301,7 +305,9 @@ class _FilterChipRow extends StatelessWidget {
         child: BlocBuilder<FilterCubit, CafeFilter>(
           // [OPT-4] Only rebuild when the values this widget actually uses change.
           buildWhen: (prev, next) =>
-              prev.sort != next.sort || prev.tagNames != next.tagNames,
+              prev.sort != next.sort ||
+              prev.tagNames != next.tagNames ||
+              prev.openNow != next.openNow,
           builder: (context, filter) {
             final fadersActive = _anyMapFilterActive(filter);
             final bestForActive = _hasTagInPool(
@@ -318,7 +324,10 @@ class _FilterChipRow extends StatelessWidget {
             );
             final sortActive = filter.sort != 'nearby';
 
-            final total = filter.tagNames.length + (sortActive ? 1 : 0);
+            final total =
+                filter.tagNames.length +
+                (sortActive ? 1 : 0) +
+                (filter.openNow ? 1 : 0);
 
             // Sliders first, then sort, then the tag groups. A chip with a
             // choice in it fills green and carries its count.
@@ -331,6 +340,20 @@ class _FilterChipRow extends StatelessWidget {
                   count: total,
                   showCaret: false,
                   onTap: () => MapFilterBottomSheet.show(context),
+                ),
+                const SizedBox(width: 8),
+                // "Can I go now" in one tap, first after the sliders
+                // (docs/ux/find-a-cafe.md, finding 2).
+                _QuickFilterChip(
+                  title: 'Open now',
+                  active: filter.openNow,
+                  showCaret: false,
+                  onTap: () {
+                    final cubit = context.read<FilterCubit>()..toggleOpenNow();
+                    context.read<MapBloc>().add(
+                      LoadMapDataEvent(filter: cubit.state),
+                    );
+                  },
                 ),
                 const SizedBox(width: 8),
                 _QuickFilterChip(
@@ -486,7 +509,7 @@ class BottomSheetMetrics {
 }
 
 bool _anyMapFilterActive(CafeFilter f) =>
-    f.sort != 'nearby' || f.tagNames.isNotEmpty;
+    f.sort != 'nearby' || f.tagNames.isNotEmpty || f.openNow;
 
 bool _hasTagInPool(CafeFilter f, List<String> pool) =>
     f.tagNames.any(pool.contains);

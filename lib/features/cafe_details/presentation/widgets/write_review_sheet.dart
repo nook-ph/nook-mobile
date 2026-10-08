@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -35,9 +36,14 @@ class WriteReviewSheet extends StatefulWidget {
     this.cafeName,
     this.cafeImageUrl,
     this.reviewsBloc,
+    this.initialText,
   });
 
   final String cafeId;
+
+  /// Text to start from when there is no draft: the note from the person's
+  /// own ranking, so posting it is not writing it twice.
+  final String? initialText;
   final String? cafeName;
   final String? cafeImageUrl;
 
@@ -50,6 +56,7 @@ class WriteReviewSheet extends StatefulWidget {
     required String cafeId,
     String? cafeName,
     String? cafeImageUrl,
+    String? initialText,
   }) async {
     final submitBloc =
         context.read<ReviewSubmitBloc?>() ?? sl<ReviewSubmitBloc>();
@@ -68,6 +75,7 @@ class WriteReviewSheet extends StatefulWidget {
           cafeName: cafeName ?? cafe?.name,
           cafeImageUrl: cafeImageUrl ?? cafe?.featuredImageUrl,
           reviewsBloc: reviewsBloc,
+          initialText: initialText,
         ),
       ),
     );
@@ -135,6 +143,16 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
   String? _submitError;
   String? _textError;
   String? _username;
+
+  /// "You ranked it 7.0 · #3 of 5 (private)", or null when not ranked.
+  String? _rankingLine(BuildContext context) {
+    final rankings = context.read<CafeRankingCubit?>()?.state.rankings;
+    if (rankings == null) return null;
+    final index = rankings.indexWhere((r) => r.cafeId == widget.cafeId);
+    if (index < 0) return null;
+    return 'You ranked it ${rankings[index].displayScore} · '
+        '#${index + 1} of ${rankings.length} (private)';
+  }
 
   @override
   void initState() {
@@ -208,12 +226,24 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
 
   Future<void> _loadDraft() async {
     final draft = await _draftStore.load(widget.cafeId, userId: _draftUserId);
-    if (!mounted || draft == null || _composing) return;
+    if (!mounted || _composing) return;
+    if (draft == null) {
+      final start = widget.initialText?.trim() ?? '';
+      if (start.isNotEmpty && _reviewController.text.isEmpty) {
+        _reviewController.text = start;
+      }
+      return;
+    }
     if (draft.text.trim().isEmpty && draft.rating == 0) return;
 
+    // A draft with stars but no words still takes the ranking note.
+    final start = widget.initialText?.trim() ?? '';
+    final text = draft.text.trim().isEmpty && start.isNotEmpty
+        ? start
+        : draft.text;
     _reviewController.value = TextEditingValue(
-      text: draft.text,
-      selection: TextSelection.collapsed(offset: draft.text.length),
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
     );
     setState(() {
       _rating = draft.rating;
@@ -518,6 +548,16 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
                       color: ReviewTokens.muted,
                     ),
                   ),
+                  // The private ranking beside the public review, so the two
+                  // ratings of one visit are seen together
+                  // (docs/ux/core-loops.md, finding 2).
+                  if (_rankingLine(context) case final line?)
+                    Text(
+                      line,
+                      style: context.textTheme.bodySmall?.copyWith(
+                        color: ReviewTokens.muted,
+                      ),
+                    ),
                 ],
               ),
             ),

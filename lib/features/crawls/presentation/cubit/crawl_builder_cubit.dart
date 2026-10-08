@@ -117,6 +117,32 @@ class CrawlBuilderCubit extends Cubit<CrawlBuilderState> {
     return true;
   }
 
+  /// Moves the stop at [index] one place up ([delta] -1) or down (+1): the
+  /// way to reorder without dragging (WCAG 2.2, 2.5.7).
+  void move(int index, int delta) {
+    if (_locked) return;
+    final ids = List<String>.from(state.selectedIds);
+    final target = index + delta;
+    if (index < 0 ||
+        index >= ids.length ||
+        target < 0 ||
+        target >= ids.length) {
+      return;
+    }
+    ids.insert(target, ids.removeAt(index));
+    emit(state.copyWith(selectedIds: ids, status: CrawlBuilderStatus.editing));
+  }
+
+  /// Replaces the order with [ids] (the same stops), e.g. the shortest route.
+  void setOrder(List<String> ids) {
+    if (_locked) return;
+    if (ids.length != state.selectedIds.length ||
+        !ids.every(state.selectedIds.contains)) {
+      return;
+    }
+    emit(state.copyWith(selectedIds: ids, status: CrawlBuilderStatus.editing));
+  }
+
   /// `ReorderableListView` semantics: [newIndex] is the slot before removal.
   void reorder(int oldIndex, int newIndex) {
     // A drag during Create would put the state back to editing, re-enable

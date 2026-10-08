@@ -244,7 +244,7 @@ Future<Set<String>?> showSearchTagsSheet(
   );
 }
 
-const _allBestFor = [
+const kSearchAllBestFor = [
   ...kSearchIdleBestFor,
   'Date Spot',
   'Book Cafe',
@@ -256,7 +256,7 @@ const _allBestFor = [
   'Aesthetic / IG-worthy',
   'Community Space',
 ];
-const _allAmenities = [
+const kSearchAllAmenities = [
   ...kSearchIdleAmenities,
   'Outdoor Seating',
   'Reservations Accepted',
@@ -343,9 +343,9 @@ class _TagsSheetState extends State<_TagsSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    section('Best for', _allBestFor),
+                    section('Best for', kSearchAllBestFor),
                     const SizedBox(height: 18),
-                    section('Amenities', _allAmenities),
+                    section('Amenities', kSearchAllAmenities),
                   ],
                 ),
               ),

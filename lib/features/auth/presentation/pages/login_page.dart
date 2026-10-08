@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 
@@ -66,7 +67,7 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
           return;
         }
         if (state is AuthAuthenticated) {
-          context.go('/');
+          finishSignIn(context);
           return;
         }
         if (state is AuthError) {
@@ -84,7 +85,7 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
         final hasPassword = _passwordController.text.isNotEmpty;
 
         return AuthPage(
-          onBack: () => context.go('/login'),
+          onBack: () => context.canPop() ? context.pop() : context.go('/login'),
           children: [
             AuthHeader(
               title: 'Log in',

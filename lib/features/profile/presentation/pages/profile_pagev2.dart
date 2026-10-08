@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -21,6 +22,7 @@ import 'package:nook/features/profile/presentation/widgets/profile_lists_tab.dar
 import 'package:nook/features/profile/presentation/widgets/profile_review_sheets.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_reviews_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_ranked_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -222,13 +224,19 @@ class _ProfileViewState extends State<ProfileView> {
         final lists = listsState is ListsLoaded
             ? listsState.lists
             : bloc.userLists;
+        final been = lists.where((l) => l.listType == 'been').firstOrNull;
+        final rankedCount = context
+            .watch<CafeRankingCubit>()
+            .state
+            .rankings
+            .length;
         // Unknown until the lists have loaded at least once.
         final listCount = listsState is ListsLoaded || lists.isNotEmpty
             ? lists.length
             : null;
 
         return DefaultTabController(
-          length: 2,
+          length: 3,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -243,15 +251,20 @@ class _ProfileViewState extends State<ProfileView> {
                       SliverToBoxAdapter(
                         child: loaded == null
                             ? const ProfileHeaderSkeleton()
-                            : ProfileHeader(
-                                name: loaded.name,
-                                avatarUrl: loaded.avatarUrl,
-                                bio: loaded.bio,
-                                countsLine: profileCountsLine(
-                                  reviews: reviews.length,
-                                  lists: listCount,
+                            : BlocBuilder<CafeRankingCubit, CafeRankingState>(
+                                buildWhen: (a, b) =>
+                                    a.rankings.length != b.rankings.length,
+                                builder: (context, ranking) => ProfileHeader(
+                                  name: loaded.name,
+                                  avatarUrl: loaded.avatarUrl,
+                                  bio: loaded.bio,
+                                  countsLine: profileCountsLine(
+                                    reviews: reviews.length,
+                                    lists: listCount,
+                                    ranked: ranking.rankings.length,
+                                  ),
+                                  onEdit: _openEdit,
                                 ),
-                                onEdit: _openEdit,
                               ),
                       ),
                       SliverPersistentHeader(
@@ -263,6 +276,10 @@ class _ProfileViewState extends State<ProfileView> {
                           child: ProfileTabs(
                             controller: DefaultTabController.of(context),
                             tabs: [
+                              ProfileTabData(
+                                'Ranked',
+                                count: loaded == null ? null : rankedCount,
+                              ),
                               ProfileTabData(
                                 'Reviews',
                                 // Unknown, not zero, when the read failed.
@@ -281,6 +298,7 @@ class _ProfileViewState extends State<ProfileView> {
                     ],
                     body: TabBarView(
                       children: [
+                        ProfileRankedTab(beenListId: been?.id),
                         ProfileReviewsTab(
                           loading: loaded == null,
                           failed: loaded?.reviewsFailed ?? false,

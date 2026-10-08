@@ -89,7 +89,10 @@ class HomeStateView extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = actionLabel;
     final scheme = context.colorScheme;
-    return Padding(
+    // Full width: the feed's scroll view starts its children on the left, so
+    // a block as wide as its longest line sat off-centre.
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
         mainAxisSize: MainAxisSize.min,
