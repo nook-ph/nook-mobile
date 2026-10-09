@@ -241,8 +241,12 @@ class _MapPageState extends State<MapPage>
         await _chooseOrigin();
         return;
       }
-      final answer = await Geolocator.requestPermission();
-      await _syncLocationEnabledFromPermission();
+      // The recenter button's path: ask, then centre on the phone and reload,
+      // so "Nearby" sorts and the rows measure from the position just
+      // granted rather than from the none they started with.
+      await _requestLocationAccessUnguarded();
+      if (!mounted) return;
+      final answer = await Geolocator.checkPermission();
       if (!mounted) return;
       if (answer != LocationPermission.whileInUse &&
           answer != LocationPermission.always) {
