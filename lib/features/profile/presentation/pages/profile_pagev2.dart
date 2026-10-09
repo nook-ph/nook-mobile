@@ -3,6 +3,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
 import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_details.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_reviews_written_by_user_usecase.dart';
@@ -366,15 +367,14 @@ class _ProfileViewState extends State<ProfileView> {
                   )
                 : info.type == ErrorType.offline
                 // Offline reads as offline, as on Home, not as our fault.
-                ? ProfileMessage(
-                    icon: LucideIcons.wifiOff,
-                    title: info.title,
-                    subtitle: info.subtitle,
-                    actionLabel: 'Retry',
-                    actionStyle: ProfilePillStyle.brand,
-                    isError: true,
-                    onAction: () => context.read<ProfileCubit>().loadProfile(),
-                    top: 180,
+                // The same block as Home's, so being offline looks the
+                // same on every tab.
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 180, bottom: 24),
+                    child: HomeStateView.error(
+                      error: info,
+                      onRetry: () => context.read<ProfileCubit>().loadProfile(),
+                    ),
                   )
                 : ProfileMessage.error(
                     title: 'Something went wrong',

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
@@ -411,8 +412,10 @@ void main() {
     expect(find.text('Something went wrong'), findsNothing);
     expect(find.byIcon(LucideIcons.wifiOff), findsOneWidget);
     expect(find.bySemanticsLabel('Settings'), findsOneWidget);
+    // Home's own offline block, so the two tabs match.
+    expect(find.byType(HomeStateView), findsOneWidget);
 
-    await tester.tap(find.text('Retry'));
+    await tester.tap(find.text('Try again'));
     await tester.pump();
     expect(cubit.loads, 1);
   });
