@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
+import 'package:nook/core/presentation/tab_back.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/features/home_page/presentation/pages/home_page.dart';
 import 'package:nook/features/lists/presentation/pages/list_page.dart';
@@ -100,6 +101,9 @@ class _MainShellState extends State<MainShell> {
             canPop: state.tabIndex == 0,
             onPopInvokedWithResult: (didPop, _) {
               if (didPop) return;
+              // The tab may close something of its own first (the Map's
+              // cafe card); the next Back then goes Home.
+              if (TabBack.handle(state.tabIndex)) return;
               context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
             },
             child: Scaffold(

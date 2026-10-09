@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
+import 'package:nook/core/presentation/tab_back.dart';
 
 Widget _app() => MaterialApp(
   home: MainShell(
@@ -42,6 +43,32 @@ void main() {
       expect(find.byType(MainShell), findsOneWidget);
     });
   }
+
+  testWidgets('a tab that claims Back keeps it; the next Back goes Home', (
+    tester,
+  ) async {
+    var cardOpen = true;
+    bool closeCard() {
+      if (!cardOpen) return false;
+      cardOpen = false;
+      return true;
+    }
+
+    TabBack.register(1, closeCard);
+    addTearDown(() => TabBack.unregister(1, closeCard));
+    await tester.pumpWidget(_app());
+    await tester.tap(_tab('Map'));
+    await tester.pumpAndSettle();
+
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pumpAndSettle();
+    expect(cardOpen, isFalse);
+    expect(_currentTab(tester), 1);
+
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pumpAndSettle();
+    expect(_currentTab(tester), 0);
+  });
 
   testWidgets('Back on Home is left to the system (closes the app)', (
     tester,

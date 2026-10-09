@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' show Point;
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/tab_back.dart';
 import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
@@ -183,6 +184,7 @@ class _MapPageState extends State<MapPage>
   @override
   void initState() {
     super.initState();
+    TabBack.register(_mapTab, _handleBack);
     _initialFilter = sl<FilterCubit>().state;
     rootBundle.loadString('assets/mapstyle.json').then((s) {
       if (mounted) setState(() => _styleJson = s);
@@ -280,6 +282,7 @@ class _MapPageState extends State<MapPage>
 
   @override
   void dispose() {
+    TabBack.unregister(_mapTab, _handleBack);
     WidgetsBinding.instance.removeObserver(this);
     sl<FilterCubit>().reset();
     _originStore.origin.removeListener(_onOriginChanged);
@@ -1244,6 +1247,16 @@ class _MapPageState extends State<MapPage>
     }
     _selection.value = const _MapSelection();
     unawaited(_applySelectionFilters(null));
+  }
+
+  /// The Map's index in the tab bar.
+  static const _mapTab = 1;
+
+  /// System Back closes an open cafe card before the tab shell goes Home.
+  bool _handleBack() {
+    if (!_shouldShowOverlay) return false;
+    _dismissOverlay();
+    return true;
   }
 
   void _dismissOverlay() {
