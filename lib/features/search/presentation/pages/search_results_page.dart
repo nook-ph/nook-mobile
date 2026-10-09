@@ -544,13 +544,17 @@ class _Results extends StatelessWidget {
                 if (showBanner)
                   SearchLocationOffCard(onDismiss: onDismissBanner),
                 Text(
-                  searchCountLine(
-                    cafes.length,
-                    state.origin,
-                    state.hasPosition,
-                    byRating: state.shownSort == 'top_rated',
-                    showsDistances: cafes.any((c) => c.distanceMeters != null),
-                  ),
+                  state.semanticMatch
+                      ? 'Best matches for what you described'
+                      : searchCountLine(
+                          cafes.length,
+                          state.origin,
+                          state.hasPosition,
+                          byRating: state.shownSort == 'top_rated',
+                          showsDistances: cafes.any(
+                            (c) => c.distanceMeters != null,
+                          ),
+                        ),
                   style: SearchTokens.text(
                     context,
                     size: 12,

@@ -42,6 +42,10 @@ class SearchState extends Equatable {
   /// under them; [lastError] says why.
   final bool loadMoreFailed;
 
+  /// [cafes] came from the semantic search: ranked by how well they fit
+  /// what was described, best first, in one page.
+  final bool semanticMatch;
+
   const SearchState({
     this.status = SearchStatus.initial,
     this.cafes = const [],
@@ -59,6 +63,7 @@ class SearchState extends Equatable {
     this.location = SearchLocationStatus.available,
     this.sortFellBack = false,
     this.loadMoreFailed = false,
+    this.semanticMatch = false,
   });
 
   /// The sort the results are really in, for the sort chip and sheet.
@@ -103,6 +108,7 @@ class SearchState extends Equatable {
     SearchLocationStatus? location,
     bool? sortFellBack,
     bool? loadMoreFailed,
+    bool? semanticMatch,
   }) {
     return SearchState(
       status: status ?? this.status,
@@ -122,6 +128,7 @@ class SearchState extends Equatable {
       location: location ?? this.location,
       sortFellBack: sortFellBack ?? this.sortFellBack,
       loadMoreFailed: loadMoreFailed ?? this.loadMoreFailed,
+      semanticMatch: semanticMatch ?? this.semanticMatch,
     );
   }
 
@@ -143,5 +150,6 @@ class SearchState extends Equatable {
     location,
     sortFellBack,
     loadMoreFailed,
+    semanticMatch,
   ];
 }

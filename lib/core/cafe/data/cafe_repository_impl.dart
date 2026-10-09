@@ -23,6 +23,16 @@ class CafeRepositoryImpl implements ICafeRepository {
   }
 
   @override
+  Future<List<CafeSummary>> searchCafesSemantic(String query) {
+    return remoteDataSource.fetchSemanticCafes(query);
+  }
+
+  @override
+  Future<List<CafeSummary>> getSimilarCafes(String cafeId) {
+    return remoteDataSource.fetchSimilarCafes(cafeId);
+  }
+
+  @override
   Future<List<CafeSummary>> getCafesNearPoint({
     required double lat,
     required double lng,

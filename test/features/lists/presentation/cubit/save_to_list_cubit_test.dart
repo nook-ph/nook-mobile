@@ -436,6 +436,16 @@ class _FakeCafeRepository implements ICafeRepository {
   }
 
   @override
+  Future<List<CafeSummary>> searchCafesSemantic(String query) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<CafeSummary>> getSimilarCafes(String cafeId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<String> getDefaultListId() {
     throw UnimplementedError();
   }

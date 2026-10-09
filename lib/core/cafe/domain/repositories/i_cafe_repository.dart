@@ -13,6 +13,12 @@ enum CafeQueryType { featured, recommended, nearby }
 abstract class ICafeRepository {
   Future<List<CafeSummary>> getCafes(CafeQuery query);
 
+  /// Natural-language search ("quiet place to study"), ranked by meaning.
+  Future<List<CafeSummary>> searchCafesSemantic(String query);
+
+  /// Cafes most like [cafeId], by their stored embeddings.
+  Future<List<CafeSummary>> getSimilarCafes(String cafeId);
+
   /// Cafes within [radiusMeters] of a point (map, zoomed in).
   Future<List<CafeSummary>> getCafesNearPoint({
     required double lat,

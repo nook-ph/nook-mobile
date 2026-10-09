@@ -341,6 +341,23 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
     ];
   }
 
+  /// Asks the semantic search, which ranks by meaning as well as keywords.
+  /// Null when it fails or finds nothing; the keyword search then stands.
+  Future<List<CafeSummary>?> _semanticSearch(String text) async {
+    try {
+      final cafes = await searchCafesUseCase.semantic(text);
+      return cafes.isEmpty ? null : cafes;
+    } catch (e) {
+      debugPrint('SearchBloc: semantic search failed $e');
+      return null;
+    }
+  }
+
+  /// Three words or more reads as a description ("cozy spot for date
+  /// night"), not a name. Keyword search half-matches those on one word.
+  static bool isDescription(String text) =>
+      text.trim().split(RegExp(r'\s+')).length >= 3;
+
   /// Counts fetches. Only the query is debounced and switch-mapped; tags,
   /// sort, place, refresh and load-more overlap freely, so a response is
   /// applied only while its fetch is still the latest one.
@@ -353,11 +370,22 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
       const limit = _limit;
       final built = await _buildQuery(page: currentPage, limit: limit);
 
-      final cafes = withDistances(
-        await searchCafesUseCase.call(built.query),
-        built.query.lat,
-        built.query.lng,
-      );
+      // Semantic search answers a description, and any query the keywords
+      // find nothing for. Never with tags picked: it cannot apply them, and
+      // would show cafes outside them.
+      final text = built.query.query;
+      final canSemantic =
+          currentPage == 0 && text != null && built.query.tags.isEmpty;
+      List<CafeSummary>? semantic;
+      if (canSemantic && isDescription(text)) {
+        semantic = await _semanticSearch(text);
+      }
+      var cafes = semantic ?? await searchCafesUseCase.call(built.query);
+      if (semantic == null && canSemantic && cafes.isEmpty) {
+        semantic = await _semanticSearch(text);
+        cafes = semantic ?? cafes;
+      }
+      cafes = withDistances(cafes, built.query.lat, built.query.lng);
       if (request != _fetchSeq) return;
 
       emit(
@@ -367,7 +395,9 @@ class SearchBloc extends Bloc<SearchEvent, SearchState> {
               ? cafes
               : (List.of(state.cafes)..addAll(cafes)),
           page: currentPage,
-          hasReachedMax: cafes.length < limit,
+          // The semantic list is one ranked page; there is no next one.
+          hasReachedMax: semantic != null || cafes.length < limit,
+          semanticMatch: semantic != null,
           loadMoreFailed: false,
           clearLastError: true,
           locationDenied:
