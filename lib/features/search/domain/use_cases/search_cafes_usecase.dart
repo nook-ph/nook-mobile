@@ -10,4 +10,9 @@ class SearchCafesUseCase {
   Future<List<CafeSummary>> call(CafeQuery query) async {
     return repository.getCafes(query);
   }
+
+  /// Ranked by meaning, for queries the keyword search finds nothing for.
+  Future<List<CafeSummary>> semantic(String query) {
+    return repository.searchCafesSemantic(query);
+  }
 }

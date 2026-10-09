@@ -51,6 +51,15 @@ class _FakeSearch extends SearchCafesUseCase {
     await wait?.call(query);
     return answer(query);
   }
+
+  final semanticQueries = <String>[];
+  List<CafeSummary> semanticAnswer = const [];
+
+  @override
+  Future<List<CafeSummary>> semantic(String query) async {
+    semanticQueries.add(query);
+    return semanticAnswer;
+  }
 }
 
 class _StubRepository implements ICafeRepository {
@@ -120,6 +129,72 @@ void main() {
     // About 1.1 km from _here (10.3, 123.9).
     expect(state.cafes.first.distanceMeters, closeTo(1112, 20));
     expect(state.cafes.last.distanceMeters, isNull);
+  });
+
+  group('semantic fallback', () {
+    const closest = CafeSummary(id: 'm', name: 'Meaning', rating: 4);
+
+    Future<SearchState> searchFor(SearchBloc bloc, String text) {
+      bloc.add(SearchQueryChanged(text));
+      return bloc.stream.firstWhere((s) => s.status == SearchStatus.success);
+    }
+
+    test(
+      'a query with no keyword match shows the closest by meaning',
+      () async {
+        search.answer = (_) => const [];
+        search.semanticAnswer = const [closest];
+        final state = await searchFor(build(), 'quiet place to study');
+        expect(search.semanticQueries, ['quiet place to study']);
+        expect(state.cafes.single.id, 'm');
+        expect(state.semanticMatch, isTrue);
+        expect(state.hasReachedMax, isTrue);
+      },
+    );
+
+    test(
+      'a description goes to semantic search even with keyword hits',
+      () async {
+        search.semanticAnswer = const [closest];
+        final state = await searchFor(build(), 'cozy spot for date night');
+        expect(search.semanticQueries, ['cozy spot for date night']);
+        expect(search.queries, isEmpty);
+        expect(state.cafes.single.id, 'm');
+      },
+    );
+
+    test('a short query with no keyword match falls back to it', () async {
+      search.answer = (_) => const [];
+      search.semanticAnswer = const [closest];
+      final state = await searchFor(build(), 'latte art');
+      expect(search.queries, hasLength(1));
+      expect(search.semanticQueries, ['latte art']);
+      expect(state.semanticMatch, isTrue);
+    });
+
+    test('a failed semantic search keeps the keyword results', () async {
+      search.semanticAnswer = const [];
+      final state = await searchFor(build(), 'cozy spot for date night');
+      expect(search.queries, hasLength(1));
+      expect(state.cafes.single.id, 'a');
+      expect(state.semanticMatch, isFalse);
+    });
+
+    test('keyword matches skip the semantic search', () async {
+      final state = await searchFor(build(), 'matcha');
+      expect(search.semanticQueries, isEmpty);
+      expect(state.semanticMatch, isFalse);
+    });
+
+    test('picked tags skip it: it cannot apply them', () async {
+      search.answer = (_) => const [];
+      search.semanticAnswer = const [closest];
+      final bloc = build();
+      await searchByTag(bloc);
+      final state = await searchFor(bloc, 'quiet place to study');
+      expect(search.semanticQueries, isEmpty);
+      expect(state.cafes, isEmpty);
+    });
   });
 
   group('location', () {

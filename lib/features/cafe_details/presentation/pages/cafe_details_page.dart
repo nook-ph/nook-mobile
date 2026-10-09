@@ -25,6 +25,7 @@ import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/similar_cafes_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_logic.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:go_router/go_router.dart';
@@ -229,6 +230,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           const CafeSectionDivider(),
           section,
         ],
+        SimilarCafesSection(cafeId: widget.cafeId),
         // Clearance above the pinned bar.
         const SizedBox(height: 24),
       ],

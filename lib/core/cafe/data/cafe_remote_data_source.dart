@@ -128,6 +128,58 @@ class CafeRemoteDataSource {
     return response.map((json) => CafeSummaryModel.fromJson(json)).toList();
   }
 
+  /// Cafes ranked by meaning as well as keywords, via the `cafe-search` edge
+  /// function (Gemini embedding of [query] + `hybrid_search_cafes`).
+  Future<List<CafeSummaryModel>> fetchSemanticCafes(
+    String query, {
+    int limit = 20,
+  }) async {
+    try {
+      final response = await supabase.functions.invoke(
+        'cafe-search',
+        // An explicit null city: the function defaults to "Cebu City" and
+        // would drop every cafe outside it.
+        body: {'query': query, 'limit': limit, 'city': null},
+      );
+      final rows = (response.data as Map)['cafes'] as List;
+      return rows.whereType<Map>().map((item) {
+        final json = Map<String, dynamic>.from(item);
+        // The function returns plain tag names; the model reads tag objects.
+        json['tags'] = [
+          for (final name in (json['tag_names'] as List? ?? const []))
+            {'name': name, 'is_featured': true},
+        ];
+        return CafeSummaryModel.fromJson(json);
+      }).toList();
+    } catch (e, st) {
+      throw CafeFetchException(
+        'Failed to run semantic search for "$query".',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// Cafes whose stored embedding is closest to [cafeId]'s.
+  Future<List<CafeSummaryModel>> fetchSimilarCafes(
+    String cafeId, {
+    int limit = 6,
+  }) async {
+    try {
+      final rpcResponse = await supabase.rpc(
+        'similar_cafes',
+        params: {'p_cafe_id': cafeId, 'p_limit': limit},
+      );
+      return _parseSummaryRows(rpcResponse);
+    } catch (e, st) {
+      throw CafeFetchException(
+        'Failed to fetch cafes similar to $cafeId.',
+        cause: e,
+        stackTrace: st,
+      );
+    }
+  }
+
   Future<CafeDetailsModel> fetchDetailsById(String cafeId) async {
     try {
       final response = await supabase
