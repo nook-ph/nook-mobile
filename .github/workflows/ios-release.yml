@@ -131,7 +131,7 @@ jobs:
 
       # Creates the App Store version if needed, sets "What's New" from
       # ios/metadata/en-US/release_notes.txt, waits for Apple to finish processing
-      # the build, attaches it and submits for review. Release after approval stays manual.
+      # the build, attaches it and submits for review. Apple releases it as soon as review approves it.
       # Skipped for hand-run builds and tags with a dash (v1.2.0-test).
       - name: Submit for App Store review
         if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
@@ -157,6 +157,6 @@ jobs:
             skip_binary_upload:true \
             skip_screenshots:true \
             submit_for_review:true \
-            automatic_release:false \
+            automatic_release:true \
             run_precheck_before_submit:false \
             force:true

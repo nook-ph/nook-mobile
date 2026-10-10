@@ -14,8 +14,8 @@ the `.ipa` as a run artifact for 7 days, then uploads it to App Store Connect wi
 It needs the `IOS_*`, `ASC_*` and `.env` secrets. On a release tag without a dash (`v1.1.4`, not
 `v1.1.4-test`) it then runs `fastlane deliver`: creates the App Store version from `pubspec.yaml`,
 sets "What's New" from `ios/metadata/en-US/release_notes.txt`, waits for Apple to process the build,
-attaches it and submits for review. Update that file before every release. Releasing after approval
-stays manual. The project itself still signs
+attaches it and submits for review. Update that file before every release. Apple releases it to
+the App Store as soon as review approves it. The project itself still signs
 automatically; CI switches the Runner target to manual signing only for its own build.
 
 ## Goal

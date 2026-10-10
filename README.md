@@ -39,7 +39,7 @@ releases anything.
    ```
 3. The **iOS release IPA** workflow builds and signs the app, uploads it to App Store Connect,
    waits for processing, and submits it for review (about 45 minutes).
-4. Once Apple approves it, click **Release** in App Store Connect.
+4. Apple releases it to the App Store as soon as review approves it. No click needed.
 
 The version must be higher than the one live on the App Store, or the submit step fails.
 
