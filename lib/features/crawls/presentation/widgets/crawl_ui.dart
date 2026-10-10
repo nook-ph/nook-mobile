@@ -268,8 +268,7 @@ class CrawlSheetAction extends StatelessWidget {
       borderRadius: BorderRadius.circular(ListsTokens.radius),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
-        // Full width so the row starts at the left edge: on iOS the tap
-        // target is a CupertinoButton, which centres a narrower child.
+        // Full width so the whole row is the tap target.
         child: SizedBox(
           width: double.infinity,
           child: Column(
