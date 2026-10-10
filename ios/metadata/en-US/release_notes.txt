@@ -1,0 +1,4 @@
+- Search now understands what you describe, like "quiet place to study" or "matcha"
+- Cafe pages show similar cafes nearby
+- The map's Nearby list sorts by distance as soon as you allow location
+- Layout fixes for cafe cards on iPhone

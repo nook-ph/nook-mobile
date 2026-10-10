@@ -1,0 +1,159 @@
+name: iOS release IPA
+
+# Builds an App Store-signed .ipa, keeps it as a run artifact, and uploads it to App Store Connect.
+# Uses signing secrets, so it must never run on pull_request (forks could read them).
+# Required secrets are listed in docs/release_ci.md.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      TEAM_ID: WD8496XKN8
+      BUNDLE_ID: app.nookph
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: 3.41.6
+          channel: stable
+          cache: true
+
+      - name: Write .env
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          POSTHOG_PROJECT_TOKEN: ${{ secrets.POSTHOG_PROJECT_TOKEN }}
+          POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
+          UPLOAD_PRESIGN_URL: ${{ secrets.UPLOAD_PRESIGN_URL }}
+        run: |
+          : "${SUPABASE_URL:?missing secret SUPABASE_URL}" "${SUPABASE_KEY:?missing secret SUPABASE_KEY}"
+          {
+            echo "SUPABASE_URL=$SUPABASE_URL"
+            echo "SUPABASE_KEY=$SUPABASE_KEY"
+            echo "POSTHOG_PROJECT_TOKEN=$POSTHOG_PROJECT_TOKEN"
+            echo "POSTHOG_HOST=$POSTHOG_HOST"
+            echo "UPLOAD_PRESIGN_URL=$UPLOAD_PRESIGN_URL"
+          } > .env
+
+      - name: Install distribution certificate and profile
+        env:
+          CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: |
+          : "${CERT_P12_BASE64:?missing secret IOS_DIST_CERT_P12_BASE64}" "${PROFILE_BASE64:?missing secret IOS_PROFILE_BASE64}"
+
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          echo "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychain -d user -s "$KEYCHAIN"
+
+          PROFILE="$RUNNER_TEMP/profile.mobileprovision"
+          echo "$PROFILE_BASE64" | base64 --decode > "$PROFILE"
+          security cms -D -i "$PROFILE" > "$RUNNER_TEMP/profile.plist"
+          UUID="$(/usr/libexec/PlistBuddy -c 'Print UUID' "$RUNNER_TEMP/profile.plist")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print Name' "$RUNNER_TEMP/profile.plist")"
+          for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$dir" && cp "$PROFILE" "$dir/$UUID.mobileprovision"
+          done
+
+          # The project signs automatically, which needs a logged-in Apple account.
+          # Switch the Runner target to manual signing for this build only; Release.xcconfig
+          # is the Runner target's base config, so Pods targets are untouched.
+          cat >> ios/Flutter/Release.xcconfig <<EOF
+          CODE_SIGN_STYLE = Manual
+          CODE_SIGN_IDENTITY = Apple Distribution
+          CODE_SIGN_IDENTITY[sdk=iphoneos*] = Apple Distribution
+          DEVELOPMENT_TEAM = $TEAM_ID
+          PROVISIONING_PROFILE_SPECIFIER = $PROFILE_NAME
+          EOF
+
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict><key>$BUNDLE_ID</key><string>$PROFILE_NAME</string></dict>
+          </dict>
+          </plist>
+          EOF
+
+      - run: flutter pub get
+
+      # Build numbers start past the last manual upload (1.1.3+12); the version
+      # name still comes from pubspec.yaml, so bump it before tagging.
+      - name: Build signed IPA
+        run: |
+          flutter build ipa --release \
+            --build-number=$((100 + GITHUB_RUN_NUMBER)) \
+            --export-options-plist="$RUNNER_TEMP/ExportOptions.plist"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nook-ios-${{ github.ref_name }}-${{ github.run_number }}
+          path: build/ios/ipa/*.ipa
+          retention-days: 7
+
+      # Sends the build to App Store Connect (TestFlight). Picking it for a version
+      # and submitting for review stay manual.
+      - name: Upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          : "${ASC_KEY_ID:?missing secret ASC_KEY_ID}" "${ASC_ISSUER_ID:?missing secret ASC_ISSUER_ID}" "${ASC_PRIVATE_KEY:?missing secret ASC_PRIVATE_KEY}"
+          # altool looks for the key here by its ID.
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$ASC_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_"$ASC_KEY_ID".p8
+          xcrun altool --upload-app --type ios -f build/ios/ipa/*.ipa \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+      # Creates the App Store version if needed, sets "What's New" from
+      # ios/metadata/en-US/release_notes.txt, waits for Apple to finish processing
+      # the build, attaches it and submits for review. Release after approval stays manual.
+      # Skipped for hand-run builds and tags with a dash (v1.2.0-test).
+      - name: Submit for App Store review
+        if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          command -v fastlane >/dev/null || brew install fastlane
+          jq -n --arg id "$ASC_KEY_ID" --arg issuer "$ASC_ISSUER_ID" --arg key "$ASC_PRIVATE_KEY" \
+            '{key_id: $id, issuer_id: $issuer, key: $key, in_house: false}' > "$RUNNER_TEMP/asc_api_key.json"
+          VERSION="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
+          fastlane deliver \
+            --api_key_path "$RUNNER_TEMP/asc_api_key.json" \
+            --app_identifier "$BUNDLE_ID" \
+            --platform ios \
+            --app_version "$VERSION" \
+            --build_number "$((100 + GITHUB_RUN_NUMBER))" \
+            --metadata_path ios/metadata \
+            --skip_binary_upload true \
+            --skip_screenshots true \
+            --submit_for_review true \
+            --automatic_release false \
+            --run_precheck_before_submit false \
+            --force true

@@ -4,6 +4,20 @@ Status: **proposed, not built.** Today every iOS release is built, signed and up
 a teammate's Mac, and the Android release is built by hand too. This doc records the options and
 the recommended setup, so the work can be picked up without redoing the research.
 
+Built so far: `.github/workflows/ios-build.yml` runs an unsigned iOS release build
+(`flutter build ios --release --no-codesign`) on every pull request and every push to `main`. It
+uses no secrets and uploads nothing; it only catches iOS build breaks.
+
+`.github/workflows/ios-release.yml` builds an App Store-signed `.ipa` on a `v*` tag or by hand
+(Actions → iOS release IPA → Run workflow), using the exported-certificate route below, and keeps
+the `.ipa` as a run artifact for 7 days, then uploads it to App Store Connect with `xcrun altool`.
+It needs the `IOS_*`, `ASC_*` and `.env` secrets. On a release tag without a dash (`v1.1.4`, not
+`v1.1.4-test`) it then runs `fastlane deliver`: creates the App Store version from `pubspec.yaml`,
+sets "What's New" from `ios/metadata/en-US/release_notes.txt`, waits for Apple to process the build,
+attaches it and submits for review. Update that file before every release. Releasing after approval
+stays manual. The project itself still signs
+automatically; CI switches the Runner target to manual signing only for its own build.
+
 ## Goal
 
 Tag a release (for example `v1.1.4`) and get:
