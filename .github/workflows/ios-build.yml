@@ -1,0 +1,36 @@
+name: iOS build
+
+# Unsigned release build: proves the app still compiles for iOS.
+# No secrets are used, so it is safe to run on pull requests from forks.
+# Signed TestFlight uploads are planned separately (docs/release_ci.md).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.6
+          channel: stable
+          cache: true
+
+      # .env is a bundled asset, so the build fails if it is missing.
+      # An empty one is enough to compile; nothing here runs the app.
+      - run: touch .env
+
+      - run: flutter pub get
+
+      - run: flutter build ios --release --no-codesign

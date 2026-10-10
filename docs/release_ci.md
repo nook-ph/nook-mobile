@@ -4,6 +4,10 @@ Status: **proposed, not built.** Today every iOS release is built, signed and up
 a teammate's Mac, and the Android release is built by hand too. This doc records the options and
 the recommended setup, so the work can be picked up without redoing the research.
 
+Built so far: `.github/workflows/ios-build.yml` runs an unsigned iOS release build
+(`flutter build ios --release --no-codesign`) on every pull request and every push to `main`. It
+uses no secrets and uploads nothing; it only catches iOS build breaks.
+
 ## Goal
 
 Tag a release (for example `v1.1.4`) and get:
