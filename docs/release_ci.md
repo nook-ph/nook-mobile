@@ -8,6 +8,12 @@ Built so far: `.github/workflows/ios-build.yml` runs an unsigned iOS release bui
 (`flutter build ios --release --no-codesign`) on every pull request and every push to `main`. It
 uses no secrets and uploads nothing; it only catches iOS build breaks.
 
+`.github/workflows/ios-release.yml` builds an App Store-signed `.ipa` on a `v*` tag or by hand
+(Actions → iOS release IPA → Run workflow), using the exported-certificate route below, and keeps
+the `.ipa` as a run artifact for 7 days. It needs the `IOS_*` and `.env` secrets; the `ASC_*` key is
+not needed until the TestFlight upload step is added. The project itself still signs
+automatically; CI switches the Runner target to manual signing only for its own build.
+
 ## Goal
 
 Tag a release (for example `v1.1.4`) and get:
