@@ -10,8 +10,9 @@ uses no secrets and uploads nothing; it only catches iOS build breaks.
 
 `.github/workflows/ios-release.yml` builds an App Store-signed `.ipa` on a `v*` tag or by hand
 (Actions → iOS release IPA → Run workflow), using the exported-certificate route below, and keeps
-the `.ipa` as a run artifact for 7 days. It needs the `IOS_*` and `.env` secrets; the `ASC_*` key is
-not needed until the TestFlight upload step is added. The project itself still signs
+the `.ipa` as a run artifact for 7 days, then uploads it to App Store Connect with `xcrun altool`.
+It needs the `IOS_*`, `ASC_*` and `.env` secrets. Choosing the build for a version and submitting
+for review stay manual. The project itself still signs
 automatically; CI switches the Runner target to manual signing only for its own build.
 
 ## Goal

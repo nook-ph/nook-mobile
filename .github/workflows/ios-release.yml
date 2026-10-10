@@ -1,6 +1,6 @@
 name: iOS release IPA
 
-# Builds an App Store-signed .ipa and keeps it as a run artifact.
+# Builds an App Store-signed .ipa, keeps it as a run artifact, and uploads it to App Store Connect.
 # Uses signing secrets, so it must never run on pull_request (forks could read them).
 # Required secrets are listed in docs/release_ci.md.
 
@@ -113,3 +113,18 @@ jobs:
           name: nook-ios-${{ github.ref_name }}-${{ github.run_number }}
           path: build/ios/ipa/*.ipa
           retention-days: 7
+
+      # Sends the build to App Store Connect (TestFlight). Picking it for a version
+      # and submitting for review stay manual.
+      - name: Upload to App Store Connect
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+        run: |
+          : "${ASC_KEY_ID:?missing secret ASC_KEY_ID}" "${ASC_ISSUER_ID:?missing secret ASC_ISSUER_ID}" "${ASC_PRIVATE_KEY:?missing secret ASC_PRIVATE_KEY}"
+          # altool looks for the key here by its ID.
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$ASC_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_"$ASC_KEY_ID".p8
+          xcrun altool --upload-app --type ios -f build/ios/ipa/*.ipa \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
