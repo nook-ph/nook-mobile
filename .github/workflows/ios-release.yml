@@ -144,16 +144,17 @@ jobs:
           jq -n --arg id "$ASC_KEY_ID" --arg issuer "$ASC_ISSUER_ID" --arg key "$ASC_PRIVATE_KEY" \
             '{key_id: $id, issuer_id: $issuer, key: $key, in_house: false}' > "$RUNNER_TEMP/asc_api_key.json"
           VERSION="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
-          fastlane deliver \
-            --api_key_path "$RUNNER_TEMP/asc_api_key.json" \
-            --app_identifier "$BUNDLE_ID" \
-            --platform ios \
-            --app_version "$VERSION" \
-            --build_number "$((100 + GITHUB_RUN_NUMBER))" \
-            --metadata_path ios/metadata \
-            --skip_binary_upload true \
-            --skip_screenshots true \
-            --submit_for_review true \
-            --automatic_release false \
-            --run_precheck_before_submit false \
-            --force true
+          # `fastlane run` skips deliver's "set up a Deliverfile?" prompt, which crashes in CI.
+          fastlane run deliver \
+            api_key_path:"$RUNNER_TEMP/asc_api_key.json" \
+            app_identifier:"$BUNDLE_ID" \
+            platform:ios \
+            app_version:"$VERSION" \
+            build_number:"$((100 + GITHUB_RUN_NUMBER))" \
+            metadata_path:ios/metadata \
+            skip_binary_upload:true \
+            skip_screenshots:true \
+            submit_for_review:true \
+            automatic_release:false \
+            run_precheck_before_submit:false \
+            force:true
