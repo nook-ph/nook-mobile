@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/tag_icon.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
@@ -26,9 +27,7 @@ class CafeSummaryOverflowTagsRow extends StatelessWidget {
       textScaler: textScaler,
     )..layout();
 
-    final iconExtra = resolveTagIcon(label) != null
-        ? _iconSize + _iconGap
-        : 0.0;
+    final iconExtra = hasTagIcon(label) ? _iconSize + _iconGap : 0.0;
     return tp.width + _hPadding + _borderWidth + iconExtra + 2;
   }
 
@@ -102,7 +101,7 @@ class _TagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = resolveTagIcon(label);
+    final hasIcon = hasTagIcon(label);
     final borderColor = Theme.of(context).colorScheme.primary60;
     final iconColor = Theme.of(context).colorScheme.primary60;
     final textColor = Theme.of(context).colorScheme.gray;
@@ -116,8 +115,8 @@ class _TagChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: iconColor),
+          if (hasIcon) ...[
+            TagIcon(label, size: 12, color: iconColor),
             const SizedBox(width: 4),
           ],
           Text(

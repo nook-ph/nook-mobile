@@ -5,6 +5,34 @@ import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usec
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
 
+/// Reviews a cafe needs before a rating-based shelf counts it. One 5-star
+/// review is not a ranking (docs: COFFEE_VOICE.md, accuracy rules).
+const minShelfReviews = 3;
+
+/// "Crowd favorites" (the `trending` sort: rating weighted by review volume).
+/// Only cafes with enough reviews, and the shelf stays hidden until at least
+/// five qualify; below that it only repeats House picks.
+List<CafeSummary> crowdFavorites(List<CafeSummary> cafes) {
+  final rated = cafes.where((c) => c.reviewCount >= minShelfReviews).toList();
+  return rated.length >= 5 ? rated : const [];
+}
+
+/// "Highest rated": only cafes with enough reviews, hidden if fewer than
+/// three are left.
+List<CafeSummary> highestRated(List<CafeSummary> cafes) {
+  final rated = cafes.where((c) => c.reviewCount >= minShelfReviews).toList();
+  return rated.length >= 3 ? rated : const [];
+}
+
+/// Cafes "Local beans" needs before it shows (docs COFFEE_TAGS.md §5). The
+/// tag is new and owner-set, so a shelf of one or two would read as broken.
+const minLocalBeans = 3;
+
+/// "Local beans": the Philippine Beans cafes, or nothing below
+/// [minLocalBeans].
+List<CafeSummary> localBeans(List<CafeSummary> cafes) =>
+    cafes.length >= minLocalBeans ? cafes : const [];
+
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetHomeFeedUseCase getHomeFeedUseCase;
 
@@ -56,19 +84,36 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
             : out.feed.nearby;
 
         final featured = _buildFeatured(out.feed, nearby);
+        final trending = crowdFavorites(out.feed.trending);
+        final topRated = highestRated(out.feed.topRated);
+        final specialty =
+            update.nearbyPending && event.refresh && current is HomeLoadedState
+            ? current.specialtyNearbyCafes
+            : out.feed.specialtyNearby;
+        // Local beans also waits on the position; same hand-over as above.
+        final beans =
+            update.nearbyPending && event.refresh && current is HomeLoadedState
+            ? current.localBeansCafes
+            : localBeans(out.feed.localBeans);
         final allEmpty =
             featured.isEmpty &&
             nearby.isEmpty &&
             out.feed.newest.isEmpty &&
-            out.feed.trending.isEmpty &&
-            out.feed.topRated.isEmpty;
+            trending.isEmpty &&
+            topRated.isEmpty &&
+            specialty.isEmpty &&
+            beans.isEmpty &&
+            out.feed.laptopFriendly.isEmpty;
 
         final loaded = HomeLoadedState(
           featuredCafes: featured,
           nearbyCafes: nearby,
           newestCafes: out.feed.newest,
-          trendingCafes: out.feed.trending,
-          topRatedCafes: out.feed.topRated,
+          trendingCafes: trending,
+          topRatedCafes: topRated,
+          specialtyNearbyCafes: specialty,
+          laptopFriendlyCafes: out.feed.laptopFriendly,
+          localBeansCafes: beans,
           locationDenied: out.locationDenied,
           locationServicesOff: out.locationServicesOff,
           // Dismissed between the two steps of one load: stays dismissed.

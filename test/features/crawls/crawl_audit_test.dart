@@ -324,7 +324,7 @@ void main() {
 
     test('the crew invite text gives the crew code, not the crawl\'s', () {
       final target = CrawlCodeTarget.parse(
-        'Join my crew for IT Park Study Crawl on Nook\n\n'
+        "Join my crew for IT Park Study Crawl — first stop's on the map.\n\n"
         'https://www.nookph.app/c/A1B2C3D4?crew=abcdef1234\n\n'
         'Or enter crew code ABCDEF1234 in the app.',
       );

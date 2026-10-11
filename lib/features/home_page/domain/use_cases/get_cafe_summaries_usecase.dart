@@ -11,7 +11,23 @@ typedef HomeFeedResult = ({
   List<CafeSummary> topRated,
   List<CafeSummary> trending,
   List<CafeSummary> newest,
+  List<CafeSummary> specialtyNearby,
+  List<CafeSummary> laptopFriendly,
+  List<CafeSummary> localBeans,
 });
+
+/// The existing tag behind "Specialty coffee near you". Tag names are the
+/// filter keys, so this must match `tags.name` exactly.
+const specialtyCoffeeTag = 'Specialty Coffee';
+
+/// The coffee tag behind "Local beans" (docs COFFEE_TAGS.md §5). Until the
+/// coffee migration is applied no cafe has it, the query comes back empty and
+/// the shelf stays hidden.
+const localBeansTag = 'Philippine Beans';
+
+/// "Laptop-friendly" is derived: `get_cafes` matches every tag it is given,
+/// so these two together are the shelf.
+const laptopFriendlyTags = ['Free WiFi', 'Power Outlets'];
 
 /// [locationDenied] is the permanently-denied permission case;
 /// [locationServicesOff] is the phone-wide Location Services switch. Either
@@ -48,12 +64,13 @@ class GetHomeFeedUseCase {
   /// show, and the first error is thrown: an empty result then always means
   /// "loaded, and there is nothing", never "everything broke".
   ///
-  /// A position can take seconds, and three of the four sections do not need
-  /// one. When they arrive before it they are handed over on their own, and
+  /// A position can take seconds, and most sections do not need one. When they arrive before it they are handed over on their own, and
   /// the full feed follows once "Near you" has been fetched (or ruled out).
   Stream<HomeFeedUpdate> watch({int page = 0, int limit = 20}) async* {
     final failures = <Object>[];
-    var attempted = 3;
+    // The four location-free sections, plus Local beans once the position
+    // is settled (nearby with one, top rated without).
+    var attempted = 5;
     final accessFuture = _readAccess();
     final topRatedFuture = _safeFetch(
       label: 'top_rated',
@@ -88,29 +105,73 @@ class GetHomeFeedUseCase {
         limit: limit,
       ),
     );
+    final laptopFuture = _safeFetch(
+      label: 'laptop_friendly',
+      failures: failures,
+      query: CafeQuery(
+        sort: 'top_rated',
+        tags: laptopFriendlyTags,
+        lat: null,
+        lng: null,
+        page: page,
+        limit: limit,
+      ),
+    );
 
     // "Near you" starts the moment there is a position, alongside the other
     // sections rather than after them.
     Position? position;
     var positionResolved = false;
+    // "Specialty coffee near you" needs the position too: without one the
+    // title would not be true, so the shelf is left out. "Local beans" makes
+    // no distance claim: closest first with a position, top rated without.
     final nearbyFuture = accessFuture.then((access) async {
       if (!access.servicesOff && !access.denied) {
         position = await _readPosition();
       }
       positionResolved = true;
       final at = position;
-      if (at == null) return <CafeSummary>[];
-      return _safeFetch(
-        label: 'nearby',
+      final localBeansFuture = _safeFetch(
+        label: 'local_beans',
         failures: failures,
         query: CafeQuery(
-          sort: 'nearby',
-          lat: at.latitude,
-          lng: at.longitude,
+          sort: at == null ? 'top_rated' : 'nearby',
+          tags: const [localBeansTag],
+          lat: at?.latitude,
+          lng: at?.longitude,
           page: page,
           limit: limit,
         ),
       );
+      if (at == null) {
+        return (<CafeSummary>[], <CafeSummary>[], await localBeansFuture);
+      }
+      final both = await Future.wait([
+        _safeFetch(
+          label: 'nearby',
+          failures: failures,
+          query: CafeQuery(
+            sort: 'nearby',
+            lat: at.latitude,
+            lng: at.longitude,
+            page: page,
+            limit: limit,
+          ),
+        ),
+        _safeFetch(
+          label: 'specialty_nearby',
+          failures: failures,
+          query: CafeQuery(
+            sort: 'nearby',
+            tags: const [specialtyCoffeeTag],
+            lat: at.latitude,
+            lng: at.longitude,
+            page: page,
+            limit: limit,
+          ),
+        ),
+      ]);
+      return (both[0], both[1], await localBeansFuture);
     });
 
     final access = await accessFuture;
@@ -118,16 +179,23 @@ class GetHomeFeedUseCase {
       topRatedFuture,
       trendingFuture,
       newestFuture,
+      laptopFuture,
     ]);
     final topRated = sections[0];
     final trending = sections[1];
     final newest = sections[2];
+    final laptop = sections[3];
 
     // Still waiting on a fix: show what there is. With the position already
     // in, "Near you" is one round trip behind at most, and waiting for it
     // saves the feed from shifting under the reader.
     if (!positionResolved && sections.any((cafes) => cafes.isNotEmpty)) {
-      await repository.warmCache([...topRated, ...trending, ...newest]);
+      await repository.warmCache([
+        ...topRated,
+        ...trending,
+        ...newest,
+        ...laptop,
+      ]);
       yield (
         data: (
           feed: (
@@ -135,6 +203,9 @@ class GetHomeFeedUseCase {
             topRated: topRated,
             trending: trending,
             newest: newest,
+            specialtyNearby: <CafeSummary>[],
+            laptopFriendly: laptop,
+            localBeans: <CafeSummary>[],
           ),
           locationDenied: access.deniedForever,
           locationServicesOff: access.servicesOff,
@@ -143,8 +214,8 @@ class GetHomeFeedUseCase {
       );
     }
 
-    final nearby = await nearbyFuture;
-    if (position != null) attempted++;
+    final (nearby, specialtyNearby, localBeans) = await nearbyFuture;
+    if (position != null) attempted += 2;
 
     if (failures.length >= attempted) {
       throw failures.first;
@@ -155,6 +226,9 @@ class GetHomeFeedUseCase {
       topRated: topRated,
       trending: trending,
       newest: newest,
+      specialtyNearby: specialtyNearby,
+      laptopFriendly: laptop,
+      localBeans: localBeans,
     );
 
     await repository.warmCache([
@@ -162,6 +236,9 @@ class GetHomeFeedUseCase {
       ...topRated,
       ...trending,
       ...newest,
+      ...specialtyNearby,
+      ...laptop,
+      ...localBeans,
     ]);
 
     yield (

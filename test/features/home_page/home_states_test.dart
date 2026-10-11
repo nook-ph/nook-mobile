@@ -22,14 +22,25 @@ class _Repository implements ICafeRepository {
   Map<String, List<CafeSummary>> results = {};
   Map<String, Object> failing = {};
 
+  /// Answers for a tagged query, keyed by its first tag; checked before
+  /// [results].
+  Map<String, List<CafeSummary>> byTag = {};
+
+  /// Every query asked, in order.
+  final queries = <CafeQuery>[];
+
   /// Answers a turn of the event loop later, as a network call would.
   bool overNetwork = false;
 
   @override
   Future<List<CafeSummary>> getCafes(CafeQuery query) async {
+    queries.add(query);
     if (overNetwork) await Future<void>.delayed(Duration.zero);
     final error = failing[query.sort];
     if (error != null) throw error;
+    if (query.tags.isNotEmpty && byTag.containsKey(query.tags.first)) {
+      return byTag[query.tags.first]!;
+    }
     return results[query.sort] ?? const [];
   }
 
@@ -257,6 +268,82 @@ void main() {
     });
   });
 
+  group('Local beans', () {
+    const LocationAccess granted = (
+      servicesOff: false,
+      denied: false,
+      deniedForever: false,
+    );
+    final here = Position(
+      latitude: 10.3,
+      longitude: 123.9,
+      timestamp: DateTime(2026),
+      accuracy: 10,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+    final beans = [
+      for (var i = 0; i < 3; i++)
+        CafeSummary(id: 'b$i', name: 'Beans $i', rating: 4),
+    ];
+
+    CafeQuery beansQuery(_Repository repository) =>
+        repository.queries.singleWhere((q) => q.tags.contains(localBeansTag));
+
+    test('asks for Philippine Beans, top rated without a position', () async {
+      final repository = _Repository()..byTag = {localBeansTag: beans};
+
+      final state = await _load(repository) as HomeLoadedState;
+
+      final query = beansQuery(repository);
+      expect(query.tags, ['Philippine Beans']);
+      expect(query.sort, 'top_rated');
+      expect(query.lat, isNull);
+      expect(state.localBeansCafes, beans);
+    });
+
+    test('asks for the closest first with a position', () async {
+      final repository = _Repository()..byTag = {localBeansTag: beans};
+      final bloc = HomeBloc(
+        getHomeFeedUseCase: GetHomeFeedUseCase(
+          repository,
+          locationAccess: () async => granted,
+          firstPosition: () async => here,
+        ),
+      );
+      addTearDown(bloc.close);
+
+      bloc.add(LoadHomeDataEvent());
+      final state =
+          await bloc.stream.firstWhere((s) => s is HomeLoadedState)
+              as HomeLoadedState;
+
+      final query = beansQuery(repository);
+      expect(query.sort, 'nearby');
+      expect(query.lat, here.latitude);
+      expect(query.lng, here.longitude);
+      expect(state.localBeansCafes, beans);
+    });
+
+    test('before the coffee tags exist the shelf is simply absent', () async {
+      // get_cafes answers an unknown tag name with no rows.
+      final repository = _Repository()
+        ..results = {
+          'newest': [_cafe],
+        }
+        ..byTag = {localBeansTag: const []};
+
+      final state = await _load(repository) as HomeLoadedState;
+
+      expect(state.localBeansCafes, isEmpty);
+      expect(state.newestCafes, [_cafe]);
+    });
+  });
+
   group('HomeStateView.errorCopy', () {
     test('a server fault uses the home wording', () {
       for (final error in <Object>[
@@ -291,9 +378,9 @@ void main() {
     testWidgets('no cafes has no button', (tester) async {
       await pump(tester, const HomeStateView.noCafes());
 
-      expect(find.text('No cafes yet'), findsOneWidget);
+      expect(find.text('Nothing brewing yet'), findsOneWidget);
       expect(
-        find.text('Pull to refresh. New spots appear here soon.'),
+        find.text('Pull to refresh — new cafes land here first.'),
         findsOneWidget,
       );
       expect(find.text('Try again'), findsNothing);

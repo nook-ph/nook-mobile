@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/gallery/domain/entities/community_photo.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_image.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options.dart';
+import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 
 /// The viewer's dark ground and its text colours. Derived from the profile's
 /// ink, so the dark stays green-black rather than pure black.
@@ -30,6 +32,8 @@ String galleryMonthLabel(DateTime date) =>
 /// One photo at a time, full screen, swiping through the gallery in grid
 /// order. The cafe is a chip that opens the cafe page; the owner gets "…"
 /// (Luma's caption panel, Canopi's top bar; docs/references/coffee-gallery).
+/// On a cafe's community photos the chip is who added the photo instead
+/// (docs/references/cafe-community-photos).
 class GalleryViewerPage extends StatefulWidget {
   const GalleryViewerPage({
     super.key,
@@ -39,11 +43,24 @@ class GalleryViewerPage extends StatefulWidget {
     this.onOpenReview,
     this.onReport,
     this.reviewTextOf,
+    this.creditOf,
+    this.onOpenAuthor,
   });
 
   final String initialPhotoId;
   final bool isOwner;
-  final ValueChanged<String> onOpenCafe;
+
+  /// The cafe chip's tap. Null leaves the chip off: on the cafe's own page
+  /// it would only open the page again.
+  final ValueChanged<String>? onOpenCafe;
+
+  /// Who added a photo, shown as a chip under it. Null, or a null result,
+  /// shows none (the owner's own gallery, someone's profile).
+  final PhotoCredit? Function(GalleryPhoto photo)? creditOf;
+
+  /// The credit chip's tap: their public profile. Not called for your own
+  /// photo, whose chip is not a link.
+  final ValueChanged<PhotoCredit>? onOpenAuthor;
   final VoidCallback? onOpenReview;
 
   /// A visitor's "…": report the photo on screen. Null hides it (signed
@@ -54,24 +71,28 @@ class GalleryViewerPage extends StatefulWidget {
   /// note (Figma G5). Null, or a null result, shows none.
   final String? Function(GalleryPhoto photo)? reviewTextOf;
 
-  /// Pushes the viewer over [context], sharing its [GalleryCubit].
+  /// Pushes the viewer over [context], sharing its [GalleryCubit], or
+  /// showing [cubit] when given (photos that are not in the context's).
   static Future<void> open(
     BuildContext context, {
     required GalleryPhoto photo,
-    required ValueChanged<String> onOpenCafe,
+    required ValueChanged<String>? onOpenCafe,
     VoidCallback? onOpenReview,
     ValueChanged<GalleryPhoto>? onReport,
     String? Function(GalleryPhoto photo)? reviewTextOf,
+    PhotoCredit? Function(GalleryPhoto photo)? creditOf,
+    ValueChanged<PhotoCredit>? onOpenAuthor,
     bool isOwner = true,
+    GalleryCubit? cubit,
   }) {
-    final cubit = context.read<GalleryCubit>();
+    cubit ??= context.read<GalleryCubit>();
     return Navigator.of(context).push(
       PageRouteBuilder<void>(
         opaque: true,
         transitionDuration: const Duration(milliseconds: 200),
         reverseTransitionDuration: const Duration(milliseconds: 150),
         pageBuilder: (_, _, _) => BlocProvider.value(
-          value: cubit,
+          value: cubit!,
           child: GalleryViewerPage(
             initialPhotoId: photo.id,
             isOwner: isOwner,
@@ -79,6 +100,8 @@ class GalleryViewerPage extends StatefulWidget {
             onOpenReview: onOpenReview,
             onReport: onReport,
             reviewTextOf: reviewTextOf,
+            creditOf: creditOf,
+            onOpenAuthor: onOpenAuthor,
           ),
         ),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
@@ -176,7 +199,9 @@ class _GalleryViewerPageState extends State<GalleryViewerPage> {
                     onClose: () => Navigator.of(context).pop(),
                     onMore: widget.isOwner
                         ? () => _more(photo)
-                        : widget.onReport == null
+                        : widget.onReport == null ||
+                              // Nothing to report on your own photo.
+                              (widget.creditOf?.call(photo)?.isSelf ?? false)
                         ? null
                         : () => widget.onReport!(photo),
                   ),
@@ -205,7 +230,11 @@ class _GalleryViewerPageState extends State<GalleryViewerPage> {
                     key: ValueKey(photo.id),
                     photo: photo,
                     isOwner: widget.isOwner,
-                    onOpenCafe: () => widget.onOpenCafe(photo.cafeId),
+                    onOpenCafe: widget.onOpenCafe == null
+                        ? null
+                        : () => widget.onOpenCafe!(photo.cafeId),
+                    credit: widget.creditOf?.call(photo),
+                    onOpenAuthor: widget.onOpenAuthor,
                     reviewText: photo.isFromReview
                         ? widget.reviewTextOf?.call(photo)
                         : null,
@@ -324,13 +353,17 @@ class _Caption extends StatefulWidget {
     required this.photo,
     required this.isOwner,
     required this.onOpenCafe,
+    this.credit,
+    this.onOpenAuthor,
     this.reviewText,
     this.onOpenReview,
   });
 
   final GalleryPhoto photo;
   final bool isOwner;
-  final VoidCallback onOpenCafe;
+  final VoidCallback? onOpenCafe;
+  final PhotoCredit? credit;
+  final ValueChanged<PhotoCredit>? onOpenAuthor;
 
   /// A review photo's review, standing in for the note.
   final String? reviewText;
@@ -407,11 +440,13 @@ class _CaptionState extends State<_Caption> {
     final note =
         photo.caption ?? (review == null || review.isEmpty ? null : review);
     final openReview = widget.onOpenReview;
+    final credit = widget.credit;
+    final openCafe = widget.onOpenCafe;
     final notes = [
       galleryMonthLabel(photo.takenAt),
       if (isOwner && photo.isPinned) 'Pinned',
       if (isOwner && photo.isHidden) 'Hidden from your profile',
-      if (photo.isFromReview) 'From a review',
+      if (photo.isFromReview) 'From a rated cup',
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
@@ -450,68 +485,76 @@ class _CaptionState extends State<_Caption> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              Semantics(
-                button: true,
-                label: 'Open ${photo.cafeName}',
-                excludeSemantics: true,
-                child: AdaptiveTap(
-                  onTap: widget.onOpenCafe,
-                  borderRadius: BorderRadius.circular(100),
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 44),
-                    padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
-                    decoration: BoxDecoration(
-                      color: _ViewerTokens.chip,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          LucideIcons.mapPin,
-                          size: 16,
-                          color: _ViewerTokens.text,
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            photo.cafeName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              color: _ViewerTokens.text,
-                            ),
+              if (credit != null)
+                _CreditChip(
+                  credit: credit,
+                  onTap: credit.isSelf || widget.onOpenAuthor == null
+                      ? null
+                      : () => widget.onOpenAuthor!(credit),
+                ),
+              if (openCafe != null)
+                Semantics(
+                  button: true,
+                  label: 'Open ${photo.cafeName}',
+                  excludeSemantics: true,
+                  child: AdaptiveTap(
+                    onTap: openCafe,
+                    borderRadius: BorderRadius.circular(100),
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 10, 8),
+                      decoration: BoxDecoration(
+                        color: _ViewerTokens.chip,
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            LucideIcons.mapPin,
+                            size: 16,
+                            color: _ViewerTokens.text,
                           ),
-                        ),
-                        if (photo.cafeArea != null) ...[
                           const SizedBox(width: 6),
                           Flexible(
                             child: Text(
-                              photo.cafeArea!,
+                              photo.cafeName,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontFamily: 'Poppins',
-                                fontSize: 12,
-                                color: _ViewerTokens.muted,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: _ViewerTokens.text,
                               ),
                             ),
                           ),
+                          if (photo.cafeArea != null) ...[
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                photo.cafeArea!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 12,
+                                  color: _ViewerTokens.muted,
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(width: 2),
+                          const Icon(
+                            LucideIcons.chevronRight,
+                            size: 16,
+                            color: _ViewerTokens.muted,
+                          ),
                         ],
-                        const SizedBox(width: 2),
-                        const Icon(
-                          LucideIcons.chevronRight,
-                          size: 16,
-                          color: _ViewerTokens.muted,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
-              ),
               if (openReview != null)
                 _Chip(
                   icon: LucideIcons.messageSquare,
@@ -531,6 +574,77 @@ class _CaptionState extends State<_Caption> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Who added the photo: avatar and @username, opening their profile. Your
+/// own photo reads "Added by you" and is not a link.
+class _CreditChip extends StatelessWidget {
+  const _CreditChip({required this.credit, this.onTap});
+
+  final PhotoCredit credit;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final chip = Container(
+      constraints: const BoxConstraints(minHeight: 44),
+      padding: EdgeInsets.fromLTRB(6, 6, onTap == null ? 14 : 10, 6),
+      decoration: BoxDecoration(
+        color: _ViewerTokens.chip,
+        borderRadius: BorderRadius.circular(100),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ProfileAvatar(
+            name: credit.username,
+            size: 28,
+            imageUrl: credit.avatarUrl,
+            initialSize: 12,
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              credit.isSelf ? 'Added by you' : credit.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: _ViewerTokens.text,
+              ),
+            ),
+          ),
+          if (onTap != null) ...[
+            const SizedBox(width: 2),
+            const Icon(
+              LucideIcons.chevronRight,
+              size: 16,
+              color: _ViewerTokens.muted,
+            ),
+          ],
+        ],
+      ),
+    );
+    if (onTap == null) {
+      return Semantics(
+        label: credit.isSelf ? 'Added by you' : 'Added by ${credit.label}',
+        excludeSemantics: true,
+        child: chip,
+      );
+    }
+    return Semantics(
+      button: true,
+      label: 'Open ${credit.label}’s profile',
+      excludeSemantics: true,
+      child: AdaptiveTap(
+        onTap: onTap!,
+        borderRadius: BorderRadius.circular(100),
+        child: chip,
       ),
     );
   }

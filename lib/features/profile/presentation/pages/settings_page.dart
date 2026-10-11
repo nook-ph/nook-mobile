@@ -247,7 +247,7 @@ class _SettingsPageState extends State<SettingsPage>
                       >(
                         builder: (context, visibility) => _SwitchRow(
                           icon: LucideIcons.eye,
-                          label: 'Show my gallery on my profile',
+                          label: 'Show my cups on my profile',
                           detail:
                               visibility.status ==
                                   ProfileVisibilityStatus.failed

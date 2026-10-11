@@ -75,7 +75,7 @@ class _MainShellState extends State<MainShell> {
           icon: LucideIcons.userRound,
           title: 'Sign in to see your profile',
           reason:
-              'Your reviews, lists and rankings live in one place once you '
+              'Your cups, lists and rankings live in one place once you '
               'have an account.',
         );
       }

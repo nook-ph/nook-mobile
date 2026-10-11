@@ -157,7 +157,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
       dismissToasts();
       final confirmed = await showConfirmSheet(
         context,
-        title: 'Move to Want to Try?',
+        title: 'Move to Want to try?',
         message: switch ((rankingBefore != null, hasNote)) {
           (true, true) => 'Your rank and note for $cafeName will be deleted.',
           (true, false) => 'Your rank for $cafeName will be deleted.',
@@ -268,7 +268,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
                 (false, true) => 'Removed from Been — note deleted.',
                 _ => 'Removed from Been',
               }
-            : 'Removed from Want to Try',
+            : 'Removed from Want to try',
         actionLabel: 'Undo',
         // The cubits are app-wide and captured here, so Undo still restores
         // everything when the toast is tapped after leaving the page.
@@ -288,7 +288,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
 
     showPrimaryToast(context, switch (next) {
       CafeStatus.been => 'Added to Been',
-      CafeStatus.wantToTry => 'Added to Want to Try',
+      CafeStatus.wantToTry => 'Saved for your next coffee run',
       CafeStatus.none => '',
     }, bottomOffset: _toastOffset);
   }

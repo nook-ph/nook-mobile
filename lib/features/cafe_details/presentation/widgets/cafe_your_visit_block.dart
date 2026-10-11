@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
@@ -25,11 +24,16 @@ class CafeYourVisitBlock extends StatefulWidget {
     required this.cafeId,
     required this.cafeName,
     this.cafeImageUrl,
+    this.onShareCup,
   });
 
   final String cafeId;
   final String cafeName;
   final String? cafeImageUrl;
+
+  /// "Share as a cup": opens the composer with the private note as its
+  /// note. Null hides it.
+  final ValueChanged<String>? onShareCup;
 
   @override
   State<CafeYourVisitBlock> createState() => _CafeYourVisitBlockState();
@@ -233,18 +237,15 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
                         ),
                       ],
                     ),
-                    // The note is private; this makes it a public review in
+                    // The note is private; this posts it as a public cup in
                     // one step, without writing it again
-                    // (docs/ux/core-loops.md, finding 2).
-                    if (hasNote && ranking != null)
+                    // (docs/ux/core-loops.md, finding 2). The note itself
+                    // stays private.
+                    if (hasNote && ranking != null && widget.onShareCup != null)
                       _TextAction(
-                        icon: PhosphorIcons.chatCircleText(),
-                        label: 'Post it as a review',
-                        onTap: () => WriteReviewSheet.show(
-                          context,
-                          cafeId: widget.cafeId,
-                          initialText: note,
-                        ),
+                        icon: PhosphorIcons.coffee(),
+                        label: 'Share as a cup',
+                        onTap: () => widget.onShareCup!(note),
                       ),
                   ],
                 ),

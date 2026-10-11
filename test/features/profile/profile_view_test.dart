@@ -51,15 +51,7 @@ void main() {
       ),
     );
     await tester.pump();
-    // Gallery is the first tab; these tests are about Reviews. "Reviews" is
-    // also a stat label, so look inside the tab row. Error and signed-out
-    // pages have no tabs.
-    final reviewsTab = tabLabel('Reviews');
-    if (reviewsTab.evaluate().isNotEmpty) {
-      await tester.tap(reviewsTab);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-    }
+    await tester.pump();
   }
 
   testWidgets('loading shows the skeleton, the bare tabs and "@…"', (
@@ -74,9 +66,11 @@ void main() {
 
     expect(find.text('@…'), findsOneWidget);
     expect(find.bySemanticsLabel('Loading profile'), findsOneWidget);
-    expect(find.bySemanticsLabel('Loading reviews'), findsOneWidget);
-    expect(tabLabel('Reviews'), findsOneWidget);
+    expect(find.bySemanticsLabel('Loading cups'), findsOneWidget);
+    expect(tabLabel('Cups'), findsOneWidget);
     expect(tabLabel('Lists'), findsOneWidget);
+    // Reviews are cups now: no tab of their own.
+    expect(tabLabel('Reviews'), findsNothing);
     expect(find.byType(CircularProgressIndicator), findsNothing);
     // The header needs the list count, so the lists load with the profile.
     expect(listsBloc.events.whereType<LoadUserLists>(), hasLength(1));
@@ -135,27 +129,28 @@ void main() {
 
     expect(find.text('@saiimonn_'), findsOneWidget);
     expect(find.text('Sai'), findsOneWidget);
-    // The stat row: number over label. The fixture has no ranked cafes and
-    // an empty gallery.
-    expect(find.bySemanticsLabel('2 Reviews'), findsOneWidget);
+    // The stat row: number over label. The fixture has no ranked cafes, an
+    // empty gallery and two reviews, which are two cups at two cafes.
     expect(find.bySemanticsLabel('0 Ranked'), findsOneWidget);
-    expect(find.bySemanticsLabel('0 Cups'), findsOneWidget);
+    expect(find.bySemanticsLabel('2 Cups'), findsOneWidget);
+    expect(find.bySemanticsLabel('2 Cafes'), findsOneWidget);
     // The old counts line under the name is gone.
     expect(find.text('2 reviews · 3 lists'), findsNothing);
     expect(find.text('Cebu. Remote most days.'), findsOneWidget);
     expect(find.text('Edit profile'), findsOneWidget);
     expect(find.text('Share profile'), findsOneWidget);
-    expect(find.bySemanticsLabel('Add photos'), findsOneWidget);
+    expect(find.bySemanticsLabel('Add a cup'), findsOneWidget);
     // No photo: the initial stands in.
     expect(find.text('S'), findsOneWidget);
     // Tabs carry no count badges.
     expect(find.text('3'), findsNothing);
 
-    // Reviews are led by the cafe, dated in words.
+    // Each review is a cup: a tile per cafe, its note standing in for a
+    // photo, its stars top-left.
+    expect(find.text('2 cups · 2 cafes'), findsOneWidget);
     expect(find.text('Tadaima'), findsOneWidget);
     expect(find.text('Coffee Bear'), findsOneWidget);
-    expect(find.text('May 23, 2026'), findsNWidgets(2));
-    expect(find.bySemanticsLabel('4 out of 5 stars'), findsOneWidget);
+    expect(find.text('“Stayed four hours on one latte.”'), findsNWidgets(2));
   });
 
   // Before the ranking has loaded (or when it failed), the count is
@@ -198,123 +193,33 @@ void main() {
     expect(find.text('S'), findsOneWidget);
   });
 
-  testWidgets('more than four reviews link through to Your reviews', (
+  testWidgets('no cups: says what a cup is and offers to add one', (
+    tester,
+  ) async {
+    await pump(tester, cubit: FakeProfileCubit(profile()));
+
+    expect(find.text('Your coffee, cup by cup'), findsOneWidget);
+    expect(find.text('Add a cup'), findsOneWidget);
+    expect(find.bySemanticsLabel('0 Cups'), findsOneWidget);
+    expect(find.text('No reviews yet'), findsNothing);
+  });
+
+  testWidgets('a tile opens that cafe’s cups, newest visit first', (
     tester,
   ) async {
     await pump(
       tester,
       cubit: FakeProfileCubit(
-        profile(
-          reviews: [
-            for (var i = 0; i < 6; i++)
-              review('$i', cafe: 'Cafe $i', at: DateTime(2026, 5, 20 - i)),
-          ],
-        ),
+        profile(reviews: [review('a', text: 'Window seat, cold brew.')]),
       ),
     );
 
-    expect(find.text('Cafe 3'), findsOneWidget);
-    expect(find.text('Cafe 4'), findsNothing);
-
-    await tester.scrollUntilVisible(
-      find.text('See all 6 reviews'),
-      200,
-      scrollable: find.byType(Scrollable).last,
-    );
-    await tester.tap(find.text('See all 6 reviews'));
+    await tester.tap(find.text('Tadaima'));
     await tester.pumpAndSettle();
-
-    expect(find.text('Your reviews'), findsOneWidget);
-    expect(find.text('Cafe 5'), findsOneWidget);
-  });
-
-  testWidgets('no reviews: the empty message, no rows', (tester) async {
-    await pump(tester, cubit: FakeProfileCubit(profile()));
-
-    expect(find.text('No reviews yet'), findsOneWidget);
-    expect(
-      find.text('When you share reviews, they will appear here.'),
-      findsOneWidget,
-    );
-    expect(find.bySemanticsLabel('0 Reviews'), findsOneWidget);
-  });
-
-  testWidgets('a review is deleted through options, then a confirm sheet', (
-    tester,
-  ) async {
-    final cubit = FakeProfileCubit(profile(reviews: [review('a')]));
-    await pump(tester, cubit: cubit);
-
-    await tester.tap(find.bySemanticsLabel('Review options'));
-    await tester.pumpAndSettle();
-    expect(find.text('Your review of Tadaima'), findsOneWidget);
-    expect(
-      find.text('Removes it from the cafe page and your profile'),
-      findsOneWidget,
-    );
-
-    await tester.tap(find.text('Delete review'));
-    await tester.pumpAndSettle();
-    expect(find.text('Delete this review?'), findsOneWidget);
-    expect(find.text('This cannot be undone.'), findsOneWidget);
-    expect(find.byType(AlertDialog), findsNothing);
-    expect(cubit.deleted, isEmpty);
-
-    await tester.tap(find.text('Delete'));
-    await tester.pumpAndSettle();
-    expect(cubit.deleted, ['a']);
-    expect(find.text('Review deleted'), findsOneWidget);
-    expect(find.text('No reviews yet'), findsOneWidget);
-    await letToastExpire(tester);
-  });
-
-  testWidgets('cancelling the confirm sheet keeps the review', (tester) async {
-    final cubit = FakeProfileCubit(profile(reviews: [review('a')]));
-    await pump(tester, cubit: cubit);
-
-    await tester.tap(find.bySemanticsLabel('Review options'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete review'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-
-    expect(cubit.deleted, isEmpty);
-    expect(find.text('Tadaima'), findsOneWidget);
-  });
-
-  testWidgets('a failed delete says so and keeps the review', (tester) async {
-    final cubit = FakeProfileCubit(profile(reviews: [review('a')]))
-      ..failure = const SocketException('offline');
-    await pump(tester, cubit: cubit);
-
-    await tester.tap(find.bySemanticsLabel('Review options'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete review'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Delete'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.text('Could not delete the review. Please try again.'),
-      findsOneWidget,
-    );
-    expect(find.text('Tadaima'), findsOneWidget);
-    await letToastExpire(tester);
-  });
-
-  testWidgets('reviews that failed to load are not "No reviews yet"', (
-    tester,
-  ) async {
-    final cubit = FakeProfileCubit(profile(reviewsFailed: true));
-    await pump(tester, cubit: cubit);
-
-    expect(find.text('Could not load reviews.'), findsOneWidget);
-    expect(find.text('No reviews yet'), findsNothing);
-
-    await tester.tap(find.text('Retry'));
-    await tester.pump();
-    expect(cubit.loads, 1);
+    expect(find.text('1 visit'), findsOneWidget);
+    expect(find.text('Window seat, cold brew.'), findsOneWidget);
+    expect(find.bySemanticsLabel('5 out of 5 stars'), findsWidgets);
+    expect(find.bySemanticsLabel('Your cup options'), findsOneWidget);
   });
 
   group('Lists tab', () {
@@ -354,8 +259,8 @@ void main() {
       expect(find.text('Create new list'), findsOneWidget);
       expect(find.byType(ProfileSkeleton), findsWidgets);
       expect(find.text('No lists yet'), findsNothing);
-      // The reviews count is known (none); the lists count is not shown.
-      expect(find.bySemanticsLabel('0 Reviews'), findsOneWidget);
+      // The cups count is known (none); the lists count is not shown.
+      expect(find.bySemanticsLabel('0 Cups'), findsOneWidget);
     });
 
     testWidgets('empty keeps the create row over the message', (tester) async {
@@ -445,7 +350,7 @@ void main() {
     expect(find.text('Sign in to see your profile'), findsOneWidget);
     expect(
       find.text(
-        'Keep your reviews, lists and the places you have been in one place.',
+        'Keep your cups, lists and the places you have been in one place.',
       ),
       findsOneWidget,
     );

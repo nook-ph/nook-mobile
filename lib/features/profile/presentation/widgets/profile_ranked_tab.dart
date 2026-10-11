@@ -122,9 +122,9 @@ class _ProfileRankedTabState extends State<ProfileRankedTab> {
               ),
             const ProfileMessage(
               icon: LucideIcons.trophy,
-              title: 'Nothing ranked yet',
+              title: 'Your ranking starts with one cup',
               subtitle:
-                  'Mark a cafe as Been and rank it. Your ranking shows here, '
+                  'Mark a cafe Been, then rank it. Your ranking shows here, '
                   'best first.',
             ),
           ],

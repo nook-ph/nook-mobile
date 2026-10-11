@@ -100,7 +100,7 @@ void main() {
       await tester.pumpAndSettle();
       // The sheet also says what the link shows and who can see it.
       expect(find.text('See what visitors see'), findsOneWidget);
-      expect(find.text('Gallery privacy'), findsOneWidget);
+      expect(find.text('Cups privacy'), findsOneWidget);
       await tester.tap(find.text('Share profile').last);
       await tester.pumpAndSettle();
       expect(shared.single.username, 'saiimonn_');
@@ -127,7 +127,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Share profile'));
       await tester.pumpAndSettle();
       expect(
-        find.textContaining('Your gallery is hidden from visitors'),
+        find.textContaining('Your cups are hidden from visitors'),
         findsOneWidget,
       );
     });
@@ -159,7 +159,7 @@ void main() {
     testWidgets('the switch is on by default and turns off', (tester) async {
       final repo = await pump(tester);
       expect(find.text('Privacy'), findsOneWidget);
-      expect(find.text('Show my gallery on my profile'), findsOneWidget);
+      expect(find.text('Show my cups on my profile'), findsOneWidget);
       expect(toggle(tester).value, isTrue);
 
       await tester.tap(find.byType(Switch));

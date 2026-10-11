@@ -160,7 +160,7 @@ class ProfileHeader extends StatelessWidget {
                   const SizedBox(width: 8),
                   _HeaderButton(
                     icon: LucideIcons.plus,
-                    label: 'Add photos',
+                    label: 'Add a cup',
                     onTap: add,
                   ),
                 ],

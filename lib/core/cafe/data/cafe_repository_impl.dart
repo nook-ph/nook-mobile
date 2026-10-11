@@ -637,6 +637,7 @@ class CafeRepositoryImpl implements ICafeRepository {
       rating: details.rating,
       reviewCount: details.reviewCount,
       isNew: details.isNew,
+      isClaimed: details.isClaimed,
       operatingHours: details.operatingHours,
       socialLinks: details.socialLinks,
       tags: mappedTags,
@@ -661,6 +662,7 @@ extension on CafeDetails {
       rating: summary.rating,
       reviewCount: summary.reviewCount,
       isNew: isNew,
+      isClaimed: isClaimed,
       operatingHours: operatingHours,
       socialLinks: socialLinks,
       tags: keepTags

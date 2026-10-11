@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/cups/domain/entities/cup.dart';
+import 'package:nook/features/cups/domain/i_cups_repository.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/gallery_flows.dart';
@@ -14,6 +13,7 @@ import 'package:nook/utils/theme/theme.dart';
 
 import '../lists/lists_fixtures.dart' show usePhone;
 import '../public_profile/public_profile_fakes.dart';
+import '../cups/cups_fakes.dart';
 import 'gallery_fakes.dart';
 
 /// A page with one button that runs [run] from a live context.
@@ -167,7 +167,23 @@ void main() {
   });
 
   group('+ flow', () {
-    testWidgets('pick, choose the cafe, add with a drink', (tester) async {
+    late FakeCupsRepository cups;
+
+    setUp(() => cups = FakeCupsRepository());
+
+    GalleryFlowDeps deps({
+      required FakeGalleryPhotoPicker picker,
+      FakeCafePickerSource? cafes,
+    }) => GalleryFlowDeps(
+      cubit: cubit,
+      picker: picker,
+      cafes: cafes ?? FakeCafePickerSource(been: [kamp], near: const []),
+      cups: cups,
+    );
+
+    testWidgets('pick, choose the cafe, then post them as a cup there', (
+      tester,
+    ) async {
       usePhone(tester);
       final cafes = FakeCafePickerSource(
         been: [kamp, lorenzo],
@@ -182,10 +198,8 @@ void main() {
       );
       await tester.pumpWidget(
         _launcher(
-          (context) => addPhotosToGallery(
-            context,
-            galleryDeps(cubit: cubit, picker: picker, cafes: cafes),
-          ),
+          (context) =>
+              addPhotosToGallery(context, deps(picker: picker, cafes: cafes)),
         ),
       );
       await _go(tester);
@@ -197,134 +211,52 @@ void main() {
       await tester.tap(find.text('Kamp Craft Coffee'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Add 2 photos'), findsNWidgets(2)); // title + button
-      expect(find.text('Drink (optional)'), findsOneWidget);
+      // The cup composer, for this cafe, with both photos in it.
+      expect(find.text('Add your cup'), findsOneWidget);
+      expect(find.text('Kamp Craft Coffee'), findsOneWidget);
+      expect(find.text('2 of 10'), findsOneWidget);
+      // Each photo starts with no kind: this one is coffee.
+      await tester.tap(find.bySemanticsLabel('Coffee'));
       await tester.enterText(
-        find.widgetWithText(TextField, 'Drink (optional)'),
+        find.widgetWithText(TextField, 'What is it? (optional)'),
         'Iced Spanish latte',
       );
-
-      // Change the cafe from the add sheet.
-      await tester.tap(
-        find.bySemanticsLabel('Cafe: Kamp Craft Coffee. Change'),
-      );
+      // The second photo is food.
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^Photo 2 of 2')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text("Lorenzo's Cafe").last);
-      await tester.pumpAndSettle();
-      expect(
-        find.bySemanticsLabel("Cafe: Lorenzo's Cafe. Change"),
-        findsOneWidget,
-      );
-
-      await tester.tap(find.text('Add 2 photos').last);
-      await tester.pumpAndSettle();
-
-      // One upload per photo, so a failure stays with its own tile.
-      expect(repo.added, hasLength(2));
-      for (final add in repo.added) {
-        expect(add, (
-          cafeId: 'lorenzo',
-          count: 1,
-          source: GalleryPhotoSource.gallery,
-          drink: 'Iced Spanish latte',
-          caption: null,
-        ));
-      }
-      expect(cubit.state.photos, hasLength(2));
-      expect(cubit.state.uploads, isEmpty);
-      expect(find.text('2 photos added'), findsOneWidget);
-      await _letToastExpire(tester);
-    });
-
-    testWidgets('the sheet closes at once; the upload carries on behind it', (
-      tester,
-    ) async {
-      usePhone(tester);
-      final gated = _GatedRepository();
-      final gatedCubit = GalleryCubit(repository: gated);
-      addTearDown(gatedCubit.close);
-      await tester.pumpWidget(
-        _launcher(
-          (context) => addPhotosToGallery(
-            context,
-            galleryDeps(
-              cubit: gatedCubit,
-              picker: FakeGalleryPhotoPicker(
-                many: [pickedPhoto('a'), pickedPhoto('b'), pickedPhoto('c')],
-              ),
-              cafes: FakeCafePickerSource(been: [kamp], near: const []),
-            ),
-          ),
-        ),
-      );
-      await _go(tester);
-      await tester.tap(find.text('Kamp Craft Coffee'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Add 3 photos').last);
-      await tester.pumpAndSettle();
-
-      // Gone while nothing has landed yet.
-      expect(find.text('Add 3 photos'), findsNothing);
-      expect(gatedCubit.state.uploads, hasLength(3));
-      expect(find.text('Adding 3 photos to your gallery…'), findsOneWidget);
-
-      gated.gate.complete();
-      await tester.pumpAndSettle();
-      expect(gatedCubit.state.photos, hasLength(3));
-      expect(find.text('3 photos added'), findsOneWidget);
-      await _letToastExpire(tester);
-    });
-
-    testWidgets('a note typed in the add sheet is sent as the caption', (
-      tester,
-    ) async {
-      usePhone(tester);
-      await tester.pumpWidget(
-        _launcher(
-          (context) => addPhotosToGallery(
-            context,
-            galleryDeps(
-              cubit: cubit,
-              picker: FakeGalleryPhotoPicker(many: [pickedPhoto('a')]),
-              cafes: FakeCafePickerSource(been: [kamp], near: const []),
-            ),
-          ),
-        ),
-      );
-      await _go(tester);
-      await tester.tap(find.text('Kamp Craft Coffee'));
-      await tester.pumpAndSettle();
-      // Says who reads it before anything is written.
-      expect(
-        find.text(
-          'Photos and notes are public on your profile. Keep opinions about '
-          'the whole cafe for a review.',
-        ),
-        findsOneWidget,
-      );
+      await tester.tap(find.bySemanticsLabel('Food'));
       await tester.enterText(
-        find.widgetWithText(TextField, 'Say something about it (optional)'),
-        'Best cortado in town',
+        find.widgetWithText(TextField, 'What is it? (optional)'),
+        'Banana bread',
       );
-      await tester.tap(find.text('Add photo'));
+      await tester.tap(find.text('Post cup'));
       await tester.pumpAndSettle();
-      expect(repo.added.single.caption, 'Best cortado in town');
-      expect(repo.added.single.drink, isNull);
+
+      final post = cups.posts.single;
+      expect(post.cafeId, 'kamp');
+      expect(post.rating, isNull);
+      expect(post.note, isNull);
+      expect(
+        [for (final i in post.items) (i.kind, i.name, i.hasPhoto)],
+        [
+          (CupItemKind.coffee, 'Iced Spanish latte', true),
+          (CupItemKind.food, 'Banana bread', true),
+        ],
+      );
+      expect(find.text('Cup posted · Marked as Been'), findsOneWidget);
       await _letToastExpire(tester);
     });
 
-    testWidgets('a photo can be left out of the batch', (tester) async {
+    testWidgets('a photo can be left out of the cup', (tester) async {
       usePhone(tester);
       await tester.pumpWidget(
         _launcher(
           (context) => addPhotosToGallery(
             context,
-            galleryDeps(
-              cubit: cubit,
+            deps(
               picker: FakeGalleryPhotoPicker(
                 many: [pickedPhoto('a'), pickedPhoto('b')],
               ),
-              cafes: FakeCafePickerSource(been: [kamp], near: const []),
             ),
           ),
         ),
@@ -332,50 +264,50 @@ void main() {
       await _go(tester);
       await tester.tap(find.text('Kamp Craft Coffee'));
       await tester.pumpAndSettle();
-      expect(find.bySemanticsLabel('Remove this photo'), findsNWidgets(2));
-      await tester.tap(find.bySemanticsLabel('Remove this photo').first);
+      expect(find.bySemanticsLabel(RegExp(r'^Remove item')), findsNWidgets(2));
+      await tester.tap(find.bySemanticsLabel('Remove item 1'));
       await tester.pumpAndSettle();
-      expect(find.text('Add to your gallery'), findsOneWidget);
-      await tester.tap(find.text('Add photo'));
+      expect(find.text('1 of 10'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Coffee'));
+      await tester.tap(find.text('Post cup'));
       await tester.pumpAndSettle();
-      expect(repo.added.single.count, 1);
-      expect(repo.added.single.drink, isNull);
+      expect(cups.posts.single.items, hasLength(1));
       await _letToastExpire(tester);
     });
 
-    testWidgets('a failed upload leaves the photo waiting with Retry', (
+    testWidgets('a failed post keeps the composer open with Try again', (
       tester,
     ) async {
       usePhone(tester);
-      repo.writeFailure = Exception('offline');
+      cups.failure = const CupsException(
+        "Couldn't upload your photos. Check your connection and try again.",
+      );
       await tester.pumpWidget(
         _launcher(
           (context) => addPhotosToGallery(
             context,
-            galleryDeps(
-              cubit: cubit,
-              picker: FakeGalleryPhotoPicker(many: [pickedPhoto('a')]),
-              cafes: FakeCafePickerSource(been: [kamp], near: const []),
-            ),
+            deps(picker: FakeGalleryPhotoPicker(many: [pickedPhoto('a')])),
           ),
         ),
       );
       await _go(tester);
       await tester.tap(find.text('Kamp Craft Coffee'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Add photo'));
+      await tester.tap(find.bySemanticsLabel('Coffee'));
+      await tester.tap(find.text('Post cup'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Add to your gallery'), findsNothing);
+      expect(find.text('Add your cup'), findsOneWidget);
       expect(
-        find.text("A photo didn't upload. Tap Retry on it."),
+        find.text(
+          "Couldn't upload your photos. Check your connection and try again.",
+        ),
         findsOneWidget,
       );
-      expect(cubit.state.uploads.single.failed, isTrue);
-      repo.writeFailure = null;
-      await cubit.retryUpload(cubit.state.uploads.single.id);
-      expect(cubit.state.photos, hasLength(1));
-      expect(cubit.state.uploads, isEmpty);
+      cups.failure = null;
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+      expect(cups.posts, hasLength(1));
       await _letToastExpire(tester);
     });
 
@@ -385,13 +317,13 @@ void main() {
         _launcher(
           (context) => addPhotosToGallery(
             context,
-            galleryDeps(cubit: cubit, picker: FakeGalleryPhotoPicker()),
+            deps(picker: FakeGalleryPhotoPicker()),
           ),
         ),
       );
       await _go(tester);
       expect(find.text('Which cafe is this from?'), findsNothing);
-      expect(repo.calls, isEmpty);
+      expect(cups.posts, isEmpty);
     });
   });
 
@@ -417,7 +349,7 @@ void main() {
       expect(
         find.text(
           'Notes are public on your profile. Keep opinions about the whole '
-          'cafe for a review.',
+          'cafe for your cup’s note.',
         ),
         findsOneWidget,
       );
@@ -427,31 +359,8 @@ void main() {
       tester,
     ) async {
       await pumpNote(tester, public: false);
-      expect(find.textContaining('Your gallery is hidden'), findsOneWidget);
+      expect(find.textContaining('Your cups are hidden'), findsOneWidget);
       expect(find.textContaining('are public'), findsNothing);
     });
   });
-}
-
-/// Holds every add until [gate] completes.
-class _GatedRepository extends FakeGalleryRepository {
-  final gate = Completer<void>();
-
-  @override
-  Future<List<GalleryPhoto>> addPhotos({
-    required String cafeId,
-    required List<PickedGalleryPhoto> photos,
-    required GalleryPhotoSource source,
-    String? drinkName,
-    String? caption,
-  }) async {
-    await gate.future;
-    return super.addPhotos(
-      cafeId: cafeId,
-      photos: photos,
-      source: source,
-      drinkName: drinkName,
-      caption: caption,
-    );
-  }
 }

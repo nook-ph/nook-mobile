@@ -967,7 +967,7 @@ class RankPhotoPrompt extends StatelessWidget {
                 Text(
                   photo == null
                       ? 'Add a photo of what you had'
-                      : 'Added to your gallery',
+                      : 'Added to your cups',
                   style: listsText(14, weight: FontWeight.w500),
                 ),
                 Text(

@@ -1,3 +1,8 @@
+import 'package:nook/features/cups/data/cups_backend.dart';
+import 'package:nook/features/cups/data/cups_community_photos_repository.dart';
+import 'package:nook/features/cups/data/cups_repository_impl.dart';
+import 'package:nook/features/cups/data/demo_cups_repository.dart';
+import 'package:nook/features/cups/domain/i_cups_repository.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
@@ -55,10 +60,13 @@ import 'package:nook/core/upload/data/upload_remove_data_source.dart';
 import 'package:nook/core/upload/data/upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/use_cases/upload_use_case.dart';
 import 'package:nook/features/gallery/data/cafe_picker_source_impl.dart';
+import 'package:nook/features/gallery/data/community_photos_repository_impl.dart';
 import 'package:nook/features/gallery/data/demo_gallery_repository.dart';
 import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
 import 'package:nook/features/gallery/data/gallery_repository_impl.dart';
 import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
+import 'package:nook/features/gallery/domain/i_community_photos_repository.dart';
+import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart';
 import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/public_profile/data/demo_public_profile_repository.dart';
@@ -203,6 +211,41 @@ Future<void> initDependencies() async {
       client: sl<SupabaseClient>(),
       upload: ({required file, required cafeId}) => sl<UploadRemoteDataSource>()
           .uploadGalleryPhoto(file: file, cafeId: cafeId),
+    );
+  });
+
+  // A cafe's community photos: other people's gallery photos of it,
+  // read-only, for the details page.
+  // Through the Cups RPCs when the server has them, else the user_photos
+  // read (the legacy-safe rule, nook-supabase docs/CUPS_APPLY.md).
+  sl.registerLazySingleton<ICommunityPhotosRepository>(() {
+    final cups = sl<ICupsRepository>();
+    if (cups is DemoCupsRepository) return cups.photos;
+    return CupsCommunityPhotosRepository(
+      client: sl<SupabaseClient>(),
+      backend: sl<CupsBackend>(),
+      legacy: CommunityPhotosRepositoryImpl(client: sl<SupabaseClient>()),
+    );
+  });
+
+  // Cups: reviews and the gallery as one card per visit. Decides once per
+  // run whether the Cups RPCs exist (CupsBackend) and otherwise reads and
+  // writes reviews and gallery photos as 1.1.x does. CUPS_DEMO (debug
+  // only) swaps in fixtures.
+  sl.registerLazySingleton<CupsBackend>(() => CupsBackend());
+  sl.registerLazySingleton<ICupsRepository>(() {
+    if (cupsDemoEnabled) {
+      return DemoCupsRepository(me: sl<SupabaseClient>().auth.currentUser?.id);
+    }
+    return CupsRepositoryImpl(
+      client: sl<SupabaseClient>(),
+      backend: sl<CupsBackend>(),
+      upload: ({required file, required cafeId}) => sl<UploadRemoteDataSource>()
+          .uploadGalleryPhoto(file: file, cafeId: cafeId),
+      cafes: sl<ICafeRepository>(),
+      legacyPhotos: CommunityPhotosRepositoryImpl(client: sl<SupabaseClient>()),
+      gallery: sl<IGalleryRepository>(),
+      profiles: sl<IPublicProfileRepository>(),
     );
   });
 
@@ -461,6 +504,15 @@ Future<void> initDependencies() async {
     () => MyCrawlsCubit(
       getMyCrawlsUseCase: sl<GetMyCrawlsUseCase>(),
       fakeStampStore: AppConstants.fakeStamps ? sl<FakeStampStore>() : null,
+    ),
+  );
+
+  // Per cafe page: param1 is the cafe id. The "See all" grid builds its
+  // own, seeded from the strip's.
+  sl.registerFactoryParam<CafePhotosCubit, String, void>(
+    (cafeId, _) => CafePhotosCubit(
+      repository: sl<ICommunityPhotosRepository>(),
+      cafeId: cafeId,
     ),
   );
 

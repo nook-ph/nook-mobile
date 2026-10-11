@@ -29,23 +29,23 @@ void main() {
       reviewCount: 32,
     );
 
-    test('the list says "No reviews yet" before the area', () {
+    test('the list says "No cups yet" before the area', () {
       expect(
         MapSheetCafeCard.countAndArea(unrated),
-        'No reviews yet · Tayud, Liloan',
+        'No cups yet · Tayud, Liloan',
       );
     });
 
-    test('the pin preview card says only "No reviews yet"', () {
+    test('the pin preview card says only "No cups yet"', () {
       expect(
         MapSheetCafeCard.countAndArea(unrated, withUnratedArea: false),
-        'No reviews yet',
+        'No cups yet',
       );
     });
 
-    test('a cafe with no area still says "No reviews yet"', () {
+    test('a cafe with no area still says "No cups yet"', () {
       const bare = CafeSummary(id: 'b', name: 'Bare', rating: 0);
-      expect(MapSheetCafeCard.countAndArea(bare), 'No reviews yet');
+      expect(MapSheetCafeCard.countAndArea(bare), 'No cups yet');
     });
 
     test('rated cafes are unchanged', () {

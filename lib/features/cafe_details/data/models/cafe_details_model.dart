@@ -19,6 +19,7 @@ class CafeDetailsModel extends CafeDetailsEntity {
     required super.rating,
     required super.reviewCount,
     required super.isNew,
+    super.isClaimed,
     super.operatingHours = const {},
     super.socialLinks = const {},
     super.menuItems = const [],
@@ -54,6 +55,9 @@ class CafeDetailsModel extends CafeDetailsEntity {
       rating: _asDouble(json['rating']),
       reviewCount: _asInt(json['review_count'] ?? json['reviewCount']),
       isNew: _asBool(json['is_new'] ?? json['isNew']),
+      isClaimed: json['is_claimed'] == null
+          ? null
+          : _asBool(json['is_claimed']),
       operatingHours: _asMap(json['operating_hours'] ?? json['operatingHours']),
       socialLinks: _asMap(json['social_links'] ?? json['socialLinks']),
       menuItems: menuItems,
