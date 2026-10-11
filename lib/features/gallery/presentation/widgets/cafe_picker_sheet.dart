@@ -338,7 +338,12 @@ class _CafeRow extends StatelessWidget {
               : null,
           child: Row(
             children: [
-              ListsThumb(imageUrl: cafe.coverImage, size: 48, radius: 10),
+              ListsThumb(
+                imageUrl: cafe.coverImage,
+                size: 48,
+                radius: 10,
+                placeholderSeed: cafe.name,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

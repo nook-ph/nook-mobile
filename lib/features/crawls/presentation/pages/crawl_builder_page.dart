@@ -421,7 +421,10 @@ class _CafeRow extends StatelessWidget {
               const SizedBox(width: 12),
               Opacity(
                 opacity: dimmed ? 0.4 : 1,
-                child: CrawlStopThumb(imageUrl: cafe.coverImage),
+                child: CrawlStopThumb(
+                  imageUrl: cafe.coverImage,
+                  seed: cafe.name,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

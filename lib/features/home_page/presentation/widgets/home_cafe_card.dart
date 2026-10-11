@@ -10,9 +10,6 @@ import 'package:nook/features/home_page/presentation/widgets/home_tag_chip.dart'
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-const _fallbackImage =
-    'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
 /// The compact card of the New / Trending / Top Rated / Near you rows: photo,
 /// name, one meta line and one tag.
 class HomeCafeCard extends StatelessWidget {
@@ -31,9 +28,7 @@ class HomeCafeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
-        ? cafe.coverImage!.trim()
-        : _fallbackImage;
+    final String? imageUrl = cafe.coverImage;
     final String? primaryTag =
         cafe.tags.isNotEmpty && cafe.tags.first.trim().isNotEmpty
         ? cafe.tags.first.trim()
@@ -67,6 +62,7 @@ class HomeCafeCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                     child: CafeCardImage(
                       imageUrl: imageUrl,
+                      placeholderSeed: cafe.name,
                       height: height,
                       width: double.infinity,
                     ),

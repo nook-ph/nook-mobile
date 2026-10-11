@@ -3,11 +3,11 @@ import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/presentation/widgets/cafe_photo_placeholder.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/crawls/domain/entities/crawl.dart';
 import 'package:nook/features/crawls/domain/entities/crawl_run.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 /// Soft tinted surface for chips and the "you're here" row.
 const crawlTint = Color(0xFFEEEEEE);
@@ -334,25 +334,25 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-/// A cafe's photo as a small rounded square, with the coffee tile fallback
-/// the Lists surfaces use.
+/// A cafe's photo as a small rounded square, with the shared sample photo
+/// (picked by [seed], the cafe's name) when it has none.
 class CrawlStopThumb extends StatelessWidget {
-  const CrawlStopThumb({super.key, required this.imageUrl, this.size = 40});
+  const CrawlStopThumb({
+    super.key,
+    required this.imageUrl,
+    this.seed,
+    this.size = 40,
+  });
 
   final String? imageUrl;
+
+  /// Picks the sample photo; pass the cafe's name.
+  final String? seed;
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final fallback = Container(
-      color: ListsTokens.sage,
-      alignment: Alignment.center,
-      child: Icon(
-        PhosphorIcons.coffee(),
-        size: size * 0.45,
-        color: ListsTokens.brand,
-      ),
-    );
+    final fallback = CafePhotoPlaceholder(seed: seed, showLabel: false);
     final url = imageUrl?.trim() ?? '';
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
@@ -363,7 +363,8 @@ class CrawlStopThumb extends StatelessWidget {
             : CachedNetworkImage(
                 imageUrl: url,
                 fit: BoxFit.cover,
-                placeholder: (_, _) => fallback,
+                placeholder: (_, _) =>
+                    const ColoredBox(color: Color(0xFFE5E7EB)),
                 errorWidget: (_, _, _) => fallback,
               ),
       ),

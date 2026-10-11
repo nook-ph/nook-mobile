@@ -39,6 +39,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_claim_link.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_unverified_note.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_your_visit_block.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
@@ -355,6 +356,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CafeInfoHeader(cafe: cafe, onRatingTap: _scrollToCups),
+        // Imported from public sources and unchecked: say so under the name.
+        CafeUnverifiedNote(cafeId: widget.cafeId, isClaimed: details.isClaimed),
         const SizedBox(height: 16),
         CafeStatusPills(cafe: cafe, toastOffset: _toastOffset),
         // Your own history with the cafe, right under the actions that
@@ -526,6 +529,18 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             images: heroImages,
                             isLoading: isLoading,
                             bottomInset: _sheetLip,
+                            placeholderSeed: state is CafeDetailsLoaded
+                                ? state.data.cafeDetails.name
+                                : null,
+                            onClaimTap:
+                                state is CafeDetailsLoaded &&
+                                    state.data.cafeDetails.isClaimed == false
+                                ? () => CafeClaimLink.open(
+                                    context,
+                                    cafeId: widget.cafeId,
+                                    source: 'no_photos_hero',
+                                  )
+                                : null,
                             onImageTap: (index) => showReviewPhotoViewer(
                               context,
                               imageUrls: heroImages,

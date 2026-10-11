@@ -11,9 +11,6 @@ import 'package:nook/features/home_page/presentation/widgets/home_tag_chip.dart'
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-const _fallbackImage =
-    'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
 /// A featured cafe: one full-width photo, name and rating on the first line,
 /// area and distance on the second, then its tags.
 class FeaturedCard extends StatelessWidget {
@@ -32,9 +29,7 @@ class FeaturedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String imageUrl = cafe.coverImage?.trim().isNotEmpty == true
-        ? cafe.coverImage!.trim()
-        : _fallbackImage;
+    final String? imageUrl = cafe.coverImage;
 
     return AdaptiveTap(
       borderRadius: BorderRadius.circular(16),
@@ -64,6 +59,7 @@ class FeaturedCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                     child: CafeCardImage(
                       imageUrl: imageUrl,
+                      placeholderSeed: cafe.name,
                       height: height,
                       width: double.infinity,
                     ),

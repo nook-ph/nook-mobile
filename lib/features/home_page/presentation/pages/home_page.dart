@@ -88,12 +88,11 @@ class HomePage extends StatelessWidget {
                   context.read<CafeStatusCubit>().loadFor(ids.toList());
                 }
 
-                if (state.featuredCafes.isNotEmpty) {
-                  final first = state.featuredCafes.first;
-                  final url = first.coverImage?.trim().isNotEmpty == true
-                      ? first.coverImage!.trim()
-                      : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
+                final firstCover = state.featuredCafes.isEmpty
+                    ? null
+                    : state.featuredCafes.first.coverImage?.trim();
+                if (firstCover != null && firstCover.isNotEmpty) {
+                  final url = firstCover;
                   precacheImage(
                     CachedNetworkImageProvider(
                       url,

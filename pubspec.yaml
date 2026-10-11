@@ -105,6 +105,7 @@ flutter:
     - assets/logos/
     - assets/icons/
     - assets/images/
+    - assets/images/placeholder_cafes/
     - assets/images/relaxing.png
     - assets/images/looking.png
     - assets/images/friends.png

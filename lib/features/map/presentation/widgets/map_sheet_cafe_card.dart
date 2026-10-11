@@ -38,18 +38,15 @@ class MapSheetCafeCard extends StatelessWidget {
   static const double photoSize = 76;
   static const int _maxTags = 3;
 
-  static const String _fallbackImageUrl =
-      'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
-  /// Featured image, else first extra photo, else fallback.
-  static String _imageUrl(CafeSummary cafe) {
+  /// Featured image, else first extra photo, else null (sample photo).
+  static String? _imageUrl(CafeSummary cafe) {
     final featured = cafe.coverImage?.trim();
     if (featured != null && featured.isNotEmpty) return featured;
     for (final raw in cafe.photoUrls) {
       final url = raw.trim();
       if (url.isNotEmpty) return url;
     }
-    return _fallbackImageUrl;
+    return null;
   }
 
   static const noReviews = 'No cups yet';
@@ -112,7 +109,10 @@ class MapSheetCafeCard extends StatelessWidget {
                 child: Skeleton.replace(
                   replace: isSkeleton,
                   replacement: const ColoredBox(color: Colors.black),
-                  child: CafeCardImage(imageUrl: _imageUrl(cafe)),
+                  child: CafeCardImage(
+                    imageUrl: _imageUrl(cafe),
+                    placeholderSeed: cafe.name,
+                  ),
                 ),
               ),
             ),
