@@ -1024,19 +1024,31 @@ class _ItemRow extends StatelessWidget {
 
   static const size = 84.0;
 
+  /// Room above and right of each photo for its remove target, so the
+  /// 44pt target can reach past the photo's corner without covering its
+  /// middle (where a tap selects).
+  static const hang = 6.0;
+
   @override
   Widget build(BuildContext context) {
     final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
     return SizedBox(
-      height: size + 22 * scale,
+      height: size + hang + 22 * scale,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
         itemCount: items.length + (canAdd || items.isEmpty ? 1 : 0),
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        // 10 between photos, counting each tile's hang.
+        separatorBuilder: (_, _) => const SizedBox(width: 10 - hang),
         itemBuilder: (context, i) {
           if (i == items.length) {
-            return _AddTile(onTap: canAdd ? onAdd : null, first: items.isEmpty);
+            return Padding(
+              padding: const EdgeInsets.only(top: hang),
+              child: _AddTile(
+                onTap: canAdd ? onAdd : null,
+                first: items.isEmpty,
+              ),
+            );
           }
           final item = items[i];
           final remove = onRemove;
@@ -1087,79 +1099,91 @@ class _ItemTile extends StatelessWidget {
     final name = item.name.trim();
     final remove = onRemove;
     final url = item.imageUrl;
+    const hang = _ItemRow.hang;
     return SizedBox(
-      width: size,
+      width: size + hang,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox.square(
-            dimension: size,
+            dimension: size + hang,
             child: Stack(
-              fit: StackFit.expand,
-              clipBehavior: Clip.none,
               children: [
-                Semantics(
-                  button: true,
-                  selected: selected,
-                  label:
-                      '${item.kindLabel} ${index + 1} of $count'
-                      '${name.isEmpty ? '' : ', $name'}'
-                      '${item.needsKind ? ', pick a kind' : ''}',
-                  excludeSemantics: true,
-                  child: AdaptiveTap(
-                    onTap: onTap,
-                    borderRadius: BorderRadius.circular(10),
-                    child: DecoratedBox(
-                      position: DecorationPosition.foreground,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: selected
-                              ? ReviewTokens.brand
-                              : (url == null
-                                    ? ReviewTokens.border
-                                    : Colors.transparent),
-                          width: selected ? 2.5 : 1,
+                Positioned(
+                  left: 0,
+                  bottom: 0,
+                  width: size,
+                  height: size,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Semantics(
+                        button: true,
+                        selected: selected,
+                        label:
+                            '${item.kindLabel} ${index + 1} of $count'
+                            '${name.isEmpty ? '' : ', $name'}'
+                            '${item.needsKind ? ', pick a kind' : ''}',
+                        excludeSemantics: true,
+                        child: AdaptiveTap(
+                          onTap: onTap,
+                          borderRadius: BorderRadius.circular(10),
+                          child: DecoratedBox(
+                            position: DecorationPosition.foreground,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: selected
+                                    ? ReviewTokens.brand
+                                    : (url == null
+                                          ? ReviewTokens.border
+                                          : Colors.transparent),
+                                width: selected ? 2.5 : 1,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: url == null
+                                  ? ColoredBox(
+                                      color: ReviewTokens.tint.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          _kindIcon(item.kind),
+                                          size: 26,
+                                          color: ReviewTokens.brand,
+                                        ),
+                                      ),
+                                    )
+                                  : GalleryImage(
+                                      url: url,
+                                      cacheWidth: (size * 3).round(),
+                                    ),
+                            ),
+                          ),
                         ),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: url == null
-                            ? ColoredBox(
-                                color: ReviewTokens.tint.withValues(alpha: 0.5),
-                                child: Center(
-                                  child: Icon(
-                                    _kindIcon(item.kind),
-                                    size: 26,
-                                    color: ReviewTokens.brand,
-                                  ),
-                                ),
-                              )
-                            : GalleryImage(
-                                url: url,
-                                cacheWidth: (size * 3).round(),
-                              ),
-                      ),
-                    ),
+                      if (uploading)
+                        Positioned(
+                          left: 6,
+                          right: 6,
+                          bottom: 6,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: const LinearProgressIndicator(
+                              minHeight: 3,
+                              color: Colors.white,
+                              backgroundColor: Color(0x66FFFFFF),
+                              semanticsLabel: 'Uploading photo',
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                if (uploading)
-                  Positioned(
-                    left: 6,
-                    right: 6,
-                    bottom: 6,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: const LinearProgressIndicator(
-                        minHeight: 3,
-                        color: Colors.white,
-                        backgroundColor: Color(0x66FFFFFF),
-                        semanticsLabel: 'Uploading photo',
-                      ),
-                    ),
-                  ),
-                // Inside the tile, so all of its 44pt target is on the
-                // tile and none hangs off into the row's gap or clips.
+                // The badge sits inside the photo's corner; its 44pt target
+                // takes the corner and the hang, not the photo's middle.
                 if (remove != null)
                   Positioned(
                     top: 0,
@@ -1176,7 +1200,10 @@ class _ItemTile extends StatelessWidget {
                           child: Align(
                             alignment: Alignment.topRight,
                             child: Padding(
-                              padding: const EdgeInsets.all(5),
+                              padding: const EdgeInsets.only(
+                                top: hang + 5,
+                                right: hang + 5,
+                              ),
                               child: Container(
                                 width: 22,
                                 height: 22,
@@ -1201,24 +1228,27 @@ class _ItemTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            item.needsKind
-                ? 'Pick a kind'
-                : name.isEmpty
-                ? (item.editable ? 'Add name' : item.kindLabel)
-                : name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: context.textTheme.bodySmall?.copyWith(
-              fontSize: 11,
-              color: missingKind
-                  ? ReviewTokens.danger
-                  : name.isEmpty || item.needsKind
-                  ? ReviewTokens.muted
-                  : ReviewTokens.ink,
-              fontWeight: name.isEmpty || item.needsKind
-                  ? FontWeight.w400
-                  : FontWeight.w500,
+          SizedBox(
+            width: size,
+            child: Text(
+              item.needsKind
+                  ? 'Pick a kind'
+                  : name.isEmpty
+                  ? (item.editable ? 'Add name' : item.kindLabel)
+                  : name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.textTheme.bodySmall?.copyWith(
+                fontSize: 11,
+                color: missingKind
+                    ? ReviewTokens.danger
+                    : name.isEmpty || item.needsKind
+                    ? ReviewTokens.muted
+                    : ReviewTokens.ink,
+                fontWeight: name.isEmpty || item.needsKind
+                    ? FontWeight.w400
+                    : FontWeight.w500,
+              ),
             ),
           ),
         ],

@@ -373,7 +373,9 @@ void main() {
       await done(tester);
     });
 
-    testWidgets('remove sits inside its tile, a 44pt target', (tester) async {
+    testWidgets('remove is a 44pt target in the corner, clear of the middle', (
+      tester,
+    ) async {
       await open(
         tester,
         picker: FakeGalleryPhotoPicker(many: [pickedPhoto('latte')]),
@@ -385,13 +387,17 @@ void main() {
 
       final remove = find.bySemanticsLabel('Remove item 1');
       final tile = find.bySemanticsLabel(RegExp(r'^Photo 1 of 1'));
-      expect(tester.getSize(remove).width, greaterThanOrEqualTo(44));
-      expect(tester.getSize(remove).height, greaterThanOrEqualTo(44));
-      final tileBox = tester.getRect(tile);
       final removeBox = tester.getRect(remove);
-      expect(tileBox.contains(removeBox.topLeft), isTrue);
-      expect(removeBox.right, lessThanOrEqualTo(tileBox.right));
-      expect(removeBox.top, greaterThanOrEqualTo(tileBox.top));
+      final tileBox = tester.getRect(tile);
+      expect(removeBox.width, greaterThanOrEqualTo(44));
+      expect(removeBox.height, greaterThanOrEqualTo(44));
+      // It holds the photo's top-right corner, and a tap in the middle of
+      // the photo selects it rather than removing it.
+      expect(removeBox.contains(tileBox.topRight.translate(-2, 2)), isTrue);
+      expect(removeBox.contains(tileBox.center), isFalse);
+      await tester.tap(tile);
+      await tester.pump();
+      expect(find.text('Pick a kind'), findsOneWidget);
 
       await tester.tap(remove);
       await tester.pump();
