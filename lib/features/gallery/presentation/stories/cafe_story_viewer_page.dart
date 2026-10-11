@@ -121,6 +121,10 @@ class _CafeStoryViewerPageState extends State<CafeStoryViewerPage>
   bool _held = false;
   int _blockers = 0;
 
+  /// A finger is swiping between people: the clock waits for it to let
+  /// go, so the next photo can't advance (or close the viewer) mid-swipe.
+  bool _swiping = false;
+
   /// The current photo's image has arrived (or failed): the clock may run.
   bool _ready = false;
 
@@ -209,7 +213,12 @@ class _CafeStoryViewerPageState extends State<CafeStoryViewerPage>
 
   /// Runs the clock when nothing holds it.
   void _run() {
-    if (!mounted || !_ready || _held || _blockers > 0 || !_autoAdvance) {
+    if (!mounted ||
+        !_ready ||
+        _held ||
+        _swiping ||
+        _blockers > 0 ||
+        !_autoAdvance) {
       return;
     }
     _clock.forward();
@@ -253,6 +262,20 @@ class _CafeStoryViewerPageState extends State<CafeStoryViewerPage>
           _position = StoryPosition.startOf(_stories, index, widget.seen.state),
     );
     _show();
+  }
+
+  /// Pauses the clock while the person drags the pages (not when a page
+  /// change animates on its own) and starts it again once they let go.
+  bool _onPagesScroll(ScrollNotification n) {
+    if (n.depth != 0) return false;
+    if (n is ScrollStartNotification && n.dragDetails != null) {
+      _swiping = true;
+      _clock.stop();
+    } else if (n is ScrollEndNotification && _swiping) {
+      _swiping = false;
+      _run();
+    }
+    return false;
   }
 
   void _close() {
@@ -334,33 +357,36 @@ class _CafeStoryViewerPageState extends State<CafeStoryViewerPage>
             offset: Offset(0, _dragDown),
             child: Opacity(
               opacity: (1 - _dragDown / height).clamp(0.4, 1.0),
-              child: PageView.builder(
-                controller: _pages,
-                itemCount: _stories.length,
-                onPageChanged: _onPageChanged,
-                itemBuilder: (context, i) {
-                  final active = i == _position.story;
-                  final photoIndex = active
-                      ? _position.photo
-                      : _stories[i].startIndexFor(widget.seen.state);
-                  return _StoryFrame(
-                    story: _stories[i],
-                    photoIndex: photoIndex,
-                    clock: active ? _clock : null,
-                    showClock: _autoAdvance,
-                    chromeHidden: active && _held,
-                    reviewOf: widget.reviewOf,
-                    onTapUp: _onTapUp,
-                    onHold: _hold,
-                    onClose: _close,
-                    onNext: _next,
-                    onPrevious: _previous,
-                    onOpenAuthor: widget.onOpenAuthor == null
-                        ? null
-                        : _openAuthor,
-                    onReport: widget.onReport == null ? null : _report,
-                  );
-                },
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onPagesScroll,
+                child: PageView.builder(
+                  controller: _pages,
+                  itemCount: _stories.length,
+                  onPageChanged: _onPageChanged,
+                  itemBuilder: (context, i) {
+                    final active = i == _position.story;
+                    final photoIndex = active
+                        ? _position.photo
+                        : _stories[i].startIndexFor(widget.seen.state);
+                    return _StoryFrame(
+                      story: _stories[i],
+                      photoIndex: photoIndex,
+                      clock: active ? _clock : null,
+                      showClock: _autoAdvance,
+                      chromeHidden: active && _held,
+                      reviewOf: widget.reviewOf,
+                      onTapUp: _onTapUp,
+                      onHold: _hold,
+                      onClose: _close,
+                      onNext: _next,
+                      onPrevious: _previous,
+                      onOpenAuthor: widget.onOpenAuthor == null
+                          ? null
+                          : _openAuthor,
+                      onReport: widget.onReport == null ? null : _report,
+                    );
+                  },
+                ),
               ),
             ),
           ),

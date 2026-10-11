@@ -147,6 +147,34 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('a swipe between people pauses the clock until let go', (
+    tester,
+  ) async {
+    await open(tester);
+
+    final pages = find.byType(PageView);
+    final gesture = await tester.startGesture(tester.getCenter(pages));
+    await gesture.moveBy(const Offset(-40, 0));
+    await tester.pump();
+    await gesture.moveBy(const Offset(-60, 0));
+    await tester.pump();
+    // Held mid-swipe far past a photo's turn: nothing moves on.
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.text('Flat white'), findsOneWidget);
+    expect(find.byType(CafeStoryViewerPage), findsOneWidget);
+
+    // Let go short of the next person: it springs back and runs again.
+    await gesture.up();
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.text('Flat white'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5, milliseconds: 100));
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Cortado'), findsOneWidget);
+  });
+
   testWidgets('without auto-advance (Reduce Motion) nothing moves alone', (
     tester,
   ) async {
