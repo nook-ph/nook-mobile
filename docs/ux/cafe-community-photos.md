@@ -142,3 +142,20 @@ things people said, and leaves the top of the page to the cafe's own facts.
 | Below Reviews, or higher? | 5-person task test, two builds | Same task, section above vs below Reviews | Time to first photo tap; no one scrolls past it |
 | Does the Been-only empty prompt get photos? | Analytics (HEART: adoption) | — | `cafe_photo_add_tapped` / `view_details` on Been cafes with no photos; `gallery_photos_added` with source `gallery` after it |
 | Is the strip used? | Analytics (HEART: engagement) | — | `cafe_photo_opened` and `cafe_photo_author_tapped` per `cafe_photos_viewed` |
+
+## Update: Latest cups stories (2026-10-11)
+
+The strip moved from below Reviews to the top of the page, right under the
+cafe's header and actions, as "Latest cups": a stories tray with one ring per
+person, newest first. The ring holds that person's newest cup and their avatar
+is a badge on it. The ring has one arc per cup, green while any cup is unseen
+and grey once all are seen (seen ids are kept on the device). Tapping a ring
+opens a full-screen story viewer (`CafeStoryViewerPage`). "See all" still
+opens the grid. Each photo appears once on the page: the strip is gone. The
+empty state is the same "Be the first" prompt for Been visitors, now "Add your
+cup". Someone who has been and has no cup here gets an "Add your cup" slot at
+the start of the tray. A review photo shows its review's stars and words in
+the viewer, read from the reviews the page already loaded (Cups phase 1).
+Events: `cafe_stories_opened`, `cafe_story_viewed`,
+`cafe_story_author_tapped`, `cafe_stories_completed`. References:
+[../references/cafe-stories](../references/cafe-stories/README.md).
