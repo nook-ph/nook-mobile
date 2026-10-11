@@ -76,7 +76,7 @@ class RatingReviewSummary extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: Text(
-                  'Write a Review',
+                  'Add your cup',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: Colors.white,

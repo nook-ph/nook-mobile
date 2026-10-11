@@ -477,7 +477,7 @@ class _StopRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CrawlStopThumb(imageUrl: stop.imageUrl, size: 40),
+        CrawlStopThumb(imageUrl: stop.imageUrl, seed: stop.name, size: 40),
         const SizedBox(width: 12),
         Expanded(
           child: Column(

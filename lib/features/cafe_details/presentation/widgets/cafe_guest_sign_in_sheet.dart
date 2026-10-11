@@ -66,9 +66,9 @@ class CafeGuestSignInSheet extends StatelessWidget {
       CafeGuestAction.wantToTry =>
         name.isEmpty ? 'Sign in to save this cafe' : 'Sign in to save $name',
       CafeGuestAction.saveToList => 'Sign in to save to a list',
-      CafeGuestAction.writeReview => 'Sign in to write a review',
-      CafeGuestAction.reportReview => 'Sign in to report a review',
-      CafeGuestAction.helpfulReview => 'Sign in to mark reviews helpful',
+      CafeGuestAction.writeReview => 'Sign in to add your cup',
+      CafeGuestAction.reportReview => 'Sign in to report a cup',
+      CafeGuestAction.helpfulReview => 'Sign in to mark cups helpful',
     };
   }
 
@@ -79,7 +79,7 @@ class CafeGuestSignInSheet extends StatelessWidget {
       'Keep a Want to try list and come back to it later.',
     CafeGuestAction.saveToList => 'Make your own lists and add cafes to them.',
     CafeGuestAction.writeReview =>
-      'Reviews are posted under your name. Signing in takes a minute.',
+      'Cups are posted under your name. Signing in takes a minute.',
     // Not drawn in Figma (only Write and Helpful are); same voice.
     CafeGuestAction.reportReview =>
       'Reports are tied to your account so our team can follow up.',

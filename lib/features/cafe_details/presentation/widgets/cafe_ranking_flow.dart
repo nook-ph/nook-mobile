@@ -749,21 +749,12 @@ class _CompareCard extends StatelessWidget {
             children: [
               // A fixed photo height keeps the two cards level even when one
               // name wraps to a second line.
-              url != null && url.isNotEmpty
-                  ? CafeCardImage(
-                      imageUrl: url,
-                      height: 170,
-                      width: double.infinity,
-                    )
-                  : Container(
-                      height: 170,
-                      color: ListsTokens.tint,
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.coffee_outlined,
-                        color: ListsTokens.muted,
-                      ),
-                    ),
+              CafeCardImage(
+                imageUrl: url,
+                height: 170,
+                width: double.infinity,
+                placeholderSeed: name,
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
@@ -967,7 +958,7 @@ class RankPhotoPrompt extends StatelessWidget {
                 Text(
                   photo == null
                       ? 'Add a photo of what you had'
-                      : 'Added to your gallery',
+                      : 'Added to your cups',
                   style: listsText(14, weight: FontWeight.w500),
                 ),
                 Text(

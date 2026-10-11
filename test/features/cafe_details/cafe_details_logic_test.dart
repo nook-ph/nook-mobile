@@ -4,9 +4,9 @@ import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_control.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
+import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/reviews_preview_section.dart';
 
 Map<String, dynamic> _week(String open, String close) => {
   for (final day in CafeOpenStatus.orderedDays)
@@ -279,34 +279,189 @@ void main() {
       expect(groups.amenities, isEmpty);
       expect(groups.bestFor, isEmpty);
       expect(groups.payments, isEmpty);
+      expect(groups.coffee, isEmpty);
+    });
+
+    test('coffee tags get their own group, in the contract order', () {
+      final groups = CafeTagGroups.from([
+        _tag('1', 'Matcha', 'coffee'),
+        _tag('2', 'Free WiFi', 'amenities'),
+        _tag('3', 'Espresso', 'coffee'),
+        _tag('4', 'Date Spot', 'best_for'),
+        _tag('5', 'Philippine Beans', 'coffee'),
+      ]);
+
+      expect(groups.coffee.map((t) => t.name), [
+        'Espresso',
+        'Philippine Beans',
+        'Matcha',
+      ]);
+      expect(groups.bestFor.map((t) => t.name), ['Date Spot']);
+      expect(groups.amenities.map((t) => t.name), ['Free WiFi']);
+    });
+
+    test('coffee tags are kept when the cafe has no best-for tags', () {
+      // They used to fall into Best for through the uncategorised fallback.
+      final groups = CafeTagGroups.from([
+        _tag('1', 'Free WiFi', 'amenities'),
+        _tag('2', 'Cold Brew', 'coffee'),
+      ]);
+
+      expect(groups.coffee.map((t) => t.name), ['Cold Brew']);
+      expect(groups.bestFor, isEmpty);
+    });
+
+    test('Specialty Coffee leads the coffee group when there is one', () {
+      final groups = CafeTagGroups.from([
+        _tag('1', 'Specialty Coffee', 'best_for'),
+        _tag('2', 'Date Spot', 'best_for'),
+        _tag('3', 'Slow Bar', 'coffee'),
+      ]);
+
+      expect(groups.coffee.map((t) => t.name), [
+        'Specialty Coffee',
+        'Slow Bar',
+      ]);
+      expect(groups.bestFor.map((t) => t.name), ['Date Spot']);
+    });
+
+    test('without coffee tags Specialty Coffee stays in Best for', () {
+      // The state before the coffee migration: the page is unchanged.
+      final groups = CafeTagGroups.from([
+        _tag('1', 'Specialty Coffee', 'best_for'),
+        _tag('2', 'Date Spot', 'best_for'),
+      ]);
+
+      expect(groups.coffee, isEmpty);
+      expect(groups.bestFor.map((t) => t.name), [
+        'Specialty Coffee',
+        'Date Spot',
+      ]);
     });
   });
 
-  group('ReviewDistribution', () {
-    test('counts each rating and averages them', () {
-      final distribution = ReviewDistribution.from([5, 5, 4, 3, 5]);
+  group('CafeTagGroups.preview', () {
+    TagEntity t(String name, String category, {bool featured = false}) =>
+        TagEntity(
+          id: name,
+          name: name,
+          category: category,
+          isFeatured: featured,
+        );
+    List<String> names(List<TagEntity> tags) => [for (final t in tags) t.name];
 
-      expect(distribution.total, 5);
-      expect(distribution.countFor(5), 3);
-      expect(distribution.countFor(4), 1);
-      expect(distribution.countFor(1), 0);
-      expect(distribution.fractionFor(5), closeTo(0.6, 1e-9));
-      expect(distribution.average, closeTo(4.4, 1e-9));
+    final many = CafeTagGroups.from([
+      t('Free WiFi', 'amenities'),
+      t('Parking Available', 'amenities'),
+      t('Smoking Area', 'amenities'),
+      t('Power Outlets', 'amenities'),
+      t('Air Conditioned', 'amenities'),
+      t('Date Spot', 'best_for'),
+      t('Group Hangout', 'best_for', featured: true),
+      t('Specialty Coffee', 'best_for', featured: true),
+      t('Late Night', 'best_for'),
+      t('Matcha', 'coffee'),
+      t('Pour-over', 'coffee'),
+      t('Espresso', 'coffee'),
+      t('Cash', 'payment'),
+      t('Card', 'payment'),
+    ]);
+
+    test('two each from Coffee, Best for and Amenities, in that order', () {
+      expect(names(many.preview()), [
+        // Specialty Coffee leads Coffee, then the contract's order.
+        'Specialty Coffee', 'Espresso',
+        // Featured first.
+        'Group Hangout', 'Date Spot',
+        // Wi-Fi and outlets before the listing's order.
+        'Free WiFi', 'Power Outlets',
+      ]);
+      expect(many.total, 14);
     });
 
-    test('ignores ratings outside one to five', () {
-      final distribution = ReviewDistribution.from([0, 6, 4]);
-
-      expect(distribution.total, 1);
-      expect(distribution.average, 4);
+    test('a short group gives its places to the others', () {
+      final groups = CafeTagGroups.from([
+        t('Free WiFi', 'amenities'),
+        t('Power Outlets', 'amenities'),
+        t('Air Conditioned', 'amenities'),
+        t('Outdoor Seating', 'amenities'),
+        t('Pet Friendly', 'amenities'),
+        t('Solo Work / Study', 'best_for'),
+        t('Cash', 'payment'),
+        t('Card', 'payment'),
+      ]);
+      expect(names(groups.preview()), [
+        'Solo Work / Study',
+        'Free WiFi',
+        'Power Outlets',
+        'Air Conditioned',
+        'Outdoor Seating',
+        'Pet Friendly',
+      ]);
     });
 
-    test('is all zeroes with no reviews', () {
-      final distribution = ReviewDistribution.from(const []);
+    test('without coffee tags it is Best for and Amenities', () {
+      final groups = CafeTagGroups.from([
+        t('Specialty Coffee', 'best_for', featured: true),
+        t('Quick Coffee', 'best_for'),
+        t('Date Spot', 'best_for'),
+        t('Free WiFi', 'amenities'),
+        t('Parking Available', 'amenities'),
+        t('Air Conditioned', 'amenities'),
+        t('Cash', 'payment'),
+      ]);
+      expect(names(groups.preview()), [
+        'Specialty Coffee',
+        'Quick Coffee',
+        'Date Spot',
+        'Free WiFi',
+        'Air Conditioned',
+        'Parking Available',
+      ]);
+    });
 
-      expect(distribution.total, 0);
-      expect(distribution.average, 0);
-      expect(distribution.fractionFor(5), 0);
+    test('payments fill only what nothing else can', () {
+      final groups = CafeTagGroups.from([
+        t('Free WiFi', 'amenities'),
+        t('Cash', 'payment'),
+        t('Card', 'payment'),
+      ]);
+      expect(names(groups.preview()), ['Free WiFi', 'Cash', 'Card']);
+    });
+
+    test('a cafe with six tags or fewer shows them all', () {
+      final groups = CafeTagGroups.from([
+        t('Free WiFi', 'amenities'),
+        t('Date Spot', 'best_for'),
+      ]);
+      expect(groups.preview().length, groups.total);
+      expect(CafeTagGroups.from(const []).preview(), isEmpty);
+    });
+
+    test(
+      'sections: Coffee, Best for, Amenities, Payment; empty ones left out',
+      () {
+        expect(
+          [for (final s in many.sections()) s.title],
+          ['Coffee', 'Best for', 'Amenities', 'Payment'],
+        );
+        final noCoffee = CafeTagGroups.from([
+          t('Free WiFi', 'amenities'),
+          t('Cash', 'payment'),
+        ]);
+        expect(
+          [for (final s in noCoffee.sections()) s.title],
+          ['Amenities', 'Payment'],
+        );
+      },
+    );
+
+    test('coffee hints exist for every coffee tag and nothing else', () {
+      for (final name in [...kCoffeeTagNames, 'Specialty Coffee']) {
+        expect(CafeTagGroups.coffeeHint(name), isNotNull, reason: name);
+      }
+      expect(CafeTagGroups.coffeeHint('pour over'), isNotNull);
+      expect(CafeTagGroups.coffeeHint('Free WiFi'), isNull);
     });
   });
 
@@ -341,7 +496,7 @@ void main() {
       );
 
       final been = tester.getSize(find.bySemanticsLabel('Been'));
-      final want = tester.getSize(find.bySemanticsLabel('Want to Try'));
+      final want = tester.getSize(find.bySemanticsLabel('Want to try'));
       expect(been.width, want.width);
       expect(been.width, closeTo((346 - 8) / 2, 0.5));
       expect(tester.takeException(), isNull);
@@ -364,7 +519,7 @@ void main() {
       );
 
       expect(find.text('Been · 8.7'), findsOneWidget);
-      expect(find.text('Want to Try'), findsOneWidget);
+      expect(find.text('Want to try'), findsOneWidget);
       expect(find.textContaining('#3 of 12'), findsNothing);
       // Still announced by its name.
       expect(find.bySemanticsLabel('Been'), findsOneWidget);
@@ -403,7 +558,7 @@ void main() {
       );
 
       await tester.tap(find.text('Been'));
-      await tester.tap(find.text('Want to Try'));
+      await tester.tap(find.text('Want to try'));
       expect((been, want), (1, 1));
     });
   });

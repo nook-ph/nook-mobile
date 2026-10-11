@@ -14,7 +14,7 @@ import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// What the ⋯ sheet on a review can return.
-enum ReviewOption { report, block, delete }
+enum ReviewOption { report, block, edit, delete }
 
 String? _currentUserId() => Supabase.instance.client.auth.currentUser?.id;
 
@@ -190,6 +190,51 @@ class ReviewOptionsSheet extends StatelessWidget {
     );
   }
 
+  /// Report and block, for someone else's cup.
+  factory ReviewOptionsSheet.forOtherCup({required String authorLabel}) {
+    return ReviewOptionsSheet._(
+      title: 'Cup by $authorLabel',
+      options: [
+        (
+          option: ReviewOption.report,
+          label: 'Report cup',
+          detail: 'Flag objectionable or abusive content',
+          danger: false,
+        ),
+        (
+          option: ReviewOption.block,
+          label: 'Block $authorLabel',
+          detail: 'Hide this user and report their content',
+          danger: true,
+        ),
+      ],
+    );
+  }
+
+  /// Edit and delete, for the signed-in user's own cup.
+  factory ReviewOptionsSheet.forOwnCup({String? cafeName}) {
+    final cafe = cafeName?.trim() ?? '';
+    return ReviewOptionsSheet._(
+      title: 'Your cup',
+      options: [
+        (
+          option: ReviewOption.edit,
+          label: 'Edit cup',
+          detail: 'Change your photos, note or stars',
+          danger: false,
+        ),
+        (
+          option: ReviewOption.delete,
+          label: 'Delete cup',
+          detail:
+              'Removes your photos, note and stars from '
+              '${cafe.isEmpty ? 'this cafe' : cafe}',
+          danger: true,
+        ),
+      ],
+    );
+  }
+
   /// Delete, for the signed-in user's own review.
   factory ReviewOptionsSheet.forOwn({String? cafeName}) {
     final cafe = cafeName?.trim() ?? '';
@@ -294,6 +339,18 @@ class ReviewConfirmSheet extends StatelessWidget {
     );
   }
 
+  factory ReviewConfirmSheet.deleteCup({String? cafeName}) {
+    final cafe = cafeName?.trim() ?? '';
+    return ReviewConfirmSheet(
+      title: 'Delete your cup?',
+      message:
+          'Your photos, note and stars at '
+          '${cafe.isEmpty ? 'this cafe' : cafe} will be removed. This '
+          'cannot be undone.',
+      confirmLabel: 'Delete cup',
+    );
+  }
+
   final String title;
   final String message;
   final String confirmLabel;
@@ -346,9 +403,14 @@ class ReviewConfirmSheet extends StatelessWidget {
 /// Report reason picker with an optional one-line detail. Pops true once
 /// [onSubmit] completes; stays open with a toast when it throws.
 class ReviewReportSheet extends StatelessWidget {
-  const ReviewReportSheet({super.key, required this.onSubmit});
+  const ReviewReportSheet({
+    super.key,
+    required this.onSubmit,
+    this.title = 'Why are you reporting this review?',
+  });
 
   final Future<void> Function(ReportReason reason, String details) onSubmit;
+  final String title;
 
   static const sentMessage =
       'Thanks for reporting. Our team reviews reports within 24 hours.';
@@ -356,7 +418,7 @@ class ReviewReportSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ReportReasonSheet<ReportReason>(
-      title: 'Why are you reporting this review?',
+      title: title,
       reasons: ReportReason.values,
       labelOf: (reason) => reason.label,
       onSubmit: onSubmit,

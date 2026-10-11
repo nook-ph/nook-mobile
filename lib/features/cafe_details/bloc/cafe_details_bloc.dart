@@ -105,6 +105,7 @@ class CafeDetailsBloc extends Bloc<CafeDetailsEvent, CafeDetailsState> {
       rating: bundle.details.rating,
       reviewCount: bundle.details.reviewCount,
       isNew: bundle.details.isNew,
+      isClaimed: bundle.details.isClaimed,
       operatingHours: bundle.details.operatingHours,
       socialLinks: bundle.details.socialLinks,
       menuItems: menuItems,

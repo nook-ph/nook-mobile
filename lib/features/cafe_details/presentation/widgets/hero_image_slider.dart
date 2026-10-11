@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
+import 'package:nook/core/presentation/widgets/cafe_photo_placeholder.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 
 class HeroImageSlider extends StatefulWidget {
   const HeroImageSlider({
@@ -8,7 +10,16 @@ class HeroImageSlider extends StatefulWidget {
     required this.isLoading,
     this.bottomInset = 0,
     this.onImageTap,
+    this.placeholderSeed,
+    this.onClaimTap,
   });
+
+  /// Picks the sample photo; pass the cafe's name.
+  final String? placeholderSeed;
+
+  /// Set for an unclaimed cafe: the empty state then invites the owner to
+  /// claim it and add photos.
+  final VoidCallback? onClaimTap;
 
   /// Opens the full-screen viewer at the tapped photo.
   final void Function(int index)? onImageTap;
@@ -74,14 +85,7 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
               itemBuilder: (context, index) {
                 final image = CafeCardImage(
                   imageUrl: displayImages[index],
-                  errorWidget: Container(
-                    color: Colors.grey[300],
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: Color(0xFF9E9E9E),
-                    ),
-                  ),
+                  placeholderSeed: widget.placeholderSeed,
                 );
                 final onTap = widget.onImageTap;
                 if (onTap == null) return image;
@@ -99,24 +103,10 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
               },
             )
           else
-            Container(
-              height: _height,
-              width: double.infinity,
-              color: Colors.grey[300],
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.image_outlined, color: Color(0xFF9E9E9E)),
-                  const SizedBox(height: 6),
-                  Text(
-                    'No photos yet',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF767574),
-                    ),
-                  ),
-                ],
-              ),
+            _NoPhotosHero(
+              seed: widget.placeholderSeed,
+              bottomInset: widget.bottomInset,
+              onClaimTap: widget.onClaimTap,
             ),
 
           // No counter without photos: "1 / 1" over a placeholder says nothing.
@@ -143,6 +133,98 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// The hero of a cafe with no photos: the cafe's sample photo at full height,
+/// marked "Sample photo", and for an unclaimed cafe a link asking the owner to
+/// claim it and add real ones. Both sit where the photo counter would, above
+/// the sheet's lip.
+class _NoPhotosHero extends StatelessWidget {
+  const _NoPhotosHero({
+    required this.seed,
+    required this.bottomInset,
+    required this.onClaimTap,
+  });
+
+  final String? seed;
+  final double bottomInset;
+  final VoidCallback? onClaimTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final claim = onClaimTap;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        CafePhotoPlaceholder(seed: seed, showLabel: false),
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 16 + bottomInset,
+          // Side by side when they fit; at large text sizes the link wraps
+          // under the label rather than being cut off.
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              const SamplePhotoPill(),
+              if (claim != null) _AddPhotosLink(onTap: claim),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "Own this café? Add photos", in the same quiet pill as the label beside it.
+class _AddPhotosLink extends StatelessWidget {
+  const _AddPhotosLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      fontSize: 12,
+      color: Colors.white,
+      height: 1.3,
+    );
+    return Semantics(
+      link: true,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Text.rich(
+              const TextSpan(
+                children: [
+                  TextSpan(text: 'Own this café? '),
+                  TextSpan(
+                    text: 'Add photos',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              style: style,
+            ),
+          ),
+        ),
       ),
     );
   }

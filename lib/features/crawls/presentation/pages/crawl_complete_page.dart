@@ -32,7 +32,7 @@ class CrawlCompletePage extends StatelessWidget {
             // 10 + a 6 spacer + 10.
             const SizedBox(height: 26),
             Text(
-              'Crawl complete',
+              'Last stop, stamped',
               textAlign: TextAlign.center,
               style: crawlText(24, weight: FontWeight.w600),
             ),

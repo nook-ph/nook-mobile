@@ -30,7 +30,7 @@ void main() {
     await tester.pumpWidget(host(control(status: CafeStatus.been)));
 
     expect(find.text('Been'), findsOneWidget);
-    expect(find.text('Want to Try'), findsOneWidget);
+    expect(find.text('Want to try'), findsOneWidget);
   });
 
   testWidgets('merges the score into the Been pill once ranked', (
@@ -58,7 +58,7 @@ void main() {
 
     // Compressed, not stripped to an icon.
     expect(find.text('Try'), findsOneWidget);
-    expect(find.text('Want to Try'), findsNothing);
+    expect(find.text('Want to try'), findsNothing);
   });
 
   testWidgets('speaks the full name even when the label is compressed', (
@@ -72,7 +72,7 @@ void main() {
     );
 
     expect(
-      find.bySemanticsLabel('Want to Try'),
+      find.bySemanticsLabel('Want to try'),
       findsOneWidget,
       reason: 'the spoken name must not abbreviate with the visual label',
     );
@@ -86,6 +86,6 @@ void main() {
     );
 
     expect(find.textContaining('9.3'), findsNothing);
-    expect(find.text('Want to Try'), findsOneWidget);
+    expect(find.text('Want to try'), findsOneWidget);
   });
 }

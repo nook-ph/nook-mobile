@@ -17,7 +17,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 
 
-version: 1.1.4+12
+version: 1.1.5+13
 
 
 
@@ -105,6 +105,7 @@ flutter:
     - assets/logos/
     - assets/icons/
     - assets/images/
+    - assets/images/placeholder_cafes/
     - assets/images/relaxing.png
     - assets/images/looking.png
     - assets/images/friends.png

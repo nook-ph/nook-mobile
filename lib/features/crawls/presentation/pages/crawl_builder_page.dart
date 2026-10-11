@@ -192,7 +192,7 @@ class _CrawlBuilderViewState extends State<_CrawlBuilderView> {
                   counterInside: true,
                   gap: 10,
                   emphasisWidth: 1,
-                  hint: 'e.g. IT Park Study Crawl',
+                  hint: 'e.g. Lahug Pour-over Crawl',
                   errorText: titleError,
                   maxLength: CreateCrawlUseCase.maxTitleLength,
                   textCapitalization: TextCapitalization.words,
@@ -421,7 +421,10 @@ class _CafeRow extends StatelessWidget {
               const SizedBox(width: 12),
               Opacity(
                 opacity: dimmed ? 0.4 : 1,
-                child: CrawlStopThumb(imageUrl: cafe.coverImage),
+                child: CrawlStopThumb(
+                  imageUrl: cafe.coverImage,
+                  seed: cafe.name,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(

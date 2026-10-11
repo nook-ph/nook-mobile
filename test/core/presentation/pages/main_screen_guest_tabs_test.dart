@@ -75,7 +75,7 @@ void main() {
     expect(find.text('Sign in to see your profile'), findsOneWidget);
     expect(
       find.text(
-        'Your reviews, lists and rankings live in one place once you have an '
+        'Your cups, lists and rankings live in one place once you have an '
         'account.',
       ),
       findsOneWidget,

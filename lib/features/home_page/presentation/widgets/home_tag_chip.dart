@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/tag_icon.dart';
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 
 /// How many tag chips a featured card shows before folding the rest into a
@@ -28,7 +29,7 @@ class HomeTagChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = resolveTagIcon(label);
+    final hasIcon = hasTagIcon(label);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -44,8 +45,8 @@ class HomeTagChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: context.colorScheme.primary100),
+          if (hasIcon) ...[
+            TagIcon(label, size: 12, color: context.colorScheme.primary100),
             const SizedBox(width: 5),
           ],
           Flexible(

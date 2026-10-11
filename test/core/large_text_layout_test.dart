@@ -10,15 +10,15 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/block/block_cubit.dart';
-import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
-import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/review_row.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/reviews_preview_section.dart';
+import 'package:nook/features/cups/data/demo_cups_repository.dart';
+import 'package:nook/features/cups/presentation/cubit/cafe_cups_cubit.dart';
+import 'package:nook/features/cups/presentation/widgets/cafe_cups_section.dart';
+import 'package:nook/features/cups/presentation/widgets/cup_card_view.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/map/presentation/widgets/map_search_pill.dart';
 import 'package:nook/features/map/presentation/widgets/map_sheet_toggle.dart';
@@ -28,27 +28,6 @@ import 'package:nook/utils/theme/theme.dart';
 
 import '../features/profile/profile_test_support.dart' show FakeBlockCubit;
 import '../features/public_profile/public_profile_fakes.dart';
-
-class _StubReviewsBloc extends Cubit<ReviewsState> implements ReviewsBloc {
-  _StubReviewsBloc(super.initialState);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-ReviewEntity _review(String id, {int helpful = 3}) => ReviewEntity(
-  id: id,
-  cafeId: 'cafe-1',
-  userId: 'user-$id',
-  rating: 4,
-  content:
-      'Quiet upstairs, good light, and the cortado is the best in Lahug. '
-      'Came back twice in a week and will again.',
-  createdAt: DateTime(2026, 9, 1),
-  updatedAt: DateTime(2026, 9, 1),
-  name: 'Bea Santos Delacruz',
-  helpfulCount: helpful,
-);
 
 MenuItemEntity _item(String id) => MenuItemEntity(
   id: id,
@@ -175,14 +154,13 @@ void main() {
         _expectNotClipped(tester, find.textContaining('₱'));
       });
 
-      testWidgets('review preview cards fit their review', (tester) async {
-        final bloc = _StubReviewsBloc(
-          ReviewsLoaded(
-            cafeId: 'cafe-1',
-            reviews: [_review('1'), _review('2', helpful: 0)],
-          ),
+      testWidgets('cups section fits its cards', (tester) async {
+        final cubit = CafeCupsCubit(
+          repository: DemoCupsRepository(now: () => DateTime(2026, 10, 11)),
+          cafeId: 'cafe-1',
         );
-        addTearDown(bloc.close);
+        addTearDown(cubit.close);
+        await cubit.load();
         final block = FakeBlockCubit();
         addTearDown(block.close);
         await _pumpAt(
@@ -190,27 +168,34 @@ void main() {
           scale,
           MultiBlocProvider(
             providers: [
-              BlocProvider<ReviewsBloc>.value(value: bloc),
+              BlocProvider<CafeCupsCubit>.value(value: cubit),
               BlocProvider<BlockCubit>.value(value: block),
             ],
-            child: ReviewsPreviewSection(
-              onSeeAllTap: () {},
-              onWriteReviewTap: () {},
+            child: CafeCupsSection(
+              onSeeAll: () {},
+              onAdd: () {},
+              onOpenPhoto: (_, _) {},
+              onHelpful: (_) {},
+              onMore: (_) {},
             ),
           ),
         );
         expect(tester.takeException(), isNull);
         _expectNotClipped(tester, find.text('Helpful · 3'));
+        _expectNotClipped(tester, find.text('Add your cup'));
       });
 
-      testWidgets('review row header fits name and date', (tester) async {
+      testWidgets('cup card header fits name and date', (tester) async {
+        final cups = await DemoCupsRepository(
+          now: () => DateTime(2026, 10, 11),
+        ).getCafeCups('cafe-1');
         await _pumpAt(
           tester,
           scale,
-          ReviewRow(review: _review('1'), currentUserId: 'me'),
+          CupCardView(card: cups.cards.first, onMore: () {}),
         );
         expect(tester.takeException(), isNull);
-        _expectNotClipped(tester, find.text('Sep 1, 2026'));
+        _expectNotClipped(tester, find.text('@mae.brews'));
       });
 
       testWidgets('lists sheet header fits its title', (tester) async {

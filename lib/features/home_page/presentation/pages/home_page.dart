@@ -88,12 +88,11 @@ class HomePage extends StatelessWidget {
                   context.read<CafeStatusCubit>().loadFor(ids.toList());
                 }
 
-                if (state.featuredCafes.isNotEmpty) {
-                  final first = state.featuredCafes.first;
-                  final url = first.coverImage?.trim().isNotEmpty == true
-                      ? first.coverImage!.trim()
-                      : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
+                final firstCover = state.featuredCafes.isEmpty
+                    ? null
+                    : state.featuredCafes.first.coverImage?.trim();
+                if (firstCover != null && firstCover.isNotEmpty) {
+                  final url = firstCover;
                   precacheImage(
                     CachedNetworkImageProvider(
                       url,
@@ -260,22 +259,41 @@ class _HomeContent extends StatelessWidget {
 
     final nearby = fresh(state.nearbyCafes);
     final featured = fresh(state.featuredCafes);
+    final specialty = fresh(state.specialtyNearbyCafes);
+    final beans = fresh(state.localBeansCafes);
     final newest = fresh(state.newestCafes);
+    final laptop = fresh(state.laptopFriendlyCafes);
     final trending = fresh(state.trendingCafes);
     final topRated = fresh(state.topRatedCafes);
 
     // Sections with no cafes are left out, so the gap goes between the ones
-    // that remain rather than around blank space.
+    // that remain rather than around blank space. Titles only, no
+    // subtitles: the home page reads cleaner without a second line.
     final sections = <Widget>[
       if (nearby.isNotEmpty)
         HomeCafeSection(title: 'Near you', cafes: nearby, sort: 'nearby'),
       if (featured.isNotEmpty) _FeaturedSection(cafes: featured),
+      if (specialty.isNotEmpty)
+        HomeCafeSection(title: 'Specialty coffee near you', cafes: specialty),
+      // Hidden by the bloc until three cafes have the Philippine Beans tag.
+      if (beans.isNotEmpty) HomeCafeSection(title: 'Local beans', cafes: beans),
       if (newest.isNotEmpty)
-        HomeCafeSection(title: 'New', cafes: newest, sort: 'newest'),
+        HomeCafeSection(title: 'Fresh on Nook', cafes: newest, sort: 'newest'),
+      if (laptop.isNotEmpty)
+        HomeCafeSection(title: 'Laptop-friendly', cafes: laptop),
+      // Hidden by the bloc until enough cafes have enough reviews.
       if (trending.isNotEmpty)
-        HomeCafeSection(title: 'Trending', cafes: trending, sort: 'trending'),
+        HomeCafeSection(
+          title: 'Crowd favorites',
+          cafes: trending,
+          sort: 'trending',
+        ),
       if (topRated.isNotEmpty)
-        HomeCafeSection(title: 'Top Rated', cafes: topRated, sort: 'top_rated'),
+        HomeCafeSection(
+          title: 'Highest rated',
+          cafes: topRated,
+          sort: 'top_rated',
+        ),
     ];
 
     return Column(
@@ -300,7 +318,7 @@ class _FeaturedSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeSectionTitle('Featured'),
+        const HomeSectionTitle('House picks'),
         const SizedBox(height: 12),
         FeaturedCarousel(cafes: cafes),
       ],

@@ -1,8 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/analytics/profile_events.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/features/cups/domain/entities/cup.dart';
+import 'package:nook/features/cups/domain/i_cups_repository.dart';
+import 'package:nook/features/cups/presentation/cubit/cafe_cups_cubit.dart';
+import 'package:nook/features/cups/presentation/cup_actions.dart';
+import 'package:nook/features/cups/presentation/cup_menu.dart';
+import 'package:nook/features/cups/presentation/pages/cafe_cups_page.dart';
+import 'package:nook/features/cups/presentation/widgets/cafe_cups_section.dart';
+import 'package:nook/features/gallery/domain/entities/cafe_story.dart';
+import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
+import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart';
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -20,17 +33,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_states.dart';
-import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
-import 'package:nook/features/cafe_details/bloc/review_submit_state.dart';
-import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
-import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/similar_cafes_section.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/reviews_logic.dart';
-import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_claim_link.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_unverified_note.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_your_visit_block.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
@@ -39,18 +48,25 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_com
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_error_view.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_skeleton.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_community_photos_section.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_load_failure.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/expandable_description.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/hero_image_slider.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlights.dart';
-import 'package:nook/features/cafe_details/presentation/pages/reviews_page.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/reviews_preview_section.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/write_review_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/lists/presentation/widgets/save_to_list_bottom_sheet.dart';
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
+
+/// The scroll offset that puts a section whose top is at [reveal] just
+/// under a pinned bar [bar] tall, with a little air, within [min]..[max].
+double scrollOffsetUnderBar({
+  required double reveal,
+  required double bar,
+  required double min,
+  required double max,
+}) => (reveal - bar + 8).clamp(min, max);
 
 class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({super.key, required this.cafeId});
@@ -76,6 +92,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
 
   final GlobalKey _barKey = GlobalKey();
 
+  /// The Cups section, which the header's rating scrolls to.
+  final GlobalKey _cupsKey = GlobalKey();
+
   static const double _expandedHeight = 296;
   static const double _collapsedHeight = kToolbarHeight;
 
@@ -86,15 +105,24 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   /// the sheet has slid up over the photo.
   static const double _fadeRange = 60;
 
-  /// A guest tapped Write a review, signed in and was brought back here:
-  /// open the review sheet once the reviews are in, unless they already
-  /// have one.
-  bool _pendingWriteReview = false;
+  /// A guest tapped Add your cup, signed in and was brought back here:
+  /// open the composer once the cafe has loaded.
+  bool _pendingAddCup = false;
+
+  /// The page's cups and the stories tray's photos, made here so a posted
+  /// cup refreshes both.
+  late final CafeCupsCubit _cups = CafeCupsCubit(
+    repository: sl<ICupsRepository>(),
+    cafeId: widget.cafeId,
+  )..load();
+  late final CafePhotosCubit _photos = sl<CafePhotosCubit>(
+    param1: widget.cafeId,
+  )..load();
 
   @override
   void initState() {
     super.initState();
-    _pendingWriteReview =
+    _pendingAddCup =
         Supabase.instance.client.auth.currentSession != null &&
         GuestActionReplay.take(CafeGuestAction.writeReview, widget.cafeId);
     _scrollController = ScrollController()
@@ -122,6 +150,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   void dispose() {
     _scrollController.dispose();
     _collapseProgress.dispose();
+    _cups.close();
+    _photos.close();
     super.dispose();
   }
 
@@ -133,35 +163,111 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     return 72 + MediaQuery.of(context).padding.bottom;
   }
 
-  void _openReviews(BuildContext context, CafeDetailsLoaded state) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => MultiBlocProvider(
-          providers: [
-            BlocProvider.value(value: context.read<CafeDetailsBloc>()),
-            BlocProvider.value(value: context.read<ReviewsBloc>()),
-            BlocProvider.value(value: context.read<ReviewSubmitBloc>()),
-          ],
-          child: ReviewsPage(
-            cafeId: widget.cafeId,
-            cafeRating: state.data.cafeDetails.rating,
-            reviewCount: state.data.cafeDetails.reviewCount,
-          ),
-        ),
-      ),
+  /// The header's rating was tapped: bring the Cups section up under the
+  /// pinned bar, where its numbers and kinds explain the rating.
+  void _scrollToCups() {
+    final box = _cupsKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !_scrollController.hasClients) return;
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return;
+    final bar = _collapsedHeight + MediaQuery.paddingOf(context).top;
+    final position = _scrollController.position;
+    final target = scrollOffsetUnderBar(
+      reveal: viewport.getOffsetToReveal(box, 0).offset,
+      bar: bar,
+      min: position.minScrollExtent,
+      max: position.maxScrollExtent,
+    );
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _scrollController.jumpTo(target);
+    } else {
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  PickedCafe _pickedCafe(CafeDetailsLoaded state) {
+    final details = state.data.cafeDetails;
+    final area = [
+      details.neighborhood,
+      details.city,
+    ].where((part) => part.trim().isNotEmpty).join(', ');
+    return PickedCafe(
+      id: widget.cafeId,
+      name: details.name,
+      area: area.isEmpty ? null : area,
+      imageUrl: details.featuredImageUrl,
     );
   }
 
-  void _writeReview(BuildContext context) {
-    if (Supabase.instance.client.auth.currentSession == null) {
-      CafeGuestSignInSheet.show(
-        context,
-        action: CafeGuestAction.writeReview,
-        cafeId: widget.cafeId,
-      );
-      return;
+  List<CupMenuOption> _menu(CafeDetailsLoaded state) =>
+      cupMenuFrom(state.data.allMenuItems);
+
+  /// A cup was posted, edited or deleted: the section, the tray and the
+  /// header (which shows the cafe's rating) catch up; Been too, when
+  /// posting marked it.
+  void _afterCup(BuildContext context, {bool markedBeen = false}) {
+    _cups.load(refresh: true);
+    _photos.load(refresh: true);
+    context.read<CafeDetailsBloc>().add(
+      LoadCafeDetailsRequested(cafeId: widget.cafeId),
+    );
+    if (markedBeen) {
+      context.read<CafeStatusCubit?>()?.loadFor([widget.cafeId]);
     }
-    WriteReviewSheet.show(context, cafeId: widget.cafeId);
+  }
+
+  Future<void> _addCup(
+    BuildContext context,
+    CafeDetailsLoaded state, {
+    required String source,
+    CupCard? editing,
+  }) async {
+    final outcome = await startCup(
+      context,
+      cafe: _pickedCafe(state),
+      source: source,
+      editing: editing,
+      menu: _menu(state),
+      myCups: _myCups,
+      toastOffset: _toastOffset(),
+    );
+    if (outcome == null || !context.mounted) return;
+    _afterCup(context, markedBeen: outcome.markedBeen);
+  }
+
+  /// Your cups here, once the section has them; else the composer asks.
+  List<CupCard>? get _myCups =>
+      _cups.state.isLoaded ? _cups.state.myCups : null;
+
+  void _openCups(
+    BuildContext context,
+    CafeDetailsLoaded state, {
+    CafeCupsTab tab = CafeCupsTab.posts,
+    CafePhotosState? photos,
+  }) {
+    CafeCupsPage.open(
+      context,
+      cafe: _pickedCafe(state),
+      initialTab: tab,
+      menu: _menu(state),
+      photosSeed: photos,
+      onChanged: () => _afterCup(context),
+    );
+  }
+
+  /// A legacy review photo's words for the story viewer, from the cups
+  /// this page has loaded.
+  StoryReview? _reviewWords(String reviewId) {
+    for (final card in _cups.state.cards) {
+      if (card.reviewId == reviewId) {
+        return StoryReview(rating: card.rating, text: card.note ?? '');
+      }
+    }
+    return null;
   }
 
   /// The sheet's content for a loaded cafe. Sections with nothing in them
@@ -178,7 +284,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
 
     final sections = <Widget>[
       if (CafeAmenitiesSection.hasContent(groups))
-        CafeAmenitiesSection(groups: groups),
+        CafeAmenitiesSection(
+          groups: groups,
+          cafeId: widget.cafeId,
+          cafeName: details.name,
+        ),
       if (description.isNotEmpty)
         Padding(
           padding: const EdgeInsets.symmetric(
@@ -202,21 +312,52 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
         ),
       if (cafe.menuHighlights.isNotEmpty)
         MenuHighlights(width: menuCardWidth, cafe: cafe),
-      CafeHoursLocationSection(cafe: cafe, groups: groups),
-      ReviewsPreviewSection(
-        onSeeAllTap: () => _openReviews(context, state),
-        onWriteReviewTap: () => _writeReview(context),
-        onRetry: () => context.read<ReviewsBloc>().add(
-          LoadReviewsRequested(cafeId: widget.cafeId),
+      // Cups above Hours: what people had and thought is the proof for
+      // deciding, so it sits higher than the logistics (UX review 1.2).
+      CafeCupsSection(
+        key: _cupsKey,
+        onSeeAll: () => _openCups(context, state),
+        onAdd: () => _addCup(context, state, source: CupSource.cafeSection),
+        onOpenPhoto: (card, index) => openCupPhotos(
+          context,
+          card: card,
+          index: index,
+          cafeId: widget.cafeId,
+          cafeName: details.name,
         ),
-        currentUserId: Supabase.instance.client.auth.currentUser?.id,
+        onHelpful: (card) => toggleCupHelpful(
+          context,
+          cubit: _cups,
+          card: card,
+          toastOffset: _toastOffset(),
+        ),
+        onMore: (card) => showCupOptions(
+          context,
+          card: card,
+          cafeId: widget.cafeId,
+          cafeName: details.name,
+          onEdit: () => _addCup(
+            context,
+            state,
+            source: CupSource.cafeSection,
+            editing: card,
+          ),
+          onChanged: () => _afterCup(context),
+          toastOffset: _toastOffset(),
+        ),
       ),
+      CafeHoursLocationSection(cafe: cafe, groups: groups),
     ];
+
+    final cups = context.watch<CafeCupsCubit>().state;
+    final cupCount = cups.isLoaded ? cups.stats.cupCount : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CafeInfoHeader(cafe: cafe),
+        CafeInfoHeader(cafe: cafe, onRatingTap: _scrollToCups),
+        // Imported from public sources and unchecked: say so under the name.
+        CafeUnverifiedNote(cafeId: widget.cafeId, isClaimed: details.isClaimed),
         const SizedBox(height: 16),
         CafeStatusPills(cafe: cafe, toastOffset: _toastOffset),
         // Your own history with the cafe, right under the actions that
@@ -225,12 +366,48 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           cafeId: widget.cafeId,
           cafeName: details.name,
           cafeImageUrl: details.featuredImageUrl,
+          onShareCup: (note) =>
+              startCup(
+                context,
+                cafe: _pickedCafe(state),
+                source: CupSource.visitBlock,
+                note: note,
+                menu: _menu(state),
+                myCups: _myCups,
+                toastOffset: _toastOffset(),
+              ).then((outcome) {
+                if (outcome != null && context.mounted) {
+                  _afterCup(context, markedBeen: outcome.markedBeen);
+                }
+              }),
+        ),
+        // Latest cups: the stories tray, the page's highlight. Brings its
+        // own divider, and is left out when there is nothing to show.
+        CafeCommunityPhotosSection(
+          cafeId: widget.cafeId,
+          cafeName: details.name,
+          cafeArea: [
+            details.neighborhood,
+            details.city,
+          ].where((part) => part.trim().isNotEmpty).join(', '),
+          cafeImageUrl: details.featuredImageUrl,
+          cubit: _photos,
+          cupCount: cupCount,
+          reviewOf: _reviewWords,
+          onAdd: () => _addCup(context, state, source: CupSource.storiesTray),
+          onSeeAll: (photos) => _openCups(
+            context,
+            state,
+            tab: CafeCupsTab.photos,
+            photos: photos,
+          ),
         ),
         for (final section in sections) ...[
           const CafeSectionDivider(),
           section,
         ],
         SimilarCafesSection(cafeId: widget.cafeId),
+        CafeClaimLink(cafeId: widget.cafeId, isClaimed: details.isClaimed),
         // Clearance above the pinned bar.
         const SizedBox(height: 24),
       ],
@@ -249,40 +426,21 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
               sl<CafeDetailsBloc>()
                 ..add(LoadCafeDetailsRequested(cafeId: widget.cafeId)),
         ),
-        BlocProvider(
-          // Not lazy: the first reader is the reviews section, which only
-          // builds once the cafe has loaded. The reviews should already be
-          // on their way by then, not start after it.
-          lazy: false,
-          create: (_) =>
-              sl<ReviewsBloc>()
-                ..add(LoadReviewsRequested(cafeId: widget.cafeId)),
-        ),
-        BlocProvider(create: (_) => sl<ReviewSubmitBloc>()),
+        // Made by the page (see _cups, _photos); started at once, so they
+        // are on their way while the cafe loads.
+        BlocProvider.value(value: _cups),
+        BlocProvider.value(value: _photos),
       ],
-      child: BlocListener<ReviewsBloc, ReviewsState>(
+      child: BlocListener<CafeDetailsBloc, CafeDetailsState>(
         listenWhen: (_, current) =>
-            _pendingWriteReview && current is ReviewsLoaded,
-        listener: (context, reviewsState) {
-          _pendingWriteReview = false;
-          if (reviewsState is! ReviewsLoaded) return;
-          final me = Supabase.instance.client.auth.currentUser?.id;
-          if (hasOwnReview(reviewsState.reviews, me)) return;
-          _writeReview(context);
+            _pendingAddCup && current is CafeDetailsLoaded,
+        listener: (context, detailsState) {
+          _pendingAddCup = false;
+          if (detailsState is! CafeDetailsLoaded) return;
+          _addCup(context, detailsState, source: CupSource.guestReturn);
         },
-        child: BlocListener<ReviewSubmitBloc, ReviewSubmitState>(
-          listener: (context, submitState) {
-            if (submitState is! ReviewSubmitSuccess) return;
-
-            context.read<ReviewsBloc>().add(
-              LoadReviewsRequested(cafeId: widget.cafeId),
-            );
-
-            context.read<CafeDetailsBloc>().add(
-              LoadCafeDetailsRequested(cafeId: widget.cafeId),
-            );
-          },
-          child: Theme(
+        child: Builder(
+          builder: (context) => Theme(
             data: Theme.of(context).copyWith(
               appBarTheme: const AppBarTheme(
                 surfaceTintColor: Colors.transparent,
@@ -371,6 +529,18 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             images: heroImages,
                             isLoading: isLoading,
                             bottomInset: _sheetLip,
+                            placeholderSeed: state is CafeDetailsLoaded
+                                ? state.data.cafeDetails.name
+                                : null,
+                            onClaimTap:
+                                state is CafeDetailsLoaded &&
+                                    state.data.cafeDetails.isClaimed == false
+                                ? () => CafeClaimLink.open(
+                                    context,
+                                    cafeId: widget.cafeId,
+                                    source: 'no_photos_hero',
+                                  )
+                                : null,
                             onImageTap: (index) => showReviewPhotoViewer(
                               context,
                               imageUrls: heroImages,

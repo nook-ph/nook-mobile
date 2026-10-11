@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart'
+    show scrollOffsetUnderBar;
+import 'package:nook/core/presentation/widgets/tag_icon.dart';
 import 'package:get_it/get_it.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_tags_page.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
@@ -64,6 +68,13 @@ void main() {
     }
   });
 
+  test('the rating scrolls Cups to just under the pinned bar', () {
+    expect(scrollOffsetUnderBar(reveal: 900, bar: 80, min: 0, max: 2000), 828);
+    // Near the end of the page it stops at the end.
+    expect(scrollOffsetUnderBar(reveal: 900, bar: 80, min: 0, max: 500), 500);
+    expect(scrollOffsetUnderBar(reveal: 10, bar: 80, min: 0, max: 500), 0);
+  });
+
   group('CafeInfoHeader', () {
     testWidgets('puts rating and open status on one line', (tester) async {
       await tester.pumpWidget(_host(CafeInfoHeader(cafe: _cafe())));
@@ -83,8 +94,34 @@ void main() {
         _host(CafeInfoHeader(cafe: _cafe(reviewCount: 0))),
       );
 
-      expect(find.text('No reviews yet'), findsOneWidget);
+      expect(find.text('No cups yet'), findsOneWidget);
       expect(find.text('4.9'), findsNothing);
+    });
+
+    testWidgets('the rating is a button to Cups, 44 tall', (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        _host(CafeInfoHeader(cafe: _cafe(), onRatingTap: () => taps++)),
+      );
+      final button = find.bySemanticsLabel('Rated 4.9 from 32. Go to Cups');
+      expect(button, findsOneWidget);
+      expect(tester.getSize(button).height, greaterThanOrEqualTo(44));
+      await tester.tap(find.text('4.9'));
+      expect(taps, 1);
+    });
+
+    testWidgets('with no cups yet it still leads to Cups', (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        _host(
+          CafeInfoHeader(
+            cafe: _cafe(reviewCount: 0),
+            onRatingTap: () => taps++,
+          ),
+        ),
+      );
+      await tester.tap(find.bySemanticsLabel('No cups yet. Go to Cups'));
+      expect(taps, 1);
     });
 
     testWidgets('makes no open or closed claim without hours', (tester) async {
@@ -132,7 +169,22 @@ void main() {
   });
 
   group('CafeAmenitiesSection', () {
-    testWidgets('lists amenities and best-for tags', (tester) async {
+    List<TagEntity> manyTags() => [
+      for (final name in const ['Pour-over', 'Espresso', 'Matcha'])
+        TagEntity(id: name, name: name, category: 'coffee'),
+      for (final name in const ['Date Spot', 'Group Hangout', 'Late Night'])
+        TagEntity(id: name, name: name, category: 'best_for'),
+      for (final name in const [
+        'Free WiFi',
+        'Power Outlets',
+        'Air Conditioned',
+        'Wheelchair Accessible',
+      ])
+        TagEntity(id: name, name: name, category: 'amenities'),
+      TagEntity(id: 'Cash', name: 'Cash', category: 'payment'),
+    ];
+
+    testWidgets('a few tags: all of them, no See all', (tester) async {
       final groups = CafeTagGroups.from([
         TagEntity(id: '1', name: 'Free WiFi', category: 'amenities'),
         TagEntity(id: '2', name: 'Power Outlets', category: 'amenities'),
@@ -140,21 +192,80 @@ void main() {
       ]);
       await tester.pumpWidget(_host(CafeAmenitiesSection(groups: groups)));
 
-      expect(find.text('Amenities'), findsOneWidget);
+      expect(find.text('What this cafe offers'), findsOneWidget);
       expect(find.text('Free WiFi'), findsOneWidget);
-      expect(find.text('Best for'), findsOneWidget);
       expect(find.text('Solo Work / Study'), findsOneWidget);
+      expect(find.textContaining('See all'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('leaves out the half that has nothing in it', (tester) async {
-      final groups = CafeTagGroups.from([
-        TagEntity(id: '3', name: 'Solo Work / Study', category: 'best_for'),
-      ]);
+    testWidgets('many tags: six, then See all with the total', (tester) async {
+      final groups = CafeTagGroups.from(manyTags());
       await tester.pumpWidget(_host(CafeAmenitiesSection(groups: groups)));
 
-      expect(find.text('Amenities'), findsNothing);
-      expect(find.text('Best for'), findsOneWidget);
+      expect(find.text('Pour-over'), findsOneWidget);
+      expect(find.text('Espresso'), findsOneWidget);
+      expect(find.text('Matcha'), findsNothing);
+      expect(find.text('Free WiFi'), findsOneWidget);
+      expect(find.text('Wheelchair Accessible'), findsNothing);
+      // Pour-over and Espresso are Nook's own glyphs.
+      expect(find.byType(CoffeeGlyphIcon), findsNWidgets(2));
+      expect(find.text('See all 11'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('See all opens every group on its own page', (tester) async {
+      final groups = CafeTagGroups.from(manyTags());
+      await tester.pumpWidget(
+        _host(CafeAmenitiesSection(groups: groups, cafeName: 'Tadaima')),
+      );
+      await tester.tap(find.text('See all 11'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CafeTagsPage), findsOneWidget);
+      expect(find.text('Tadaima'), findsOneWidget);
+      expect(find.text('Coffee'), findsOneWidget);
+      expect(find.text('Matcha'), findsOneWidget);
+      // The rest of the groups are further down.
+      for (final text in const ['Best for', 'Amenities', 'Payment', 'Cash']) {
+        await tester.scrollUntilVisible(find.text(text), 200);
+        expect(find.text(text), findsOneWidget);
+      }
+
+      await tester.tap(find.bySemanticsLabel('Back'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CafeTagsPage), findsNothing);
+    });
+
+    testWidgets('large text: one column, nothing overflows', (tester) async {
+      final groups = CafeTagGroups.from([
+        ...manyTags(),
+        TagEntity(
+          id: 'long',
+          name: 'Aesthetic / IG-worthy',
+          category: 'best_for',
+          isFeatured: true,
+        ),
+      ]);
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: _host(CafeAmenitiesSection(groups: groups)),
+        ),
+      );
+      expect(find.text('Aesthetic / IG-worthy'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    test('a listing with only coffee tags has content', () {
+      expect(
+        CafeAmenitiesSection.hasContent(
+          CafeTagGroups.from([
+            TagEntity(id: '1', name: 'Matcha', category: 'coffee'),
+          ]),
+        ),
+        isTrue,
+      );
     });
 
     test('has no content for a listing without those tags', () {

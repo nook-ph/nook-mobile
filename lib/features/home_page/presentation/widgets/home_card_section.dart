@@ -12,6 +12,9 @@ import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart
 /// cafes: an empty section is left out of the feed, not labelled.
 class HomeCafeSection extends StatelessWidget {
   final String title;
+
+  /// A short line under the title saying what the shelf is.
+  final String? subtitle;
   final List<CafeSummary> cafes;
   final bool isSkeleton;
 
@@ -23,6 +26,7 @@ class HomeCafeSection extends StatelessWidget {
   const HomeCafeSection({
     super.key,
     required this.title,
+    this.subtitle,
     required this.cafes,
     this.isSkeleton = false,
     this.sort,
@@ -50,6 +54,7 @@ class HomeCafeSection extends StatelessWidget {
       children: [
         HomeSectionTitle(
           title,
+          subtitle: subtitle,
           onSeeAll: sort == null || isSkeleton
               ? null
               : () => context.push('/search?sort=$sort'),
@@ -86,9 +91,13 @@ class HomeCafeSection extends StatelessWidget {
 }
 
 class HomeSectionTitle extends StatelessWidget {
-  const HomeSectionTitle(this.text, {super.key, this.onSeeAll});
+  const HomeSectionTitle(this.text, {super.key, this.subtitle, this.onSeeAll});
 
   final String text;
+
+  /// Muted line under the title; the shelf's voice lives here, the title
+  /// stays plain.
+  final String? subtitle;
 
   /// Opens the shelf's full list. With it the whole title row is a button
   /// ending in "See all" (docs/ux/find-a-cafe.md, finding 4: shelves were a
@@ -97,7 +106,7 @@ class HomeSectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = Text(
+    final heading = Text(
       text,
       style: context.textTheme.titleMediumSemi.copyWith(
         color: context.colorScheme.black,
@@ -106,6 +115,23 @@ class HomeSectionTitle extends StatelessWidget {
         height: 1.5,
       ),
     );
+    final sub = subtitle;
+    final title = sub == null
+        ? heading
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              heading,
+              Text(
+                sub,
+                style: context.textTheme.bodySmall?.copyWith(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: context.colorScheme.gray,
+                ),
+              ),
+            ],
+          );
     final seeAll = onSeeAll;
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -117,7 +143,7 @@ class HomeSectionTitle extends StatelessWidget {
               onTap: seeAll,
               child: Semantics(
                 button: true,
-                label: '$text, see all',
+                label: sub == null ? '$text, see all' : '$text, $sub, see all',
                 excludeSemantics: true,
                 // 8 above and below brings the row to a 40pt tap target.
                 child: Padding(

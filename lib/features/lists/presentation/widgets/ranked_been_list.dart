@@ -134,7 +134,12 @@ class _TopRankCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            ListsThumb(imageUrl: top.cafe.coverImage, size: 48, radius: 10),
+            ListsThumb(
+              imageUrl: top.cafe.coverImage,
+              size: 48,
+              radius: 10,
+              placeholderSeed: top.cafe.name,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -226,7 +231,12 @@ class _RankedRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  ListsThumb(imageUrl: cafe.coverImage, size: 44, radius: 10),
+                  ListsThumb(
+                    imageUrl: cafe.coverImage,
+                    size: 44,
+                    radius: 10,
+                    placeholderSeed: cafe.name,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -324,7 +334,12 @@ class _UnrankedRow extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  ListsThumb(imageUrl: cafe.coverImage, size: 44, radius: 10),
+                  ListsThumb(
+                    imageUrl: cafe.coverImage,
+                    size: 44,
+                    radius: 10,
+                    placeholderSeed: cafe.name,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

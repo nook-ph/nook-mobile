@@ -35,7 +35,7 @@ class _SimilarCafesSectionState extends State<SimilarCafesSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const CafeSectionDivider(),
-            HomeCafeSection(title: 'Similar cafes', cafes: cafes),
+            HomeCafeSection(title: 'If you like this…', cafes: cafes),
           ],
         );
       },

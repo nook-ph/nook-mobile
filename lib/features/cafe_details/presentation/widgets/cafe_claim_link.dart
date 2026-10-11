@@ -1,0 +1,130 @@
+import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+/// Footer inviting the owner of an unclaimed cafe to claim it on Nook for
+/// Business. Opens the claim page in the browser, where sign-up happens.
+///
+/// Renders nothing unless the listing is known to be unclaimed: a cafe
+/// seeded from a summary doesn't know yet, and a claimed one has an owner.
+class CafeClaimLink extends StatelessWidget {
+  const CafeClaimLink({
+    super.key,
+    required this.cafeId,
+    required this.isClaimed,
+    @visibleForTesting this.launch = _launchExternal,
+  });
+
+  final String cafeId;
+  final bool? isClaimed;
+
+  /// Opens the claim page; throws or returns false when it can't.
+  final Future<bool> Function(Uri uri) launch;
+
+  static Future<bool> _launchExternal(Uri uri) =>
+      launchUrl(uri, mode: LaunchMode.externalApplication);
+
+  static const _claimBase = 'https://business.nookph.app/claim';
+
+  Future<void> _open(BuildContext context) =>
+      open(context, cafeId: cafeId, source: 'footer', launch: launch);
+
+  /// Opens the claim page for [cafeId] in the browser. [source] says which
+  /// entry point was tapped (footer, unverified note, empty photo hero).
+  /// [launch] is swapped in tests; it throws or returns false on failure.
+  static Future<void> open(
+    BuildContext context, {
+    required String cafeId,
+    required String source,
+    Future<bool> Function(Uri uri) launch = _launchExternal,
+  }) async {
+    logAppEvent(
+      'claim_cafe_tapped',
+      properties: {'cafe_id': cafeId, 'source': source},
+    );
+    final uri = Uri.parse('$_claimBase/${Uri.encodeComponent(cafeId)}');
+    bool launched;
+    try {
+      launched = await launch(uri);
+    } catch (e) {
+      // No browser, or the platform refused: same as not opening.
+      debugPrint('[ClaimLink] could not open $uri: $e');
+      launched = false;
+    }
+    if (!launched && context.mounted) {
+      showPrimaryToast(context, 'Unable to open the claim page.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isClaimed != false) return const SizedBox.shrink();
+
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const CafeSectionDivider(),
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: CafeDetailsTokens.gutter,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const CafeSectionTitle('Own this café?'),
+              const SizedBox(height: 4),
+              Text(
+                'Claim it to keep the hours, photos and menu up to date.',
+                style: text.bodyMedium?.copyWith(
+                  color: CafeDetailsTokens.muted,
+                  height: 1.45,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Semantics(
+          link: true,
+          child: InkWell(
+            onTap: () => _open(context),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: CafeDetailsTokens.gutter,
+                vertical: 14,
+              ),
+              child: Row(
+                children: [
+                  PhosphorIcon(
+                    PhosphorIcons.storefront(),
+                    size: 20,
+                    color: CafeDetailsTokens.brand,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Claim this café',
+                      style: text.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: CafeDetailsTokens.brand,
+                      ),
+                    ),
+                  ),
+                  PhosphorIcon(
+                    PhosphorIcons.arrowUpRight(),
+                    size: 18,
+                    color: CafeDetailsTokens.muted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

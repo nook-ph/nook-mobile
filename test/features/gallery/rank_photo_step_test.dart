@@ -4,12 +4,13 @@ import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
-import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/cups/domain/entities/cup.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/gallery_flows.dart';
 import 'package:nook/injection_container.dart';
 
 import '../lists/lists_fixtures.dart';
+import '../cups/cups_fakes.dart';
 import 'gallery_fakes.dart';
 
 class _Analytics extends AnalyticsService {
@@ -30,6 +31,7 @@ void main() {
   late GalleryCubit gallery;
   late FakeGalleryPhotoPicker picker;
   late _Analytics analytics;
+  late FakeCupsRepository cups;
 
   setUp(() async {
     await sl.reset();
@@ -41,7 +43,15 @@ void main() {
     repo = FakeGalleryRepository();
     gallery = GalleryCubit(repository: repo);
     picker = FakeGalleryPhotoPicker(one: pickedPhoto('cup'));
+    cups = FakeCupsRepository();
   });
+
+  GalleryFlowDeps deps() => GalleryFlowDeps(
+    cubit: gallery,
+    picker: picker,
+    cafes: FakeCafePickerSource(),
+    cups: cups,
+  );
 
   tearDown(() async {
     await ranking.close();
@@ -79,10 +89,7 @@ void main() {
   testWidgets('the reveal offers an optional photo, under the score', (
     tester,
   ) async {
-    await reveal(
-      tester,
-      deps: galleryDeps(cubit: gallery, picker: picker),
-    );
+    await reveal(tester, deps: deps());
     expect(find.text('Add a photo of what you had'), findsOneWidget);
     expect(find.text('Optional · it goes on your profile'), findsOneWidget);
     // The two buttons and Done are unchanged.
@@ -96,13 +103,10 @@ void main() {
     expect(find.text('Add a photo of what you had'), findsNothing);
   });
 
-  testWidgets('library → add sheet with the cafe fixed → added in place', (
+  testWidgets('library → the cup composer for this cafe → added in place', (
     tester,
   ) async {
-    final results = await reveal(
-      tester,
-      deps: galleryDeps(cubit: gallery, picker: picker),
-    );
+    final results = await reveal(tester, deps: deps());
     await tester.tap(find.text('Add a photo of what you had'));
     await tester.pumpAndSettle();
     expect(find.text('Take a photo'), findsOneWidget);
@@ -110,66 +114,63 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picker.libraryCalls, 1);
-    expect(find.text('Add to your gallery'), findsOneWidget);
-    // Fixed: the cafe was just ranked, so there is nothing to change.
-    expect(find.bySemanticsLabel('Cafe: Tadaima'), findsOneWidget);
-    expect(find.text('Change'), findsNothing);
-
+    // A cup for this visit, at the cafe that was just ranked.
+    expect(find.text('Add your cup'), findsOneWidget);
+    expect(find.text('Tadaima'), findsWidgets);
     await tester.enterText(
-      find.widgetWithText(TextField, 'Drink (optional)'),
+      find.widgetWithText(TextField, 'What is it? (optional)'),
       'Matcha latte',
     );
-    await tester.tap(find.text('Add photo'));
+    await tester.tap(find.bySemanticsLabel('Drink'));
+    await tester.tap(find.text('Post cup'));
     await tester.pumpAndSettle();
 
-    expect(repo.added.single, (
-      cafeId: 'a',
-      count: 1,
-      source: GalleryPhotoSource.rank,
-      drink: 'Matcha latte',
-      caption: null,
-    ));
+    final post = cups.posts.single;
+    expect(post.cafeId, 'a');
+    expect(post.items.single.name, 'Matcha latte');
+    expect(post.items.single.kind, CupItemKind.drink);
+    expect(post.items.single.hasPhoto, isTrue);
     // Back on the reveal, which now says it worked.
-    expect(find.text('Added to your gallery'), findsOneWidget);
+    expect(find.text('Added to your cups'), findsOneWidget);
     expect(find.text('Add a photo of what you had'), findsNothing);
     expect(
       analytics.events,
       containsAll(['rank_photo_tapped', 'rank_photo_added']),
     );
 
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
     expect(results, [RankingFlowOutcome.completed]);
   });
 
   testWidgets('the camera works the same way', (tester) async {
-    await reveal(
-      tester,
-      deps: galleryDeps(cubit: gallery, picker: picker),
-    );
+    await reveal(tester, deps: deps());
     await tester.tap(find.text('Add a photo of what you had'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Take a photo'));
     await tester.pumpAndSettle();
     expect(picker.cameraCalls, 1);
-    await tester.tap(find.text('Add photo'));
+    // Nothing is Coffee until picked.
+    await tester.tap(find.bySemanticsLabel('Coffee'));
+    await tester.tap(find.text('Post cup'));
     await tester.pumpAndSettle();
-    expect(repo.added.single.source, GalleryPhotoSource.rank);
+    expect(cups.posts, hasLength(1));
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('backing out of the photo leaves the reveal as it was', (
     tester,
   ) async {
     picker.one = null; // The system picker was cancelled.
-    await reveal(
-      tester,
-      deps: galleryDeps(cubit: gallery, picker: picker),
-    );
+    await reveal(tester, deps: deps());
     await tester.tap(find.text('Add a photo of what you had'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Choose from library'));
     await tester.pumpAndSettle();
     expect(find.text('Add a photo of what you had'), findsOneWidget);
-    expect(repo.calls, isEmpty);
+    expect(cups.posts, isEmpty);
   });
 }

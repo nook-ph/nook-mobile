@@ -4,10 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/profile_events.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:nook/core/block/block_cubit.dart';
-import 'package:nook/core/cafe/domain/entities/cafe_details.dart'
-    show WrittenReview;
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_sheet.dart';
@@ -15,19 +12,19 @@ import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_sheet_shell.dart';
-import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
-import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
-import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
-import 'package:nook/features/gallery/presentation/pages/gallery_viewer_page.dart';
-import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_header.dart';
-import 'package:nook/features/profile/presentation/widgets/profile_review_row.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/features/public_profile/domain/entities/public_profile.dart';
 import 'package:nook/features/public_profile/domain/i_public_profile_repository.dart';
 import 'package:nook/features/public_profile/presentation/cubit/public_profile_cubit.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/features/cups/data/legacy_cups.dart';
+import 'package:nook/features/cups/domain/entities/cup.dart';
+import 'package:nook/features/cups/domain/i_cups_repository.dart';
+import 'package:nook/features/cups/presentation/cubit/profile_cups_cubit.dart';
+import 'package:nook/features/cups/presentation/widgets/profile_cafe_cups_sheet.dart';
+import 'package:nook/features/cups/presentation/widgets/profile_cups_grid.dart';
 import 'package:nook/injection_container.dart';
 
 /// Shares [profile]'s web link. Swapped in tests.
@@ -172,32 +169,13 @@ class _PublicProfileView extends StatelessWidget {
   final bool signedIn;
   final ValueChanged<String>? onOpenCafe;
 
-  /// Asks why, then reports the photo. Signed-in visitors only.
-  Future<void> _reportPhoto(BuildContext context, GalleryPhoto photo) {
-    return _report<PhotoReportReason>(
-      context,
-      title: 'Report this photo?',
-      message:
-          'For the photo or what it says. They won’t know who reported it.',
-      reasons: PhotoReportReason.values,
-      labelOf: (reason) => reason.label,
-      send: (reason, details) async {
-        await repository.reportPhoto(photo.id, reason, details: details);
-        logAppEvent(
-          ProfileEvents.photoReported,
-          properties: {'reason': reason.wire},
-        );
-      },
-    );
-  }
-
   /// Asks why, then reports the person: their name, avatar or bio.
   Future<void> _reportProfile(BuildContext context, PublicProfile profile) {
     return _report<ProfileReportReason>(
       context,
       title: 'Report @${profile.username}?',
       message:
-          'For their name, photo or bio. To report a review or a photo, use '
+          'For their name, photo or bio. To report a cup or a photo, use '
           'its ⋯. They won’t know who reported them.',
       reasons: ProfileReportReason.values,
       labelOf: (reason) => reason.label,
@@ -241,26 +219,6 @@ class _PublicProfileView extends StatelessWidget {
     }
   }
 
-  /// ⋯ on one of their reviews: Report review or Block, as on a cafe page.
-  /// Blocking there leaves this profile too.
-  Future<void> _reviewOptions(
-    BuildContext context,
-    PublicProfile profile,
-    WrittenReview review,
-  ) async {
-    final blocks = context.read<BlockCubit>();
-    await showReviewActionsSheet(
-      context,
-      reviewId: review.id,
-      cafeId: review.cafeId,
-      authorId: profile.userId,
-      authorName: profile.displayName,
-    );
-    if (context.mounted && blocks.isBlocked(profile.userId)) {
-      Navigator.of(context).maybePop();
-    }
-  }
-
   /// The bar's ⋯ (Figma B2): Share profile, then Report and Block for a
   /// signed-in visitor.
   Future<void> _openOptions(BuildContext context, PublicProfile profile) async {
@@ -286,7 +244,7 @@ class _PublicProfileView extends StatelessWidget {
             ),
             ListsSheetAction(
               title: 'Block @${profile.username}',
-              subtitle: 'Hide their reviews and profile from you',
+              subtitle: 'Hide their cups and profile from you',
               destructive: true,
               onTap: () => Navigator.pop(sheetContext, _ProfileOption.block),
             ),
@@ -317,7 +275,7 @@ class _PublicProfileView extends StatelessWidget {
       context,
       title: 'Block @${profile.username}?',
       message:
-          'You will no longer see their reviews or their profile. You can '
+          'You will no longer see their cups or their profile. You can '
           'unblock them in Settings.',
       confirmLabel: 'Block',
       destructive: true,
@@ -404,12 +362,6 @@ class _PublicProfileView extends StatelessWidget {
               PublicProfileStatus.loaded => _Loaded(
                 profile: profile!,
                 onOpenCafe: (id) => _openCafe(context, id),
-                onReportPhoto: signedIn && !profile.isSelf && !preview
-                    ? (photo) => _reportPhoto(context, photo)
-                    : null,
-                onReviewMore: signedIn && !profile.isSelf && !preview
-                    ? (review) => _reviewOptions(context, profile, review)
-                    : null,
               ),
             },
           ),
@@ -436,175 +388,89 @@ class _Loading extends StatelessWidget {
   }
 }
 
-/// A gallery that only reads: the visitor's photos, already loaded with
-/// the profile. Lets the shared viewer run on someone else's photos.
-class _ReadOnlyGallery implements IGalleryRepository {
-  const _ReadOnlyGallery(this.photos);
-
-  final List<GalleryPhoto> photos;
-
-  @override
-  Future<List<GalleryPhoto>> getMyPhotos() async => photos;
-
-  @override
-  Future<List<GalleryPhoto>> addPhotos({
-    required String cafeId,
-    required List<PickedGalleryPhoto> photos,
-    required GalleryPhotoSource source,
-    String? drinkName,
-    String? caption,
-  }) => throw UnsupportedError('Read only');
-
-  @override
-  Future<void> deletePhoto(String photoId) =>
-      throw UnsupportedError('Read only');
-
-  @override
-  Future<void> setDetails(
-    String photoId, {
-    String? drinkName,
-    String? caption,
-    String? cafeId,
-  }) => throw UnsupportedError('Read only');
-
-  @override
-  Future<void> setHidden(String photoId, {required bool hidden}) =>
-      throw UnsupportedError('Read only');
-
-  @override
-  Future<void> setPinOrder(String photoId, int? pinOrder) =>
-      throw UnsupportedError('Read only');
-}
-
 class _Loaded extends StatelessWidget {
-  const _Loaded({
-    required this.profile,
-    required this.onOpenCafe,
-    this.onReportPhoto,
-    this.onReviewMore,
-  });
+  const _Loaded({required this.profile, required this.onOpenCafe});
 
   final PublicProfile profile;
   final ValueChanged<String> onOpenCafe;
-  final ValueChanged<GalleryPhoto>? onReportPhoto;
 
-  /// ⋯ on a review row. Null leaves it off (guests, Preview, yourself).
-  final ValueChanged<WrittenReview>? onReviewMore;
+  /// Their cups through the Cups backend when the app has it, else from
+  /// the reviews and photos the profile read already brought.
+  ProfileCupsCubit _cups() {
+    if (sl.isRegistered<ICupsRepository>()) {
+      return ProfileCupsCubit(
+        repository: sl<ICupsRepository>(),
+        userId: profile.userId,
+        username: profile.username,
+      )..load();
+    }
+    return ProfileCupsCubit.from(
+      () async => ProfileCups(
+        userId: profile.userId,
+        isSelf: profile.isSelf,
+        highlightsPublic: profile.highlightsPublic,
+        cafes: LegacyCups.profileCafes(
+          userId: profile.userId,
+          username: profile.username,
+          avatarUrl: profile.avatarUrl,
+          isMine: profile.isSelf,
+          reviews: profile.reviews,
+          photos: profile.highlightsPublic ? profile.photos : const [],
+        ),
+      ),
+    )..load();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final ranked = profile.rankedCount, cups = profile.cupCount;
-    final header = [
-      ProfileHeader(
-        name: profile.displayName,
-        avatarUrl: profile.avatarUrl,
-        bio: profile.bio ?? '',
-        // Ranked and Cups only when the owner shows them. A zero Ranked
-        // is left off: beside their reviews it reads as a verdict on the
-        // person, and it says nothing a visitor can act on.
-        stats: [
-          if (ranked != null && ranked > 0) ProfileStat('Ranked', ranked),
-          ProfileStat('Reviews', profile.reviewCount),
-          if (cups != null) ProfileStat('Cups', cups),
-        ],
-      ),
-    ];
-
-    if (!profile.highlightsPublic) {
-      // The gallery is off: the profile is the reviews, which are
-      // public on cafe pages anyway. No tabs for a single list.
-      return SingleChildScrollView(
+    final ranked = profile.rankedCount;
+    return BlocProvider(
+      create: (_) => _cups(),
+      child: SingleChildScrollView(
         padding: const EdgeInsets.only(bottom: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ...header,
-            const _PrivateNote(),
-            const ProfileDivider(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                ProfileTokens.gutter,
-                16,
-                ProfileTokens.gutter,
-                0,
+            BlocBuilder<ProfileCupsCubit, ProfileCupsState>(
+              buildWhen: (a, b) => a.cups != b.cups,
+              builder: (context, state) => ProfileHeader(
+                name: profile.displayName,
+                avatarUrl: profile.avatarUrl,
+                bio: profile.bio ?? '',
+                // Ranked only when the owner shows it, and not at zero:
+                // beside their cups it reads as a verdict on the person.
+                stats: [
+                  if (ranked != null && ranked > 0)
+                    ProfileStat('Ranked', ranked),
+                  ProfileStat('Cups', state.cups?.cupCount),
+                  ProfileStat('Cafes', state.cups?.cafeCount),
+                ],
               ),
-              child: _ReviewsBody(
-                profile: profile,
-                onOpenCafe: onOpenCafe,
-                onMore: onReviewMore,
-                shrinkWrap: true,
+            ),
+            if (!profile.highlightsPublic) const _PrivateNote(),
+            const ProfileDivider(),
+            Builder(
+              builder: (context) => ProfileCupsGrid(
+                scrollable: false,
+                isSelf: profile.isSelf,
+                onOpen: (cafe) => showProfileCafeCups(
+                  context,
+                  cafe: cafe,
+                  onOpenCafe: () => onOpenCafe(cafe.cafeId),
+                  onEdit: (_) => onOpenCafe(cafe.cafeId),
+                  onChanged: () =>
+                      context.read<ProfileCupsCubit>().load(refresh: true),
+                ),
               ),
             ),
           ],
-        ),
-      );
-    }
-
-    return BlocProvider(
-      create: (_) =>
-          GalleryCubit(repository: _ReadOnlyGallery(profile.photos))..load(),
-      child: DefaultTabController(
-        length: 2,
-        child: Builder(
-          builder: (context) => NestedScrollView(
-            headerSliverBuilder: (context, _) => [
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: header,
-                ),
-              ),
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _PinnedTabs(
-                  height: ProfileTabs.heightFor(
-                    MediaQuery.textScalerOf(context),
-                  ),
-                  child: ProfileTabs(
-                    controller: DefaultTabController.of(context),
-                    tabs: const [
-                      ProfileTabData('Gallery', icon: PhosphorIcons.gridFour),
-                      ProfileTabData(
-                        'Reviews',
-                        icon: PhosphorIcons.chatCircleText,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-            body: TabBarView(
-              children: [
-                _GalleryBody(
-                  profile: profile,
-                  onOpenCafe: onOpenCafe,
-                  onReportPhoto: onReportPhoto,
-                  onOpenReviews: () =>
-                      DefaultTabController.of(context).animateTo(1),
-                ),
-                SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(
-                    ProfileTokens.gutter,
-                    16,
-                    ProfileTokens.gutter,
-                    24,
-                  ),
-                  child: _ReviewsBody(
-                    profile: profile,
-                    onOpenCafe: onOpenCafe,
-                    onMore: onReviewMore,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );
   }
 }
 
-/// One muted line where the gallery would be.
+/// One muted line where the photos would be.
 class _PrivateNote extends StatelessWidget {
   const _PrivateNote();
 
@@ -623,7 +489,7 @@ class _PrivateNote extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Their gallery is private. Their reviews are public.',
+              'Their photos are private. Their notes and stars are public.',
               style: ProfileTokens.text(13, color: ProfileTokens.muted),
             ),
           ),
@@ -631,119 +497,4 @@ class _PrivateNote extends StatelessWidget {
       ),
     );
   }
-}
-
-class _GalleryBody extends StatelessWidget {
-  const _GalleryBody({
-    required this.profile,
-    required this.onOpenCafe,
-    required this.onOpenReviews,
-    this.onReportPhoto,
-  });
-
-  final PublicProfile profile;
-  final ValueChanged<String> onOpenCafe;
-  final VoidCallback onOpenReviews;
-  final ValueChanged<GalleryPhoto>? onReportPhoto;
-
-  @override
-  Widget build(BuildContext context) {
-    final photos = profile.photos;
-    if (photos.isEmpty) {
-      return const SingleChildScrollView(
-        child: ProfileMessage(
-          icon: LucideIcons.coffee,
-          title: 'No photos yet',
-          subtitle: 'Photos of what they drink show up here.',
-        ),
-      );
-    }
-    return CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.only(top: 1.5, bottom: 24),
-          sliver: SliverGrid.builder(
-            itemCount: photos.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 1.5,
-              crossAxisSpacing: 1.5,
-              childAspectRatio: ProfileGalleryTab.tileAspect,
-            ),
-            itemBuilder: (context, i) => GalleryTile(
-              key: ValueKey(photos[i].id),
-              photo: photos[i],
-              onTap: () => GalleryViewerPage.open(
-                context,
-                photo: photos[i],
-                isOwner: false,
-                onOpenCafe: onOpenCafe,
-                onOpenReview: onOpenReviews,
-                onReport: onReportPhoto,
-                reviewTextOf: (photo) => profile.reviews
-                    .where((r) => r.id == photo.sourceId)
-                    .firstOrNull
-                    ?.content,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ReviewsBody extends StatelessWidget {
-  const _ReviewsBody({
-    required this.profile,
-    required this.onOpenCafe,
-    this.onMore,
-    this.shrinkWrap = false,
-  });
-
-  final PublicProfile profile;
-  final ValueChanged<String> onOpenCafe;
-  final ValueChanged<WrittenReview>? onMore;
-  final bool shrinkWrap;
-
-  @override
-  Widget build(BuildContext context) {
-    if (profile.reviews.isEmpty) {
-      return ProfileMessage(
-        icon: LucideIcons.star,
-        title: 'No reviews yet',
-        subtitle: '${profile.displayName} hasn’t reviewed a cafe yet.',
-        top: shrinkWrap ? 24 : 80,
-      );
-    }
-    return ProfileReviewList(
-      reviews: profile.reviews,
-      onOpenCafe: onOpenCafe,
-      onMore: onMore,
-    );
-  }
-}
-
-class _PinnedTabs extends SliverPersistentHeaderDelegate {
-  const _PinnedTabs({required this.child, required this.height});
-
-  final Widget child;
-  final double height;
-
-  @override
-  double get minExtent => height;
-
-  @override
-  double get maxExtent => height;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) => SizedBox.expand(child: child);
-
-  @override
-  bool shouldRebuild(_PinnedTabs oldDelegate) =>
-      child != oldDelegate.child || height != oldDelegate.height;
 }

@@ -19,14 +19,9 @@ class CafeCard extends StatefulWidget {
 }
 
 class _CafeCardState extends State<CafeCard> {
-  static const String _fallbackImageUrl =
-      'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
   @override
   Widget build(BuildContext context) {
-    final String imageUrl = widget.cafe.coverImage?.trim().isNotEmpty == true
-        ? widget.cafe.coverImage!.trim()
-        : _fallbackImageUrl;
+    final String? imageUrl = widget.cafe.coverImage;
 
     return AdaptiveTap(
       onTap: () {
@@ -52,7 +47,11 @@ class _CafeCardState extends State<CafeCard> {
                   width: double.infinity,
                   color: Colors.black,
                 ),
-                child: CafeCardImage(imageUrl: imageUrl, height: 320),
+                child: CafeCardImage(
+                  imageUrl: imageUrl,
+                  height: 320,
+                  placeholderSeed: widget.cafe.name,
+                ),
               ),
             ),
             SizedBox(height: 16),
