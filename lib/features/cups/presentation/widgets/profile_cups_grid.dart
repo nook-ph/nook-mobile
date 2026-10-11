@@ -87,7 +87,6 @@ class _Grid extends StatelessWidget {
   Widget build(BuildContext context) {
     String n(int count, String one, String many) =>
         '$count ${count == 1 ? one : many}';
-    final private = !cups.highlightsPublic && !cups.isSelf;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -110,19 +109,6 @@ class _Grid extends StatelessWidget {
             ).copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
           ),
         ),
-        if (private)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              ProfileTokens.gutter,
-              0,
-              ProfileTokens.gutter,
-              8,
-            ),
-            child: Text(
-              'Their photos are private. Their notes and stars are public.',
-              style: ProfileTokens.text(13, color: ProfileTokens.muted),
-            ),
-          ),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

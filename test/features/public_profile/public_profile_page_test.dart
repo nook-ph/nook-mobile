@@ -113,7 +113,7 @@ void main() {
     expect(find.text('Top cafes'), findsNothing);
     expect(
       find.text('Their photos are private. Their notes and stars are public.'),
-      findsWidgets,
+      findsOneWidget,
     );
     expect(find.text('Tadaima'), findsOneWidget);
     expect(find.text('Pulso'), findsOneWidget);
