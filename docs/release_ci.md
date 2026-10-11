@@ -1,8 +1,7 @@
 # Release CI: plan
 
-Status: **proposed, not built.** Today every iOS release is built, signed and uploaded by hand on
-a teammate's Mac, and the Android release is built by hand too. This doc records the options and
-the recommended setup, so the work can be picked up without redoing the research.
+Status: **built.** iOS and Android releases are built, signed and uploaded by GitHub Actions on a
+version tag. The sections below keep the options that were weighed, plus the setup.
 
 Built so far: `.github/workflows/ios-build.yml` runs an unsigned iOS release build
 (`flutter build ios --release --no-codesign`) on every pull request and every push to `main`. It
@@ -113,23 +112,70 @@ The version name still comes from `pubspec.yaml`, so bump it before tagging.
 
 ## Android
 
-Doesn't need a Mac; a GitHub-hosted Linux runner does it.
+Runs on GitHub-hosted Linux runners; no Mac involved.
 
-- Secrets: the upload keystore (`.jks` as base64), its passwords and alias, and a Google Play
-  **service account** JSON with release permissions on the app (Play Console → Users and
-  permissions).
-- Build `flutter build appbundle --release --build-number=…` and upload to the **internal** track
-  with an action such as `r0adkll/upload-google-play` or fastlane `supply`.
-- The upload key was reset in 2026; Google's app signing key holds the real signature, so CI only
-  needs the upload key.
+`.github/workflows/android-build.yml` runs on every pull request and push to `main`, like the iOS
+check: `flutter analyze` (errors only), `flutter test`, then an unsigned
+`flutter build appbundle --release`. It uses no secrets. The unsigned build works because it sets
+`NOOK_ALLOW_UNSIGNED_RELEASE=true`; without that (or `android/key.properties`) a release build
+fails on purpose so nobody ships an unsigned bundle by accident.
+
+`.github/workflows/android-release.yml` runs on the same `v*` tags as the iOS release, so one tag
+ships both. It writes `.env` and `android/key.properties` from secrets, builds a signed `.aab`
+with version code `100 + run number` (past the last manual Play upload, `1.1.3+12`), keeps it as a
+run artifact for 7 days, and uploads it with
+[`r0adkll/upload-google-play`](https://github.com/r0adkll/upload-google-play) to the **internal**
+track, with `ios/metadata/en-US/release_notes.txt` as the "What's new" text (Play's limit is 500
+characters; the run fails if the file is longer) and the R8 mapping file for deobfuscated crash
+reports. Tags with or without a dash both go to internal; promoting to production is a manual
+step in Play Console. A hand run (Actions → Android release AAB → Run workflow) can pick another
+track (`alpha`, `beta`, `production`); `production` rolls out to everyone once Google reviews it.
+
+Local release builds are unchanged: they still sign from `android/key.properties`.
+
+### Android secrets
+
+| Secret | Value |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | the upload keystore: `base64 -w0 upload-keystore.jks` (on macOS: `base64 -i upload-keystore.jks`) |
+| `ANDROID_KEYSTORE_PASSWORD` | `storePassword` from your local `android/key.properties` |
+| `ANDROID_KEY_ALIAS` | `keyAlias` (currently `upload`) |
+| `ANDROID_KEY_PASSWORD` | `keyPassword` |
+| `PLAY_SERVICE_ACCOUNT_JSON` | the full JSON key of the Play service account below |
+| `SUPABASE_URL`, `SUPABASE_KEY`, `POSTHOG_PROJECT_TOKEN`, `POSTHOG_HOST`, `UPLOAD_PRESIGN_URL` | already added for iOS; shared |
+
+The keystore is the **upload** key (reset in 2026). Play App Signing holds the real app signing
+key, so CI never needs it.
+
+### Play service account
+
+1. Google Cloud Console → pick (or create) a project → **IAM & Admin → Service Accounts → Create
+   service account**, for example `github-play-upload`. It needs no Cloud roles.
+2. Open it → **Keys → Add key → Create new key → JSON**. The file downloads once; its whole
+   contents go into `PLAY_SERVICE_ACCOUNT_JSON`. Then delete the local copy.
+3. Enable the **Google Play Android Developer API** for that project (APIs & Services → Library).
+4. Play Console → **Users and permissions → Invite new users** → the service account's email
+   (`…@….iam.gserviceaccount.com`). Under **App permissions** add Nook (`app.nookph`) and grant
+   **Release apps to testing tracks** (enough for internal/alpha/beta), plus **Release to
+   production, exclude devices, and use Play App Signing** if hand runs should be able to target
+   `production`. Invite the user.
+5. New service accounts can take up to a day before uploads stop failing with "The caller does
+   not have permission".
+
+### Version codes
+
+Play rejects a version code it has seen before. The last hand upload was `1.1.3+12`, so CI starts at
+`101`. The iOS and Android workflows count runs separately, so the same tag gets different build
+numbers on each store; that is fine, each store only compares against itself. Re-running a failed
+job reuses its run number, so if the upload already succeeded, start a new run instead.
 
 ## Triggers
 
 | Trigger | Does |
 |---|---|
-| `push` tag `v*` | builds and uploads iOS to TestFlight and Android to Play internal |
+| `push` tag `v*` | builds and uploads iOS to TestFlight and Android to Play internal (both workflows) |
 | `workflow_dispatch` | same, by hand, for re-runs |
-| `pull_request` | (optional, GitHub-hosted only) unsigned build check, no secrets |
+| `pull_request` | unsigned iOS and Android build checks, no secrets |
 
 Building on every push to `main` was considered and rejected: it fills TestFlight with builds
 nobody tests and burns build numbers.

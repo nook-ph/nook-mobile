@@ -23,15 +23,17 @@ releases anything.
 ### Day-to-day work
 
 1. Branch from `main`: `feat/<name>` or `fix/<name>`.
-2. Open a PR into `main`. The **iOS build** check must pass (an unsigned release build).
+2. Open a PR into `main`. The **iOS build** and **Android build** checks must pass (unsigned
+   release builds; Android also runs analyze and tests).
 3. Squash-merge.
 
-### Releasing an iOS update
+### Releasing an update
 
 1. Open a `release/<version>` PR that changes only:
    - `pubspec.yaml`: bump `version` (for example `1.1.5+12`). Only the part before `+` matters;
      CI sets the build number.
-   - `ios/metadata/en-US/release_notes.txt`: the "What's New" text for this version.
+   - `ios/metadata/en-US/release_notes.txt`: the "What's New" text for this version. Android uses
+     it too, so keep it under 500 characters.
 2. Merge it, then tag `main`:
    ```bash
    git checkout main && git pull
@@ -40,6 +42,8 @@ releases anything.
 3. The **iOS release IPA** workflow builds and signs the app, uploads it to App Store Connect,
    waits for processing, and submits it for review (about 45 minutes).
 4. Apple releases it to the App Store as soon as review approves it. No click needed.
+5. The same tag runs **Android release AAB**: it builds, signs and uploads to the Play
+   **internal** track. Promote it to production in Play Console when ready.
 
 The version must be higher than the one live on the App Store, or the submit step fails.
 
@@ -66,6 +70,8 @@ Then open a PR from `hotfix/1.1.6` into `main` so the fix isn't lost.
 
 The signed `.ipa` is saved on the run page under **Artifacts** for 7 days. Upload it with
 **Transporter** and submit for review in App Store Connect by hand.
+For Android, the signed `.aab` is saved the same way; upload it in Play Console → Test and release →
+Internal testing → Create new release.
 
 Signing secrets, renewal (certificate and profile expire **Oct 10, 2027**) and the full setup:
 [`docs/release_ci.md`](docs/release_ci.md).
