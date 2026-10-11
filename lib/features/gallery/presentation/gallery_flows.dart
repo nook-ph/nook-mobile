@@ -117,6 +117,23 @@ Future<PickedGalleryPhoto?> addRankPhoto(
   BuildContext context,
   GalleryFlowDeps deps, {
   required PickedCafe cafe,
+}) => _addPhotoAt(context, deps, cafe: cafe, saveAs: GalleryPhotoSource.rank);
+
+/// "Add a photo" on a cafe page with no community photos yet: the same
+/// steps as [addRankPhoto], saved as a gallery photo.
+Future<PickedGalleryPhoto?> addCafePhoto(
+  BuildContext context,
+  GalleryFlowDeps deps, {
+  required PickedCafe cafe,
+}) =>
+    _addPhotoAt(context, deps, cafe: cafe, saveAs: GalleryPhotoSource.gallery);
+
+/// Camera or library, then the add sheet with [cafe] fixed.
+Future<PickedGalleryPhoto?> _addPhotoAt(
+  BuildContext context,
+  GalleryFlowDeps deps, {
+  required PickedCafe cafe,
+  required GalleryPhotoSource saveAs,
 }) async {
   final source = await ListsSheet.show<_Source>(
     context,
@@ -157,7 +174,7 @@ Future<PickedGalleryPhoto?> addRankPhoto(
         deps.cubit.addPhotos(
           cafeId: cafe.id,
           photos: photos,
-          source: GalleryPhotoSource.rank,
+          source: saveAs,
           drinkName: drinkName,
           caption: caption,
         ),

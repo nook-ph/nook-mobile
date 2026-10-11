@@ -31,6 +31,7 @@ import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_community_photos_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_your_visit_block.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
@@ -230,6 +231,17 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           const CafeSectionDivider(),
           section,
         ],
+        // Other people's photos, with the reviews they sit beside. Brings
+        // its own divider, and is left out when there is nothing to show.
+        CafeCommunityPhotosSection(
+          cafeId: widget.cafeId,
+          cafeName: details.name,
+          cafeArea: [
+            details.neighborhood,
+            details.city,
+          ].where((part) => part.trim().isNotEmpty).join(', '),
+          cafeImageUrl: details.featuredImageUrl,
+        ),
         SimilarCafesSection(cafeId: widget.cafeId),
         // Clearance above the pinned bar.
         const SizedBox(height: 24),
