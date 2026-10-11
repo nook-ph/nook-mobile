@@ -69,3 +69,24 @@ abstract final class CafePhotoSurface {
   static const grid = 'grid';
   static const viewer = 'viewer';
 }
+
+/// PostHog events for a cafe's "Latest cups" stories (the tray on cafe
+/// details and its full-screen viewer), sent through `logAppEvent`. Every
+/// one carries `cafe_id`.
+abstract final class CafeStoryEvents {
+  /// The viewer opened from the tray. Properties: `story_position`
+  /// (0-based, which person was tapped), `story_count`, `unseen` (whether
+  /// that person had anything new).
+  static const opened = 'cafe_stories_opened';
+
+  /// A photo shown in the viewer. Properties: `photo_id`,
+  /// `story_position`, `photo_position`.
+  static const viewed = 'cafe_story_viewed';
+
+  /// The poster tapped in the viewer. Properties: `photo_id`.
+  static const authorTapped = 'cafe_story_author_tapped';
+
+  /// Played past the last photo of the last person. Properties:
+  /// `story_count`.
+  static const completed = 'cafe_stories_completed';
+}

@@ -135,7 +135,7 @@ class _CafePhotosViewState extends State<_CafePhotosView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Community photos',
+              'Cups',
               style: theme.bodyLarge?.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -390,7 +390,7 @@ class _Message extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              info?.title ?? 'No photos yet',
+              info?.title ?? 'No cups yet',
               textAlign: TextAlign.center,
               style: theme.bodyLarge?.copyWith(
                 fontSize: 16,
@@ -425,7 +425,7 @@ class _GridSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Loading community photos',
+      label: 'Loading cups',
       child: Skeletonizer.zone(
         effect: const PulseEffect(
           from: CafeDetailsTokens.tint,

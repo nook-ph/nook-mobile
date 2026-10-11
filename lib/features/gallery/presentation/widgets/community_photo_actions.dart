@@ -77,6 +77,13 @@ Future<void> openCommunityPhotoViewer(
   await cubit.close();
 }
 
+/// Whether someone is signed in, so a "…" → Report makes sense.
+bool communityPhotoReportable() => _signedIn();
+
+/// "…" → Report on someone else's community photo, from the story viewer.
+Future<void> reportCommunityPhoto(BuildContext context, CommunityPhoto photo) =>
+    _report(context, photo.photo, {photo.id: photo.credit});
+
 bool _signedIn() {
   try {
     return Supabase.instance.client.auth.currentUser != null;

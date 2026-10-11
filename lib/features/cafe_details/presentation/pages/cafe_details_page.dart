@@ -227,12 +227,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           cafeName: details.name,
           cafeImageUrl: details.featuredImageUrl,
         ),
-        for (final section in sections) ...[
-          const CafeSectionDivider(),
-          section,
-        ],
-        // Other people's photos, with the reviews they sit beside. Brings
-        // its own divider, and is left out when there is nothing to show.
+        // Latest cups: the stories tray, the page's highlight. Brings its
+        // own divider, and is left out when there is nothing to show.
         CafeCommunityPhotosSection(
           cafeId: widget.cafeId,
           cafeName: details.name,
@@ -242,6 +238,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           ].where((part) => part.trim().isNotEmpty).join(', '),
           cafeImageUrl: details.featuredImageUrl,
         ),
+        for (final section in sections) ...[
+          const CafeSectionDivider(),
+          section,
+        ],
         SimilarCafesSection(cafeId: widget.cafeId),
         // Clearance above the pinned bar.
         const SizedBox(height: 24),

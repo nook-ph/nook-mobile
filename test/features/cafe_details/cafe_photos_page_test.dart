@@ -35,8 +35,8 @@ void main() {
 
   testWidgets('loading shows the grid skeleton', (tester) async {
     await pump(tester, FakeCommunityPhotosRepository());
-    expect(find.bySemanticsLabel('Loading community photos'), findsOneWidget);
-    expect(find.text('Community photos'), findsOneWidget);
+    expect(find.bySemanticsLabel('Loading cups'), findsOneWidget);
+    expect(find.text('Cups'), findsOneWidget);
     expect(find.text('Kamp Craft Coffee'), findsOneWidget);
   });
 

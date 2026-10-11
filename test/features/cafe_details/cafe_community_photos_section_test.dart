@@ -14,7 +14,10 @@ import 'package:nook/features/gallery/domain/entities/community_photo.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/domain/i_community_photos_repository.dart';
 import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart';
-import 'package:nook/features/gallery/presentation/pages/gallery_viewer_page.dart';
+import 'package:nook/features/gallery/domain/entities/cafe_story.dart';
+import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
+import 'package:nook/features/gallery/presentation/stories/cafe_story_viewer_page.dart';
+import 'package:nook/features/gallery/presentation/stories/story_seen_cubit.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/utils/theme/theme.dart';
 
@@ -56,6 +59,7 @@ class _Slow extends FakeCommunityPhotosRepository {
 
 void main() {
   late List<PickedCafe> added;
+  late StorySeenCubit seen;
 
   setUp(() => added = []);
 
@@ -64,6 +68,7 @@ void main() {
     FakeCommunityPhotosRepository repo, {
     bool been = false,
     bool load = true,
+    Set<String> seenIds = const {},
   }) async {
     usePhone(tester);
     final statusRepo = _Statuses({if (been) 'cafe-1': CafeStatus.been});
@@ -78,6 +83,9 @@ void main() {
       pageSize: CafePhotosCubit.stripPageSize,
     );
     if (load) unawaited(cubit.load());
+    seen = StorySeenCubit(store: MemoryStorySeenStore(seenIds));
+    await seen.load();
+    addTearDown(seen.close);
     addTearDown(cubit.close);
     addTearDown(statuses.close);
     await tester.pumpWidget(
@@ -91,6 +99,13 @@ void main() {
                 cafeId: 'cafe-1',
                 cafeName: 'Kamp Craft Coffee',
                 cubit: cubit,
+                seen: seen,
+                reviewOf: (id) => id == 'review-1'
+                    ? const StoryReview(
+                        rating: 4,
+                        text: 'Silky, not too sweet.',
+                      )
+                    : null,
                 addPhoto: (_, cafe) async {
                   added.add(cafe);
                   return true;
@@ -111,29 +126,29 @@ void main() {
     final repo = _Slow([communityPhoto('p1')]);
     await pump(tester, repo);
 
-    expect(find.bySemanticsLabel('Loading community photos'), findsOneWidget);
+    expect(find.bySemanticsLabel('Loading latest cups'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.text('Community photos'), findsNothing);
+    expect(find.text('Latest cups'), findsNothing);
 
     repo.gate.complete();
     await tester.pump();
     await tester.pump();
-    expect(find.text('Community photos'), findsOneWidget);
+    expect(find.text('Latest cups'), findsOneWidget);
   });
 
   testWidgets('a failed load leaves the page quietly', (tester) async {
     final repo = FakeCommunityPhotosRepository()..failure = offline;
     await pump(tester, repo, been: true);
 
-    expect(find.text('Community photos'), findsNothing);
+    expect(find.text('Latest cups'), findsNothing);
     expect(find.byType(Divider), findsNothing);
   });
 
   testWidgets('no photos and not been: nothing at all', (tester) async {
     await pump(tester, FakeCommunityPhotosRepository());
 
-    expect(find.text('Community photos'), findsNothing);
-    expect(find.text('No photos yet'), findsNothing);
+    expect(find.text('Latest cups'), findsNothing);
+    expect(find.text('No cups yet'), findsNothing);
     expect(find.byType(Divider), findsNothing);
   });
 
@@ -144,10 +159,10 @@ void main() {
       been: true,
     );
 
-    expect(find.text('No photos yet'), findsOneWidget);
+    expect(find.text('No cups yet'), findsOneWidget);
     expect(find.text('See all'), findsNothing);
 
-    await tester.tap(find.text('Add a photo'));
+    await tester.tap(find.text('Add your cup'));
     await tester.pump();
     expect(added.single.id, 'cafe-1');
     expect(added.single.name, 'Kamp Craft Coffee');
@@ -155,7 +170,7 @@ void main() {
     expect(cubit.state.status, CafePhotosStatus.loaded);
   });
 
-  testWidgets('one photo: credited, no See all', (tester) async {
+  testWidgets('one photo: one ring, no See all', (tester) async {
     await pump(
       tester,
       FakeCommunityPhotosRepository([
@@ -163,17 +178,82 @@ void main() {
       ]),
     );
 
-    expect(find.text('Community photos'), findsOneWidget);
+    expect(find.text('Latest cups'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
-    expect(find.text('Spanish latte'), findsOneWidget);
     expect(find.text('@sai'), findsOneWidget);
     expect(find.text('See all'), findsNothing);
-    expect(find.bySemanticsLabel('Open @sai’s profile'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp(r'^@sai’s 1 cup, .*, new\. Open$')),
+      findsOneWidget,
+    );
+    // No add slot for someone who hasn't been.
+    expect(find.text('Add your cup'), findsNothing);
   });
 
-  testWidgets('many photos: See all in the header and at the strip end', (
+  testWidgets('a person with several photos is one ring', (tester) async {
+    await pump(
+      tester,
+      FakeCommunityPhotosRepository([
+        communityPhoto('p3', username: 'sai', takenAt: DateTime(2026, 3, 3)),
+        communityPhoto('p2', username: 'lia', takenAt: DateTime(2026, 3, 2)),
+        communityPhoto('p1', username: 'sai', takenAt: DateTime(2026, 3, 1)),
+      ]),
+    );
+
+    expect(find.text('@sai'), findsOneWidget);
+    expect(find.text('@lia'), findsOneWidget);
+    expect(find.textContaining('2 cups'), findsOneWidget);
+    // Newest person first.
+    final sai = tester.getTopLeft(find.text('@sai')).dx;
+    final lia = tester.getTopLeft(find.text('@lia')).dx;
+    expect(sai, lessThan(lia));
+  });
+
+  testWidgets('seen people read as seen', (tester) async {
+    await pump(
+      tester,
+      FakeCommunityPhotosRepository([communityPhoto('p1', username: 'sai')]),
+      seenIds: {'p1'},
+    );
+
+    expect(
+      find.bySemanticsLabel(RegExp(r'^@sai’s 1 cup, [^,]*\. Open$')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('been with no cup of your own: Add your cup comes first', (
     tester,
   ) async {
+    await pump(
+      tester,
+      FakeCommunityPhotosRepository([communityPhoto('p1', username: 'sai')]),
+      been: true,
+    );
+
+    expect(find.text('Add your cup'), findsOneWidget);
+    final addX = tester.getTopLeft(find.text('Add your cup')).dx;
+    expect(addX, lessThan(tester.getTopLeft(find.text('@sai')).dx));
+    await tester.tap(find.text('Add your cup'));
+    await tester.pump();
+    expect(added.single.id, 'cafe-1');
+  });
+
+  testWidgets('your own cup reads "You", and no add slot', (tester) async {
+    await pump(
+      tester,
+      FakeCommunityPhotosRepository([
+        communityPhoto('p1', username: 'me', isSelf: true),
+      ]),
+      been: true,
+    );
+
+    expect(find.text('You'), findsOneWidget);
+    expect(find.text('@me'), findsNothing);
+    expect(find.text('Add your cup'), findsNothing);
+  });
+
+  testWidgets('many photos: See all opens the grid', (tester) async {
     final repo = FakeCommunityPhotosRepository([
       for (var i = 0; i < 12; i++) communityPhoto('p$i', username: 'u$i'),
     ]);
@@ -183,51 +263,49 @@ void main() {
     await pump(tester, repo);
 
     expect(find.text('12'), findsOneWidget);
-    expect(find.text('See all'), findsNWidgets(2));
-    expect(find.text('12 photos'), findsOneWidget);
-    // Only a strip's worth is loaded.
+    expect(find.text('See all'), findsOneWidget);
+    // Only a tray's worth is loaded.
     expect(find.text('@u7'), findsOneWidget);
     expect(find.text('@u8'), findsNothing);
 
-    await tester.tap(find.text('See all').first);
+    await tester.tap(find.text('See all'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(CafePhotosPage), findsOneWidget);
   });
 
-  testWidgets('your own photo reads "You" and is not a link', (tester) async {
+  testWidgets('a ring opens the story viewer on that person, with the '
+      'review under a review photo', (tester) async {
     await pump(
       tester,
       FakeCommunityPhotosRepository([
-        communityPhoto('p1', username: 'me', isSelf: true),
+        communityPhoto('p2', username: 'sai', drink: 'Flat white'),
+        communityPhoto(
+          'p1',
+          username: 'lia',
+          drink: 'Spanish latte',
+          source: GalleryPhotoSource.review,
+        ),
       ]),
     );
 
-    expect(find.text('You'), findsOneWidget);
-    expect(find.text('@me'), findsNothing);
-    expect(find.bySemanticsLabel('Added by you'), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp('profile')), findsNothing);
-  });
-
-  testWidgets('a photo opens the viewer with its credit, not a cafe chip', (
-    tester,
-  ) async {
-    await pump(
-      tester,
-      FakeCommunityPhotosRepository([
-        // Same date: newest id first, as the server sends them.
-        communityPhoto('p2', username: 'sai'),
-        communityPhoto('p1', username: 'lia'),
-      ]),
-    );
-
-    await tester.tap(find.bySemanticsLabel(RegExp(r'@lia\. Open photo')));
+    await tester.tap(find.text('@lia'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.byType(GalleryViewerPage), findsOneWidget);
-    expect(find.text('2 of 2'), findsOneWidget);
-    expect(find.bySemanticsLabel('Open @lia’s profile'), findsWidgets);
-    expect(find.bySemanticsLabel('Open Kamp Craft Coffee'), findsNothing);
+    expect(find.byType(CafeStoryViewerPage), findsOneWidget);
+    expect(find.text('Spanish latte'), findsOneWidget);
+    expect(find.text('Silky, not too sweet.'), findsOneWidget);
+    expect(find.bySemanticsLabel('Rated 4 out of 5'), findsOneWidget);
+    expect(seen.state, contains('p1'));
+
+    // Back on the page, lia's ring is seen.
+    await tester.tap(find.bySemanticsLabel('Close'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.bySemanticsLabel(RegExp(r'^@lia’s 1 cup, [^,]*\. Open$')),
+      findsOneWidget,
+    );
   });
 }
