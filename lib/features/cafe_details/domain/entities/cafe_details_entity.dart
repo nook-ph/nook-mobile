@@ -13,6 +13,9 @@ class CafeDetailsEntity {
   final double rating;
   final int reviewCount;
   final bool isNew;
+
+  /// Whether an owner has claimed the listing. Null when not loaded.
+  final bool? isClaimed;
   final Map<String, dynamic> operatingHours;
   final Map<String, dynamic> socialLinks;
   final List<MenuItemEntity> menuItems;
@@ -34,6 +37,7 @@ class CafeDetailsEntity {
     required this.rating,
     required this.reviewCount,
     required this.isNew,
+    this.isClaimed,
     this.operatingHours = const {},
     this.socialLinks = const {},
     this.menuItems = const [],
