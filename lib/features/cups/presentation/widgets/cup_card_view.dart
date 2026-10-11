@@ -494,7 +494,10 @@ class _CupNoteTextState extends State<CupNoteText> {
                 onTap: () => setState(() => _open = !_open),
                 borderRadius: BorderRadius.circular(8),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 36),
+                  constraints: const BoxConstraints(
+                    minHeight: 44,
+                    minWidth: 44,
+                  ),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     widthFactor: 1,

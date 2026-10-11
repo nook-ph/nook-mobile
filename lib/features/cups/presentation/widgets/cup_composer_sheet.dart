@@ -1158,10 +1158,12 @@ class _ItemTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                // Inside the tile, so all of its 44pt target is on the
+                // tile and none hangs off into the row's gap or clips.
                 if (remove != null)
                   Positioned(
-                    top: -8,
-                    right: -8,
+                    top: 0,
+                    right: 0,
                     child: Semantics(
                       button: true,
                       label: 'Remove item ${index + 1}',
@@ -1169,20 +1171,26 @@ class _ItemTile extends StatelessWidget {
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
                         onTap: remove,
-                        child: Padding(
-                          padding: const EdgeInsets.all(6),
-                          child: Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: const Color(0xE60A0F0D),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white),
-                            ),
-                            child: const Icon(
-                              LucideIcons.x,
-                              size: 13,
-                              color: Colors.white,
+                        child: SizedBox.square(
+                          dimension: 44,
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: Padding(
+                              padding: const EdgeInsets.all(5),
+                              child: Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xE60A0F0D),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.x,
+                                  size: 13,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
                         ),

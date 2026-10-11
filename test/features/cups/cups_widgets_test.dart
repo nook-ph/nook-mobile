@@ -12,6 +12,7 @@ import 'package:nook/features/cups/domain/i_cups_repository.dart';
 import 'package:nook/features/cups/presentation/cubit/cafe_cups_cubit.dart';
 import 'package:nook/features/cups/presentation/pages/cafe_cups_page.dart';
 import 'package:nook/features/cups/presentation/widgets/cafe_cups_section.dart';
+import 'package:nook/features/cups/presentation/widgets/cup_card_view.dart';
 import 'package:nook/features/cups/presentation/widgets/cup_composer_sheet.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart';
@@ -372,6 +373,31 @@ void main() {
       await done(tester);
     });
 
+    testWidgets('remove sits inside its tile, a 44pt target', (tester) async {
+      await open(
+        tester,
+        picker: FakeGalleryPhotoPicker(many: [pickedPhoto('latte')]),
+      );
+      await tester.tap(find.bySemanticsLabel('Add photos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose from library'));
+      await tester.pumpAndSettle();
+
+      final remove = find.bySemanticsLabel('Remove item 1');
+      final tile = find.bySemanticsLabel(RegExp(r'^Photo 1 of 1'));
+      expect(tester.getSize(remove).width, greaterThanOrEqualTo(44));
+      expect(tester.getSize(remove).height, greaterThanOrEqualTo(44));
+      final tileBox = tester.getRect(tile);
+      final removeBox = tester.getRect(remove);
+      expect(tileBox.contains(removeBox.topLeft), isTrue);
+      expect(removeBox.right, lessThanOrEqualTo(tileBox.right));
+      expect(removeBox.top, greaterThanOrEqualTo(tileBox.top));
+
+      await tester.tap(remove);
+      await tester.pump();
+      expect(find.text('Pick a kind'), findsNothing);
+    });
+
     testWidgets('a typed name without a menu match still asks for its kind', (
       tester,
     ) async {
@@ -547,6 +573,37 @@ void main() {
       await tester.tap(find.text('Add your cup'));
       expect(taps, ['add']);
     });
+  });
+
+  testWidgets('a long note\'s More and Less are 44pt targets', (tester) async {
+    usePhone(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TAppTheme.lightTheme,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SizedBox(
+              width: 300,
+              child: CupNoteText(text: 'Quiet upstairs. ' * 40, maxLines: 2),
+            ),
+          ),
+        ),
+      ),
+    );
+    final more = find.ancestor(
+      of: find.text('More'),
+      matching: find.byType(ConstrainedBox),
+    );
+    expect(tester.getSize(more.first).height, greaterThanOrEqualTo(44));
+    expect(tester.getSize(more.first).width, greaterThanOrEqualTo(44));
+    await tester.tap(find.text('More'));
+    await tester.pump();
+    final less = find.ancestor(
+      of: find.text('Less'),
+      matching: find.byType(ConstrainedBox),
+    );
+    expect(tester.getSize(less.first).height, greaterThanOrEqualTo(44));
+    expect(tester.getSize(less.first).width, greaterThanOrEqualTo(44));
   });
 
   testWidgets('Cups page: Cups and Photos, with honest counts', (tester) async {
