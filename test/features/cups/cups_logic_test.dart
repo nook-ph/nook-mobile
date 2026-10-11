@@ -57,6 +57,57 @@ void main() {
       expect(CupsJson.rating('4'), 4);
     });
 
+    test('legacy visits read untyped: the server\'s "coffee" is a default', () {
+      Map<String, Object?> visit({
+        required bool virtual,
+        String? reviewId,
+        required String kind,
+      }) => {
+        'id': 'c1',
+        'source': virtual ? 'review' : 'cup',
+        'is_virtual': virtual,
+        'review_id': reviewId,
+        'user_id': 'u1',
+        'visited_at': '2026-10-02',
+        'items': [
+          {
+            'id': 'p1',
+            'kind': kind,
+            'photo': {'id': 'p1', 'image_url': 'https://cdn/p1.jpg'},
+          },
+        ],
+      };
+      // A 1.1.x review's photos, read as a cup, and the cup copied from it.
+      expect(
+        CupsJson.card(visit(virtual: true, kind: 'coffee')).items.single.kind,
+        isNull,
+      );
+      expect(
+        CupsJson.card(
+          visit(virtual: false, reviewId: 'r1', kind: 'coffee'),
+        ).items.single.kind,
+        isNull,
+      );
+      // A kind someone picked stands, and a posted cup keeps its coffee.
+      expect(
+        CupsJson.card(
+          visit(virtual: false, reviewId: 'r1', kind: 'food'),
+        ).items.single.kind,
+        CupItemKind.food,
+      );
+      expect(
+        CupsJson.card(visit(virtual: false, kind: 'coffee')).items.single.kind,
+        CupItemKind.coffee,
+      );
+    });
+
+    test('an item with no kind yet posts without one, never as coffee', () {
+      expect(CupsJson.itemPayload(const CupItemDraft(name: 'Banana bread')), {
+        'item_name': 'Banana bread',
+      });
+      expect(const CupItemDraft().kind, isNull);
+    });
+
     test('a text item has no photo, and a menu name stands in', () {
       final item = CupsJson.item({
         'id': 'i1',
@@ -244,6 +295,32 @@ void main() {
   });
 
   group('checkCupDraft', () {
+    test('every new item needs a kind, except on 1.1.x storage', () {
+      expect(
+        checkCupDraft(photoCount: 2, note: '', rating: null, untypedCount: 1),
+        CupDraftIssue.needsKind,
+      );
+      // Emptiness is said first: there is nothing to type yet.
+      expect(
+        checkCupDraft(photoCount: 0, note: '', rating: null, untypedCount: 1),
+        CupDraftIssue.empty,
+      );
+      expect(
+        checkCupDraft(
+          photoCount: 2,
+          note: '',
+          rating: null,
+          untypedCount: 2,
+          legacy: true,
+        ),
+        isNull,
+      );
+      expect(
+        cupDraftMessage(CupDraftIssue.needsKind),
+        'Pick what each item is: Coffee, Drink, Food or Space.',
+      );
+    });
+
     test('a photo or a note is enough; stars or named items alone are not', () {
       expect(
         checkCupDraft(photoCount: 0, note: '  ', rating: 5),

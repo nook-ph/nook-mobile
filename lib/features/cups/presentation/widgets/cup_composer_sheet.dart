@@ -88,25 +88,23 @@ class _Item {
   _Item.existing(CupItem item)
     : existing = item,
       picked = null,
-      kind = item.kind ?? CupItemKind.coffee,
+      kind = item.kind,
       name = item.label ?? '',
       menuItemId = item.menuItemId;
 
+  // New items start with no kind: the person picks one (UX review 2.2).
   _Item.photo(PickedGalleryPhoto photo)
     : existing = null,
       picked = photo,
-      kind = CupItemKind.coffee,
       name = '';
 
-  _Item.text()
-    : existing = null,
-      picked = null,
-      kind = CupItemKind.coffee,
-      name = '';
+  _Item.text() : existing = null, picked = null, name = '';
 
   final CupItem? existing;
   final PickedGalleryPhoto? picked;
-  CupItemKind kind;
+
+  /// Null until picked; on a saved legacy photo, never said.
+  CupItemKind? kind;
   String name;
   String? menuItemId;
   bool uploaded = false;
@@ -122,6 +120,13 @@ class _Item {
   /// legacy review photos not even that).
   bool get editable => isNew;
   bool get removable => existing == null || !existing!.isFromReview;
+
+  /// A new item that would post without a kind.
+  bool get needsKind =>
+      isNew && kind == null && (hasPhoto || name.trim().isNotEmpty);
+
+  /// "Coffee", or what it is without a kind: "Photo" or "Item".
+  String get kindLabel => kind?.label ?? (hasPhoto ? 'Photo' : 'Item');
 
   CupItemDraft toDraft() => CupItemDraft(
     file: picked?.file,
@@ -367,6 +372,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
     note: _note.text,
     rating: _rating,
     itemNames: [for (final i in _items) i.name],
+    untypedCount: _items.where((i) => i.needsKind).length,
     legacy: _legacy,
   );
 
@@ -378,6 +384,14 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       setState(() {
         _tried = true;
         _error = cupDraftMessage(issue);
+        // Bring up the first item still missing its kind, chips and all.
+        if (issue == CupDraftIssue.needsKind) {
+          final first = _items.indexWhere((i) => i.needsKind);
+          if (first >= 0) {
+            _selected = first;
+            _name.text = _items[first].name;
+          }
+        }
       });
       return;
     }
@@ -430,7 +444,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
           'has_rating': _rating != null,
           'photo_count': fresh.where((i) => i.hasPhoto).length,
           'item_count': fresh.length,
-          'kinds': {for (final i in fresh) i.kind.wire}.join(','),
+          'kinds': {for (final i in fresh) ?i.kind?.wire}.join(','),
           'created': cup == null,
           'marked_been': result.markedBeen,
           'backend': _repository.mode.name,
@@ -531,6 +545,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
           items: _items,
           selected: _selected,
           posting: _posting,
+          showMissingKind: _tried,
           canAdd: _room > 0 && !_busy,
           onSelect: _select,
           onRemove: _busy ? null : _remove,
@@ -542,7 +557,14 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
             _KindChips(
               value: selected.kind,
               onChanged: selected.editable && !_busy
-                  ? (kind) => setState(() => selected.kind = kind)
+                  ? (kind) => setState(() {
+                      selected.kind = kind;
+                      // Picking the last missing kind answers the nudge.
+                      if (_error == cupDraftMessage(CupDraftIssue.needsKind) &&
+                          !_items.any((i) => i.needsKind)) {
+                        _error = null;
+                      }
+                    })
                   : null,
             ),
           if (canName) const SizedBox(height: 10),
@@ -557,7 +579,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
                       : 'What did you have?')
                 : 'Saved items can be removed, not renamed',
             hint: switch (selected.kind) {
-              CupItemKind.coffee => 'Iced Spanish latte',
+              null || CupItemKind.coffee => 'Iced Spanish latte',
               CupItemKind.drink => 'Matcha latte',
               CupItemKind.food => 'Banana bread',
               CupItemKind.space => 'The window seats upstairs',
@@ -760,11 +782,15 @@ class _ItemRow extends StatelessWidget {
     required this.onSelect,
     required this.onRemove,
     required this.onAdd,
+    this.showMissingKind = false,
   });
 
   final List<_Item> items;
   final int selected;
   final bool posting;
+
+  /// Post was tried: an item still without a kind says so in red.
+  final bool showMissingKind;
   final bool canAdd;
   final ValueChanged<int> onSelect;
   final ValueChanged<int>? onRemove;
@@ -795,6 +821,7 @@ class _ItemRow extends StatelessWidget {
             count: items.length,
             selected: i == selected,
             uploading: posting && item.picked != null && !item.uploaded,
+            missingKind: showMissingKind && item.needsKind,
             onTap: () => onSelect(i),
             onRemove: remove == null || !item.removable
                 ? null
@@ -816,6 +843,7 @@ class _ItemTile extends StatelessWidget {
     required this.uploading,
     required this.onTap,
     this.onRemove,
+    this.missingKind = false,
   });
 
   final _Item item;
@@ -823,6 +851,7 @@ class _ItemTile extends StatelessWidget {
   final int count;
   final bool selected;
   final bool uploading;
+  final bool missingKind;
   final VoidCallback onTap;
   final VoidCallback? onRemove;
 
@@ -847,8 +876,9 @@ class _ItemTile extends StatelessWidget {
                   button: true,
                   selected: selected,
                   label:
-                      '${item.kind.label} ${index + 1} of $count'
-                      '${name.isEmpty ? '' : ', $name'}',
+                      '${item.kindLabel} ${index + 1} of $count'
+                      '${name.isEmpty ? '' : ', $name'}'
+                      '${item.needsKind ? ', pick a kind' : ''}',
                   excludeSemantics: true,
                   child: AdaptiveTap(
                     onTap: onTap,
@@ -938,15 +968,23 @@ class _ItemTile extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            name.isEmpty
-                ? (item.editable ? 'Add name' : item.kind.label)
+            item.needsKind
+                ? 'Pick a kind'
+                : name.isEmpty
+                ? (item.editable ? 'Add name' : item.kindLabel)
                 : name,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: context.textTheme.bodySmall?.copyWith(
               fontSize: 11,
-              color: name.isEmpty ? ReviewTokens.muted : ReviewTokens.ink,
-              fontWeight: name.isEmpty ? FontWeight.w400 : FontWeight.w500,
+              color: missingKind
+                  ? ReviewTokens.danger
+                  : name.isEmpty || item.needsKind
+                  ? ReviewTokens.muted
+                  : ReviewTokens.ink,
+              fontWeight: name.isEmpty || item.needsKind
+                  ? FontWeight.w400
+                  : FontWeight.w500,
             ),
           ),
         ],
@@ -955,7 +993,9 @@ class _ItemTile extends StatelessWidget {
   }
 }
 
-IconData _kindIcon(CupItemKind kind) => cupKindIcon(kind);
+/// A text item with no kind yet shows a pencil, not a guess.
+IconData _kindIcon(CupItemKind? kind) =>
+    kind == null ? LucideIcons.pencilLine : cupKindIcon(kind);
 
 class _AddTile extends StatelessWidget {
   const _AddTile({required this.onTap, required this.first});
@@ -1022,7 +1062,8 @@ class _AddTile extends StatelessWidget {
 class _KindChips extends StatelessWidget {
   const _KindChips({required this.value, required this.onChanged});
 
-  final CupItemKind value;
+  /// Null: none picked yet, so no chip is lit.
+  final CupItemKind? value;
   final ValueChanged<CupItemKind>? onChanged;
 
   @override

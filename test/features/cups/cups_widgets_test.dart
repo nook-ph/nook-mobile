@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -60,7 +62,11 @@ void main() {
       outcomes = [];
     });
 
-    Future<void> open(WidgetTester tester, {CupCard? editing}) async {
+    Future<void> open(
+      WidgetTester tester, {
+      CupCard? editing,
+      FakeGalleryPhotoPicker? picker,
+    }) async {
       usePhone(tester, size: const Size(390, 1200));
       await tester.pumpWidget(
         MaterialApp(
@@ -76,7 +82,7 @@ void main() {
                     editing: editing,
                     menu: _menu,
                     repository: cups,
-                    picker: FakeGalleryPhotoPicker(),
+                    picker: picker ?? FakeGalleryPhotoPicker(),
                   ),
                 ),
                 child: const Text('go'),
@@ -189,6 +195,75 @@ void main() {
       expect(item.name, 'Ensaymada');
       expect(item.menuItemId, 'm1');
       expect(item.kind, CupItemKind.food);
+      await done(tester);
+    });
+
+    testWidgets('a new photo has no kind until you pick one', (tester) async {
+      await open(
+        tester,
+        picker: FakeGalleryPhotoPicker(many: [pickedPhoto('latte')]),
+      );
+      await tester.tap(find.bySemanticsLabel('Add photos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose from library'));
+      await tester.pumpAndSettle();
+
+      // Nothing is lit: no silent Coffee.
+      for (final kind in CupItemKind.values) {
+        final chip = tester.getSemantics(find.bySemanticsLabel(kind.label));
+        expect(
+          chip.flagsCollection.isSelected,
+          Tristate.isFalse,
+          reason: kind.label,
+        );
+      }
+      expect(find.text('Pick a kind'), findsOneWidget);
+
+      // Posting asks for it instead of guessing.
+      await tester.tap(find.text('Post cup'));
+      await tester.pumpAndSettle();
+      expect(cups.posts, isEmpty);
+      expect(
+        find.text('Pick what each item is: Coffee, Drink, Food or Space.'),
+        findsOneWidget,
+      );
+
+      // One tap answers it, and the nudge goes.
+      await tester.tap(find.bySemanticsLabel('Food'));
+      await tester.pump();
+      expect(
+        find.text('Pick what each item is: Coffee, Drink, Food or Space.'),
+        findsNothing,
+      );
+      await tester.tap(find.text('Post cup'));
+      await tester.pumpAndSettle();
+      expect(cups.posts.single.items.single.kind, CupItemKind.food);
+      await done(tester);
+    });
+
+    testWidgets('a typed name without a menu match still asks for its kind', (
+      tester,
+    ) async {
+      await open(tester);
+      await tester.tap(find.text('Add what you had without a photo'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'What did you have?'),
+        'House special',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Note (optional)'),
+        'Good.',
+      );
+      await tester.pump();
+      await tester.tap(find.text('Post cup'));
+      await tester.pumpAndSettle();
+      expect(cups.posts, isEmpty);
+      await tester.tap(find.bySemanticsLabel('Drink'));
+      await tester.pump();
+      await tester.tap(find.text('Post cup'));
+      await tester.pumpAndSettle();
+      expect(cups.posts.single.items.single.kind, CupItemKind.drink);
       await done(tester);
     });
 

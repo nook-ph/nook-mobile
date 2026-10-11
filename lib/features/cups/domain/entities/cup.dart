@@ -59,7 +59,8 @@ class CupItem extends Equatable {
   /// Your own photo, hidden from your profile.
   final bool isHidden;
 
-  /// Null on legacy photos, which never said.
+  /// Null on legacy photos, which never said (the server types them
+  /// `coffee`; the client reads that as unknown, see [CupsJson.item]).
   final CupItemKind? kind;
   final String? name;
 
@@ -352,14 +353,17 @@ class CupItemDraft extends Equatable {
   const CupItemDraft({
     this.file,
     this.takenAt,
-    this.kind = CupItemKind.coffee,
+    this.kind,
     this.name,
     this.menuItemId,
   });
 
   final File? file;
   final DateTime? takenAt;
-  final CupItemKind kind;
+
+  /// Null until the person picks one: nothing is silently Coffee. The
+  /// composer asks for it before posting (the server needs one).
+  final CupItemKind? kind;
   final String? name;
   final String? menuItemId;
 

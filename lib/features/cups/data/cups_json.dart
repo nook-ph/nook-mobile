@@ -60,18 +60,32 @@ abstract final class CupsJson {
       hasVoted: json['has_voted'] == true,
       isMine: json['is_mine'] == true,
       visitedAt: visited,
-      items: [for (final i in _list(json['items'])) item(i)],
+      items: [
+        for (final i in _list(json['items']))
+          item(i, legacy: legacyKinds(json)),
+      ],
       visitsByAuthor: _int(json['visits_by_author']).clamp(1, 1 << 20),
     );
   }
 
+  /// Whether a cup's item kinds are the server's guess rather than the
+  /// poster's: a legacy visit (`is_virtual`) or the cup copied from a 1.1.x
+  /// review. The Cups RPCs type every legacy photo `coffee` (a sofa, a menu
+  /// stand, a latte alike), so those read as untyped until the server says
+  /// unknown itself.
+  static bool legacyKinds(Map<String, dynamic> cup) =>
+      cup['is_virtual'] == true || _string(cup['review_id']) != null;
+
   /// `{ id, kind, item_name, menu_item_id, menu_item_name, photo|null }`.
-  static CupItem item(Object? raw) {
+  /// [legacy]: a legacy visit's item, whose `coffee` is a default, not a
+  /// choice (see [legacyKinds]); other kinds on it were picked and stand.
+  static CupItem item(Object? raw, {bool legacy = false}) {
     final json = _map(raw);
     final photo = json['photo'] is Map ? _map(json['photo']) : null;
+    final kind = CupItemKind.fromWire(json['kind']);
     return CupItem(
       id: '${json['id'] ?? ''}',
-      kind: CupItemKind.fromWire(json['kind']),
+      kind: legacy && kind == CupItemKind.coffee ? null : kind,
       name: _string(json['item_name']) ?? _string(json['menu_item_name']),
       menuItemId: _string(json['menu_item_id']),
       photoId: photo == null ? null : _string(photo['id']),
@@ -169,7 +183,7 @@ abstract final class CupsJson {
     String? objectKey,
     String? imageUrl,
   }) => {
-    'kind': draft.kind.wire,
+    'kind': ?draft.kind?.wire,
     'item_name': ?_string(draft.name),
     'menu_item_id': ?draft.menuItemId,
     'object_key': ?objectKey,

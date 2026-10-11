@@ -6,6 +6,10 @@ enum CupDraftIssue {
   /// No photo and no note: stars alone, or with only named items, are not
   /// a cup (the server refuses it as `cup_empty`).
   empty,
+
+  /// A new item has no kind yet. Nothing defaults to Coffee, so the person
+  /// taps Coffee, Drink, Food or Space for each one.
+  needsKind,
   tooManyItems,
   noteTooLong,
 
@@ -17,20 +21,25 @@ enum CupDraftIssue {
 /// Checks a cup before it is posted. Null when it can go.
 ///
 /// A cup needs a photo or a note; named items ("Banana bread") ride along
-/// but don't count on their own, as on the server. Stars are optional. [legacy] is the fallback backend, where
-/// a note is saved as a review and so needs a rating.
+/// but don't count on their own, as on the server. Stars are optional.
+/// [untypedCount] is how many new items have no kind yet. [legacy] is the
+/// fallback backend, where a note is saved as a review and so needs a
+/// rating, and kinds aren't kept.
 CupDraftIssue? checkCupDraft({
   required int photoCount,
   int namedItemCount = 0,
   required String note,
   required int? rating,
   List<String> itemNames = const [],
+  int untypedCount = 0,
   bool legacy = false,
 }) {
   final text = note.trim();
   if (photoCount <= 0 && text.isEmpty) {
     return CupDraftIssue.empty;
   }
+  // 1.1.x storage keeps no kinds, so the legacy composer doesn't ask.
+  if (!legacy && untypedCount > 0) return CupDraftIssue.needsKind;
   if (photoCount + namedItemCount > maxCupItems) {
     return CupDraftIssue.tooManyItems;
   }
@@ -48,6 +57,8 @@ CupDraftIssue? checkCupDraft({
 /// What the composer says about [issue].
 String cupDraftMessage(CupDraftIssue issue) => switch (issue) {
   CupDraftIssue.empty => 'Add a photo or a note.',
+  CupDraftIssue.needsKind =>
+    'Pick what each item is: Coffee, Drink, Food or Space.',
   CupDraftIssue.tooManyItems => 'A cup holds up to $maxCupItems items.',
   CupDraftIssue.noteTooLong =>
     'Keep the note to $maxCupNote characters or fewer.',
