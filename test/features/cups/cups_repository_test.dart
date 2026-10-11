@@ -415,4 +415,127 @@ void main() {
       expect(cafes.added, [(rating: 5, content: 'Best cortado.')]);
     });
   });
+
+  group('editing a cup on the Cups backend', () {
+    const virtualId = 'virt-review-1';
+    const realId = 'cup-real-1';
+    late String? failOn;
+
+    setUp(() {
+      failOn = null;
+      answer = (request) {
+        final name = request.url.pathSegments.last;
+        if (name == failOn) {
+          return http.Response(
+            jsonEncode({'code': '22023', 'message': 'cup_empty'}),
+            400,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        }
+        // Like the server: the first write copies the legacy visit into
+        // cups, and its virtual id no longer resolves after that.
+        final body = jsonDecode(request.body) as Map;
+        if (body['p_cup_id'] != virtualId && body['p_cup_id'] != realId) {
+          return http.Response(
+            jsonEncode({'code': 'P0002', 'message': 'cup_not_found'}),
+            404,
+            headers: {'content-type': 'application/json'},
+            request: request,
+          );
+        }
+        return http.Response(
+          jsonEncode({
+            'cup': {'id': realId, 'user_id': _me, 'items': []},
+            'object_keys': <String>[],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+          request: request,
+        );
+      };
+    });
+
+    CupCard legacyVisit() => CupCard(
+      id: virtualId,
+      cupId: virtualId,
+      reviewId: 'r1',
+      cafeId: 'cafe-1',
+      source: 'review',
+      isVirtual: true,
+      userId: _me,
+      username: 'me',
+      visitedAt: DateTime(2026, 10, 1),
+      rating: 4,
+      isMine: true,
+    );
+
+    List<Object?> cupIdsSent() => [
+      for (final r in requests)
+        if (r.url.path.startsWith('/rest/v1/rpc/'))
+          (jsonDecode(r.body) as Map)['p_cup_id'],
+    ];
+
+    test('a legacy visit: later calls use the id the copy came back with; '
+        'items go in before the stars and note', () async {
+      final r = await repo();
+      await r.updateCup(
+        legacyVisit(),
+        rating: 5,
+        note: 'Better now.',
+        addItems: [
+          CupItemDraft(file: File('/tmp/b.jpg'), kind: CupItemKind.coffee),
+        ],
+        removeItemIds: const ['photo-9'],
+      );
+
+      expect(rpcCalls(), ['add_cup_items', 'update_cup', 'remove_cup_item']);
+      expect(cupIdsSent(), [virtualId, realId, realId]);
+    });
+
+    test('a failure after the items went in keeps their files', () async {
+      failOn = 'update_cup';
+      final r = await repo();
+      await expectLater(
+        r.updateCup(
+          legacyVisit(),
+          rating: 5,
+          addItems: [
+            CupItemDraft(file: File('/tmp/c.jpg'), kind: CupItemKind.coffee),
+          ],
+        ),
+        throwsA(isA<CupsException>()),
+      );
+      // The clean-up is fire-and-forget.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(
+        requests.where((r) => r.url.path.startsWith('/functions/')),
+        isEmpty,
+      );
+    });
+
+    test(
+      'a failure before anything points at the files cleans them up',
+      () async {
+        failOn = 'add_cup_items';
+        final r = await repo();
+        await expectLater(
+          r.updateCup(
+            legacyVisit(),
+            rating: 5,
+            addItems: [
+              CupItemDraft(file: File('/tmp/d.jpg'), kind: CupItemKind.coffee),
+            ],
+          ),
+          throwsA(isA<CupsException>()),
+        );
+        // The clean-up is fire-and-forget.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(
+          requests.where((r) => r.url.path.startsWith('/functions/')),
+          isNotEmpty,
+        );
+      },
+    );
+  });
 }

@@ -232,6 +232,8 @@ class CupsRepositoryImpl implements ICupsRepository {
     final cleanItems = _cleanItems(items);
     final uploads = await _uploadItems(cleanItems, cafeId, onPhotoUploaded);
     final payload = _payload(cleanItems, uploads);
+    // Set once a row points at the uploaded files: from then on they stay.
+    var filesInUse = false;
     try {
       return await _backend.run(
         cups: () async {
@@ -274,6 +276,7 @@ class CupsRepositoryImpl implements ICupsRepository {
             );
           }
           await _legacyInsertPhotos(me, cafeId, cleanItems, uploads);
+          filesInUse = true;
           if (rating != null) {
             await _cafes.addCafeReview(
               cafeId: cafeId,
@@ -286,8 +289,10 @@ class CupsRepositoryImpl implements ICupsRepository {
         },
       );
     } catch (e) {
-      // Nothing points at the files now; "Try again" uploads them again.
-      _deleteFiles([for (final f in uploads.values) f.objectKey]);
+      // Unless a row points at the files, "Try again" uploads them again.
+      if (!filesInUse) {
+        _deleteFiles([for (final f in uploads.values) f.objectKey]);
+      }
       throw _wrap(e, 'Could not post your cup.');
     }
   }
@@ -308,13 +313,30 @@ class CupsRepositoryImpl implements ICupsRepository {
     final uploads = await _uploadItems(cleanItems, cafeId, onPhotoUploaded);
     final payload = _payload(cleanItems, uploads);
     final cupId = cup.cupId;
+    // Set once a row points at the uploaded files: from then on they stay.
+    var filesInUse = false;
     try {
       if (cupId != null) {
         // A real cup: the cup RPCs exist, or it couldn't have an id.
-        Object? raw = await _client.rpc(
+        // A legacy visit's id is virtual: the first call copies it into
+        // cups under a new id and the virtual one stops resolving, so every
+        // later call uses the id the server hands back. Items go in before
+        // the stars and note, so a cup whose only photo is new isn't empty
+        // when update_cup checks.
+        var id = cupId;
+        Object? raw;
+        if (payload.isNotEmpty) {
+          raw = await _client.rpc(
+            'add_cup_items',
+            params: {'p_cup_id': id, 'p_items': payload},
+          );
+          filesInUse = true;
+          id = _returnedCupId(raw) ?? id;
+        }
+        raw = await _client.rpc(
           'update_cup',
           params: {
-            'p_cup_id': cupId,
+            'p_cup_id': id,
             'p_rating': rating,
             'p_note': cleanNote,
             'p_visited_at': visitedAt == null
@@ -322,16 +344,11 @@ class CupsRepositoryImpl implements ICupsRepository {
                 : CupsJson.visitDate(visitedAt),
           },
         );
-        if (payload.isNotEmpty) {
-          raw = await _client.rpc(
-            'add_cup_items',
-            params: {'p_cup_id': cupId, 'p_items': payload},
-          );
-        }
-        for (final id in removeItemIds) {
+        id = _returnedCupId(raw) ?? id;
+        for (final itemId in removeItemIds) {
           raw = await _client.rpc(
             'remove_cup_item',
-            params: {'p_cup_id': cupId, 'p_item_id': id},
+            params: {'p_cup_id': id, 'p_item_id': itemId},
           );
           final keys = raw is Map && raw['object_keys'] is List
               ? [for (final k in raw['object_keys'] as List) k?.toString()]
@@ -345,6 +362,7 @@ class CupsRepositoryImpl implements ICupsRepository {
       final me = _requireMe();
       if (rating == null && cleanNote != null) throw _needsRating;
       await _legacyInsertPhotos(me, cafeId, cleanItems, uploads);
+      filesInUse = true;
       final reviewId = cup.reviewId;
       if (reviewId != null) {
         if (rating != null) {
@@ -378,9 +396,20 @@ class CupsRepositoryImpl implements ICupsRepository {
       await _removePhotos(removeItemIds);
       return CupPostResult(itemsAdded: uploads.length);
     } catch (e) {
-      _deleteFiles([for (final f in uploads.values) f.objectKey]);
+      if (!filesInUse) {
+        _deleteFiles([for (final f in uploads.values) f.objectKey]);
+      }
       throw _wrap(e, 'Could not save your cup.');
     }
+  }
+
+  /// The `cup.id` an add/update/remove RPC answers with.
+  static String? _returnedCupId(Object? raw) {
+    if (raw is! Map) return null;
+    final cup = raw['cup'];
+    if (cup is! Map) return null;
+    final id = cup['id'];
+    return id is String && id.isNotEmpty ? id : null;
   }
 
   @override
