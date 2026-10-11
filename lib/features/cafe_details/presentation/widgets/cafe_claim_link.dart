@@ -15,17 +15,31 @@ class CafeClaimLink extends StatelessWidget {
     super.key,
     required this.cafeId,
     required this.isClaimed,
+    @visibleForTesting this.launch = _launchExternal,
   });
 
   final String cafeId;
   final bool? isClaimed;
+
+  /// Opens the claim page; throws or returns false when it can't.
+  final Future<bool> Function(Uri uri) launch;
+
+  static Future<bool> _launchExternal(Uri uri) =>
+      launchUrl(uri, mode: LaunchMode.externalApplication);
 
   static const _claimBase = 'https://business.nookph.app/claim';
 
   Future<void> _open(BuildContext context) async {
     logAppEvent('claim_cafe_tapped', properties: {'cafe_id': cafeId});
     final uri = Uri.parse('$_claimBase/${Uri.encodeComponent(cafeId)}');
-    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    bool launched;
+    try {
+      launched = await launch(uri);
+    } catch (e) {
+      // No browser, or the platform refused: same as not opening.
+      debugPrint('[ClaimLink] could not open $uri: $e');
+      launched = false;
+    }
     if (!launched && context.mounted) {
       showPrimaryToast(context, 'Unable to open the claim page.');
     }
