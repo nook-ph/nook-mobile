@@ -1,6 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
+/// Nook's own coffee icons (nook-supabase `assets/icons/coffee/`, the
+/// `nook:<file>` values of `tags.icon_name`). Drawn by `CoffeeGlyphIcon`.
+enum CoffeeGlyph {
+  espresso,
+  pourOver,
+  coldBrew,
+  philippineBeans,
+  kapengBarako,
+  matcha,
+}
+
+/// The coffee tags, in the order the contract sorts them (docs
+/// COFFEE_TAGS.md). `tags.name` is the key, so these are exact names.
+const kCoffeeTagNames = [
+  'Espresso',
+  'Pour-over',
+  'Cold Brew',
+  'Slow Bar',
+  'Single Origin',
+  'Philippine Beans',
+  'Kapeng Barako',
+  'Roasts In-House',
+  'Matcha',
+];
+
+/// The custom glyph for a coffee tag, keyed by tag name like
+/// [resolveTagIcon]. Null for every tag that uses a Phosphor icon.
+CoffeeGlyph? resolveCoffeeGlyph(String? tagName) {
+  if (tagName == null) return null;
+  return switch (tagName.trim().toLowerCase()) {
+    'espresso' => CoffeeGlyph.espresso,
+    'pour-over' => CoffeeGlyph.pourOver,
+    'cold brew' => CoffeeGlyph.coldBrew,
+    'philippine beans' => CoffeeGlyph.philippineBeans,
+    'kapeng barako' => CoffeeGlyph.kapengBarako,
+    'matcha' => CoffeeGlyph.matcha,
+    _ => null,
+  };
+}
+
+/// Whether the tag has any icon, custom or Phosphor.
+bool hasTagIcon(String? tagName) =>
+    resolveCoffeeGlyph(tagName) != null || resolveTagIcon(tagName) != null;
+
+/// The Phosphor icon for a tag. Coffee tags drawn by Nook itself return null
+/// here; render tags with `TagIcon`, which checks [resolveCoffeeGlyph] first.
 IconData? resolveTagIcon(String? tagName) {
   if (tagName == null || tagName.trim().isEmpty) {
     return null;
@@ -57,6 +103,12 @@ IconData? resolveTagIcon(String? tagName) {
       return PhosphorIcons.cigarette();
     case 'open 24 hours':
       return PhosphorIcons.clock();
+    case 'slow bar':
+      return PhosphorIcons.hourglassMedium();
+    case 'single origin':
+      return PhosphorIcons.coffeeBean();
+    case 'roasts in-house':
+      return PhosphorIcons.fire();
     default:
       if (name.contains('wifi')) return PhosphorIcons.wifiHigh();
       if (name.contains('cash')) return PhosphorIcons.money();

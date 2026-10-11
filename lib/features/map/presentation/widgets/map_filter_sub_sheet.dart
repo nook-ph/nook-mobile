@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -12,7 +13,7 @@ import 'package:nook/features/map/presentation/widgets/map_filter_ui.dart';
 import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 
 /// One section of the map filter, opened from a quick filter chip.
-enum MapFilterSubSection { sort, bestFor, amenities, payment }
+enum MapFilterSubSection { sort, bestFor, coffee, amenities, payment }
 
 class MapFilterSubSheet extends StatefulWidget {
   const MapFilterSubSheet({
@@ -28,6 +29,7 @@ class MapFilterSubSheet extends StatefulWidget {
     return switch (section) {
       MapFilterSubSection.sort => 'Sort',
       MapFilterSubSection.bestFor => kMapFilterSectionBestFor,
+      MapFilterSubSection.coffee => kMapFilterSectionCoffee,
       MapFilterSubSection.amenities => kMapFilterSectionAmenities,
       MapFilterSubSection.payment => kMapFilterSectionPaymentAccepted,
     };
@@ -56,8 +58,10 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
   late final Set<String> _selected;
   final _count = DebouncedCount();
 
+  /// Every label this group owns: what Apply and Clear swap out.
   List<String> get _pool => switch (widget.section) {
     MapFilterSubSection.bestFor => kMapFilterBestForLabels,
+    MapFilterSubSection.coffee => kMapFilterCoffeeLabels,
     MapFilterSubSection.amenities => kMapFilterAmenityLabels,
     MapFilterSubSection.payment => kMapFilterPaymentLabels,
     MapFilterSubSection.sort => const [],
@@ -172,7 +176,10 @@ class _MapFilterSubSheetState extends State<MapFilterSubSheet> {
           16,
         ),
         child: MapFilterChipWrap(
-          labels: _pool,
+          // Coffee offers only the tags that exist (CoffeeTagCatalog).
+          labels: widget.section == MapFilterSubSection.coffee
+              ? CoffeeTagCatalog.instance.available.value
+              : _pool,
           isSelected: _selected.contains,
           onTap: (label) {
             setState(() {

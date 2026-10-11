@@ -13,11 +13,17 @@ typedef HomeFeedResult = ({
   List<CafeSummary> newest,
   List<CafeSummary> specialtyNearby,
   List<CafeSummary> laptopFriendly,
+  List<CafeSummary> localBeans,
 });
 
 /// The existing tag behind "Specialty coffee near you". Tag names are the
 /// filter keys, so this must match `tags.name` exactly.
 const specialtyCoffeeTag = 'Specialty Coffee';
+
+/// The coffee tag behind "Local beans" (docs COFFEE_TAGS.md §5). Until the
+/// coffee migration is applied no cafe has it, the query comes back empty and
+/// the shelf stays hidden.
+const localBeansTag = 'Philippine Beans';
 
 /// "Laptop-friendly" is derived: `get_cafes` matches every tag it is given,
 /// so these two together are the shelf.
@@ -62,7 +68,9 @@ class GetHomeFeedUseCase {
   /// the full feed follows once "Near you" has been fetched (or ruled out).
   Stream<HomeFeedUpdate> watch({int page = 0, int limit = 20}) async* {
     final failures = <Object>[];
-    var attempted = 4;
+    // The four location-free sections, plus Local beans once the position
+    // is settled (nearby with one, top rated without).
+    var attempted = 5;
     final accessFuture = _readAccess();
     final topRatedFuture = _safeFetch(
       label: 'top_rated',
@@ -115,14 +123,29 @@ class GetHomeFeedUseCase {
     Position? position;
     var positionResolved = false;
     // "Specialty coffee near you" needs the position too: without one the
-    // title would not be true, so the shelf is left out.
+    // title would not be true, so the shelf is left out. "Local beans" makes
+    // no distance claim: closest first with a position, top rated without.
     final nearbyFuture = accessFuture.then((access) async {
       if (!access.servicesOff && !access.denied) {
         position = await _readPosition();
       }
       positionResolved = true;
       final at = position;
-      if (at == null) return (<CafeSummary>[], <CafeSummary>[]);
+      final localBeansFuture = _safeFetch(
+        label: 'local_beans',
+        failures: failures,
+        query: CafeQuery(
+          sort: at == null ? 'top_rated' : 'nearby',
+          tags: const [localBeansTag],
+          lat: at?.latitude,
+          lng: at?.longitude,
+          page: page,
+          limit: limit,
+        ),
+      );
+      if (at == null) {
+        return (<CafeSummary>[], <CafeSummary>[], await localBeansFuture);
+      }
       final both = await Future.wait([
         _safeFetch(
           label: 'nearby',
@@ -148,7 +171,7 @@ class GetHomeFeedUseCase {
           ),
         ),
       ]);
-      return (both[0], both[1]);
+      return (both[0], both[1], await localBeansFuture);
     });
 
     final access = await accessFuture;
@@ -182,6 +205,7 @@ class GetHomeFeedUseCase {
             newest: newest,
             specialtyNearby: <CafeSummary>[],
             laptopFriendly: laptop,
+            localBeans: <CafeSummary>[],
           ),
           locationDenied: access.deniedForever,
           locationServicesOff: access.servicesOff,
@@ -190,7 +214,7 @@ class GetHomeFeedUseCase {
       );
     }
 
-    final (nearby, specialtyNearby) = await nearbyFuture;
+    final (nearby, specialtyNearby, localBeans) = await nearbyFuture;
     if (position != null) attempted += 2;
 
     if (failures.length >= attempted) {
@@ -204,6 +228,7 @@ class GetHomeFeedUseCase {
       newest: newest,
       specialtyNearby: specialtyNearby,
       laptopFriendly: laptop,
+      localBeans: localBeans,
     );
 
     await repository.warmCache([
@@ -213,6 +238,7 @@ class GetHomeFeedUseCase {
       ...newest,
       ...specialtyNearby,
       ...laptop,
+      ...localBeans,
     ]);
 
     yield (

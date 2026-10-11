@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/debounced_count.dart';
@@ -9,7 +10,8 @@ import 'package:nook/features/map/presentation/widgets/map_filter_content.dart';
 import 'package:nook/features/map/presentation/widgets/map_filter_ui.dart';
 import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 
-/// Every map filter in one sheet: sort, Best for, Amenities and Payment.
+/// Every map filter in one sheet: sort, Best for, Coffee (once the coffee
+/// tags exist), Amenities and Payment.
 /// Choices are held here and applied together by the footer button.
 class MapFilterBottomSheet extends StatefulWidget {
   const MapFilterBottomSheet({super.key, required this.initialFilter});
@@ -46,6 +48,7 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
     _selectedSortId = widget.initialFilter.sort;
     final known = {
       ...kMapFilterBestForLabels,
+      ...kMapFilterCoffeeLabels,
       ...kMapFilterAmenityLabels,
       ...kMapFilterPaymentLabels,
     };
@@ -155,6 +158,18 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
             ),
             _divider,
             _tagSection(kMapFilterSectionBestFor, kMapFilterBestForLabels),
+            ValueListenableBuilder<List<String>>(
+              valueListenable: CoffeeTagCatalog.instance.available,
+              builder: (context, coffee, _) => coffee.isEmpty
+                  ? const SizedBox.shrink()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _divider,
+                        _tagSection(kMapFilterSectionCoffee, coffee),
+                      ],
+                    ),
+            ),
             _divider,
             _tagSection(kMapFilterSectionAmenities, kMapFilterAmenityLabels),
             _divider,

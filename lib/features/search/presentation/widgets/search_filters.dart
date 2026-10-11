@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/utils/debounced_count.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -235,6 +238,8 @@ Future<Set<String>?> showSearchTagsSheet(
   Set<String> current, {
   Future<int?> Function(Set<String> tags)? count,
 }) {
+  // Which coffee chips to offer; the section appears when the answer lands.
+  unawaited(CoffeeTagCatalog.instance.ensureLoaded());
   return showModalBottomSheet<Set<String>>(
     context: context,
     isScrollControlled: true,
@@ -247,7 +252,6 @@ Future<Set<String>?> showSearchTagsSheet(
 const kSearchAllBestFor = [
   ...kSearchIdleBestFor,
   'Date Spot',
-  'Book Cafe',
   'Late Night',
   'Quick Coffee',
   'Family Friendly',
@@ -264,7 +268,6 @@ const kSearchAllAmenities = [
   'Wheelchair Accessible',
   'Takeaway Available',
   'Smoking Area',
-  'Open 24 Hours',
   'Pet Friendly',
 ];
 
@@ -345,6 +348,17 @@ class _TagsSheetState extends State<_TagsSheet> {
                   children: [
                     section('Best for', kSearchAllBestFor),
                     const SizedBox(height: 18),
+                    // Only the coffee tags that exist; none before the
+                    // coffee migration, and then there is no section.
+                    ValueListenableBuilder<List<String>>(
+                      valueListenable: CoffeeTagCatalog.instance.available,
+                      builder: (context, coffee, _) => coffee.isEmpty
+                          ? const SizedBox.shrink()
+                          : Padding(
+                              padding: const EdgeInsets.only(bottom: 18),
+                              child: section('Coffee', coffee),
+                            ),
+                    ),
                     section('Amenities', kSearchAllAmenities),
                   ],
                 ),

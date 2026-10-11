@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/presentation/widgets/tag_icon.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
-import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
@@ -17,21 +17,25 @@ import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Amenities as a two-column icon grid, then "Best for" chips.
+/// "Coffee" chips with their icons, amenities as a two-column icon grid,
+/// then "Best for" chips.
 ///
-/// These are the reason people open Nook, so they sit above the fold. Either
-/// half is left out when the listing has nothing for it; the page skips the
-/// whole section when both are empty (see [hasContent]).
+/// These are the reason people open Nook, so they sit above the fold. Any
+/// group is left out when the listing has nothing for it; the page skips the
+/// whole section when all are empty (see [hasContent]).
 class CafeAmenitiesSection extends StatelessWidget {
   const CafeAmenitiesSection({super.key, required this.groups});
 
   final CafeTagGroups groups;
 
   static bool hasContent(CafeTagGroups groups) =>
-      groups.amenities.isNotEmpty || groups.bestFor.isNotEmpty;
+      groups.coffee.isNotEmpty ||
+      groups.amenities.isNotEmpty ||
+      groups.bestFor.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
+    final coffee = groups.coffee;
     final amenities = groups.amenities;
     final bestFor = groups.bestFor;
 
@@ -40,6 +44,17 @@ class CafeAmenitiesSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (coffee.isNotEmpty) ...[
+            const CafeSectionTitle('Coffee'),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [for (final tag in coffee) _CoffeeChip(tag: tag)],
+            ),
+          ],
+          if (coffee.isNotEmpty && (amenities.isNotEmpty || bestFor.isNotEmpty))
+            const SizedBox(height: 20),
           if (amenities.isNotEmpty) ...[
             const CafeSectionTitle('Amenities'),
             const SizedBox(height: 12),
@@ -96,10 +111,12 @@ class _AmenityCell extends StatelessWidget {
             color: CafeDetailsTokens.tint,
             shape: BoxShape.circle,
           ),
-          child: Icon(
-            resolveTagIcon(tag.name) ?? Icons.circle_outlined,
+          alignment: Alignment.center,
+          child: TagIcon(
+            tag.name,
             size: 18,
             color: CafeDetailsTokens.brand,
+            fallback: Icons.circle_outlined,
           ),
         ),
         const SizedBox(width: 10),
@@ -114,6 +131,42 @@ class _AmenityCell extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A coffee tag: the Best for pill with the tag's icon in front.
+class _CoffeeChip extends StatelessWidget {
+  const _CoffeeChip({required this.tag});
+
+  final TagEntity tag;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 6, 14, 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: CafeDetailsTokens.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TagIcon(
+            tag.name,
+            size: 16,
+            color: CafeDetailsTokens.brand,
+            fallback: PhosphorIcons.coffee(),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            tag.name,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: CafeDetailsTokens.ink),
+          ),
+        ],
+      ),
     );
   }
 }

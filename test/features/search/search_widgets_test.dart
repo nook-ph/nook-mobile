@@ -21,6 +21,7 @@ import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 import 'place_search_fakes.dart';
+import 'package:nook/core/filters/coffee_tag_catalog.dart';
 
 void main() {
   Future<void> pump(WidgetTester tester, Widget child) async {
@@ -624,6 +625,24 @@ void main() {
       await tester.tap(find.text('Clear all'));
       await tester.pumpAndSettle(const Duration(milliseconds: 400));
       expect(asked.last, isEmpty);
+    });
+
+    testWidgets('a Coffee section only once the coffee tags exist', (
+      tester,
+    ) async {
+      final catalog = CoffeeTagCatalog.instance.available;
+      addTearDown(() => catalog.value = const []);
+
+      await open(tester);
+      expect(find.text('Coffee'), findsNothing);
+      expect(find.text('Book Cafe'), findsNothing);
+      expect(find.text('Open 24 Hours'), findsNothing);
+
+      catalog.value = const ['Pour-over', 'Kapeng Barako'];
+      await tester.pumpAndSettle();
+      expect(find.text('Coffee'), findsOneWidget);
+      await tester.ensureVisible(find.text('Kapeng Barako'));
+      expect(find.text('Pour-over'), findsOneWidget);
     });
 
     testWidgets('a count that cannot be given stays Apply', (tester) async {

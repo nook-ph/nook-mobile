@@ -28,6 +28,7 @@ class _FakeFeed extends GetHomeFeedUseCase {
       newest: <CafeSummary>[],
       specialtyNearby: <CafeSummary>[],
       laptopFriendly: <CafeSummary>[],
+      localBeans: <CafeSummary>[],
     ),
     locationDenied: false,
     locationServicesOff: false,
@@ -172,6 +173,16 @@ void main() {
     });
   });
 
+  group('Local beans threshold', () {
+    test('hidden below three cafes, all of them from three on', () {
+      expect(localBeans([_cafe('a'), _cafe('b')]), isEmpty);
+      expect(
+        localBeans([_cafe('a'), _cafe('b'), _cafe('c')]).map((c) => c.id),
+        ['a', 'b', 'c'],
+      );
+    });
+  });
+
   group('HomeBloc', () {
     test(
       'hides rating shelves without reviews, keeps coffee shelves',
@@ -185,6 +196,7 @@ void main() {
               newest: <CafeSummary>[],
               specialtyNearby: [_cafe('s1')],
               laptopFriendly: [_cafe('l1')],
+              localBeans: <CafeSummary>[],
             ),
             locationDenied: false,
             locationServicesOff: false,
@@ -206,6 +218,37 @@ void main() {
       },
     );
 
+    for (final n in [2, 3]) {
+      test(
+        'Local beans with $n cafes is ${n < 3 ? 'hidden' : 'shown'}',
+        () async {
+          final feed = _FakeFeed()
+            ..result = (
+              feed: (
+                nearby: <CafeSummary>[],
+                topRated: <CafeSummary>[],
+                trending: <CafeSummary>[],
+                newest: [_cafe('n1')],
+                specialtyNearby: <CafeSummary>[],
+                laptopFriendly: <CafeSummary>[],
+                localBeans: [for (var i = 0; i < n; i++) _cafe('b$i')],
+              ),
+              locationDenied: false,
+              locationServicesOff: false,
+            );
+          final bloc = HomeBloc(getHomeFeedUseCase: feed);
+          addTearDown(bloc.close);
+
+          bloc.add(LoadHomeDataEvent());
+          final loaded =
+              await bloc.stream.firstWhere((s) => s is HomeLoadedState)
+                  as HomeLoadedState;
+
+          expect(loaded.localBeansCafes, hasLength(n < 3 ? 0 : n));
+        },
+      );
+    }
+
     test('loads nearby into its own list and reports services off', () async {
       final feed = _FakeFeed()
         ..result = (
@@ -216,6 +259,7 @@ void main() {
             newest: [_cafe('new1')],
             specialtyNearby: <CafeSummary>[],
             laptopFriendly: <CafeSummary>[],
+            localBeans: <CafeSummary>[],
           ),
           locationDenied: false,
           locationServicesOff: true,
@@ -246,6 +290,7 @@ void main() {
             newest: <CafeSummary>[],
             specialtyNearby: <CafeSummary>[],
             laptopFriendly: <CafeSummary>[],
+            localBeans: <CafeSummary>[],
           ),
           locationDenied: true,
           locationServicesOff: false,
@@ -275,6 +320,7 @@ void main() {
             newest: <CafeSummary>[],
             specialtyNearby: <CafeSummary>[],
             laptopFriendly: <CafeSummary>[],
+            localBeans: <CafeSummary>[],
           ),
           locationDenied: false,
           locationServicesOff: false,
@@ -305,6 +351,7 @@ void main() {
             newest: <CafeSummary>[],
             specialtyNearby: <CafeSummary>[],
             laptopFriendly: <CafeSummary>[],
+            localBeans: <CafeSummary>[],
           ),
           locationDenied: false,
           locationServicesOff: false,

@@ -261,6 +261,7 @@ class _HomeContent extends StatelessWidget {
     final nearby = fresh(state.nearbyCafes);
     final featured = fresh(state.featuredCafes);
     final specialty = fresh(state.specialtyNearbyCafes);
+    final beans = fresh(state.localBeansCafes);
     final newest = fresh(state.newestCafes);
     final laptop = fresh(state.laptopFriendlyCafes);
     final trending = fresh(state.trendingCafes);
@@ -283,6 +284,13 @@ class _HomeContent extends StatelessWidget {
           title: 'Specialty coffee near you',
           subtitle: 'Tagged by the Nook team, closest first',
           cafes: specialty,
+        ),
+      // Hidden by the bloc until three cafes have the Philippine Beans tag.
+      if (beans.isNotEmpty)
+        HomeCafeSection(
+          title: 'Local beans',
+          subtitle: 'Brewing Philippine coffee',
+          cafes: beans,
         ),
       if (newest.isNotEmpty)
         HomeCafeSection(

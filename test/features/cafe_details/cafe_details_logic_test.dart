@@ -279,6 +279,64 @@ void main() {
       expect(groups.amenities, isEmpty);
       expect(groups.bestFor, isEmpty);
       expect(groups.payments, isEmpty);
+      expect(groups.coffee, isEmpty);
+    });
+
+    test('coffee tags get their own group, in the contract order', () {
+      final groups = CafeTagGroups.from([
+        _tag('1', 'Matcha', 'coffee'),
+        _tag('2', 'Free WiFi', 'amenities'),
+        _tag('3', 'Espresso', 'coffee'),
+        _tag('4', 'Date Spot', 'best_for'),
+        _tag('5', 'Philippine Beans', 'coffee'),
+      ]);
+
+      expect(groups.coffee.map((t) => t.name), [
+        'Espresso',
+        'Philippine Beans',
+        'Matcha',
+      ]);
+      expect(groups.bestFor.map((t) => t.name), ['Date Spot']);
+      expect(groups.amenities.map((t) => t.name), ['Free WiFi']);
+    });
+
+    test('coffee tags are kept when the cafe has no best-for tags', () {
+      // They used to fall into Best for through the uncategorised fallback.
+      final groups = CafeTagGroups.from([
+        _tag('1', 'Free WiFi', 'amenities'),
+        _tag('2', 'Cold Brew', 'coffee'),
+      ]);
+
+      expect(groups.coffee.map((t) => t.name), ['Cold Brew']);
+      expect(groups.bestFor, isEmpty);
+    });
+
+    test('Specialty Coffee leads the coffee group when there is one', () {
+      final groups = CafeTagGroups.from([
+        _tag('1', 'Specialty Coffee', 'best_for'),
+        _tag('2', 'Date Spot', 'best_for'),
+        _tag('3', 'Slow Bar', 'coffee'),
+      ]);
+
+      expect(groups.coffee.map((t) => t.name), [
+        'Specialty Coffee',
+        'Slow Bar',
+      ]);
+      expect(groups.bestFor.map((t) => t.name), ['Date Spot']);
+    });
+
+    test('without coffee tags Specialty Coffee stays in Best for', () {
+      // The state before the coffee migration: the page is unchanged.
+      final groups = CafeTagGroups.from([
+        _tag('1', 'Specialty Coffee', 'best_for'),
+        _tag('2', 'Date Spot', 'best_for'),
+      ]);
+
+      expect(groups.coffee, isEmpty);
+      expect(groups.bestFor.map((t) => t.name), [
+        'Specialty Coffee',
+        'Date Spot',
+      ]);
     });
   });
 

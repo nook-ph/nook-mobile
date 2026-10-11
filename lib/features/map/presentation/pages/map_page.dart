@@ -23,6 +23,7 @@ import 'package:nook/features/map/bloc/map_states.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/geo.dart' as geo;
@@ -186,6 +187,8 @@ class _MapPageState extends State<MapPage>
     super.initState();
     TabBack.register(_mapTab, _handleBack);
     _initialFilter = sl<FilterCubit>().state;
+    // Which coffee chips the filters can offer (none before the migration).
+    unawaited(CoffeeTagCatalog.instance.ensureLoaded());
     rootBundle.loadString('assets/mapstyle.json').then((s) {
       if (mounted) setState(() => _styleJson = s);
     });

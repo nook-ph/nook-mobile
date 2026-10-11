@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/core/presentation/widgets/tag_icon.dart';
 import 'package:get_it/get_it.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
@@ -155,6 +156,44 @@ void main() {
 
       expect(find.text('Amenities'), findsNothing);
       expect(find.text('Best for'), findsOneWidget);
+    });
+
+    testWidgets('shows a Coffee group with an icon per tag', (tester) async {
+      final groups = CafeTagGroups.from([
+        TagEntity(id: '1', name: 'Pour-over', category: 'coffee'),
+        TagEntity(id: '2', name: 'Single Origin', category: 'coffee'),
+        TagEntity(id: '3', name: 'Free WiFi', category: 'amenities'),
+      ]);
+      await tester.pumpWidget(_host(CafeAmenitiesSection(groups: groups)));
+
+      expect(find.text('Coffee'), findsOneWidget);
+      expect(find.text('Pour-over'), findsOneWidget);
+      expect(find.text('Single Origin'), findsOneWidget);
+      // Pour-over is Nook's own glyph; Single Origin is Phosphor coffee-bean.
+      expect(find.byType(CoffeeGlyphIcon), findsOneWidget);
+      expect(find.text('Amenities'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no Coffee group without coffee tags', (tester) async {
+      final groups = CafeTagGroups.from([
+        TagEntity(id: '1', name: 'Specialty Coffee', category: 'best_for'),
+      ]);
+      await tester.pumpWidget(_host(CafeAmenitiesSection(groups: groups)));
+
+      expect(find.text('Coffee'), findsNothing);
+      expect(find.text('Best for'), findsOneWidget);
+    });
+
+    test('a listing with only coffee tags has content', () {
+      expect(
+        CafeAmenitiesSection.hasContent(
+          CafeTagGroups.from([
+            TagEntity(id: '1', name: 'Matcha', category: 'coffee'),
+          ]),
+        ),
+        isTrue,
+      );
     });
 
     test('has no content for a listing without those tags', () {

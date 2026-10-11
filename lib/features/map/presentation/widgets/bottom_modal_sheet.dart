@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/presentation/widgets/map_sheet_states.dart';
+import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/features/map/presentation/widgets/map_sheet_cafe_card.dart';
@@ -434,6 +435,29 @@ class _FilterChipRow extends StatelessWidget {
                     context,
                     MapFilterSubSection.bestFor,
                   ),
+                ),
+                // Only once the coffee tags exist, or while one is applied
+                // (so it can still be cleared).
+                ValueListenableBuilder<List<String>>(
+                  valueListenable: CoffeeTagCatalog.instance.available,
+                  builder: (context, coffee, _) {
+                    final count = _countInPool(filter, kMapFilterCoffeeLabels);
+                    if (coffee.isEmpty && count == 0) {
+                      return const SizedBox.shrink();
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: _QuickFilterChip(
+                        title: kMapFilterSectionCoffee,
+                        active: count > 0,
+                        count: count,
+                        onTap: () => MapFilterSubSheet.show(
+                          context,
+                          MapFilterSubSection.coffee,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(width: 8),
                 _QuickFilterChip(

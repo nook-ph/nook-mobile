@@ -21,6 +21,9 @@ class HomeLoadedState extends HomeState {
   /// Cafes with both Free WiFi and Power Outlets.
   final List<CafeSummary> laptopFriendlyCafes;
 
+  /// Cafes tagged Philippine Beans; empty below [minLocalBeans].
+  final List<CafeSummary> localBeansCafes;
+
   /// Permission denied for device location (nearby/boost data may be limited).
   final bool locationDenied;
 
@@ -51,6 +54,7 @@ class HomeLoadedState extends HomeState {
     required this.topRatedCafes,
     this.specialtyNearbyCafes = const [],
     this.laptopFriendlyCafes = const [],
+    this.localBeansCafes = const [],
     this.locationDenied = false,
     this.locationServicesOff = false,
     this.locationBannerDismissed = false,
@@ -68,6 +72,7 @@ class HomeLoadedState extends HomeState {
     for (final cafe in topRatedCafes) cafe.id,
     for (final cafe in specialtyNearbyCafes) cafe.id,
     for (final cafe in laptopFriendlyCafes) cafe.id,
+    for (final cafe in localBeansCafes) cafe.id,
   };
 
   bool get hasCafes => cafeIds.isNotEmpty;
@@ -84,6 +89,7 @@ class HomeLoadedState extends HomeState {
     List<CafeSummary>? topRatedCafes,
     List<CafeSummary>? specialtyNearbyCafes,
     List<CafeSummary>? laptopFriendlyCafes,
+    List<CafeSummary>? localBeansCafes,
     bool? locationDenied,
     bool? locationServicesOff,
     bool? locationBannerDismissed,
@@ -99,6 +105,7 @@ class HomeLoadedState extends HomeState {
       topRatedCafes: topRatedCafes ?? this.topRatedCafes,
       specialtyNearbyCafes: specialtyNearbyCafes ?? this.specialtyNearbyCafes,
       laptopFriendlyCafes: laptopFriendlyCafes ?? this.laptopFriendlyCafes,
+      localBeansCafes: localBeansCafes ?? this.localBeansCafes,
       locationDenied: locationDenied ?? this.locationDenied,
       locationServicesOff: locationServicesOff ?? this.locationServicesOff,
       locationBannerDismissed:
