@@ -26,6 +26,7 @@ class CafeDetailsRemoteDataSource {
         rating,
         review_count,
         is_new,
+        is_claimed,
         operating_hours,
         social_links,
         cafe_tags (
