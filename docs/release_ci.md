@@ -186,3 +186,17 @@ nobody tests and burns build numbers.
 2. Add the secrets.
 3. Add `.github/workflows/release.yml` and `ios/ExportOptions.plist`, then tag a test release and
    confirm it lands in TestFlight and on Play internal.
+
+## QA before production (both stores)
+
+Nothing reaches production without QA. Android is QA'd by Cris, iOS by the team.
+
+| Step | Android | iOS |
+|---|---|---|
+| 1. Tag `vX.Y.Z` | `android-release.yml` builds, signs and uploads to the **internal** track | `ios-release.yml` builds, signs and uploads to **TestFlight** (no review submission) |
+| 2. QA | install from the internal testing link | install from TestFlight |
+| 3. Approved | Actions → **Android promote to production** (optional `version_code`, `rollout` e.g. `0.2` for a 20% staged rollout) | Actions → **iOS submit for review** with the TestFlight `build_number` (printed as a notice by the release run, = 100 + run number) |
+
+- Promotion never rebuilds: production gets the exact build QA installed.
+- Hand runs of the Android release can target internal, alpha or beta only; production is reachable only through the promote workflow.
+- The `play-ci@nook-auth-492210.iam.gserviceaccount.com` service account has, on `app.nookph` only: view (read-only), release to testing tracks, release to production.

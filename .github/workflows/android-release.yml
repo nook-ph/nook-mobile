@@ -12,7 +12,7 @@ on:
       track:
         description: Play track to upload to
         type: choice
-        options: [internal, alpha, beta, production]
+        options: [internal, alpha, beta]
         default: internal
 
 permissions:
@@ -24,7 +24,8 @@ jobs:
     timeout-minutes: 60
     env:
       PACKAGE_NAME: app.nookph
-      # Tag pushes always go to internal; promoting further is a manual step in Play Console.
+      # Tag pushes always go to internal for QA. Production only via the
+      # "Android promote to production" workflow, after QA.
       TRACK: ${{ inputs.track || 'internal' }}
     steps:
       - uses: actions/checkout@v4

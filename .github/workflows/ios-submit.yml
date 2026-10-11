@@ -1,0 +1,59 @@
+name: iOS submit for review
+
+# After QA on TestFlight, attaches that exact build to the App Store version
+# and submits it for review. Run by hand from the Actions tab.
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: TestFlight build number QA approved (e.g. 105)
+        required: true
+        type: string
+      automatic_release:
+        description: Release automatically once Apple approves
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-submit
+  cancel-in-progress: false
+
+jobs:
+  submit:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submit for App Store review
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          AUTO_RELEASE: ${{ inputs.automatic_release }}
+        run: |
+          : "${ASC_KEY_ID:?missing secret ASC_KEY_ID}" "${ASC_ISSUER_ID:?missing secret ASC_ISSUER_ID}" "${ASC_PRIVATE_KEY:?missing secret ASC_PRIVATE_KEY}"
+          command -v fastlane >/dev/null || brew install fastlane
+          jq -n --arg id "$ASC_KEY_ID" --arg issuer "$ASC_ISSUER_ID" --arg key "$ASC_PRIVATE_KEY" \
+            '{key_id: $id, issuer_id: $issuer, key: $key, in_house: false}' > "$RUNNER_TEMP/asc_api_key.json"
+          VERSION="$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)"
+          # The build already passed QA on TestFlight, so it is processed and
+          # build_number can be used directly.
+          fastlane run deliver \
+            api_key_path:"$RUNNER_TEMP/asc_api_key.json" \
+            app_identifier:app.nookph \
+            platform:ios \
+            app_version:"$VERSION" \
+            build_number:"$BUILD_NUMBER" \
+            metadata_path:ios/metadata \
+            skip_binary_upload:true \
+            skip_screenshots:true \
+            submit_for_review:true \
+            automatic_release:"$AUTO_RELEASE" \
+            run_precheck_before_submit:false \
+            force:true
