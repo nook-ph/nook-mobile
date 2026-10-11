@@ -92,10 +92,28 @@ void main() {
     expect(c.state.loadingMore, isFalse);
     expect(c.state.photos, hasLength(3));
 
-    repo.failure = null;
+    // Scroll events near the end don't ask again after a failure.
+    final asked = repo.offsets.length;
     await c.loadMore();
+    expect(repo.offsets, hasLength(asked));
+
+    repo.failure = null;
+    await c.loadMore(retry: true);
     expect(c.state.loadMoreFailed, isFalse);
     expect(c.state.photos, hasLength(6));
+  });
+
+  test('a refresh that fails while a next page loads does not leave paging '
+      'stuck', () async {
+    final c = cubit();
+    await c.load();
+    final more = c.loadMore();
+    expect(c.state.loadingMore, isTrue);
+    repo.failure = offline;
+    await c.load(refresh: true);
+    await more;
+    expect(c.state.status, CafePhotosStatus.loaded);
+    expect(c.state.loadingMore, isFalse);
   });
 
   test('a repeat across pages is shown once', () async {

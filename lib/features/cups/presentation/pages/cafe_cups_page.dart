@@ -440,7 +440,10 @@ class _Posts extends StatelessWidget {
                 );
               }
               if (i >= cards.length) {
-                return _Footer(state: state, onRetry: cubit.loadMore);
+                return _Footer(
+                  state: state,
+                  onRetry: () => cubit.loadMore(retry: true),
+                );
               }
               final card = cards[i];
               return Padding(

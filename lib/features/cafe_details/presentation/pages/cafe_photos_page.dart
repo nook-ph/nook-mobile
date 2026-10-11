@@ -282,7 +282,10 @@ class _Grid extends StatelessWidget {
               SliverSafeArea(
                 top: false,
                 sliver: SliverToBoxAdapter(
-                  child: _Footer(state: state, onRetry: cubit.loadMore),
+                  child: _Footer(
+                    state: state,
+                    onRetry: () => cubit.loadMore(retry: true),
+                  ),
                 ),
               ),
             ],

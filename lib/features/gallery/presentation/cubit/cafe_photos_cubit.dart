@@ -118,18 +118,24 @@ class CafePhotosCubit extends Cubit<CafePhotosState> {
     } catch (e) {
       debugPrint('[CafePhotos] load failed cafeId=$cafeId error=$e');
       if (isClosed || epoch != _epoch) return;
-      if (refresh && state.status == CafePhotosStatus.loaded) return;
+      if (refresh && state.status == CafePhotosStatus.loaded) {
+        // A next page cut off by this refresh would leave paging stuck.
+        if (state.loadingMore) emit(state.copyWith(loadingMore: false));
+        return;
+      }
       emit(CafePhotosState(status: CafePhotosStatus.failed, error: e));
     }
   }
 
   /// The next page, for the grid. Does nothing while one is on its way or
-  /// when there is no more.
-  Future<void> loadMore() async {
+  /// when there is no more. After a failure only [retry] (the footer's Try
+  /// again) asks again, so scrolling doesn't fire a request per event.
+  Future<void> loadMore({bool retry = false}) async {
     final current = state;
     if (current.status != CafePhotosStatus.loaded ||
         !current.hasMore ||
-        current.loadingMore) {
+        current.loadingMore ||
+        (current.loadMoreFailed && !retry)) {
       return;
     }
     final epoch = _epoch;

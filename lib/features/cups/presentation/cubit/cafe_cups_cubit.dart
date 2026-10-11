@@ -159,7 +159,11 @@ class CafeCupsCubit extends Cubit<CafeCupsState> {
     } catch (e) {
       debugPrint('[CafeCups] load failed cafeId=$cafeId error=$e');
       if (isClosed || epoch != _epoch) return;
-      if (refresh && state.status == CafeCupsStatus.loaded) return;
+      if (refresh && state.status == CafeCupsStatus.loaded) {
+        // A next page cut off by this refresh would leave paging stuck.
+        if (state.loadingMore) emit(state.copyWith(loadingMore: false));
+        return;
+      }
       emit(
         CafeCupsState(
           status: CafeCupsStatus.failed,
@@ -173,9 +177,12 @@ class CafeCupsCubit extends Cubit<CafeCupsState> {
     }
   }
 
-  Future<void> loadMore() async {
+  /// The next page. After a failure only [retry] (the footer's Try again)
+  /// asks again, so scrolling doesn't fire a request per scroll event.
+  Future<void> loadMore({bool retry = false}) async {
     final current = state;
     if (!current.isLoaded || !current.hasMore || current.loadingMore) return;
+    if (current.loadMoreFailed && !retry) return;
     final epoch = _epoch;
     emit(current.copyWith(loadingMore: true, loadMoreFailed: false));
     try {
