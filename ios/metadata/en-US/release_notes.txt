@@ -1,4 +1,6 @@
-- Search now understands what you describe, like "quiet place to study" or "matcha"
-- Cafe pages show similar cafes nearby
-- The map's Nearby list sorts by distance as soon as you allow location
-- Layout fixes for cafe cards on iPhone
+- Cups: log what you had at a cafe, from coffee to food, with a photo, stars and a note
+- Cafe pages show Cups up top; tap the rating to jump to them
+- Stories at the top of a cafe page show its latest cups
+- Own a cafe on Nook? Claim it right from its page
+- Cafes without photos show a sample photo, and new listings say when they haven't been checked yet
+- Fixes and polish across cafe pages and profiles

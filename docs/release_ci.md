@@ -10,11 +10,11 @@ uses no secrets and uploads nothing; it only catches iOS build breaks.
 `.github/workflows/ios-release.yml` builds an App Store-signed `.ipa` on a `v*` tag or by hand
 (Actions → iOS release IPA → Run workflow), using the exported-certificate route below, and keeps
 the `.ipa` as a run artifact for 7 days, then uploads it to App Store Connect with `xcrun altool`.
-It needs the `IOS_*`, `ASC_*` and `.env` secrets. On a release tag without a dash (`v1.1.4`, not
-`v1.1.4-test`) it then runs `fastlane deliver`: creates the App Store version from `pubspec.yaml`,
-sets "What's New" from `ios/metadata/en-US/release_notes.txt`, waits for Apple to process the build,
-attaches it and submits for review. Update that file before every release. Apple releases it to
-the App Store as soon as review approves it. The project itself still signs
+It needs the `IOS_*`, `ASC_*` and `.env` secrets. It stops at TestFlight: submitting for review is
+the separate **iOS submit for review** workflow, run after QA (see
+[QA before production](#qa-before-production-both-stores)). That workflow creates the App Store
+version from `pubspec.yaml`, sets "What's New" from `ios/metadata/en-US/release_notes.txt`, attaches
+the build and submits it. Update that file before every release. The project itself still signs
 automatically; CI switches the Runner target to manual signing only for its own build.
 
 ## Goal
@@ -200,3 +200,45 @@ Nothing reaches production without QA. Android is QA'd by Cris, iOS by the team.
 - Promotion never rebuilds: production gets the exact build QA installed.
 - Hand runs of the Android release can target internal, alpha or beta only; production is reachable only through the promote workflow.
 - The `play-ci@nook-auth-492210.iam.gserviceaccount.com` service account has, on `app.nookph` only: view (read-only), release to testing tracks, release to production.
+
+## QA loop and release candidates
+
+A version is shipped as a series of release candidates. Each one is a tag on `main`:
+`v1.1.5-rc1`, `v1.1.5-rc2`, and so on.
+
+- **Every RC tag builds both platforms.** Android goes to the Play **internal** track, whose only
+  tester list is "Cris QA". iOS goes to **TestFlight** for the iOS team. Nothing is submitted for
+  review and nothing goes public.
+- **The version name stays the same across RCs** (`1.1.5`, from `pubspec.yaml`). Only the build
+  number changes: CI sets it to `100 + run number`, so each RC is a new build on both stores.
+- **Each release run prints its build number** as a notice on the run page. Post it in the QA
+  thread so everyone tests and approves the same build.
+
+### When QA finds a bug
+
+1. Branch from `main` (`fix/<name>`), fix it, open a PR. The Android and iOS build checks must
+   pass.
+2. Merge, then tag the next RC from `main` (`v1.1.5-rc2`). Both platforms rebuild from the same
+   commit, so Android and iOS stay in sync. Don't patch one store only.
+
+### When QA approves
+
+1. Actions → **Android promote to production**, with the approved `version_code`.
+2. Actions → **iOS submit for review**, with the approved `build_number`.
+3. Google and Apple review the build, then it goes public. Promotion never rebuilds: the stores
+   get the exact build QA installed.
+
+### First-time setup and housekeeping
+
+- **Android testers join once** through the opt-in link
+  <https://play.google.com/apps/internaltest/4699803851069522512>. The link only works after a
+  release has been rolled out to the internal track, so send it after the first RC lands.
+- The internal track has an old unpublished draft, `1 (1.0.0)`. If the first CI upload complains
+  about it, delete that draft in Play Console and re-run.
+- **Next version:** bump `pubspec.yaml` to `1.1.6` and start again at `v1.1.6-rc1`.
+
+### Web apps are different
+
+`nook-webapp`, `nook-business` and `nook-admin` have no QA gate: they deploy to production as soon
+as a change is merged (business and admin once their Vercel fork is synced). Server changes in the
+shared Supabase project are live for every app, including the store builds QA is testing.
