@@ -152,6 +152,8 @@ void main() {
     await tester.tap(find.text('Take a photo'));
     await tester.pumpAndSettle();
     expect(picker.cameraCalls, 1);
+    // Nothing is Coffee until picked.
+    await tester.tap(find.bySemanticsLabel('Coffee'));
     await tester.tap(find.text('Post cup'));
     await tester.pumpAndSettle();
     expect(cups.posts, hasLength(1));

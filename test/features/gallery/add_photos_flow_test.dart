@@ -215,12 +215,14 @@ void main() {
       expect(find.text('Add your cup'), findsOneWidget);
       expect(find.text('Kamp Craft Coffee'), findsOneWidget);
       expect(find.text('2 of 10'), findsOneWidget);
+      // Each photo starts with no kind: this one is coffee.
+      await tester.tap(find.bySemanticsLabel('Coffee'));
       await tester.enterText(
         find.widgetWithText(TextField, 'What is it? (optional)'),
         'Iced Spanish latte',
       );
       // The second photo is food.
-      await tester.tap(find.bySemanticsLabel(RegExp(r'^Coffee 2 of 2')));
+      await tester.tap(find.bySemanticsLabel(RegExp(r'^Photo 2 of 2')));
       await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Food'));
       await tester.enterText(
@@ -266,6 +268,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Remove item 1'));
       await tester.pumpAndSettle();
       expect(find.text('1 of 10'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('Coffee'));
       await tester.tap(find.text('Post cup'));
       await tester.pumpAndSettle();
       expect(cups.posts.single.items, hasLength(1));
@@ -290,6 +293,7 @@ void main() {
       await _go(tester);
       await tester.tap(find.text('Kamp Craft Coffee'));
       await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Coffee'));
       await tester.tap(find.text('Post cup'));
       await tester.pumpAndSettle();
 
