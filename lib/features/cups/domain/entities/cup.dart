@@ -263,7 +263,9 @@ class CupStats extends Equatable {
   /// Null when nobody rated.
   final double? rating;
 
-  /// Items per kind, for the filter chips.
+  /// Cups with an item of each kind (photo or named), for the filter
+  /// chips: a chip's number is how many cups it shows. Untyped legacy
+  /// photos count under no kind.
   final Map<CupItemKind, int> kindCounts;
 
   bool get hasRatings => ratedCount > 0 && rating != null;
@@ -279,14 +281,6 @@ class CupStats extends Equatable {
       }
     }
     final ratings = [for (final c in latestRated.values) c.rating!];
-    // Photos per kind, as `get_cafe_cup_stats` counts them.
-    final kinds = <CupItemKind, int>{};
-    for (final c in cards) {
-      for (final i in c.photos) {
-        final kind = i.kind;
-        if (kind != null) kinds[kind] = (kinds[kind] ?? 0) + 1;
-      }
-    }
     return CupStats(
       cupCount: cards.length,
       peopleCount: {for (final c in cards) c.userId}.length,
@@ -297,9 +291,30 @@ class CupStats extends Equatable {
           : (ratings.reduce((a, b) => a + b) / ratings.length * 10)
                     .roundToDouble() /
                 10,
-      kindCounts: kinds,
+      kindCounts: cupKindCounts(cards),
     );
   }
+
+  /// How many of [cards] have an item of each kind; a cup with two coffees
+  /// counts once. Kinds no cup has are left out.
+  static Map<CupItemKind, int> cupKindCounts(Iterable<CupCard> cards) {
+    final counts = <CupItemKind, int>{};
+    for (final c in cards) {
+      for (final kind in {for (final i in c.items) ?i.kind}) {
+        counts[kind] = (counts[kind] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }
+
+  CupStats copyWith({Map<CupItemKind, int>? kindCounts}) => CupStats(
+    cupCount: cupCount,
+    peopleCount: peopleCount,
+    photoCount: photoCount,
+    ratedCount: ratedCount,
+    rating: rating,
+    kindCounts: kindCounts ?? this.kindCounts,
+  );
 
   @override
   List<Object?> get props => [

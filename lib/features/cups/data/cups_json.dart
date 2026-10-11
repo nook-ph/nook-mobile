@@ -15,23 +15,19 @@ abstract final class CupsJson {
     );
   }
 
-  /// The `get_cafe_cup_stats` row: cups (visits), people, photos, photos
-  /// per kind, and the rating from each person's latest rated visit.
+  /// The `get_cafe_cup_stats` row: cups (visits), people, photos, and the
+  /// rating from each person's latest rated visit. Its `*_photo_count`s are
+  /// not read: they count photos, legacy ones as coffee, while the chips
+  /// count cups ([CupStats.cupKindCounts], filled in by the repository).
   static CupStats stats(Object? raw) {
     final json = _map(raw);
     final rated = _int(json['rated_people_count'] ?? json['rated_count']);
-    final kinds = <CupItemKind, int>{
-      for (final kind in CupItemKind.values)
-        if (_int(json['${kind.wire}_photo_count']) > 0)
-          kind: _int(json['${kind.wire}_photo_count']),
-    };
     return CupStats(
       cupCount: _int(json['cup_count']),
       peopleCount: _int(json['people_count']),
       photoCount: _int(json['photo_count']),
       ratedCount: rated,
       rating: rated == 0 ? null : _double(json['rating']),
-      kindCounts: kinds,
     );
   }
 

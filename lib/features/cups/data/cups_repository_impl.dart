@@ -90,22 +90,14 @@ class CupsRepositoryImpl implements ICupsRepository {
   }) => _guard(
     'Could not load the cups.',
     () => _backend.run(
-      cups: () async {
-        final raw = await _client.rpc(
-          'get_cafe_cups',
-          params: {
-            'p_cafe_id': cafeId,
-            'p_sort': sort.wire,
-            'p_rating_filter': ratingFilter,
-            'p_kind_filter': kind?.wire,
-            'p_limit': limit.clamp(1, 100),
-            'p_offset': offset,
-            // The stories tray reads its photos on its own.
-            'p_photo_limit': 0,
-          },
-        );
-        return CupsJson.cafeCups(raw, cafeId: cafeId);
-      },
+      cups: () => _cupsCafeCups(
+        cafeId,
+        sort: sort,
+        ratingFilter: ratingFilter,
+        kind: kind,
+        limit: limit,
+        offset: offset,
+      ),
       legacy: () => _legacyCafeCups(
         cafeId,
         sort: sort,
@@ -116,6 +108,107 @@ class CupsRepositoryImpl implements ICupsRepository {
       ),
     ),
   );
+
+  /// How many of a cafe's cups the kind counts and the kind filter read.
+  /// Past this the counts are a floor; no cafe is near it (prod: 12 cups).
+  static const kindScanLimit = 100;
+
+  /// Cups per kind, by cafe: recounted on every unfiltered first page and
+  /// dropped on any write, kept for the filtered pages in between.
+  final _kindCounts = <String, Map<CupItemKind, int>>{};
+
+  /// `get_cafe_cups` without its kind filter. The server's kind filter and
+  /// its per-kind numbers count legacy photos as coffee and count photos,
+  /// not cups; both are worked out here from the cards instead, so a chip's
+  /// number is the number of cups it shows (UX review 4.2, 2.2).
+  Future<CafeCups> _rpcCafeCups(
+    String cafeId, {
+    required CupSort sort,
+    int? ratingFilter,
+    required int limit,
+    int offset = 0,
+  }) async {
+    final raw = await _client.rpc(
+      'get_cafe_cups',
+      params: {
+        'p_cafe_id': cafeId,
+        'p_sort': sort.wire,
+        'p_rating_filter': ratingFilter,
+        'p_kind_filter': null,
+        'p_limit': limit.clamp(1, kindScanLimit),
+        'p_offset': offset,
+        // The stories tray reads its photos on its own.
+        'p_photo_limit': 0,
+      },
+    );
+    return CupsJson.cafeCups(raw, cafeId: cafeId);
+  }
+
+  Future<Map<CupItemKind, int>> _countKinds(String cafeId) async {
+    final all = await _rpcCafeCups(
+      cafeId,
+      sort: CupSort.recent,
+      limit: kindScanLimit,
+    );
+    return _kindCounts[cafeId] = CupStats.cupKindCounts(all.cards);
+  }
+
+  Future<CafeCups> _cupsCafeCups(
+    String cafeId, {
+    required CupSort sort,
+    int? ratingFilter,
+    CupItemKind? kind,
+    required int limit,
+    required int offset,
+  }) async {
+    if (kind == null) {
+      final page = await _rpcCafeCups(
+        cafeId,
+        sort: sort,
+        ratingFilter: ratingFilter,
+        limit: limit,
+        offset: offset,
+      );
+      final fresh = offset == 0 && ratingFilter == null;
+      final Map<CupItemKind, int> counts;
+      if (fresh && !page.hasMore) {
+        // The page is every cup: count from it, no second read.
+        counts = _kindCounts[cafeId] = CupStats.cupKindCounts(page.cards);
+      } else {
+        counts =
+            (fresh ? null : _kindCounts[cafeId]) ?? await _countKinds(cafeId);
+      }
+      return CafeCups(
+        cafeId: page.cafeId,
+        stats: page.stats.copyWith(kindCounts: counts),
+        cards: page.cards,
+        total: page.total,
+        hasMore: page.hasMore,
+      );
+    }
+    // A kind: filtered here from the cafe's cups, in the asked order.
+    final all = await _rpcCafeCups(
+      cafeId,
+      sort: sort,
+      ratingFilter: ratingFilter,
+      limit: kindScanLimit,
+    );
+    final matching = [
+      for (final c in all.cards)
+        if (LegacyCups.hasKind(c, kind)) c,
+    ];
+    final page = matching.skip(offset).take(limit).toList();
+    final counts = ratingFilter == null
+        ? (_kindCounts[cafeId] = CupStats.cupKindCounts(all.cards))
+        : (_kindCounts[cafeId] ?? await _countKinds(cafeId));
+    return CafeCups(
+      cafeId: all.cafeId,
+      stats: all.stats.copyWith(kindCounts: counts),
+      cards: page,
+      total: matching.length,
+      hasMore: offset + page.length < matching.length,
+    );
+  }
 
   Future<CafeCups> _legacyCafeCups(
     String cafeId, {
@@ -228,6 +321,7 @@ class CupsRepositoryImpl implements ICupsRepository {
     required List<CupItemDraft> items,
     void Function(int index)? onPhotoUploaded,
   }) async {
+    _kindCounts.clear();
     final cleanNote = _clean(note, maxCupNote);
     final cleanItems = _cleanItems(items);
     final uploads = await _uploadItems(cleanItems, cafeId, onPhotoUploaded);
@@ -307,6 +401,7 @@ class CupsRepositoryImpl implements ICupsRepository {
     List<String> removeItemIds = const [],
     void Function(int index)? onPhotoUploaded,
   }) async {
+    _kindCounts.clear();
     final cafeId = cup.cafeId ?? '';
     final cleanNote = _clean(note, maxCupNote);
     final cleanItems = _cleanItems(addItems);
@@ -415,6 +510,7 @@ class CupsRepositoryImpl implements ICupsRepository {
   @override
   Future<void> deleteCup(CupCard cup) =>
       _guard('Could not delete your cup.', () async {
+        _kindCounts.clear();
         final cupId = cup.cupId;
         if (cupId != null) {
           final raw = await _client.rpc(

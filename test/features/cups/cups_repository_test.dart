@@ -299,8 +299,11 @@ void main() {
       final page = await r.getCafeCups('cafe-1', kind: CupItemKind.food);
 
       expect(r.mode, CupsMode.cups);
+      // The kind is filtered here, from the cards, not by the server (which
+      // counts legacy photos as coffee).
       final body = jsonDecode(requests.single.body) as Map;
-      expect(body['p_kind_filter'], 'food');
+      expect(body['p_kind_filter'], isNull);
+      expect(body['p_limit'], CupsRepositoryImpl.kindScanLimit);
       final cup = page.cards.single;
       expect(cup.cupId, 'cup-1');
       expect(cup.rating, isNull);
@@ -311,6 +314,63 @@ void main() {
       expect(cup.items.single.imageUrl, 'https://cdn/x.jpg');
       expect(page.stats.hasRatings, isFalse);
       expect(page.stats.kindCounts, {CupItemKind.food: 1});
+      expect(page.total, 1);
+    });
+
+    test('chip counts are cups, not photos, and a kind filters the cups', () {
+      // Three cups: two coffees in one, a coffee and a food in another, and
+      // a legacy review read as coffee by the server.
+      Map<String, Object?> cup(
+        String id,
+        List<String> kinds, {
+        bool virtual = false,
+      }) => {
+        'id': id,
+        'source': virtual ? 'review' : 'cup',
+        'is_virtual': virtual,
+        'review_id': virtual ? 'r-$id' : null,
+        'user_id': 'user-$id',
+        'visited_at': '2026-10-09',
+        'items': [
+          for (var i = 0; i < kinds.length; i++)
+            {
+              'id': '$id-$i',
+              'kind': kinds[i],
+              'photo': {'id': '$id-$i', 'image_url': 'https://cdn/$id$i.jpg'},
+            },
+        ],
+      };
+      final cards = [
+        cup('a', ['coffee', 'coffee']),
+        cup('b', ['coffee', 'food']),
+        cup('c', ['coffee'], virtual: true),
+      ];
+      answer = (request) => http.Response(
+        jsonEncode({
+          'cafe_id': 'cafe-1',
+          'stats': {'cup_count': 3, 'coffee_photo_count': 4},
+          'cards': cards,
+          'total': 3,
+          'has_more': false,
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+        request: request,
+      );
+      return () async {
+        final r = await repo();
+        final all = await r.getCafeCups('cafe-1', limit: 3);
+        expect(all.stats.kindCounts, {
+          CupItemKind.coffee: 2,
+          CupItemKind.food: 1,
+        });
+        // The whole cafe came in one page: no second read to count.
+        expect(rpcCalls(), ['get_cafe_cups']);
+
+        final coffee = await r.getCafeCups('cafe-1', kind: CupItemKind.coffee);
+        expect([for (final c in coffee.cards) c.id], ['a', 'b']);
+        expect(coffee.total, all.stats.kindCounts[CupItemKind.coffee]);
+      }();
     });
 
     test('post_cup gets the items, kinds and names, and no stars', () async {

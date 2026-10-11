@@ -122,7 +122,8 @@ void main() {
       expect(item.menuItemId, 'm1');
     });
 
-    test('stats: per-kind photo counts and the fair rating', () {
+    test('stats: the fair rating; the RPC\'s photo-per-kind numbers are '
+        'not chip counts', () {
       final stats = CupsJson.stats({
         'cup_count': 5,
         'people_count': 3,
@@ -135,7 +136,8 @@ void main() {
         'rating': 4.5,
       });
       expect(stats.cupCount, 5);
-      expect(stats.kindCounts, {CupItemKind.coffee: 4, CupItemKind.food: 3});
+      // Photos, legacy ones as coffee: the chips count cups instead.
+      expect(stats.kindCounts, isEmpty);
       expect(stats.hasRatings, isTrue);
       expect(stats.rating, 4.5);
       expect(CupsJson.stats({'rated_people_count': 0}).hasRatings, isFalse);
@@ -224,6 +226,40 @@ void main() {
       final lia = cards.firstWhere((c) => c.reviewId == 'r1');
       expect(lia.rating, 5);
       expect(lia.source, 'review');
+    });
+
+    test('kind counts are cups with that kind, photo or not', () {
+      CupCard cup(String id, List<CupItem> items) => CupCard(
+        id: id,
+        userId: 'u$id',
+        username: 'u$id',
+        visitedAt: DateTime(2026, 10, 1),
+        items: items,
+      );
+      const latte = CupItem(
+        id: 'a',
+        kind: CupItemKind.coffee,
+        imageUrl: 'https://cdn/a.jpg',
+      );
+      const flatWhite = CupItem(
+        id: 'b',
+        kind: CupItemKind.coffee,
+        imageUrl: 'https://cdn/b.jpg',
+      );
+      const ensaymada = CupItem(
+        id: 'c',
+        kind: CupItemKind.food,
+        name: 'Ensaymada',
+      );
+      // An untyped legacy photo counts under no kind.
+      const sofa = CupItem(id: 'd', imageUrl: 'https://cdn/d.jpg');
+      final stats = CupStats.fromCards([
+        cup('1', [latte, flatWhite]),
+        cup('2', [latte, ensaymada]),
+        cup('3', [sofa]),
+      ]);
+      expect(stats.kindCounts, {CupItemKind.coffee: 2, CupItemKind.food: 1});
+      expect(stats.photoCount, 4);
     });
 
     test('the cafe rating counts each person once: their latest rated '

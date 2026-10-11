@@ -390,12 +390,16 @@ void main() {
       expect(taps, ['add', 'all', 'helpful mae.brews']);
     });
 
-    testWidgets('the kind filter narrows the cups', (tester) async {
+    testWidgets('the kind filter narrows the cups, as many as its chip says', (
+      tester,
+    ) async {
       final cubit = await pump(tester, FakeCupsRepository(now: () => _now));
-      expect(find.bySemanticsLabel('Food, 1'), findsOneWidget);
-      await tester.ensureVisible(find.bySemanticsLabel('Food, 1'));
+      // Two cups have food: one with a photo of it, one naming it. The chip
+      // counts cups, not the one food photo.
+      expect(find.bySemanticsLabel('Food, 2'), findsOneWidget);
+      await tester.ensureVisible(find.bySemanticsLabel('Food, 2'));
       await tester.pumpAndSettle();
-      await tester.tap(find.bySemanticsLabel('Food, 1'));
+      await tester.tap(find.bySemanticsLabel('Food, 2'));
       await tester.pump();
       await tester.pump();
       expect(cubit.state.kind, CupItemKind.food);
@@ -453,7 +457,8 @@ void main() {
     expect(find.text('Any rating'), findsOneWidget);
     expect(find.text('Recommended'), findsOneWidget);
     expect(find.text('@mae.brews'), findsOneWidget);
-    expect(find.text('Food 1'), findsOneWidget);
+    // Chips count cups (2 with food), the Photos tab counts photos.
+    expect(find.text('Food 2'), findsOneWidget);
 
     await tester.tap(find.text('Photos · 7'));
     await tester.pump();
