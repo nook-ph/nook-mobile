@@ -617,7 +617,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
         ] else if (issue == CupDraftIssue.empty) ...[
           const SizedBox(height: 8),
           Text(
-            'A photo, what you had, or a note is enough. Stars are up to you.',
+            'A photo or a note is enough. Stars are up to you.',
             style: context.textTheme.bodySmall?.copyWith(
               color: ReviewTokens.muted,
               fontSize: 13,

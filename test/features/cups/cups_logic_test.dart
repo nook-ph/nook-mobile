@@ -220,14 +220,23 @@ void main() {
   });
 
   group('checkCupDraft', () {
-    test('a photo, a named item or a note is enough; stars alone are not', () {
+    test('a photo or a note is enough; stars or named items alone are not', () {
       expect(
         checkCupDraft(photoCount: 0, note: '  ', rating: 5),
         CupDraftIssue.empty,
       );
       expect(checkCupDraft(photoCount: 1, note: '', rating: null), isNull);
       expect(
-        checkCupDraft(photoCount: 0, namedItemCount: 1, note: '', rating: null),
+        checkCupDraft(photoCount: 0, namedItemCount: 1, note: '', rating: 5),
+        CupDraftIssue.empty,
+      );
+      expect(
+        checkCupDraft(
+          photoCount: 0,
+          namedItemCount: 1,
+          note: 'Nice',
+          rating: null,
+        ),
         isNull,
       );
       expect(checkCupDraft(photoCount: 0, note: 'Nice', rating: null), isNull);

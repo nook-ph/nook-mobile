@@ -3,7 +3,8 @@ import 'package:nook/features/cups/domain/entities/cup.dart';
 
 /// What stops a cup from being posted, in the order the composer checks.
 enum CupDraftIssue {
-  /// No photo, no named item and no note: stars alone are not a cup.
+  /// No photo and no note: stars alone, or with only named items, are not
+  /// a cup (the server refuses it as `cup_empty`).
   empty,
   tooManyItems,
   noteTooLong,
@@ -15,8 +16,8 @@ enum CupDraftIssue {
 
 /// Checks a cup before it is posted. Null when it can go.
 ///
-/// A cup needs something to show: a photo, a named item ("Banana bread")
-/// or a note. Stars are optional. [legacy] is the fallback backend, where
+/// A cup needs a photo or a note; named items ("Banana bread") ride along
+/// but don't count on their own, as on the server. Stars are optional. [legacy] is the fallback backend, where
 /// a note is saved as a review and so needs a rating.
 CupDraftIssue? checkCupDraft({
   required int photoCount,
@@ -27,7 +28,7 @@ CupDraftIssue? checkCupDraft({
   bool legacy = false,
 }) {
   final text = note.trim();
-  if (photoCount <= 0 && namedItemCount <= 0 && text.isEmpty) {
+  if (photoCount <= 0 && text.isEmpty) {
     return CupDraftIssue.empty;
   }
   if (photoCount + namedItemCount > maxCupItems) {
@@ -46,7 +47,7 @@ CupDraftIssue? checkCupDraft({
 
 /// What the composer says about [issue].
 String cupDraftMessage(CupDraftIssue issue) => switch (issue) {
-  CupDraftIssue.empty => 'Add a photo, what you had, or a note.',
+  CupDraftIssue.empty => 'Add a photo or a note.',
   CupDraftIssue.tooManyItems => 'A cup holds up to $maxCupItems items.',
   CupDraftIssue.noteTooLong =>
     'Keep the note to $maxCupNote characters or fewer.',

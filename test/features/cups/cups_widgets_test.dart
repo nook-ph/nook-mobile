@@ -101,9 +101,7 @@ void main() {
       expect(find.text('Add your cup'), findsOneWidget);
       expect(find.text('Kamp Craft Coffee'), findsOneWidget);
       expect(
-        find.text(
-          'A photo, what you had, or a note is enough. Stars are up to you.',
-        ),
+        find.text('A photo or a note is enough. Stars are up to you.'),
         findsOneWidget,
       );
       // Stars alone are not a cup.
@@ -172,6 +170,17 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Ensaymada'));
       await tester.pumpAndSettle();
+      // A named item alone is refused by the server (cup_empty): it needs a
+      // photo or a note to go with it.
+      await tester.tap(find.text('Post cup'));
+      await tester.pumpAndSettle();
+      expect(cups.posts, isEmpty);
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Note (optional)'),
+        'Still warm.',
+      );
+      await tester.pump();
       await tester.tap(find.text('Post cup'));
       await tester.pumpAndSettle();
 

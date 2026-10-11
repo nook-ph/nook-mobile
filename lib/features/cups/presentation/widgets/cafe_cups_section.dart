@@ -517,7 +517,7 @@ class _Empty extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Been here? Add the first one: a photo, what you had, or a note.',
+            'Been here? Add the first one: a photo or a note.',
             textAlign: TextAlign.center,
             style: theme.bodySmall?.copyWith(color: CafeDetailsTokens.muted),
           ),
