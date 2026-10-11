@@ -242,13 +242,18 @@ void main() {
               'cup_count': 1,
               'people_count': 1,
               'photo_count': 1,
-              'rated_count': 0,
+              'coffee_photo_count': 0,
+              'drink_photo_count': 0,
+              'food_photo_count': 1,
+              'space_photo_count': 0,
+              'rated_people_count': 0,
               'rating': null,
-              'kind_counts': {'food': 1},
             },
             'cards': [
               {
-                'cup_id': 'cup-1',
+                'id': 'cup-1',
+                'source': 'cup',
+                'is_virtual': false,
                 'user_id': 'user-mae',
                 'username': 'mae',
                 'rating': null,
@@ -261,7 +266,12 @@ void main() {
                     'id': 'item-1',
                     'kind': 'food',
                     'item_name': 'Ensaymada',
-                    'image_url': 'https://cdn/x.jpg',
+                    'menu_item_id': null,
+                    'photo': {
+                      'id': 'photo-1',
+                      'image_url': 'https://cdn/x.jpg',
+                      'taken_at': '2026-10-09T03:00:00Z',
+                    },
                   },
                 ],
               },
@@ -270,7 +280,7 @@ void main() {
             'has_more': false,
           },
           'post_cup' => {
-            'cup': {'cup_id': 'cup-2', 'user_id': _me, 'items': []},
+            'cup': {'id': 'cup-2', 'user_id': _me, 'items': []},
             'marked_been': true,
           },
           _ => null,
@@ -297,6 +307,8 @@ void main() {
       expect(cup.visitsByAuthor, 2);
       expect(cup.items.single.kind, CupItemKind.food);
       expect(cup.items.single.label, 'Ensaymada');
+      expect(cup.items.single.photoId, 'photo-1');
+      expect(cup.items.single.imageUrl, 'https://cdn/x.jpg');
       expect(page.stats.hasRatings, isFalse);
       expect(page.stats.kindCounts, {CupItemKind.food: 1});
     });
@@ -307,7 +319,7 @@ void main() {
       final result = await r.postCup(
         cafeId: 'cafe-1',
         note: '  Good for work.  ',
-        visitedAt: DateTime.utc(2026, 10, 10),
+        visitedAt: DateTime(2026, 10, 10),
         items: [
           CupItemDraft(
             file: File('/tmp/a.jpg'),
@@ -327,7 +339,7 @@ void main() {
       final body = jsonDecode(post.body) as Map;
       expect(body['p_rating'], isNull);
       expect(body['p_note'], 'Good for work.');
-      expect(body['p_visited_at'], '2026-10-10T00:00:00.000Z');
+      expect(body['p_visited_at'], '2026-10-10');
       final items = body['p_items'] as List;
       expect(items[0]['kind'], 'coffee');
       expect(items[0]['item_name'], 'Cortado');
@@ -382,7 +394,7 @@ void main() {
           ),
         );
         expect(uploads, ['a.jpg']);
-        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
         expect(
           requests.where((r) => r.url.path.startsWith('/functions/')),
           hasLength(1),

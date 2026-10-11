@@ -15,17 +15,18 @@ abstract final class CupsJson {
     );
   }
 
+  /// The `get_cafe_cup_stats` row: cups (visits), people, photos, photos
+  /// per kind, and the rating from each person's latest rated visit.
   static CupStats stats(Object? raw) {
     final json = _map(raw);
-    final rated = _int(json['rated_count'] ?? json['rated_people']);
-    final kinds = <CupItemKind, int>{};
-    final byKind = _map(json['kind_counts']);
-    for (final entry in byKind.entries) {
-      final kind = CupItemKind.fromWire(entry.key);
-      if (kind != null) kinds[kind] = _int(entry.value);
-    }
+    final rated = _int(json['rated_people_count'] ?? json['rated_count']);
+    final kinds = <CupItemKind, int>{
+      for (final kind in CupItemKind.values)
+        if (_int(json['${kind.wire}_photo_count']) > 0)
+          kind: _int(json['${kind.wire}_photo_count']),
+    };
     return CupStats(
-      cupCount: _int(json['cup_count'] ?? json['card_count']),
+      cupCount: _int(json['cup_count']),
       peopleCount: _int(json['people_count']),
       photoCount: _int(json['photo_count']),
       ratedCount: rated,
@@ -34,20 +35,21 @@ abstract final class CupsJson {
     );
   }
 
+  /// A `cup` object (also `cards[]`, `my_cups[]`). Every one has an id the
+  /// cup RPCs take, a legacy visit (`is_virtual`) included.
   static CupCard card(Object? raw, {String? cafeId}) {
     final json = _map(raw);
-    final cupId = _string(json['cup_id'] ?? json['id']);
+    final id = _string(json['id'] ?? json['cup_id']) ?? '';
     final reviewId = _string(json['review_id']);
     final userId = (json['user_id'] as String?) ?? '';
-    final visited = _date(
-      json['visited_at'] ?? json['created_at'] ?? json['last_activity_at'],
-    );
-    final rawItems = json['items'] is List ? json['items'] : json['photos'];
+    final visited = _date(json['visited_at'] ?? json['created_at']);
     return CupCard(
-      id: cupId ?? reviewId ?? '$userId:${visited.toIso8601String()}',
-      cupId: cupId,
+      id: id.isEmpty ? '$userId:${visited.toIso8601String()}' : id,
+      cupId: id.isEmpty ? null : id,
       reviewId: reviewId,
       cafeId: _string(json['cafe_id']) ?? cafeId,
+      source: _string(json['source']) ?? 'cup',
+      isVirtual: json['is_virtual'] == true,
       userId: userId,
       username: (json['username'] as String?)?.trim() ?? '',
       fullName: _string(json['full_name']),
@@ -58,40 +60,43 @@ abstract final class CupsJson {
       hasVoted: json['has_voted'] == true,
       isMine: json['is_mine'] == true,
       visitedAt: visited,
-      items: [for (final i in _list(rawItems)) item(i)],
+      items: [for (final i in _list(json['items'])) item(i)],
       visitsByAuthor: _int(json['visits_by_author']).clamp(1, 1 << 20),
     );
   }
 
+  /// `{ id, kind, item_name, menu_item_id, menu_item_name, photo|null }`.
   static CupItem item(Object? raw) {
     final json = _map(raw);
+    final photo = json['photo'] is Map ? _map(json['photo']) : null;
     return CupItem(
-      id: '${json['id'] ?? json['item_id'] ?? json['object_key'] ?? ''}',
+      id: '${json['id'] ?? ''}',
       kind: CupItemKind.fromWire(json['kind']),
-      name: _string(json['item_name'] ?? json['drink_name']),
+      name: _string(json['item_name']) ?? _string(json['menu_item_name']),
       menuItemId: _string(json['menu_item_id']),
-      imageUrl: _string(json['image_url']),
-      takenAt: json['taken_at'] == null ? null : _date(json['taken_at']),
-      caption: _string(json['caption']),
-      source: _string(json['source']),
-      objectKey: _string(json['object_key']),
+      photoId: photo == null ? null : _string(photo['id']),
+      imageUrl: photo == null ? null : _string(photo['image_url']),
+      takenAt: photo?['taken_at'] == null ? null : _date(photo!['taken_at']),
+      objectKey: photo == null ? null : _string(photo['object_key']),
+      isHidden: photo?['is_hidden'] == true,
     );
   }
 
-  /// `post_cup` → `{cup, marked_been}`; `update_cup` / `add_cup_items`
-  /// return the cup the same way (or bare).
+  /// `post_cup` → `{cup, marked_been}`; `update_cup` → `{cup}`;
+  /// `add_cup_items` → `{cup, added}`.
   static CupPostResult postResult(Object? raw, {int itemsAdded = 0}) {
     final json = _map(raw);
-    final cup = json['cup'] is Map
-        ? card(json['cup'])
-        : (json.containsKey('user_id') ? card(json) : null);
     return CupPostResult(
-      cup: cup,
-      itemsAdded: json.containsKey('items_added')
-          ? _int(json['items_added'])
-          : itemsAdded,
+      cup: json['cup'] is Map ? card(json['cup']) : null,
+      itemsAdded: json.containsKey('added') ? _int(json['added']) : itemsAdded,
       markedBeen: json['marked_been'] == true,
     );
+  }
+
+  /// `p_visited_at` is a date: the visit's day, not an instant.
+  static String visitDate(DateTime at) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${at.year}-${two(at.month)}-${two(at.day)}';
   }
 
   /// Null when the payload is null (a profile that can't be shown). Takes

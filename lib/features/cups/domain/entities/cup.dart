@@ -45,9 +45,19 @@ class CupItem extends Equatable {
     this.source,
     this.sourceId,
     this.objectKey,
+    this.photoId,
+    this.isHidden = false,
   });
 
+  /// The item's id, which `remove_cup_item` takes. On a legacy visit it is
+  /// the photo's id.
   final String id;
+
+  /// The photo's own id (`user_photos.id`), when the item has a photo.
+  final String? photoId;
+
+  /// Your own photo, hidden from your profile.
+  final bool isHidden;
 
   /// Null on legacy photos, which never said.
   final CupItemKind? kind;
@@ -90,6 +100,8 @@ class CupItem extends Equatable {
     source,
     sourceId,
     objectKey,
+    photoId,
+    isHidden,
   ];
 }
 
@@ -106,6 +118,8 @@ class CupCard extends Equatable {
     this.cupId,
     this.reviewId,
     this.cafeId,
+    this.source = 'cup',
+    this.isVirtual = false,
     this.fullName,
     this.avatarUrl,
     this.rating,
@@ -127,6 +141,13 @@ class CupCard extends Equatable {
   /// Set for a legacy review shown as a cup.
   final String? reviewId;
   final String? cafeId;
+
+  /// `cup`, `review` (a 1.1.x review's visit) or `photos` (a legacy photo
+  /// day).
+  final String source;
+
+  /// A legacy visit read as a cup; the cup RPCs still take its id.
+  final bool isVirtual;
   final String userId;
 
   /// Without the @. May be empty for an unfinished account.
@@ -179,6 +200,8 @@ class CupCard extends Equatable {
     cupId: cupId,
     reviewId: reviewId,
     cafeId: cafeId,
+    source: source,
+    isVirtual: isVirtual,
     userId: userId,
     username: username,
     fullName: fullName,
@@ -199,6 +222,8 @@ class CupCard extends Equatable {
     cupId,
     reviewId,
     cafeId,
+    source,
+    isVirtual,
     userId,
     username,
     fullName,

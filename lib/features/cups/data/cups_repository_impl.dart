@@ -242,7 +242,9 @@ class CupsRepositoryImpl implements ICupsRepository {
               'p_rating': rating,
               'p_note': cleanNote,
               'p_items': payload,
-              'p_visited_at': visitedAt?.toUtc().toIso8601String(),
+              'p_visited_at': visitedAt == null
+                  ? null
+                  : CupsJson.visitDate(visitedAt),
             },
           );
           return CupsJson.postResult(raw, itemsAdded: payload.length);
@@ -315,7 +317,9 @@ class CupsRepositoryImpl implements ICupsRepository {
             'p_cup_id': cupId,
             'p_rating': rating,
             'p_note': cleanNote,
-            'p_visited_at': visitedAt?.toUtc().toIso8601String(),
+            'p_visited_at': visitedAt == null
+                ? null
+                : CupsJson.visitDate(visitedAt),
           },
         );
         if (payload.isNotEmpty) {
@@ -329,6 +333,10 @@ class CupsRepositoryImpl implements ICupsRepository {
             'remove_cup_item',
             params: {'p_cup_id': cupId, 'p_item_id': id},
           );
+          final keys = raw is Map && raw['object_keys'] is List
+              ? [for (final k in raw['object_keys'] as List) k?.toString()]
+              : const <String?>[];
+          _deleteFiles(keys);
         }
         return CupsJson.postResult(raw, itemsAdded: payload.length);
       }

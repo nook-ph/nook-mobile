@@ -21,7 +21,7 @@ abstract final class LegacyCups {
       credits.putIfAbsent(p.credit.userId, () => p.credit);
     }
     final byReview = <String, List<GalleryPhoto>>{};
-    final loose = <GalleryPhoto>[];
+    final loose = <CommunityPhoto>[];
     final reviewIds = {for (final r in reviews) r.id};
     for (final p in photos) {
       final reviewId = p.photo.sourceId;
@@ -30,7 +30,7 @@ abstract final class LegacyCups {
           reviewIds.contains(reviewId)) {
         (byReview[reviewId] ??= []).add(p.photo);
       } else {
-        loose.add(p.photo);
+        loose.add(p);
       }
     }
 
@@ -57,17 +57,23 @@ abstract final class LegacyCups {
         ),
       );
     }
-    for (final group in _byDay(loose)) {
-      final first = group.first;
-      final credit = credits[first.userId];
+    // The credit is the author (the photo row's user, joined to profiles).
+    final byPersonDay = <String, List<CommunityPhoto>>{};
+    for (final p in loose) {
+      final key = '${p.credit.userId}|${_dayKey(p.photo.takenAt)}';
+      (byPersonDay[key] ??= []).add(p);
+    }
+    for (final group in byPersonDay.values) {
+      final credit = group.first.credit;
       cards.add(
         _photoCard(
-          group,
+          [for (final p in group) p.photo],
+          userId: credit.userId,
           cafeId: cafeId,
-          username: credit?.username ?? '',
-          fullName: credit?.fullName,
-          avatarUrl: credit?.avatarUrl,
-          isMine: me != null && first.userId == me,
+          username: credit.username,
+          fullName: credit.fullName,
+          avatarUrl: credit.avatarUrl,
+          isMine: credit.isSelf || (me != null && credit.userId == me),
         ),
       );
     }
@@ -127,6 +133,7 @@ abstract final class LegacyCups {
         ]))
           _photoCard(
             group,
+            userId: userId,
             cafeId: cafeId,
             username: username,
             avatarUrl: avatarUrl,
@@ -180,6 +187,8 @@ abstract final class LegacyCups {
 
   static CupItem fromGallery(GalleryPhoto p) => CupItem(
     id: p.id,
+    photoId: p.id,
+    isHidden: p.isHidden,
     name: p.drinkName,
     imageUrl: p.imageUrl,
     takenAt: p.takenAt,
@@ -225,6 +234,8 @@ abstract final class LegacyCups {
     return CupCard(
       id: 'review:$reviewId',
       reviewId: reviewId,
+      source: 'review',
+      isVirtual: true,
       cafeId: cafeId,
       userId: userId,
       username: username,
@@ -242,6 +253,7 @@ abstract final class LegacyCups {
 
   static CupCard _photoCard(
     List<GalleryPhoto> group, {
+    required String userId,
     required String cafeId,
     required String username,
     String? fullName,
@@ -251,9 +263,11 @@ abstract final class LegacyCups {
     final sorted = [...group]..sort((a, b) => b.takenAt.compareTo(a.takenAt));
     final first = sorted.first;
     return CupCard(
-      id: 'photos:${first.userId}:${_dayKey(first.takenAt)}',
+      id: 'photos:$userId:${_dayKey(first.takenAt)}',
+      source: 'photos',
+      isVirtual: true,
       cafeId: cafeId,
-      userId: first.userId,
+      userId: userId,
       username: username,
       fullName: fullName,
       avatarUrl: avatarUrl,
@@ -290,6 +304,8 @@ abstract final class LegacyCups {
           cupId: c.cupId,
           reviewId: c.reviewId,
           cafeId: c.cafeId,
+          source: c.source,
+          isVirtual: c.isVirtual,
           userId: c.userId,
           username: c.username,
           fullName: c.fullName,
