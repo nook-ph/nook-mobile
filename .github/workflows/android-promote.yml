@@ -1,0 +1,60 @@
+name: Android promote to production
+
+# After QA on the internal track, promotes that exact build to production.
+# Run by hand from the Actions tab. Never builds anything: production only ever
+# gets a build that QA installed from internal testing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: Version code QA approved (blank = latest on internal)
+        required: false
+        type: string
+      rollout:
+        description: Staged rollout fraction (1 = everyone, 0.2 = 20%)
+        required: true
+        default: '1'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - run: gem install fastlane --no-document
+
+      - name: Promote internal to production
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          VERSION_CODE: ${{ inputs.version_code }}
+          ROLLOUT: ${{ inputs.rollout }}
+        run: |
+          : "${PLAY_JSON:?missing secret PLAY_SERVICE_ACCOUNT_JSON}"
+          printf '%s' "$PLAY_JSON" > "$RUNNER_TEMP/play.json"
+          STATUS=completed
+          awk -v r="$ROLLOUT" 'BEGIN{exit !(r>0 && r<1)}' && STATUS=inProgress
+          ARGS=(
+            package_name:app.nookph
+            json_key:"$RUNNER_TEMP/play.json"
+            track:internal
+            track_promote_to:production
+            track_promote_release_status:"$STATUS"
+            skip_upload_apk:true skip_upload_aab:true skip_upload_metadata:true
+            skip_upload_changelogs:true skip_upload_images:true skip_upload_screenshots:true
+          )
+          [ "$STATUS" = inProgress ] && ARGS+=(rollout:"$ROLLOUT")
+          [ -n "$VERSION_CODE" ] && ARGS+=(version_code:"$VERSION_CODE")
+          fastlane run supply "${ARGS[@]}"
+          rm -f "$RUNNER_TEMP/play.json"

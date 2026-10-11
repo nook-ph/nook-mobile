@@ -1,0 +1,55 @@
+name: Android build
+
+# Analyze, test and an unsigned release app bundle: proves the app still compiles for Android.
+# No secrets are used, so it is safe to run on pull requests from forks.
+# Signed Play uploads are in android-release.yml (docs/release_ci.md).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: 3.41.6
+          channel: stable
+          cache: true
+
+      # .env is a bundled asset, so the build fails if it is missing.
+      # An empty one is enough to compile and test; nothing here runs the app.
+      - run: touch .env
+
+      - run: flutter pub get
+
+      # Only errors fail the check; existing infos and warnings are left for cleanup.
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - run: flutter test
+
+      # Without key.properties the release build refuses to run; this env var lets it
+      # produce an unsigned bundle instead (android/app/build.gradle.kts).
+      - name: Build unsigned app bundle
+        env:
+          NOOK_ALLOW_UNSIGNED_RELEASE: 'true'
+        run: flutter build appbundle --release
