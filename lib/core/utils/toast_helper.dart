@@ -30,20 +30,26 @@ void showPrimaryToast(
 }
 
 /// Primary toast with a trailing action (e.g. "Added to Been · Add a note").
-/// Tapping the action dismisses the toast first.
+/// Tapping the action dismisses the toast first. [secondaryActionLabel] adds
+/// a second action after the first ("Cup posted  Share  Rank it").
 void showPrimaryToastWithAction(
   BuildContext context,
   String message, {
   required String actionLabel,
   required VoidCallback onAction,
+  String? secondaryActionLabel,
+  VoidCallback? onSecondaryAction,
   Duration duration = const Duration(seconds: 5),
   double bottomOffset = 0,
 }) {
   _showToastBar(
     context,
     message,
-    actionLabel: actionLabel,
-    onAction: onAction,
+    actions: [
+      (actionLabel, onAction),
+      if (secondaryActionLabel != null && onSecondaryAction != null)
+        (secondaryActionLabel, onSecondaryAction),
+    ],
     duration: duration,
     bottomOffset: bottomOffset,
   );
@@ -62,8 +68,7 @@ const _toastAction = Color(0xFFA3B18A);
 void _showToastBar(
   BuildContext context,
   String message, {
-  String? actionLabel,
-  VoidCallback? onAction,
+  List<(String, VoidCallback)> actions = const [],
   required Duration duration,
   required double bottomOffset,
 }) {
@@ -112,12 +117,12 @@ void _showToastBar(
                 style: style,
               ),
             ),
-            if (actionLabel != null) ...[
+            for (final (actionLabel, onAction) in actions) ...[
               const SizedBox(width: 12),
               AdaptiveTextButton(
                 onPressed: () {
                   toastification.dismiss(holder);
-                  onAction?.call();
+                  onAction();
                 },
                 style: TextButton.styleFrom(
                   foregroundColor: _toastAction,

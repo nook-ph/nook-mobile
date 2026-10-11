@@ -57,6 +57,11 @@ class ShareService {
     );
   }
 
+  /// A cup's public page. [ref] says where the link was shared from
+  /// (`cup_story` or `cup_share`), for the web's landing beacon.
+  static String cupLink(String cupId, {required String ref}) =>
+      'https://www.nookph.app/cups/$cupId?ref=$ref';
+
   /// The public page for a crawl. `nookph.app/c/<code>` is also the short
   /// form printed on share cards and typed into "Enter a code".
   static String crawlLink(String shareCode) =>

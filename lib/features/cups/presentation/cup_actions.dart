@@ -11,6 +11,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/review_sheet_she
 import 'package:nook/features/cups/domain/entities/cup.dart';
 import 'package:nook/features/cups/domain/i_cups_repository.dart';
 import 'package:nook/features/cups/presentation/cubit/cafe_cups_cubit.dart';
+import 'package:nook/features/cups/presentation/share/cup_share_sheet.dart';
 import 'package:nook/features/cups/presentation/widgets/cup_composer_sheet.dart';
 import 'package:nook/features/cups/data/cups_community_photos_repository.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
@@ -115,13 +116,17 @@ Future<void> toggleCupHelpful(
   }
 }
 
-/// "…" on a card. Yours: Edit or Delete. Someone else's: Report or Block
-/// (a guest is asked to sign in first).
+/// "…" on a card. Yours: Share, Edit or Delete. Someone else's: Report or
+/// Block (a guest is asked to sign in first). [cafeArea], [instagramRaw]
+/// and [shareEntry] go to the share sheet.
 Future<void> showCupOptions(
   BuildContext context, {
   required CupCard card,
   required String cafeId,
   required String cafeName,
+  String? cafeArea,
+  String? instagramRaw,
+  String shareEntry = CupShareEntry.cupMenu,
   required VoidCallback onEdit,
   required VoidCallback onChanged,
   double toastOffset = 0,
@@ -132,9 +137,24 @@ Future<void> showCupOptions(
   if (card.isMine) {
     final choice = await ReviewSheetShell.show<ReviewOption>(
       context,
-      builder: (_) => ReviewOptionsSheet.forOwnCup(cafeName: cafeName),
+      builder: (_) => ReviewOptionsSheet.forOwnCup(
+        cafeName: cafeName,
+        canShare: card.canShare,
+      ),
     );
     if (!context.mounted) return;
+    if (choice == ReviewOption.share) {
+      await showCupShareSheet(
+        context,
+        cup: card,
+        cafeId: cafeId,
+        cafeName: cafeName,
+        cafeArea: cafeArea,
+        instagramRaw: instagramRaw,
+        entry: shareEntry,
+      );
+      return;
+    }
     if (choice == ReviewOption.edit) {
       onEdit();
       return;

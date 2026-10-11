@@ -485,6 +485,7 @@ class _Posts extends StatelessWidget {
                         card: card,
                         cafeId: cafe.id,
                         cafeName: cafe.name,
+                        cafeArea: cafe.area,
                         onEdit: () => onEdit(card),
                         onChanged: onChanged,
                         toastOffset: toastOffset(),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/profile_events.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -64,6 +65,8 @@ Future<void> showProfileCafeCups(
                   card: cafe.cups[i],
                   cafeId: cafe.cafeId,
                   cafeName: cafe.cafeName,
+                  cafeArea: cafe.cafeArea,
+                  shareEntry: CupShareEntry.profile,
                   onEdit: () {
                     Navigator.of(sheetContext).pop();
                     onEdit(cafe.cups[i]);

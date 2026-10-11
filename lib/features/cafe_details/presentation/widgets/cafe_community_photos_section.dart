@@ -9,6 +9,9 @@ import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/cups/domain/entities/cup.dart';
+import 'package:nook/features/cups/presentation/share/cup_share_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/gallery/domain/entities/cafe_story.dart';
 import 'package:nook/features/gallery/domain/entities/community_photo.dart';
@@ -46,6 +49,7 @@ class CafeCommunityPhotosSection extends StatelessWidget {
     this.onSeeAll,
     this.cupCount,
     this.reviewOf,
+    this.myCup,
   });
 
   final String cafeId;
@@ -72,6 +76,10 @@ class CafeCommunityPhotosSection extends StatelessWidget {
 
   /// The words of a legacy review photo's review, by review id.
   final StoryReview? Function(String reviewId)? reviewOf;
+
+  /// Your own cup by its id, so the story viewer can share it. Null hides
+  /// Share.
+  final CupCard? Function(String cupId)? myCup;
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +168,26 @@ class _BodyState extends State<_Body> {
         onReport: communityPhotoReportable()
             ? (photo) => reportCommunityPhoto(context, photo)
             : null,
+        onShare: widget.section.myCup == null ? null : _share,
       ),
+    );
+  }
+
+  Future<void> _share(CommunityPhoto photo) async {
+    final visit = photo.visit;
+    final cup = visit == null ? null : widget.section.myCup?.call(visit);
+    if (cup == null || !cup.canShare) {
+      showPrimaryToast(context, "This photo isn't on a cup you can share.");
+      return;
+    }
+    await showCupShareSheet(
+      context,
+      cup: cup,
+      cafeId: _cafeId,
+      cafeName: widget.section.cafeName,
+      cafeArea: widget.section.cafeArea,
+      entry: CupShareEntry.storyViewer,
+      photoId: photo.photo.id,
     );
   }
 

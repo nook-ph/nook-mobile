@@ -43,6 +43,7 @@ class CafeStoryViewerPage extends StatefulWidget {
     this.reviewOf,
     this.onOpenAuthor,
     this.onReport,
+    this.onShare,
     this.photoDuration = defaultPhotoDuration,
     this.autoAdvance,
   });
@@ -64,6 +65,10 @@ class CafeStoryViewerPage extends StatefulWidget {
   /// "…" → Report on someone else's photo. Null hides it (signed out).
   final Future<void> Function(CommunityPhoto photo)? onReport;
 
+  /// Share on your own photo (docs/features/share_cup_story.md §3.3).
+  /// Null hides it.
+  final Future<void> Function(CommunityPhoto photo)? onShare;
+
   final Duration photoDuration;
 
   /// Overrides Reduce Motion, for tests. Null follows the system setting.
@@ -79,6 +84,7 @@ class CafeStoryViewerPage extends StatefulWidget {
     StoryReview? Function(String reviewId)? reviewOf,
     Future<void> Function(PhotoCredit credit)? onOpenAuthor,
     Future<void> Function(CommunityPhoto photo)? onReport,
+    Future<void> Function(CommunityPhoto photo)? onShare,
   }) {
     final still = MediaQuery.disableAnimationsOf(context);
     return Navigator.of(context).push(
@@ -98,6 +104,7 @@ class CafeStoryViewerPage extends StatefulWidget {
           reviewOf: reviewOf,
           onOpenAuthor: onOpenAuthor,
           onReport: onReport,
+          onShare: onShare,
         ),
         transitionsBuilder: (_, animation, _, child) => FadeTransition(
           opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
@@ -323,6 +330,13 @@ class _CafeStoryViewerPageState extends State<CafeStoryViewerPage>
     unawaited(_paused(() => report(photo)));
   }
 
+  void _share() {
+    final share = widget.onShare;
+    if (share == null) return;
+    final photo = _photo;
+    unawaited(_paused(() => share(photo)));
+  }
+
   void _onTapUp(TapUpDetails details, double width) {
     if (details.localPosition.dx < width / 3) {
       _previous();
@@ -384,6 +398,7 @@ class _CafeStoryViewerPageState extends State<CafeStoryViewerPage>
                           ? null
                           : _openAuthor,
                       onReport: widget.onReport == null ? null : _report,
+                      onShare: widget.onShare == null ? null : _share,
                     );
                   },
                 ),
@@ -412,6 +427,7 @@ class _StoryFrame extends StatelessWidget {
     required this.onPrevious,
     required this.onOpenAuthor,
     required this.onReport,
+    required this.onShare,
   });
 
   final CafeStory story;
@@ -429,6 +445,7 @@ class _StoryFrame extends StatelessWidget {
   final VoidCallback onPrevious;
   final ValueChanged<PhotoCredit>? onOpenAuthor;
   final VoidCallback? onReport;
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -473,6 +490,7 @@ class _StoryFrame extends StatelessWidget {
                   onOpenAuthor: onOpenAuthor,
                   onClose: onClose,
                   onReport: credit.isSelf ? null : onReport,
+                  onShare: credit.isSelf ? onShare : null,
                 ),
               ],
             ),
@@ -590,6 +608,7 @@ class _Header extends StatelessWidget {
     required this.onOpenAuthor,
     required this.onClose,
     required this.onReport,
+    required this.onShare,
   });
 
   final PhotoCredit credit;
@@ -597,6 +616,7 @@ class _Header extends StatelessWidget {
   final ValueChanged<PhotoCredit>? onOpenAuthor;
   final VoidCallback onClose;
   final VoidCallback? onReport;
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -672,6 +692,12 @@ class _Header extends StatelessWidget {
                     ),
             ),
           ),
+          if (onShare != null)
+            _IconButton(
+              icon: LucideIcons.send,
+              label: 'Share your cup',
+              onTap: onShare!,
+            ),
           if (onReport != null)
             _IconButton(
               icon: LucideIcons.ellipsis,
