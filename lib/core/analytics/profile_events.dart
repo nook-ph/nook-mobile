@@ -115,6 +115,9 @@ abstract final class CupEvents {
   /// A cup was reported. Properties: `reason`, `target` (`cup`, `review`
   /// or `photos`).
   static const reported = 'cup_reported';
+
+  /// "Rank it" on the posted toast, opening the ranking flow for the cafe.
+  static const rankItTapped = 'cup_rank_it_tapped';
 }
 
 /// Where the cup composer was opened from, for [CupEvents].

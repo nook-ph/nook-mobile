@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/block/block_cubit.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_photos_page.dart';
 import 'package:nook/features/cups/domain/entities/cup.dart';
 import 'package:nook/features/cups/domain/i_cups_repository.dart';
@@ -18,7 +20,8 @@ import 'package:nook/utils/theme/theme.dart';
 import '../../core/analytics/recording_analytics.dart';
 import '../gallery/community_photos_fakes.dart';
 import '../gallery/gallery_fakes.dart';
-import '../lists/lists_fixtures.dart' show usePhone;
+import '../lists/lists_fixtures.dart'
+    show FakeRankingRepository, ranking, rankingCubit, usePhone;
 import '../profile/profile_test_support.dart' show FakeBlockCubit;
 import 'cups_fakes.dart';
 
@@ -66,11 +69,16 @@ void main() {
       WidgetTester tester, {
       CupCard? editing,
       FakeGalleryPhotoPicker? picker,
+      CafeRankingCubit? ranking,
     }) async {
       usePhone(tester, size: const Size(390, 1200));
+      Widget host(Widget child) => ranking == null
+          ? child
+          : BlocProvider<CafeRankingCubit>.value(value: ranking, child: child);
       await tester.pumpWidget(
         MaterialApp(
           theme: TAppTheme.lightTheme,
+          builder: (context, child) => host(child!),
           home: Scaffold(
             body: Builder(
               builder: (context) => TextButton(
@@ -145,6 +153,63 @@ void main() {
         containsPair('has_rating', false),
       );
       await done(tester);
+    });
+
+    group('posting offers "Rank it"', () {
+      late FakeRankingRepository rankings;
+      late CafeRankingCubit ranker;
+
+      setUp(() {
+        rankings = FakeRankingRepository();
+        ranker = rankingCubit(rankings);
+      });
+      tearDown(() => ranker.close());
+
+      Future<void> post(WidgetTester tester) async {
+        await open(tester, ranking: ranker);
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Note (optional)'),
+          'Outlets everywhere.',
+        );
+        await tester.pump();
+        await tester.tap(find.text('Post cup'));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('when posting marked an unranked cafe Been', (tester) async {
+        await post(tester);
+        expect(find.text('Cup posted · Marked as Been'), findsOneWidget);
+        expect(find.text('Rank it · ~20 sec'), findsOneWidget);
+
+        await tester.tap(find.text('Rank it · ~20 sec'));
+        await tester.pumpAndSettle();
+        expect(find.text('How was Kamp Craft Coffee?'), findsOneWidget);
+        expect(analytics.names, contains('cup_rank_it_tapped'));
+      });
+
+      testWidgets('not when the cafe is already ranked', (tester) async {
+        rankings.serverRankings = [ranking('cafe-1', RankBucket.liked, 0, 8.0)];
+        await ranker.load();
+        await post(tester);
+        expect(find.text('Cup posted · Marked as Been'), findsOneWidget);
+        expect(find.text('Rank it · ~20 sec'), findsNothing);
+        await done(tester);
+      });
+    });
+
+    test('Rank it: only for a new cup at a Been, unranked cafe', () {
+      const marked = CupComposerOutcome(
+        CupComposerAction.posted,
+        result: CupPostResult(markedBeen: true),
+      );
+      const posted = CupComposerOutcome(CupComposerAction.posted);
+      const updated = CupComposerOutcome(CupComposerAction.updated);
+      expect(offersRankIt(marked, ranked: false, been: false), isTrue);
+      expect(offersRankIt(posted, ranked: false, been: true), isTrue);
+      // Legacy posting marks nothing: no Been, nothing to rank.
+      expect(offersRankIt(posted, ranked: false, been: false), isFalse);
+      expect(offersRankIt(marked, ranked: true, been: true), isFalse);
+      expect(offersRankIt(updated, ranked: false, been: true), isFalse);
     });
 
     testWidgets('stars are optional and can be cleared', (tester) async {

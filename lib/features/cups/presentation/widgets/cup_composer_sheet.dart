@@ -1,12 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/profile_events.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_sheet_shell.dart';
 import 'package:nook/features/cups/domain/entities/cup.dart';
@@ -17,6 +23,7 @@ import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_image.dart';
+import 'package:nook/features/lists/presentation/utils/open_been_list.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/injection_container.dart';
 
@@ -77,9 +84,89 @@ Future<CupComposerOutcome?> openCupComposer(
     ),
   );
   if (outcome != null && context.mounted) {
-    showPrimaryToast(context, outcome.message, bottomOffset: toastOffset);
+    final ranking = context.read<CafeRankingCubit?>();
+    final been =
+        context.read<CafeStatusCubit?>()?.state.statusFor(cafe.id) ==
+        CafeStatus.been;
+    if (ranking != null &&
+        offersRankIt(
+          outcome,
+          been: been,
+          ranked:
+              ranking.state.rankingFor(cafe.id) != null ||
+              ranking.state.isPending(cafe.id),
+        )) {
+      showPrimaryToastWithAction(
+        context,
+        outcome.message,
+        actionLabel: rankItLabel,
+        onAction: () => _rankAfterCup(
+          context,
+          cafe: cafe,
+          ranking: ranking,
+          toastOffset: toastOffset,
+        ),
+        bottomOffset: toastOffset,
+      );
+    } else {
+      showPrimaryToast(context, outcome.message, bottomOffset: toastOffset);
+    }
   }
   return outcome;
+}
+
+/// The posted toast's action (REVIEWS_GALLERY_MERGE, "Posting marks the
+/// cafe Been"; COFFEE_VOICE keeps the Your visit wording).
+const rankItLabel = 'Rank it · ~20 sec';
+
+/// Whether the posted toast offers "Rank it": a new cup at a cafe that is
+/// Been now (posting just marked it, or it already was) and not ranked
+/// yet. Edits and deletes never do.
+bool offersRankIt(
+  CupComposerOutcome outcome, {
+  required bool ranked,
+  required bool been,
+}) =>
+    outcome.action == CupComposerAction.posted &&
+    !ranked &&
+    (outcome.markedBeen || been);
+
+/// "Rank it" from the posted toast: the ranking flow for [cafe], with its
+/// reveal's follow-ups, as Your visit opens it. The toast can outlive the
+/// page, so nothing happens once [context] is gone.
+Future<void> _rankAfterCup(
+  BuildContext context, {
+  required PickedCafe cafe,
+  required CafeRankingCubit ranking,
+  double toastOffset = 0,
+}) async {
+  if (!context.mounted) return;
+  logAppEvent(CupEvents.rankItTapped, properties: {'cafe_id': cafe.id});
+  dismissToasts();
+  final outcome = await showCafeRankingFlow(
+    context,
+    cubit: ranking,
+    cafeId: cafe.id,
+    cafeName: cafe.name,
+    cafeImageUrl: cafe.imageUrl,
+    cafeLocation: cafe.area,
+  );
+  if (!context.mounted) return;
+  switch (outcome) {
+    case RankingFlowOutcome.completedAddNote:
+      await showCafeNoteSheet(
+        context,
+        cafeId: cafe.id,
+        cafeName: cafe.name,
+        bottomOffset: toastOffset,
+      );
+    case RankingFlowOutcome.completedViewList:
+      await openBeenList(context);
+    case RankingFlowOutcome.failed:
+      showRankingFailedToast(context, bottomOffset: toastOffset);
+    case RankingFlowOutcome.completed || RankingFlowOutcome.skipped || null:
+      break;
+  }
 }
 
 /// One item in the composer: one the cup already has, a new photo, or a
