@@ -106,6 +106,9 @@ abstract final class CupsJson {
     if (raw == null) return null;
     final json = _map(raw);
     final userId = (json['user_id'] as String?) ?? '';
+    // The cups carry no is_mine here; on your own profile they are yours,
+    // so their options are edit and delete, not report and block.
+    final isSelf = json['is_self'] == true;
     final cafes = <ProfileCafeCups>[];
     final grouped = _list(json['cafes']);
     if (grouped.isNotEmpty) {
@@ -114,7 +117,7 @@ abstract final class CupsJson {
         final cafeId = (cafe['cafe_id'] as String?) ?? '';
         final cups = [
           for (final cup in _list(cafe['cups']))
-            card(_withUser(cup, userId), cafeId: cafeId),
+            card(_withUser(cup, userId, isSelf), cafeId: cafeId),
         ]..sort((a, b) => b.visitedAt.compareTo(a.visitedAt));
         cafes.add(
           ProfileCafeCups(
@@ -145,7 +148,7 @@ abstract final class CupsJson {
             cafeImageUrl: _string(first['cafe_image_url']),
             cups: [
               for (final cup in entry.value)
-                card(_withUser(cup, userId), cafeId: entry.key),
+                card(_withUser(cup, userId, isSelf), cafeId: entry.key),
             ]..sort((a, b) => b.visitedAt.compareTo(a.visitedAt)),
           ),
         );
@@ -155,7 +158,7 @@ abstract final class CupsJson {
     return ProfileCups(
       userId: userId,
       highlightsPublic: json['highlights_public'] != false,
-      isSelf: json['is_self'] == true,
+      isSelf: isSelf,
       cafes: cafes,
     );
   }
@@ -182,9 +185,14 @@ abstract final class CupsJson {
     return n;
   }
 
-  static Map<String, dynamic> _withUser(Object? raw, String userId) {
+  static Map<String, dynamic> _withUser(
+    Object? raw,
+    String userId,
+    bool isSelf,
+  ) {
     final json = Map<String, dynamic>.from(_map(raw));
     json['user_id'] ??= userId;
+    if (isSelf) json['is_mine'] ??= true;
     return json;
   }
 

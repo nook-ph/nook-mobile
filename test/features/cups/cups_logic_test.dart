@@ -116,6 +116,30 @@ void main() {
       expect(CupsJson.profileCups(null), isNull);
     });
 
+    test('on your own profile the cups are yours (edit, not report)', () {
+      Map<String, Object?> payload(bool self) => {
+        'user_id': 'u1',
+        'is_self': self,
+        'cafes': [
+          {
+            'cafe_id': 'k',
+            'cafe_name': 'Kamp',
+            'cups': [
+              {'id': 'a', 'visited_at': '2026-09-01', 'rating': 4},
+            ],
+          },
+        ],
+      };
+      expect(
+        CupsJson.profileCups(payload(true))!.cafes.single.cups.single.isMine,
+        isTrue,
+      );
+      expect(
+        CupsJson.profileCups(payload(false))!.cafes.single.cups.single.isMine,
+        isFalse,
+      );
+    });
+
     test('the visit date is sent as a day', () {
       expect(CupsJson.visitDate(DateTime(2026, 3, 4, 23, 30)), '2026-03-04');
     });
