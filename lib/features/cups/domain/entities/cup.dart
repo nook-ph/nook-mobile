@@ -278,9 +278,10 @@ class CupStats extends Equatable {
       }
     }
     final ratings = [for (final c in latestRated.values) c.rating!];
+    // Photos per kind, as `get_cafe_cup_stats` counts them.
     final kinds = <CupItemKind, int>{};
     for (final c in cards) {
-      for (final i in c.items) {
+      for (final i in c.photos) {
         final kind = i.kind;
         if (kind != null) kinds[kind] = (kinds[kind] ?? 0) + 1;
       }

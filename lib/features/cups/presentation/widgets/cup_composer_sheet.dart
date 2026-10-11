@@ -977,7 +977,8 @@ class _AddTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          width: first ? 168 : _ItemRow.size,
+          width: first ? 176 : _ItemRow.size,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           height: _ItemRow.size,
           decoration: BoxDecoration(
             color: ReviewTokens.tint.withValues(alpha: 0.6),
@@ -994,11 +995,14 @@ class _AddTile extends StatelessWidget {
                       color: ReviewTokens.brand,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'Add photos',
-                      style: context.textTheme.bodyMediumMed.copyWith(
-                        color: ReviewTokens.brand,
-                        fontSize: 14,
+                    Flexible(
+                      child: Text(
+                        'Add photos',
+                        maxLines: 2,
+                        style: context.textTheme.bodyMediumMed.copyWith(
+                          color: ReviewTokens.brand,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],

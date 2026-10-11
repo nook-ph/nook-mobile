@@ -580,16 +580,23 @@ class _Controls extends StatelessWidget {
             horizontal: CafeDetailsTokens.gutter - 8,
           ),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _MenuButton(
-                label: stars == null
-                    ? 'Any rating'
-                    : (stars == 1 ? '1 star' : '$stars stars'),
-                active: stars != null,
-                onTap: state.stats.hasRatings || stars != null ? onStars : null,
+              Flexible(
+                child: _MenuButton(
+                  label: stars == null
+                      ? 'Any rating'
+                      : (stars == 1 ? '1 star' : '$stars stars'),
+                  active: stars != null,
+                  onTap: state.stats.hasRatings || stars != null
+                      ? onStars
+                      : null,
+                ),
               ),
-              const Spacer(),
-              _MenuButton(label: state.sort.label, onTap: onSort),
+              const SizedBox(width: 8),
+              Flexible(
+                child: _MenuButton(label: state.sort.label, onTap: onSort),
+              ),
             ],
           ),
         ),
@@ -630,12 +637,16 @@ class _MenuButton extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: color,
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 2),

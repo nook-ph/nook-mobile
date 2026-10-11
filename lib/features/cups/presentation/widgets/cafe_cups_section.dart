@@ -444,35 +444,40 @@ class AddCupPill extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         child: Container(
           constraints: const BoxConstraints(minHeight: 48),
-          alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 18),
           decoration: BoxDecoration(
             color: filled ? CafeDetailsTokens.brand : null,
             border: Border.all(color: CafeDetailsTokens.brand),
             borderRadius: BorderRadius.circular(999),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                LucideIcons.plus,
-                size: 16,
-                color: filled ? Colors.white : CafeDetailsTokens.brand,
-              ),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(
-                  'Add your cup',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: filled ? Colors.white : CafeDetailsTokens.brand,
+          // Centred without growing: in a bottom bar the height is loose,
+          // and a plain alignment would fill the screen.
+          child: Center(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  LucideIcons.plus,
+                  size: 16,
+                  color: filled ? Colors.white : CafeDetailsTokens.brand,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Add your cup',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: filled ? Colors.white : CafeDetailsTokens.brand,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
