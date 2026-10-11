@@ -55,10 +55,13 @@ import 'package:nook/core/upload/data/upload_remove_data_source.dart';
 import 'package:nook/core/upload/data/upload_repository_impl.dart';
 import 'package:nook/core/upload/domain/use_cases/upload_use_case.dart';
 import 'package:nook/features/gallery/data/cafe_picker_source_impl.dart';
+import 'package:nook/features/gallery/data/community_photos_repository_impl.dart';
 import 'package:nook/features/gallery/data/demo_gallery_repository.dart';
 import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
 import 'package:nook/features/gallery/data/gallery_repository_impl.dart';
 import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
+import 'package:nook/features/gallery/domain/i_community_photos_repository.dart';
+import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart';
 import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/public_profile/data/demo_public_profile_repository.dart';
@@ -205,6 +208,12 @@ Future<void> initDependencies() async {
           .uploadGalleryPhoto(file: file, cafeId: cafeId),
     );
   });
+
+  // A cafe's community photos: other people's gallery photos of it,
+  // read-only, for the details page.
+  sl.registerLazySingleton<ICommunityPhotosRepository>(
+    () => CommunityPhotosRepositoryImpl(client: sl<SupabaseClient>()),
+  );
 
   // Public profiles. PUBLIC_PROFILE_DEMO (debug only) swaps in an
   // in-memory repository for local work without the backend.
@@ -461,6 +470,15 @@ Future<void> initDependencies() async {
     () => MyCrawlsCubit(
       getMyCrawlsUseCase: sl<GetMyCrawlsUseCase>(),
       fakeStampStore: AppConstants.fakeStamps ? sl<FakeStampStore>() : null,
+    ),
+  );
+
+  // Per cafe page: param1 is the cafe id. The "See all" grid builds its
+  // own, seeded from the strip's.
+  sl.registerFactoryParam<CafePhotosCubit, String, void>(
+    (cafeId, _) => CafePhotosCubit(
+      repository: sl<ICommunityPhotosRepository>(),
+      cafeId: cafeId,
     ),
   );
 

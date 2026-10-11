@@ -37,4 +37,56 @@ abstract final class ProfileViewSource {
   static const crew = 'crew';
   static const preview = 'preview';
   static const link = 'link';
+
+  /// The credit on a cafe's community photo.
+  static const cafePhotos = 'cafe_photos';
+}
+
+/// PostHog events for a cafe's community photos (the strip on cafe details
+/// and its "See all" grid), sent through `logAppEvent`. Every one carries
+/// `cafe_id` and `surface` (one of [CafePhotoSurface]).
+abstract final class CafePhotoEvents {
+  /// The photos loaded and at least one was shown. Properties: `count`
+  /// (all the cafe's photos the viewer may see). Once per screen.
+  static const viewed = 'cafe_photos_viewed';
+
+  /// A photo opened full screen. Properties: `position` (0-based).
+  static const opened = 'cafe_photo_opened';
+
+  /// A photo's credit opened its author's profile.
+  static const authorTapped = 'cafe_photo_author_tapped';
+
+  /// "See all" on the strip.
+  static const seeAllTapped = 'cafe_photos_see_all_tapped';
+
+  /// "Add a photo" on a cafe with none yet. Properties: `signed_in`.
+  static const addTapped = 'cafe_photo_add_tapped';
+}
+
+/// Where a [CafePhotoEvents] event came from.
+abstract final class CafePhotoSurface {
+  static const strip = 'strip';
+  static const grid = 'grid';
+  static const viewer = 'viewer';
+}
+
+/// PostHog events for a cafe's "Latest cups" stories (the tray on cafe
+/// details and its full-screen viewer), sent through `logAppEvent`. Every
+/// one carries `cafe_id`.
+abstract final class CafeStoryEvents {
+  /// The viewer opened from the tray. Properties: `story_position`
+  /// (0-based, which person was tapped), `story_count`, `unseen` (whether
+  /// that person had anything new).
+  static const opened = 'cafe_stories_opened';
+
+  /// A photo shown in the viewer. Properties: `photo_id`,
+  /// `story_position`, `photo_position`.
+  static const viewed = 'cafe_story_viewed';
+
+  /// The poster tapped in the viewer. Properties: `photo_id`.
+  static const authorTapped = 'cafe_story_author_tapped';
+
+  /// Played past the last photo of the last person. Properties:
+  /// `story_count`.
+  static const completed = 'cafe_stories_completed';
 }

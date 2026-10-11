@@ -16,7 +16,7 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_sheet_shell.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
-import 'package:nook/features/gallery/domain/i_gallery_repository.dart';
+import 'package:nook/features/gallery/data/read_only_gallery_repository.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/pages/gallery_viewer_page.dart';
 import 'package:nook/features/gallery/presentation/widgets/profile_gallery_tab.dart';
@@ -436,46 +436,6 @@ class _Loading extends StatelessWidget {
   }
 }
 
-/// A gallery that only reads: the visitor's photos, already loaded with
-/// the profile. Lets the shared viewer run on someone else's photos.
-class _ReadOnlyGallery implements IGalleryRepository {
-  const _ReadOnlyGallery(this.photos);
-
-  final List<GalleryPhoto> photos;
-
-  @override
-  Future<List<GalleryPhoto>> getMyPhotos() async => photos;
-
-  @override
-  Future<List<GalleryPhoto>> addPhotos({
-    required String cafeId,
-    required List<PickedGalleryPhoto> photos,
-    required GalleryPhotoSource source,
-    String? drinkName,
-    String? caption,
-  }) => throw UnsupportedError('Read only');
-
-  @override
-  Future<void> deletePhoto(String photoId) =>
-      throw UnsupportedError('Read only');
-
-  @override
-  Future<void> setDetails(
-    String photoId, {
-    String? drinkName,
-    String? caption,
-    String? cafeId,
-  }) => throw UnsupportedError('Read only');
-
-  @override
-  Future<void> setHidden(String photoId, {required bool hidden}) =>
-      throw UnsupportedError('Read only');
-
-  @override
-  Future<void> setPinOrder(String photoId, int? pinOrder) =>
-      throw UnsupportedError('Read only');
-}
-
 class _Loaded extends StatelessWidget {
   const _Loaded({
     required this.profile,
@@ -542,7 +502,8 @@ class _Loaded extends StatelessWidget {
 
     return BlocProvider(
       create: (_) =>
-          GalleryCubit(repository: _ReadOnlyGallery(profile.photos))..load(),
+          GalleryCubit(repository: ReadOnlyGalleryRepository(profile.photos))
+            ..load(),
       child: DefaultTabController(
         length: 2,
         child: Builder(

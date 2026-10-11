@@ -39,6 +39,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_com
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_error_view.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_skeleton.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_community_photos_section.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_load_failure.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/expandable_description.dart';
@@ -228,6 +229,17 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
         CafeYourVisitBlock(
           cafeId: widget.cafeId,
           cafeName: details.name,
+          cafeImageUrl: details.featuredImageUrl,
+        ),
+        // Latest cups: the stories tray, the page's highlight. Brings its
+        // own divider, and is left out when there is nothing to show.
+        CafeCommunityPhotosSection(
+          cafeId: widget.cafeId,
+          cafeName: details.name,
+          cafeArea: [
+            details.neighborhood,
+            details.city,
+          ].where((part) => part.trim().isNotEmpty).join(', '),
           cafeImageUrl: details.featuredImageUrl,
         ),
         for (final section in sections) ...[
