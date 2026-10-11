@@ -13,6 +13,10 @@ class CafeDetails {
   final double rating;
   final int reviewCount;
   final bool isNew;
+
+  /// Whether an owner has claimed the listing. Null until the full
+  /// details load (a summary-seeded entry doesn't know).
+  final bool? isClaimed;
   final Map<String, dynamic> operatingHours;
   final Map<String, dynamic> socialLinks;
   final List<Tag> tags;
@@ -32,6 +36,7 @@ class CafeDetails {
     required this.rating,
     required this.reviewCount,
     required this.isNew,
+    this.isClaimed,
     this.operatingHours = const {},
     this.socialLinks = const {},
     this.tags = const [],
