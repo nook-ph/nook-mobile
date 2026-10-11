@@ -267,55 +267,30 @@ class _HomeContent extends StatelessWidget {
     final topRated = fresh(state.topRatedCafes);
 
     // Sections with no cafes are left out, so the gap goes between the ones
-    // that remain rather than around blank space. Titles stay plain; the
-    // coffee voice is in the subtitles (docs: COFFEE_VOICE.md, rule 1).
+    // that remain rather than around blank space. Titles only, no
+    // subtitles: the home page reads cleaner without a second line.
     final sections = <Widget>[
       if (nearby.isNotEmpty)
-        HomeCafeSection(
-          title: 'Near you',
-          subtitle: 'Closest first',
-          cafes: nearby,
-          sort: 'nearby',
-        ),
+        HomeCafeSection(title: 'Near you', cafes: nearby, sort: 'nearby'),
       if (featured.isNotEmpty) _FeaturedSection(cafes: featured),
       if (specialty.isNotEmpty)
-        HomeCafeSection(
-          title: 'Specialty coffee near you',
-          subtitle: 'Tagged by the Nook team, closest first',
-          cafes: specialty,
-        ),
+        HomeCafeSection(title: 'Specialty coffee near you', cafes: specialty),
       // Hidden by the bloc until three cafes have the Philippine Beans tag.
-      if (beans.isNotEmpty)
-        HomeCafeSection(
-          title: 'Local beans',
-          subtitle: 'Brewing Philippine coffee',
-          cafes: beans,
-        ),
+      if (beans.isNotEmpty) HomeCafeSection(title: 'Local beans', cafes: beans),
       if (newest.isNotEmpty)
-        HomeCafeSection(
-          title: 'Fresh on Nook',
-          subtitle: 'Just added',
-          cafes: newest,
-          sort: 'newest',
-        ),
+        HomeCafeSection(title: 'Fresh on Nook', cafes: newest, sort: 'newest'),
       if (laptop.isNotEmpty)
-        HomeCafeSection(
-          title: 'Laptop-friendly',
-          subtitle: 'Wi-Fi and outlets',
-          cafes: laptop,
-        ),
+        HomeCafeSection(title: 'Laptop-friendly', cafes: laptop),
       // Hidden by the bloc until enough cafes have enough reviews.
       if (trending.isNotEmpty)
         HomeCafeSection(
           title: 'Crowd favorites',
-          subtitle: 'Well rated by lots of people',
           cafes: trending,
           sort: 'trending',
         ),
       if (topRated.isNotEmpty)
         HomeCafeSection(
           title: 'Highest rated',
-          subtitle: "From people who've been",
           cafes: topRated,
           sort: 'top_rated',
         ),
@@ -343,10 +318,7 @@ class _FeaturedSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeSectionTitle(
-          'House picks',
-          subtitle: 'Chosen by the Nook team',
-        ),
+        const HomeSectionTitle('House picks'),
         const SizedBox(height: 12),
         FeaturedCarousel(cafes: cafes),
       ],
