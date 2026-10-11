@@ -59,10 +59,14 @@ android {
     }
 }
 
+// CI's build check (android-build.yml) has no signing secrets and sets this to
+// produce an unsigned release bundle. Never set it for a build you ship.
+val allowUnsignedRelease = System.getenv("NOOK_ALLOW_UNSIGNED_RELEASE") == "true"
+
 // Only fail when a release build is actually requested. This runs after the
 // task graph is computed, so debug builds (assembleDebug / flutter run) are
 // unaffected even when key.properties is absent.
-if (!hasKeystore) {
+if (!hasKeystore && !allowUnsignedRelease) {
     gradle.taskGraph.whenReady {
         val buildingRelease = allTasks.any { task ->
             task.name.contains("Release") &&
