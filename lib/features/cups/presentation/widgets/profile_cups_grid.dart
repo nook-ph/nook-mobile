@@ -298,18 +298,19 @@ class _NoteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final text =
-        note?.trim() ??
-        [
-          for (final c in items)
-            for (final i in c.textItems) i.label!,
-        ].join(', ');
+    // A note is quoted; what was had is listed as it is.
+    final words = note?.trim() ?? '';
+    final had = [
+      for (final c in items)
+        for (final i in c.textItems) i.label!,
+    ].join(' · ');
+    final text = words.isNotEmpty ? '“$words”' : had;
     return ColoredBox(
       color: const Color(0xFFF1F0EC),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 30, 10, 44),
         child: Text(
-          text.isEmpty ? '' : '“$text”',
+          text,
           maxLines: 4,
           overflow: TextOverflow.ellipsis,
           style: ProfileTokens.text(12, color: ProfileTokens.ink),
