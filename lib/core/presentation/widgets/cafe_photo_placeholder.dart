@@ -1,113 +1,129 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-/// What a cafe with no photo shows where its photo would be: a cup on a
-/// tinted surface, never a stock photo standing in for the real place.
+/// What a cafe with no photo shows where its photo would be: a generic cafe
+/// photo bundled with the app, marked "Sample photo" so nobody takes it for
+/// the real place.
 ///
-/// The tint is picked from the cafe's name, so a shelf of photo-less cafes
-/// reads as a row of different places rather than one repeated grey block.
-/// The surface keeps the size of the photo it replaces, so cards don't reflow
-/// when a cafe gets its first photo.
+/// The photo is picked from the cafe's name, so a cafe always gets the same
+/// one and a shelf of photo-less cafes reads as a row of different places
+/// rather than one repeated picture. It fills the box of the photo it
+/// replaces, so cards don't reflow when a cafe gets its first photo.
 ///
-/// The "No photo yet" caption only shows when the box has room for it; small
-/// thumbnails (list rows, pins) show the cup alone. The card around it
-/// already carries the cafe's name, so the tile doesn't repeat it.
+/// The "Sample photo" pill only shows when the box has room for it; small
+/// thumbnails (list rows, crawl stops) show the photo alone. Credits for the
+/// photos: `assets/images/placeholder_cafes/CREDITS.md`.
 class CafePhotoPlaceholder extends StatelessWidget {
-  const CafePhotoPlaceholder({
-    super.key,
-    this.seed,
-    this.showCaption = true,
-    this.caption = 'No photo yet',
-  });
+  const CafePhotoPlaceholder({super.key, this.seed, this.showLabel = true});
 
-  /// Picks the tint: usually the cafe's name or id. Null gives the first tint.
+  /// Picks the photo: usually the cafe's name. Null gives the first photo.
   final String? seed;
 
-  /// Whether to show [caption] when the box is big enough for it.
-  final bool showCaption;
+  /// Whether to show the "Sample photo" pill when the box is big enough.
+  final bool showLabel;
 
-  final String caption;
+  static const label = 'Sample photo';
 
-  /// Warm, low-contrast surfaces from the app's sage / latte palette. Each
-  /// keeps the cup above 3:1 against it.
-  static const tints = <PlaceholderTint>[
-    PlaceholderTint(Color(0xFFEDF0E8), Color(0xFF5B7360)), // sage
-    PlaceholderTint(Color(0xFFF3ECE3), Color(0xFF7A5E46)), // latte
-    PlaceholderTint(Color(0xFFEFEEEA), Color(0xFF66655F)), // stone
-    PlaceholderTint(Color(0xFFE8EEEC), Color(0xFF4F6D66)), // eucalyptus
-    PlaceholderTint(Color(0xFFF4EEE6), Color(0xFF85633F)), // crema
+  static const _dir = 'assets/images/placeholder_cafes';
+
+  /// The bundled photos, in hash order. Same list, same order as the
+  /// webapp's `PLACEHOLDER_PHOTOS`, so a cafe gets the same photo on both.
+  static const photos = <String>[
+    'cafe-latte',
+    'cafe-espresso',
+    'cafe-croissants',
+    'cafe-lounge',
+    'cafe-window-bar',
+    'cafe-sunlit-tables',
+    'cafe-pastries-window',
+    'cafe-corner',
   ];
 
-  /// The tint for [seed]. Stable across runs (not `String.hashCode`, which
-  /// may change between Dart versions).
-  static PlaceholderTint tintFor(String? seed) {
-    if (seed == null || seed.isEmpty) return tints.first;
+  /// Physical widths at or under this get the 480 px thumbnail.
+  static const thumbMaxWidth = 480.0;
+
+  /// The index into [photos] for [seed]. Stable across runs (not
+  /// `String.hashCode`, which may change between Dart versions).
+  static int indexFor(String? seed) {
+    if (seed == null || seed.isEmpty) return 0;
     var hash = 0;
     for (final unit in seed.codeUnits) {
       hash = (hash * 31 + unit) & 0x7fffffff;
     }
-    return tints[hash % tints.length];
+    return hash % photos.length;
   }
+
+  /// The asset path of [seed]'s photo, at thumbnail size when [thumb].
+  static String assetFor(String? seed, {bool thumb = false}) =>
+      '$_dir/${photos[indexFor(seed)]}${thumb ? '_thumb' : ''}.webp';
 
   @override
   Widget build(BuildContext context) {
-    final tint = tintFor(seed);
+    final dpr = MediaQuery.devicePixelRatioOf(context);
     return Semantics(
-      label: caption,
+      label: label,
       image: true,
-      child: ColoredBox(
-        color: tint.surface,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final shortest = constraints.biggest.shortestSide;
-            final finite = shortest.isFinite;
-            final iconSize = finite
-                ? (shortest * 0.32).clamp(14.0, 34.0)
-                : 28.0;
-            final roomForCaption =
-                showCaption &&
-                (!finite ||
-                    (constraints.maxHeight >= 84 &&
-                        constraints.maxWidth >= 96));
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  PhosphorIcon(
-                    PhosphorIcons.coffee(PhosphorIconsStyle.duotone),
-                    size: iconSize,
-                    color: tint.ink,
-                    duotoneSecondaryOpacity: 0.18,
-                  ),
-                  if (roomForCaption) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: tint.ink,
-                        height: 1.2,
-                      ),
-                    ),
-                  ],
-                ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final finite =
+              constraints.hasBoundedWidth && constraints.hasBoundedHeight;
+          final thumb =
+              finite &&
+              constraints.maxWidth * dpr <= thumbMaxWidth &&
+              constraints.maxHeight * dpr <= thumbMaxWidth * 3 / 4;
+          final roomForLabel =
+              showLabel &&
+              (!finite ||
+                  (constraints.maxHeight >= 84 && constraints.maxWidth >= 96));
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                assetFor(seed, thumb: thumb),
+                fit: BoxFit.cover,
+                excludeFromSemantics: true,
+                gaplessPlayback: true,
+                // Never a blank hole while the asset decodes.
+                frameBuilder: (_, child, frame, sync) => sync || frame != null
+                    ? child
+                    : const ColoredBox(color: Color(0xFFE5E7EB)),
               ),
-            );
-          },
-        ),
+              if (roomForLabel)
+                const Positioned(left: 8, bottom: 8, child: SamplePhotoPill()),
+            ],
+          );
+        },
       ),
     );
   }
 }
 
-/// A placeholder surface and the colour of the cup and caption on it.
-@immutable
-class PlaceholderTint {
-  const PlaceholderTint(this.surface, this.ink);
+/// The quiet "Sample photo" marker drawn over a placeholder photo. Same
+/// translucent-dark pill as the hero's photo counter.
+class SamplePhotoPill extends StatelessWidget {
+  const SamplePhotoPill({super.key});
 
-  final Color surface;
-  final Color ink;
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          child: Text(
+            CafePhotoPlaceholder.label,
+            maxLines: 1,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/presentation/widgets/cafe_photo_placeholder.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class HeroImageSlider extends StatefulWidget {
   const HeroImageSlider({
@@ -15,7 +14,7 @@ class HeroImageSlider extends StatefulWidget {
     this.onClaimTap,
   });
 
-  /// Picks the no-photo tint; pass the cafe's name.
+  /// Picks the sample photo; pass the cafe's name.
   final String? placeholderSeed;
 
   /// Set for an unclaimed cafe: the empty state then invites the owner to
@@ -139,10 +138,10 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
   }
 }
 
-/// The hero of a cafe with no photos: the no-photo surface at full height,
-/// a larger cup, "No photos yet", and for an unclaimed cafe a link asking the
-/// owner to claim it and add photos. Content sits below the app bar's buttons
-/// and above the sheet's lip.
+/// The hero of a cafe with no photos: the cafe's sample photo at full height,
+/// marked "Sample photo", and for an unclaimed cafe a link asking the owner to
+/// claim it and add real ones. Both sit where the photo counter would, above
+/// the sheet's lip.
 class _NoPhotosHero extends StatelessWidget {
   const _NoPhotosHero({
     required this.seed,
@@ -156,66 +155,74 @@ class _NoPhotosHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = CafePhotoPlaceholder.tintFor(seed);
-    final text = Theme.of(context).textTheme;
-    final top = MediaQuery.paddingOf(context).top + kToolbarHeight * 0.5;
     final claim = onClaimTap;
-    return ColoredBox(
-      color: tint.surface,
-      child: Padding(
-        padding: EdgeInsets.only(top: top, bottom: bottomInset),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        CafePhotoPlaceholder(seed: seed, showLabel: false),
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 16 + bottomInset,
+          // Side by side when they fit; at large text sizes the link wraps
+          // under the label rather than being cut off.
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              PhosphorIcon(
-                PhosphorIcons.coffee(PhosphorIconsStyle.duotone),
-                size: 44,
-                color: tint.ink,
-                duotoneSecondaryOpacity: 0.18,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'No photos yet',
-                style: text.bodyLarge?.copyWith(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: tint.ink,
-                ),
-              ),
-              if (claim != null) ...[
-                const SizedBox(height: 2),
-                Semantics(
-                  link: true,
-                  child: AdaptiveTap(
-                    onTap: claim,
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
-                      ),
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(text: 'Own this café? '),
-                            TextSpan(
-                              text: 'Add photos',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                decoration: TextDecoration.underline,
-                                decorationColor: tint.ink,
-                              ),
-                            ),
-                          ],
-                        ),
-                        style: text.bodyMedium?.copyWith(color: tint.ink),
-                      ),
+              const SamplePhotoPill(),
+              if (claim != null) _AddPhotosLink(onTap: claim),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// "Own this café? Add photos", in the same quiet pill as the label beside it.
+class _AddPhotosLink extends StatelessWidget {
+  const _AddPhotosLink({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+      fontSize: 12,
+      color: Colors.white,
+      height: 1.3,
+    );
+    return Semantics(
+      link: true,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Text.rich(
+              const TextSpan(
+                children: [
+                  TextSpan(text: 'Own this café? '),
+                  TextSpan(
+                    text: 'Add photos',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white,
                     ),
                   ),
-                ),
-              ],
-            ],
+                ],
+              ),
+              style: style,
+            ),
           ),
         ),
       ),

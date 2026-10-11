@@ -38,7 +38,7 @@ class MapSheetCafeCard extends StatelessWidget {
   static const double photoSize = 76;
   static const int _maxTags = 3;
 
-  /// Featured image, else first extra photo, else null (no-photo tile).
+  /// Featured image, else first extra photo, else null (sample photo).
   static String? _imageUrl(CafeSummary cafe) {
     final featured = cafe.coverImage?.trim();
     if (featured != null && featured.isNotEmpty) return featured;

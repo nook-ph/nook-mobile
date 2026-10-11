@@ -382,7 +382,7 @@ class ListsTextButton extends StatelessWidget {
 }
 
 /// A square cafe or list photo. With no usable [imageUrl] a cafe (the default
-/// coffee [placeholderIcon]) gets the shared no-photo tile, tinted by
+/// coffee [placeholderIcon]) gets the shared sample photo, picked by
 /// [placeholderSeed]; anything else gets a tinted tile carrying
 /// [placeholderIcon].
 class ListsThumb extends StatelessWidget {
@@ -395,7 +395,7 @@ class ListsThumb extends StatelessWidget {
     this.placeholderSeed,
   });
 
-  /// Picks the no-photo tint for a cafe; pass the cafe's name.
+  /// Picks the sample photo for a cafe; pass the cafe's name.
   final String? placeholderSeed;
 
   final String? imageUrl;
@@ -414,7 +414,7 @@ class ListsThumb extends StatelessWidget {
               dimension: size,
               child: CafePhotoPlaceholder(
                 seed: placeholderSeed,
-                showCaption: false,
+                showLabel: false,
               ),
             )
           : url == null || url.isEmpty

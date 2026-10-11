@@ -9,7 +9,38 @@ product pages instead; anything marked *unverified* is from memory of the
 products, not a source. Screenshots, if added later, stay out of git
 (`.gitignore` here ignores `*.png`).
 
-## No-photo tile
+## No-photo state: sample photo (replaces the no-photo tile)
+A cafe with no photo, on every card and thumbnail, and as the details hero.
+
+**Changed 2026-10-11 by product decision:** the designed cup tile below was
+replaced by a generic cafe photo, labelled. Eight Unsplash-License photos
+(credits: `assets/images/placeholder_cafes/CREDITS.md` in nook-mobile,
+`public/placeholder-cafes/CREDITS.md` in nook-webapp), 4:3 WebP at 1200x900
+and a 480x360 thumb, bundled, never hotlinked. Built in
+`lib/core/presentation/widgets/cafe_photo_placeholder.dart` (via
+`CafeCardImage`) and `hero_image_slider.dart` (`_NoPhotosHero`). Webapp:
+`app/components/cafe/CafePhotoPlaceholder.tsx`, `CafeNoPhotosHero.tsx`,
+`lib/utils/photo-placeholder.ts`.
+
+Decisions: the photo is picked from the cafe's name with the same hash and
+list order on both platforms, so a cafe gets the same photo everywhere; a
+small translucent "Sample photo" pill sits bottom-left on cards and the hero
+(top corners already hold status and rating), and is dropped on thumbnails too
+small to carry it (list rows, crawl stops, search avatars). "Sample photo"
+over "Stock photo" or "Not actual café": it is short enough for a card and
+says the one thing that matters without sounding like an error. The hero keeps
+"Own this café? Add photos" for unclaimed cafes as a matching pill beside the
+label; on desktop the photo keeps its 4:3 shape beside a short note ("No
+photos of this café yet"), because the gallery's wide band would crop a
+sample photo to a sliver. A photo that fails to load also falls back to the
+labelled sample. The OG link preview stays a branded card (name, area,
+wordmark) without the photo: a preview travels without its label, so a stock
+interior there would pass for the real place.
+
+Superseded research, kept for the record (it argued against stock photos; the
+labelled sample is the compromise):
+
+### Earlier: no-photo tile
 A cafe with no photo, on every card and thumbnail, and as the details hero.
 Built in `lib/core/presentation/widgets/cafe_photo_placeholder.dart` (tile, via
 `CafeCardImage`) and `hero_image_slider.dart` (`_NoPhotosHero`). Webapp:

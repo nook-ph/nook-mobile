@@ -8,7 +8,7 @@ import 'package:nook/features/map/presentation/widgets/map_open_line.dart';
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-/// Featured image, else first extra photo, else null (no-photo tile).
+/// Featured image, else first extra photo, else null (sample photo).
 String? _imageUrl(CafeSummary cafe) {
   final featured = cafe.coverImage?.trim();
   if (featured != null && featured.isNotEmpty) return featured;

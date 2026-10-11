@@ -10,9 +10,9 @@ import 'package:nook/core/presentation/widgets/cafe_photo_placeholder.dart';
 /// on mobile data) and paints nothing while loading (so cards appear as blank
 /// holes on the discovery surfaces).
 ///
-/// A cafe with no photo ([imageUrl] null or blank) gets the designed
-/// [CafePhotoPlaceholder], tinted by [placeholderSeed] (the cafe's name), never
-/// a stock photo standing in for the place.
+/// A cafe with no photo ([imageUrl] null or blank) gets [CafePhotoPlaceholder]:
+/// a generic cafe photo picked by [placeholderSeed] (the cafe's name) and
+/// marked "Sample photo".
 ///
 /// [height] and [width] default to filling the parent, for the cards that size
 /// their image with `Expanded` rather than a fixed box.
@@ -29,25 +29,26 @@ class CafeCardImage extends StatelessWidget {
     this.placeholder,
     this.errorWidget,
     this.placeholderSeed,
-    this.showNoPhotoCaption = true,
+    this.showSampleLabel = true,
   });
 
   /// The photo, or null / blank for a cafe that has none yet.
   final String? imageUrl;
 
-  /// Picks the no-photo tint; pass the cafe's name.
+  /// Picks the sample photo; pass the cafe's name.
   final String? placeholderSeed;
 
-  /// Whether the no-photo tile may say "No photo yet" when it has room.
-  final bool showNoPhotoCaption;
+  /// Whether the sample photo may carry its "Sample photo" pill when it has
+  /// room.
+  final bool showSampleLabel;
   final double height;
   final double width;
 
   /// Shown while the photo loads. Defaults to a neutral grey block.
   final Widget? placeholder;
 
-  /// Shown when the photo cannot be loaded. Defaults to the no-photo tile
-  /// without its caption (the cafe has a photo; it just didn't load).
+  /// Shown when the photo cannot be loaded. Defaults to the sample photo,
+  /// labelled like any other: a stand-in must never pass for the real place.
   final Widget? errorWidget;
 
   /// The decode width, in physical pixels, for a box of [size] logical
@@ -76,7 +77,7 @@ class CafeCardImage extends StatelessWidget {
         width: width,
         child: CafePhotoPlaceholder(
           seed: placeholderSeed,
-          showCaption: showNoPhotoCaption,
+          showLabel: showSampleLabel,
         ),
       );
     }
@@ -101,7 +102,10 @@ class CafeCardImage extends StatelessWidget {
               placeholder ?? const ColoredBox(color: Color(0xFFE5E7EB)),
           errorWidget: (_, _, _) =>
               errorWidget ??
-              CafePhotoPlaceholder(seed: placeholderSeed, showCaption: false),
+              CafePhotoPlaceholder(
+                seed: placeholderSeed,
+                showLabel: showSampleLabel,
+              ),
         ),
       ),
     );
