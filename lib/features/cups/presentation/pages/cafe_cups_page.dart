@@ -228,7 +228,9 @@ class _CafeCupsPageState extends State<CafeCupsPage> {
             ],
           ),
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(56),
+            // 4 + 8 padding, 4 + 4 around the 40px segments. Declaring less
+            // squeezes the toolbar holding the two-line title.
+            preferredSize: const Size.fromHeight(60),
             child: BlocBuilder<CafeCupsCubit, CafeCupsState>(
               buildWhen: (a, b) => a.stats != b.stats,
               builder: (context, state) => Padding(

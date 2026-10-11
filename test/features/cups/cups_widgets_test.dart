@@ -384,4 +384,67 @@ void main() {
     await tester.pump();
     expect(find.byType(CafePhotosBody), findsOneWidget);
   });
+
+  for (final scale in [1.0, 1.3, 2.0]) {
+    testWidgets('Cups page header fits at text scale $scale', (tester) async {
+      usePhone(tester);
+      final repo = FakeCupsRepository(now: () => _now);
+      final cups = CafeCupsCubit(
+        repository: repo,
+        cafeId: 'cafe-1',
+        pageSize: CafeCupsCubit.pagePageSize,
+      );
+      final photos = CafePhotosCubit(
+        repository: FakeCommunityPhotosRepository([communityPhoto('p1')]),
+        cafeId: 'cafe-1',
+      );
+      addTearDown(cups.close);
+      addTearDown(photos.close);
+      await cups.load();
+      await photos.load();
+      final block = FakeBlockCubit();
+      addTearDown(block.close);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TAppTheme.lightTheme,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(scale)),
+            child: child!,
+          ),
+          home: BlocProvider<BlockCubit>.value(
+            value: block,
+            child: CafeCupsPage(
+              cafe: _cafe,
+              cupsCubit: cups,
+              photosCubit: photos,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      // The segment holds its label, and the bar holds the segment.
+      final label = tester.getRect(find.text('Cups · 4'));
+      final segment = tester.getRect(
+        find
+            .ancestor(
+              of: find.text('Cups · 4'),
+              matching: find.byType(AnimatedContainer),
+            )
+            .first,
+      );
+      final bar = tester.getRect(find.byType(AppBar));
+      final title = tester.getRect(find.text(_cafe.name));
+      // The toolbar keeps its full height: the bar is toolbar + toggle.
+      expect(bar.height, kToolbarHeight + 60);
+      expect(
+        segment.top <= label.top && label.bottom <= segment.bottom,
+        isTrue,
+      );
+      expect(segment.bottom <= bar.bottom, isTrue);
+      expect(title.bottom <= segment.top, isTrue);
+    });
+  }
 }
