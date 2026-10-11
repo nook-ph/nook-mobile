@@ -31,7 +31,6 @@ import 'package:nook/features/cafe_details/bloc/reviews_event.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/cafe_community_photos_section.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_your_visit_block.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
@@ -40,6 +39,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_com
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_error_view.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_skeleton.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_community_photos_section.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_load_failure.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/expandable_description.dart';
