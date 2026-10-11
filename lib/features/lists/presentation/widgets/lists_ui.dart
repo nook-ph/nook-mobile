@@ -408,8 +408,8 @@ class ListsThumb extends StatelessWidget {
     final url = imageUrl?.trim();
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: (url == null || url.isEmpty) &&
-              placeholderIcon == LucideIcons.coffee
+      child:
+          (url == null || url.isEmpty) && placeholderIcon == LucideIcons.coffee
           ? SizedBox.square(
               dimension: size,
               child: CafePhotoPlaceholder(

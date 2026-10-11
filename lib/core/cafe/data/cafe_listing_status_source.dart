@@ -4,10 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Where a cafe's listing came from and whether anyone has checked it.
 @immutable
 class CafeListingStatus {
-  const CafeListingStatus({
-    required this.isImported,
-    required this.isVerified,
-  });
+  const CafeListingStatus({required this.isImported, required this.isVerified});
 
   /// Added from public sources (the Google Places import), not by its owner
   /// or the Nook team.

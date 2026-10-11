@@ -61,7 +61,9 @@ class CafePhotoPlaceholder extends StatelessWidget {
           builder: (context, constraints) {
             final shortest = constraints.biggest.shortestSide;
             final finite = shortest.isFinite;
-            final iconSize = finite ? (shortest * 0.32).clamp(14.0, 34.0) : 28.0;
+            final iconSize = finite
+                ? (shortest * 0.32).clamp(14.0, 34.0)
+                : 28.0;
             final roomForCaption =
                 showCaption &&
                 (!finite ||

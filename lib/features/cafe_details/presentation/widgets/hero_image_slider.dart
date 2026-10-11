@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
+import 'package:nook/core/presentation/widgets/cafe_photo_placeholder.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class HeroImageSlider extends StatefulWidget {
   const HeroImageSlider({
@@ -8,7 +11,16 @@ class HeroImageSlider extends StatefulWidget {
     required this.isLoading,
     this.bottomInset = 0,
     this.onImageTap,
+    this.placeholderSeed,
+    this.onClaimTap,
   });
+
+  /// Picks the no-photo tint; pass the cafe's name.
+  final String? placeholderSeed;
+
+  /// Set for an unclaimed cafe: the empty state then invites the owner to
+  /// claim it and add photos.
+  final VoidCallback? onClaimTap;
 
   /// Opens the full-screen viewer at the tapped photo.
   final void Function(int index)? onImageTap;
@@ -74,14 +86,7 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
               itemBuilder: (context, index) {
                 final image = CafeCardImage(
                   imageUrl: displayImages[index],
-                  errorWidget: Container(
-                    color: Colors.grey[300],
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: Color(0xFF9E9E9E),
-                    ),
-                  ),
+                  placeholderSeed: widget.placeholderSeed,
                 );
                 final onTap = widget.onImageTap;
                 if (onTap == null) return image;
@@ -99,24 +104,10 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
               },
             )
           else
-            Container(
-              height: _height,
-              width: double.infinity,
-              color: Colors.grey[300],
-              alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.image_outlined, color: Color(0xFF9E9E9E)),
-                  const SizedBox(height: 6),
-                  Text(
-                    'No photos yet',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF767574),
-                    ),
-                  ),
-                ],
-              ),
+            _NoPhotosHero(
+              seed: widget.placeholderSeed,
+              bottomInset: widget.bottomInset,
+              onClaimTap: widget.onClaimTap,
             ),
 
           // No counter without photos: "1 / 1" over a placeholder says nothing.
@@ -143,6 +134,90 @@ class _HeroImageSliderState extends State<HeroImageSlider> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// The hero of a cafe with no photos: the no-photo surface at full height,
+/// a larger cup, "No photos yet", and for an unclaimed cafe a link asking the
+/// owner to claim it and add photos. Content sits below the app bar's buttons
+/// and above the sheet's lip.
+class _NoPhotosHero extends StatelessWidget {
+  const _NoPhotosHero({
+    required this.seed,
+    required this.bottomInset,
+    required this.onClaimTap,
+  });
+
+  final String? seed;
+  final double bottomInset;
+  final VoidCallback? onClaimTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = CafePhotoPlaceholder.tintFor(seed);
+    final text = Theme.of(context).textTheme;
+    final top = MediaQuery.paddingOf(context).top + kToolbarHeight * 0.5;
+    final claim = onClaimTap;
+    return ColoredBox(
+      color: tint.surface,
+      child: Padding(
+        padding: EdgeInsets.only(top: top, bottom: bottomInset),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PhosphorIcon(
+                PhosphorIcons.coffee(PhosphorIconsStyle.duotone),
+                size: 44,
+                color: tint.ink,
+                duotoneSecondaryOpacity: 0.18,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No photos yet',
+                style: text.bodyLarge?.copyWith(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: tint.ink,
+                ),
+              ),
+              if (claim != null) ...[
+                const SizedBox(height: 2),
+                Semantics(
+                  link: true,
+                  child: AdaptiveTap(
+                    onTap: claim,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(text: 'Own this café? '),
+                            TextSpan(
+                              text: 'Add photos',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.underline,
+                                decorationColor: tint.ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                        style: text.bodyMedium?.copyWith(color: tint.ink),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
