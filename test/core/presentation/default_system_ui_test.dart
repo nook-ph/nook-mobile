@@ -28,10 +28,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(
-      SystemChrome.latestStyle?.statusBarIconBrightness,
-      Brightness.light,
-    );
+    expect(SystemChrome.latestStyle?.statusBarIconBrightness, Brightness.light);
 
     navigator.currentState!.pop();
     await tester.pumpAndSettle();

@@ -1,6 +1,10 @@
 # Share a cup to Instagram Story
 
-> Status: **spec, nothing built** (2026-10-11).
+> Status: **mobile built** on `feat/share-cup-story` (2026-10-11), changed from this spec:
+> **no Meta App ID and no direct Instagram channel.** Like the crawl recap, the cup's overlay is
+> laid over its photo (or one you choose) and handed to the system share sheet, or exported alone
+> as a transparent PNG; Copy link and the café @handle cover the stickers. §5's native code and
+> §9.3 are not used. Not built: web cup page, `get_cup_public`, the app `/cups/:id` route.
 > **Target: nook-mobile 1.1.5, next release candidate.** `v1.1.5-rc1` is tagged without this
 > feature (on `4389e37`, the merge of PR #130). This ships in **`v1.1.5-rc2`**, or in whichever
 > `-rcN` is next once it's built. The version name stays `1.1.5`. The feature also needs a new

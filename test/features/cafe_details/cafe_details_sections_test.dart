@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/social_handle.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart'
     show scrollOffsetUnderBar;
@@ -352,7 +353,7 @@ void main() {
     });
 
     test('reads the account from a social link, not its last segment', () {
-      String? handle(String raw) => CafeHoursLocationSection.socialHandle(raw);
+      String? handle(String raw) => socialHandle(raw);
 
       expect(handle('tadaima'), 'tadaima');
       expect(handle('@tadaima'), 'tadaima');

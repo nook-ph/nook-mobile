@@ -130,6 +130,7 @@ class CupCard extends Equatable {
     this.isMine = false,
     this.items = const [],
     this.visitsByAuthor = 1,
+    this.moderationStatus,
   });
 
   /// Stable within a list: the cup id, the review id, or the legacy
@@ -168,6 +169,10 @@ class CupCard extends Equatable {
   /// How many cups this person has at the cafe ("3rd visit").
   final int visitsByAuthor;
 
+  /// `visible`, `hidden` or `removed`; sent on your own cups only. Null
+  /// reads as visible.
+  final String? moderationStatus;
+
   List<CupItem> get photos => [
     for (final i in items)
       if (i.hasPhoto) i,
@@ -186,6 +191,13 @@ class CupCard extends Equatable {
   /// Only real cups and legacy reviews can be edited as a whole; a legacy
   /// photo group is edited photo by photo.
   bool get isLegacyPhotos => cupId == null && reviewId == null;
+
+  /// Your own visible cup with an id the public cup page resolves
+  /// (docs/features/share_cup_story.md §3.5).
+  bool get canShare =>
+      isMine &&
+      cupId != null &&
+      (moderationStatus == null || moderationStatus == 'visible');
 
   /// "@sai", or "You" on your own.
   String get label {
@@ -215,6 +227,7 @@ class CupCard extends Equatable {
     visitedAt: visitedAt,
     items: items,
     visitsByAuthor: visitsByAuthor,
+    moderationStatus: moderationStatus,
   );
 
   @override
@@ -237,6 +250,7 @@ class CupCard extends Equatable {
     visitedAt,
     items,
     visitsByAuthor,
+    moderationStatus,
   ];
 }
 

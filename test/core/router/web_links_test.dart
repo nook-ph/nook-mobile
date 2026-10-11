@@ -57,9 +57,7 @@ void main() {
     final router = GoRouter(
       initialLocation: '/nope/at/all',
       errorBuilder: (context, state) => const LinkNotFoundPage(),
-      routes: [
-        GoRoute(path: '/', builder: (_, _) => const Text('home')),
-      ],
+      routes: [GoRoute(path: '/', builder: (_, _) => const Text('home'))],
     );
     await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();

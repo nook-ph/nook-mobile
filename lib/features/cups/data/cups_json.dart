@@ -65,6 +65,7 @@ abstract final class CupsJson {
           item(i, legacy: legacyKinds(json)),
       ],
       visitsByAuthor: _int(json['visits_by_author']).clamp(1, 1 << 20),
+      moderationStatus: _string(json['moderation_status']),
     );
   }
 

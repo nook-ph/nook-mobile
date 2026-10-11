@@ -336,6 +336,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           card: card,
           cafeId: widget.cafeId,
           cafeName: details.name,
+          cafeArea: _pickedCafe(state).area,
+          instagramRaw: details.socialLinks['instagram'] as String?,
           onEdit: () => _addCup(
             context,
             state,
@@ -394,6 +396,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           cubit: _photos,
           cupCount: cupCount,
           reviewOf: _reviewWords,
+          myCup: (id) => _cups.state.myCups
+              .where((c) => c.cupId == id || c.id == id)
+              .firstOrNull,
           onAdd: () => _addCup(context, state, source: CupSource.storiesTray),
           onSeeAll: (photos) => _openCups(
             context,
