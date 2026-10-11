@@ -178,7 +178,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
 
     final sections = <Widget>[
       if (CafeAmenitiesSection.hasContent(groups))
-        CafeAmenitiesSection(groups: groups),
+        CafeAmenitiesSection(
+          groups: groups,
+          cafeId: widget.cafeId,
+          cafeName: details.name,
+        ),
       if (description.isNotEmpty)
         Padding(
           padding: const EdgeInsets.symmetric(

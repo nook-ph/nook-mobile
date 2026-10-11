@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_tags_page.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_actions_bar.dart';
@@ -133,7 +134,22 @@ void main() {
   });
 
   group('CafeAmenitiesSection', () {
-    testWidgets('lists amenities and best-for tags', (tester) async {
+    List<TagEntity> manyTags() => [
+      for (final name in const ['Pour-over', 'Espresso', 'Matcha'])
+        TagEntity(id: name, name: name, category: 'coffee'),
+      for (final name in const ['Date Spot', 'Group Hangout', 'Late Night'])
+        TagEntity(id: name, name: name, category: 'best_for'),
+      for (final name in const [
+        'Free WiFi',
+        'Power Outlets',
+        'Air Conditioned',
+        'Wheelchair Accessible',
+      ])
+        TagEntity(id: name, name: name, category: 'amenities'),
+      TagEntity(id: 'Cash', name: 'Cash', category: 'payment'),
+    ];
+
+    testWidgets('a few tags: all of them, no See all', (tester) async {
       final groups = CafeTagGroups.from([
         TagEntity(id: '1', name: 'Free WiFi', category: 'amenities'),
         TagEntity(id: '2', name: 'Power Outlets', category: 'amenities'),
@@ -141,48 +157,69 @@ void main() {
       ]);
       await tester.pumpWidget(_host(CafeAmenitiesSection(groups: groups)));
 
-      expect(find.text('Amenities'), findsOneWidget);
+      expect(find.text('What this cafe offers'), findsOneWidget);
       expect(find.text('Free WiFi'), findsOneWidget);
-      expect(find.text('Best for'), findsOneWidget);
       expect(find.text('Solo Work / Study'), findsOneWidget);
+      expect(find.textContaining('See all'), findsNothing);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('leaves out the half that has nothing in it', (tester) async {
-      final groups = CafeTagGroups.from([
-        TagEntity(id: '3', name: 'Solo Work / Study', category: 'best_for'),
-      ]);
+    testWidgets('many tags: six, then See all with the total', (tester) async {
+      final groups = CafeTagGroups.from(manyTags());
       await tester.pumpWidget(_host(CafeAmenitiesSection(groups: groups)));
 
-      expect(find.text('Amenities'), findsNothing);
-      expect(find.text('Best for'), findsOneWidget);
-    });
-
-    testWidgets('shows a Coffee group with an icon per tag', (tester) async {
-      final groups = CafeTagGroups.from([
-        TagEntity(id: '1', name: 'Pour-over', category: 'coffee'),
-        TagEntity(id: '2', name: 'Single Origin', category: 'coffee'),
-        TagEntity(id: '3', name: 'Free WiFi', category: 'amenities'),
-      ]);
-      await tester.pumpWidget(_host(CafeAmenitiesSection(groups: groups)));
-
-      expect(find.text('Coffee'), findsOneWidget);
       expect(find.text('Pour-over'), findsOneWidget);
-      expect(find.text('Single Origin'), findsOneWidget);
-      // Pour-over is Nook's own glyph; Single Origin is Phosphor coffee-bean.
-      expect(find.byType(CoffeeGlyphIcon), findsOneWidget);
-      expect(find.text('Amenities'), findsOneWidget);
+      expect(find.text('Espresso'), findsOneWidget);
+      expect(find.text('Matcha'), findsNothing);
+      expect(find.text('Free WiFi'), findsOneWidget);
+      expect(find.text('Wheelchair Accessible'), findsNothing);
+      // Pour-over and Espresso are Nook's own glyphs.
+      expect(find.byType(CoffeeGlyphIcon), findsNWidgets(2));
+      expect(find.text('See all 11'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('no Coffee group without coffee tags', (tester) async {
-      final groups = CafeTagGroups.from([
-        TagEntity(id: '1', name: 'Specialty Coffee', category: 'best_for'),
-      ]);
-      await tester.pumpWidget(_host(CafeAmenitiesSection(groups: groups)));
+    testWidgets('See all opens every group on its own page', (tester) async {
+      final groups = CafeTagGroups.from(manyTags());
+      await tester.pumpWidget(
+        _host(CafeAmenitiesSection(groups: groups, cafeName: 'Tadaima')),
+      );
+      await tester.tap(find.text('See all 11'));
+      await tester.pumpAndSettle();
 
-      expect(find.text('Coffee'), findsNothing);
-      expect(find.text('Best for'), findsOneWidget);
+      expect(find.byType(CafeTagsPage), findsOneWidget);
+      expect(find.text('Tadaima'), findsOneWidget);
+      expect(find.text('Coffee'), findsOneWidget);
+      expect(find.text('Matcha'), findsOneWidget);
+      // The rest of the groups are further down.
+      for (final text in const ['Best for', 'Amenities', 'Payment', 'Cash']) {
+        await tester.scrollUntilVisible(find.text(text), 200);
+        expect(find.text(text), findsOneWidget);
+      }
+
+      await tester.tap(find.bySemanticsLabel('Back'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CafeTagsPage), findsNothing);
+    });
+
+    testWidgets('large text: one column, nothing overflows', (tester) async {
+      final groups = CafeTagGroups.from([
+        ...manyTags(),
+        TagEntity(
+          id: 'long',
+          name: 'Aesthetic / IG-worthy',
+          category: 'best_for',
+          isFeatured: true,
+        ),
+      ]);
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: _host(CafeAmenitiesSection(groups: groups)),
+        ),
+      );
+      expect(find.text('Aesthetic / IG-worthy'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     test('a listing with only coffee tags has content', () {

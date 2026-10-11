@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/presentation/widgets/tag_icon.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_tags_page.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/utils/launch_cafe_directions.dart';
@@ -17,76 +19,89 @@ import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// "Coffee" chips with their icons, amenities as a two-column icon grid,
-/// then "Best for" chips.
+/// "What this cafe offers": a short preview of the cafe's tags as an icon
+/// grid, then "See all N" to [CafeTagsPage] when there are more.
 ///
-/// These are the reason people open Nook, so they sit above the fold. Any
-/// group is left out when the listing has nothing for it; the page skips the
-/// whole section when all are empty (see [hasContent]).
+/// The preview is [CafeTagGroups.preview]: two each from Coffee, Best for and
+/// Amenities, Coffee first, so a cafe with twenty tags reads as calmly as one
+/// with six. The section is left out when the cafe has none of those three
+/// groups (see [hasContent]); payments alone live in Hours & location.
 class CafeAmenitiesSection extends StatelessWidget {
-  const CafeAmenitiesSection({super.key, required this.groups});
+  const CafeAmenitiesSection({
+    super.key,
+    required this.groups,
+    this.cafeId,
+    this.cafeName,
+  });
 
   final CafeTagGroups groups;
+  final String? cafeId;
+  final String? cafeName;
+
+  static const title = 'What this cafe offers';
 
   static bool hasContent(CafeTagGroups groups) =>
       groups.coffee.isNotEmpty ||
       groups.amenities.isNotEmpty ||
       groups.bestFor.isNotEmpty;
 
+  void _openAll(BuildContext context) {
+    logAppEvent(
+      'cafe_tags_see_all_tapped',
+      properties: {
+        'cafe_id': ?cafeId,
+        'tag_count': groups.total,
+        'has_coffee_tags': groups.coffee.isNotEmpty,
+      },
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CafeTagsPage(groups: groups, cafeName: cafeName),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final coffee = groups.coffee;
-    final amenities = groups.amenities;
-    final bestFor = groups.bestFor;
+    final preview = groups.preview();
+    final total = groups.total;
+    // At large text two columns leave a word per line; one reads better.
+    final oneColumn = MediaQuery.textScalerOf(context).scale(16) > 16 * 1.3;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: CafeDetailsTokens.gutter),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (coffee.isNotEmpty) ...[
-            const CafeSectionTitle('Coffee'),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [for (final tag in coffee) _CoffeeChip(tag: tag)],
-            ),
-          ],
-          if (coffee.isNotEmpty && (amenities.isNotEmpty || bestFor.isNotEmpty))
+          const CafeSectionTitle(title),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const gap = 12.0;
+              final cell = oneColumn
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - gap) / 2;
+              return Wrap(
+                spacing: gap,
+                runSpacing: 14,
+                children: [
+                  for (final tag in preview)
+                    SizedBox(
+                      width: cell,
+                      child: _AmenityCell(tag: tag),
+                    ),
+                ],
+              );
+            },
+          ),
+          if (total > preview.length) ...[
             const SizedBox(height: 20),
-          if (amenities.isNotEmpty) ...[
-            const CafeSectionTitle('Amenities'),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                const gap = 12.0;
-                final cell = (constraints.maxWidth - gap) / 2;
-                return Wrap(
-                  spacing: gap,
-                  runSpacing: 12,
-                  children: [
-                    for (final tag in amenities)
-                      SizedBox(
-                        width: cell,
-                        child: _AmenityCell(tag: tag),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ],
-          if (amenities.isNotEmpty && bestFor.isNotEmpty)
-            const SizedBox(height: 20),
-          if (bestFor.isNotEmpty) ...[
-            const CafeSectionTitle('Best for'),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final tag in bestFor) _BestForChip(label: tag.name),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: CafeWideButton(
+                label: 'See all $total',
+                onTap: () => _openAll(context),
+              ),
             ),
           ],
         ],
@@ -131,65 +146,6 @@ class _AmenityCell extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// A coffee tag: the Best for pill with the tag's icon in front.
-class _CoffeeChip extends StatelessWidget {
-  const _CoffeeChip({required this.tag});
-
-  final TagEntity tag;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 6, 14, 6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: CafeDetailsTokens.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TagIcon(
-            tag.name,
-            size: 16,
-            color: CafeDetailsTokens.brand,
-            fallback: PhosphorIcons.coffee(),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            tag.name,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: CafeDetailsTokens.ink),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BestForChip extends StatelessWidget {
-  const _BestForChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: CafeDetailsTokens.border),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(color: CafeDetailsTokens.ink),
-      ),
     );
   }
 }

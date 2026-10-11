@@ -4,6 +4,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_control.dart';
 import 'package:nook/features/cafe_details/domain/entities/cafe_details_entity.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
+import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/reviews_preview_section.dart';
@@ -337,6 +338,131 @@ void main() {
         'Specialty Coffee',
         'Date Spot',
       ]);
+    });
+  });
+
+  group('CafeTagGroups.preview', () {
+    TagEntity t(String name, String category, {bool featured = false}) =>
+        TagEntity(
+          id: name,
+          name: name,
+          category: category,
+          isFeatured: featured,
+        );
+    List<String> names(List<TagEntity> tags) => [for (final t in tags) t.name];
+
+    final many = CafeTagGroups.from([
+      t('Free WiFi', 'amenities'),
+      t('Parking Available', 'amenities'),
+      t('Smoking Area', 'amenities'),
+      t('Power Outlets', 'amenities'),
+      t('Air Conditioned', 'amenities'),
+      t('Date Spot', 'best_for'),
+      t('Group Hangout', 'best_for', featured: true),
+      t('Specialty Coffee', 'best_for', featured: true),
+      t('Late Night', 'best_for'),
+      t('Matcha', 'coffee'),
+      t('Pour-over', 'coffee'),
+      t('Espresso', 'coffee'),
+      t('Cash', 'payment'),
+      t('Card', 'payment'),
+    ]);
+
+    test('two each from Coffee, Best for and Amenities, in that order', () {
+      expect(names(many.preview()), [
+        // Specialty Coffee leads Coffee, then the contract's order.
+        'Specialty Coffee', 'Espresso',
+        // Featured first.
+        'Group Hangout', 'Date Spot',
+        // Wi-Fi and outlets before the listing's order.
+        'Free WiFi', 'Power Outlets',
+      ]);
+      expect(many.total, 14);
+    });
+
+    test('a short group gives its places to the others', () {
+      final groups = CafeTagGroups.from([
+        t('Free WiFi', 'amenities'),
+        t('Power Outlets', 'amenities'),
+        t('Air Conditioned', 'amenities'),
+        t('Outdoor Seating', 'amenities'),
+        t('Pet Friendly', 'amenities'),
+        t('Solo Work / Study', 'best_for'),
+        t('Cash', 'payment'),
+        t('Card', 'payment'),
+      ]);
+      expect(names(groups.preview()), [
+        'Solo Work / Study',
+        'Free WiFi',
+        'Power Outlets',
+        'Air Conditioned',
+        'Outdoor Seating',
+        'Pet Friendly',
+      ]);
+    });
+
+    test('without coffee tags it is Best for and Amenities', () {
+      final groups = CafeTagGroups.from([
+        t('Specialty Coffee', 'best_for', featured: true),
+        t('Quick Coffee', 'best_for'),
+        t('Date Spot', 'best_for'),
+        t('Free WiFi', 'amenities'),
+        t('Parking Available', 'amenities'),
+        t('Air Conditioned', 'amenities'),
+        t('Cash', 'payment'),
+      ]);
+      expect(names(groups.preview()), [
+        'Specialty Coffee',
+        'Quick Coffee',
+        'Date Spot',
+        'Free WiFi',
+        'Air Conditioned',
+        'Parking Available',
+      ]);
+    });
+
+    test('payments fill only what nothing else can', () {
+      final groups = CafeTagGroups.from([
+        t('Free WiFi', 'amenities'),
+        t('Cash', 'payment'),
+        t('Card', 'payment'),
+      ]);
+      expect(names(groups.preview()), ['Free WiFi', 'Cash', 'Card']);
+    });
+
+    test('a cafe with six tags or fewer shows them all', () {
+      final groups = CafeTagGroups.from([
+        t('Free WiFi', 'amenities'),
+        t('Date Spot', 'best_for'),
+      ]);
+      expect(groups.preview().length, groups.total);
+      expect(CafeTagGroups.from(const []).preview(), isEmpty);
+    });
+
+    test(
+      'sections: Coffee, Best for, Amenities, Payment; empty ones left out',
+      () {
+        expect(
+          [for (final s in many.sections()) s.title],
+          ['Coffee', 'Best for', 'Amenities', 'Payment'],
+        );
+        final noCoffee = CafeTagGroups.from([
+          t('Free WiFi', 'amenities'),
+          t('Cash', 'payment'),
+        ]);
+        expect(
+          [for (final s in noCoffee.sections()) s.title],
+          ['Amenities', 'Payment'],
+        );
+      },
+    );
+
+    test('coffee hints exist for every coffee tag and nothing else', () {
+      for (final name in [...kCoffeeTagNames, 'Specialty Coffee']) {
+        expect(CafeTagGroups.coffeeHint(name), isNotNull, reason: name);
+      }
+      expect(CafeTagGroups.coffeeHint('pour over'), isNotNull);
+      expect(CafeTagGroups.coffeeHint('Free WiFi'), isNull);
     });
   });
 

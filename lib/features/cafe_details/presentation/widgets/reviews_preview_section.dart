@@ -86,7 +86,7 @@ class ReviewsPreviewSection extends StatelessWidget {
                 ),
                 if (retry != null) ...[
                   const SizedBox(height: 12),
-                  _OutlinedWideButton(label: 'Try again', onTap: retry),
+                  CafeWideButton(label: 'Try again', onTap: retry),
                 ],
               ],
             ),
@@ -157,7 +157,7 @@ class ReviewsPreviewSection extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                 horizontal: CafeDetailsTokens.gutter,
               ),
-              child: _OutlinedWideButton(
+              child: CafeWideButton(
                 label: count == 1 ? 'See 1 review' : 'See all $count reviews',
                 onTap: onSeeAllTap,
               ),
@@ -572,36 +572,6 @@ class _ReviewPreviewCard extends StatelessWidget {
                 ],
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _OutlinedWideButton extends StatelessWidget {
-  const _OutlinedWideButton({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AdaptiveTap(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          border: Border.all(color: CafeDetailsTokens.border),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            fontWeight: FontWeight.w500,
-            color: CafeDetailsTokens.brand,
-          ),
         ),
       ),
     );

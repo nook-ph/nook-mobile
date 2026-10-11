@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/location/device_location.dart';
 import 'package:nook/core/presentation/widgets/cafe_distance_label.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
 
 /// Colours and small pieces shared by the cafe details sections.
@@ -50,6 +51,43 @@ class CafeSectionTitle extends StatelessWidget {
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: CafeDetailsTokens.ink,
+      ),
+    );
+  }
+}
+
+/// A full-width outlined button closing a section ("See all 18",
+/// "See all 4 reviews").
+class CafeWideButton extends StatelessWidget {
+  const CafeWideButton({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            border: Border.all(color: CafeDetailsTokens.border),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w500,
+              color: CafeDetailsTokens.brand,
+            ),
+          ),
+        ),
       ),
     );
   }
