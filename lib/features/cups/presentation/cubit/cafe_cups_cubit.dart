@@ -242,9 +242,24 @@ class CafeCupsCubit extends Cubit<CafeCupsState> {
     load();
   }
 
+  /// Cards with a Helpful toggle on its way.
+  final _toggling = <String>{};
+
   /// Helpful on [card], shown at once and put back if it fails. Throws so
-  /// the caller can say why.
-  Future<void> toggleHelpful(CupCard card) async {
+  /// the caller can say why. A tap while one is on its way is ignored, so a
+  /// double tap can't send two toggles that land out of order. False when
+  /// ignored.
+  Future<bool> toggleHelpful(CupCard card) async {
+    if (!_toggling.add(card.id)) return false;
+    try {
+      await _toggleHelpful(card);
+      return true;
+    } finally {
+      _toggling.remove(card.id);
+    }
+  }
+
+  Future<void> _toggleHelpful(CupCard card) async {
     final optimistic = card.copyWith(
       hasVoted: !card.hasVoted,
       helpfulCount: (card.helpfulCount + (card.hasVoted ? -1 : 1)).clamp(

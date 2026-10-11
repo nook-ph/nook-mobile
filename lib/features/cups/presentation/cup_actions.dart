@@ -93,7 +93,7 @@ Future<void> toggleCupHelpful(
     return;
   }
   try {
-    await cubit.toggleHelpful(card);
+    if (!await cubit.toggleHelpful(card)) return;
     logAppEvent(
       CupEvents.helpfulToggled,
       properties: {

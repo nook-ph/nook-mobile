@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/cups/domain/entities/cup.dart';
 import 'package:nook/features/cups/presentation/cubit/cafe_cups_cubit.dart';
@@ -8,6 +10,15 @@ import 'cups_fakes.dart';
 class _Reads extends FakeCupsRepository {
   Object? readFailure;
   int reads = 0;
+  int toggles = 0;
+  Completer<void>? toggleGate;
+
+  @override
+  Future<CupCard> toggleHelpful(CupCard card) async {
+    toggles++;
+    await toggleGate?.future;
+    return super.toggleHelpful(card);
+  }
 
   @override
   Future<CafeCups> getCafeCups(
@@ -75,6 +86,27 @@ void main() {
     await more;
     expect(c.state.isLoaded, isTrue);
     expect(c.state.loadingMore, isFalse);
+    await c.close();
+  });
+
+  test('a second Helpful tap while one is on its way is ignored', () async {
+    final c = cubit();
+    await c.load();
+    final card = c.state.cards.first;
+    repo.toggleGate = Completer<void>();
+
+    final first = c.toggleHelpful(card);
+    final second = await c.toggleHelpful(c.state.cards.first);
+    expect(second, isFalse);
+    repo.toggleGate!.complete();
+    expect(await first, isTrue);
+    expect(repo.toggles, 1);
+    expect(c.state.cards.first.hasVoted, !card.hasVoted);
+
+    // Once it's back, the next tap goes through.
+    repo.toggleGate = null;
+    expect(await c.toggleHelpful(c.state.cards.first), isTrue);
+    expect(repo.toggles, 2);
     await c.close();
   });
 }
