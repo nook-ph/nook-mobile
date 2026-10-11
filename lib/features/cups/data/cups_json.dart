@@ -120,7 +120,7 @@ abstract final class CupsJson {
           ProfileCafeCups(
             cafeId: cafeId,
             cafeName: _cafeName(cafe['cafe_name']),
-            cafeArea: _string(cafe['cafe_area']),
+            cafeArea: _area(cafe['cafe_area']),
             cafeImageUrl: _string(cafe['cafe_image_url']),
             visitCount: cafe['visit_count'] == null
                 ? null
@@ -141,7 +141,7 @@ abstract final class CupsJson {
           ProfileCafeCups(
             cafeId: entry.key,
             cafeName: _cafeName(first['cafe_name']),
-            cafeArea: _string(first['cafe_area']),
+            cafeArea: _area(first['cafe_area']),
             cafeImageUrl: _string(first['cafe_image_url']),
             cups: [
               for (final cup in entry.value)
@@ -187,6 +187,11 @@ abstract final class CupsJson {
     json['user_id'] ??= userId;
     return json;
   }
+
+  /// "Talamban , Cebu City" (a neighbourhood with a trailing space) reads
+  /// "Talamban, Cebu City".
+  static String? _area(Object? raw) =>
+      _string(raw)?.replaceAll(RegExp(r'\s+,'), ',');
 
   static String _cafeName(Object? raw) {
     final name = (raw as String?)?.trim() ?? '';
