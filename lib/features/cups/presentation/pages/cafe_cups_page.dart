@@ -126,6 +126,7 @@ class _CafeCupsPageState extends State<CafeCupsPage> {
       source: CupSource.cupsPage,
       editing: editing,
       menu: widget.menu,
+      myCups: _cups.state.isLoaded ? _cups.state.myCups : null,
       toastOffset: _barHeight(),
     );
     if (outcome != null && mounted) _changed();

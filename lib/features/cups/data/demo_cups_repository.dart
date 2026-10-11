@@ -162,6 +162,7 @@ class DemoCupsRepository implements ICupsRepository {
       cards: page,
       total: matching.length,
       hasMore: offset + page.length < matching.length,
+      myCups: LegacyCups.mine(all),
     );
   }
 

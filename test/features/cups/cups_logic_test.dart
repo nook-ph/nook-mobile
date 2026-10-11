@@ -108,6 +108,20 @@ void main() {
       expect(const CupItemDraft().kind, isNull);
     });
 
+    test('my_cups: your cups here, newest first, yours', () {
+      final page = CupsJson.cafeCups({
+        'cards': [],
+        'my_cups': [
+          {'id': 'a', 'user_id': 'me', 'visited_at': '2026-07-19', 'rating': 4},
+          {'id': 'b', 'user_id': 'me', 'visited_at': '2026-09-02'},
+        ],
+      }, cafeId: 'cafe-1');
+      expect([for (final c in page.myCups) c.id], ['b', 'a']);
+      expect(page.myCups.every((c) => c.isMine), isTrue);
+      expect(page.myCups.last.rating, 4);
+      expect(CupsJson.cafeCups({}, cafeId: 'x').myCups, isEmpty);
+    });
+
     test('a text item has no photo, and a menu name stands in', () {
       final item = CupsJson.item({
         'id': 'i1',

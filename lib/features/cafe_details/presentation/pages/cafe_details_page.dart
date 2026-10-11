@@ -192,11 +192,16 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       source: source,
       editing: editing,
       menu: _menu(state),
+      myCups: _myCups,
       toastOffset: _toastOffset(),
     );
     if (outcome == null || !context.mounted) return;
     _afterCup(context, markedBeen: outcome.markedBeen);
   }
+
+  /// Your cups here, once the section has them; else the composer asks.
+  List<CupCard>? get _myCups =>
+      _cups.state.isLoaded ? _cups.state.myCups : null;
 
   void _openCups(
     BuildContext context,
@@ -323,6 +328,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                 source: CupSource.visitBlock,
                 note: note,
                 menu: _menu(state),
+                myCups: _myCups,
                 toastOffset: _toastOffset(),
               ).then((outcome) {
                 if (outcome != null && context.mounted) {

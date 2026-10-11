@@ -335,6 +335,7 @@ class CafeCups extends Equatable {
     required this.cards,
     required this.total,
     required this.hasMore,
+    this.myCups = const [],
   });
 
   final String cafeId;
@@ -345,8 +346,12 @@ class CafeCups extends Equatable {
   final int total;
   final bool hasMore;
 
+  /// Your own cups here, newest visit first, whatever the filter
+  /// (`my_cups`). Empty for a guest.
+  final List<CupCard> myCups;
+
   @override
-  List<Object?> get props => [cafeId, stats, cards, total, hasMore];
+  List<Object?> get props => [cafeId, stats, cards, total, hasMore, myCups];
 }
 
 /// How the cups list is ordered (`get_cafe_cups` `p_sort`).

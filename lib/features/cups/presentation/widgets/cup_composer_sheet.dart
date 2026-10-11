@@ -65,6 +65,7 @@ Future<CupComposerOutcome?> openCupComposer(
   List<PickedGalleryPhoto> photos = const [],
   String? note,
   List<CupMenuOption> menu = const [],
+  List<CupCard>? myCups,
   ICupsRepository? repository,
   GalleryPhotoPicker? picker,
   double toastOffset = 0,
@@ -79,6 +80,7 @@ Future<CupComposerOutcome?> openCupComposer(
       initialPhotos: photos,
       initialNote: note,
       menu: menu,
+      myCups: myCups,
       repository: repository,
       picker: picker,
     ),
@@ -233,6 +235,7 @@ class CupComposerSheet extends StatefulWidget {
     this.initialPhotos = const [],
     this.initialNote,
     this.menu = const [],
+    this.myCups,
     this.repository,
     this.picker,
     this.now,
@@ -248,6 +251,10 @@ class CupComposerSheet extends StatefulWidget {
   final List<PickedGalleryPhoto> initialPhotos;
   final String? initialNote;
   final List<CupMenuOption> menu;
+
+  /// Your earlier cups at this cafe, newest first, when the caller has
+  /// them; null asks the server (`my_cups`). A new cup shows the last one.
+  final List<CupCard>? myCups;
 
   /// For tests; the app uses the registered ones.
   final ICupsRepository? repository;
@@ -277,6 +284,9 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
   String? _error;
   bool _tried = false;
 
+  /// Your cups here before this one, newest visit first.
+  List<CupCard> _earlier = const [];
+
   CupCard? get _editing => widget.editing;
   bool get _busy => _posting || _deleting;
   bool get _legacy => _repository.mode == CupsMode.legacy;
@@ -295,6 +305,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       _items.addAll(widget.initialPhotos.map(_Item.photo));
       _note.text = widget.initialNote?.trim() ?? '';
       _visitedAt = _dayFromPhotos(widget.initialPhotos) ?? _now;
+      _loadEarlier();
     }
     _syncNameField();
     _note.addListener(_refresh);
@@ -314,6 +325,28 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       });
     }
   }
+
+  /// A repeat visit: what you posted here last, so the form can say so
+  /// (UX review 2.4). Garnish: a failed read just leaves it out.
+  Future<void> _loadEarlier() async {
+    var cups = widget.myCups;
+    if (cups == null) {
+      try {
+        cups = (await _repository.getCafeCups(widget.cafe.id, limit: 1)).myCups;
+      } catch (_) {
+        return;
+      }
+    }
+    if (!mounted || cups.isEmpty) return;
+    final sorted = [...cups]
+      ..sort((a, b) => b.visitedAt.compareTo(a.visitedAt));
+    setState(() => _earlier = sorted);
+  }
+
+  /// Your latest earlier visit with stars: the one counting in the cafe's
+  /// average now (each person counts once, their latest rated visit).
+  CupCard? get _earlierRated =>
+      _earlier.where((c) => c.rating != null).firstOrNull;
 
   @override
   void dispose() {
@@ -595,6 +628,22 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
     }
   }
 
+  /// Under the stars on a repeat visit: what they do to your rating for
+  /// this cafe. Only your latest rated visit counts in its average, so new
+  /// stars replace [earlier]'s, and none leave it standing. A visit dated
+  /// before [earlier] changes nothing, and says nothing.
+  String? _ratingNote(CupCard? earlier) {
+    if (earlier == null) return null;
+    final day = DateTime(_visitedAt.year, _visitedAt.month, _visitedAt.day);
+    final then = earlier.visitedAt;
+    if (day.isBefore(DateTime(then.year, then.month, then.day))) return null;
+    final when = cupShortDay(then, _now);
+    return _rating == null
+        ? 'Your $when rating (${earlier.rating}★) still counts for this cafe.'
+        : 'Your rating for this cafe now. Replaces your $when rating '
+              '(${earlier.rating}★).';
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -620,6 +669,10 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _CafeLine(cafe: widget.cafe),
+        if (_editing == null && _earlier.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _LastCupLine(cups: _earlier, now: _now),
+        ],
         const SizedBox(height: 12),
         const Divider(height: 1, thickness: 1, color: ReviewTokens.border),
         const SizedBox(height: 16),
@@ -710,6 +763,19 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
           required: needsStars,
           onChanged: _busy ? null : (stars) => setState(() => _rating = stars),
         ),
+        if (_editing == null) ...[
+          if (_ratingNote(_earlierRated) case final note?)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                note,
+                style: context.textTheme.bodySmall?.copyWith(
+                  color: ReviewTokens.muted,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+        ],
         _DateRow(date: _visitedAt, now: _now, onTap: _busy ? null : _pickDate),
         if (error != null) ...[
           const SizedBox(height: 8),
@@ -821,6 +887,79 @@ class _CafeLine extends StatelessWidget {
       ],
     );
   }
+}
+
+/// "Your last cup here · Jul 19 · ★★★★☆" on a repeat visit, so you know
+/// you've been and what you gave (Apple Books shows your earlier entry).
+class _LastCupLine extends StatelessWidget {
+  const _LastCupLine({required this.cups, required this.now});
+
+  /// Newest visit first; not empty.
+  final List<CupCard> cups;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final last = cups.first;
+    final when = cupShortDay(last.visitedAt, now);
+    final rating = last.rating;
+    final lead = cups.length > 1
+        ? 'Your last of ${cups.length} cups here'
+        : 'Your last cup here';
+    final style = context.textTheme.bodySmall?.copyWith(
+      color: ReviewTokens.muted,
+      fontSize: 13,
+    );
+    return Semantics(
+      label: [
+        lead,
+        when,
+        if (rating != null) rating == 1 ? '1 star' : '$rating stars',
+      ].join(', '),
+      excludeSemantics: true,
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        runSpacing: 2,
+        children: [
+          const Icon(
+            LucideIcons.history,
+            size: 14,
+            color: ReviewTokens.mutedIcon,
+          ),
+          Text('$lead · $when', style: style),
+          if (rating != null) ...[
+            Text('·', style: style),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var star = 1; star <= 5; star++)
+                  Icon(
+                    star <= rating
+                        ? Icons.star_rounded
+                        : Icons.star_outline_rounded,
+                    size: 14,
+                    color: star <= rating
+                        ? ReviewTokens.star
+                        : const Color(0xFFB0B0B0),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "Jul 19", with the year when it isn't this one ("Jul 19, 2025").
+String cupShortDay(DateTime date, DateTime now) {
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  final day = '${months[date.month - 1]} ${date.day}';
+  return date.year == now.year ? day : '$day, ${date.year}';
 }
 
 class _SectionLabel extends StatelessWidget {

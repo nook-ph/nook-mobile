@@ -180,6 +180,12 @@ abstract final class LegacyCups {
     return sorted;
   }
 
+  /// Your cups among [cards], newest visit first.
+  static List<CupCard> mine(Iterable<CupCard> cards) => [
+    for (final c in cards)
+      if (c.isMine) c,
+  ]..sort((a, b) => b.visitedAt.compareTo(a.visitedAt));
+
   /// Whether [card] has an item of [kind]. Legacy photos have no kind, so
   /// they only show under All.
   static bool hasKind(CupCard card, CupItemKind kind) =>

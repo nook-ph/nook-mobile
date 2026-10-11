@@ -12,6 +12,10 @@ abstract final class CupsJson {
       cards: [for (final c in _list(json['cards'])) card(c, cafeId: cafeId)],
       total: _int(json['total']),
       hasMore: json['has_more'] == true,
+      myCups: [
+        for (final c in _list(json['my_cups']))
+          card(_withUser(c, '', true), cafeId: cafeId),
+      ]..sort((a, b) => b.visitedAt.compareTo(a.visitedAt)),
     );
   }
 

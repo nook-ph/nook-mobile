@@ -28,7 +28,8 @@ String? _signedInUserId() {
 
 /// "Add your cup" / "Edit your cup" from anywhere: a guest gets the sign-in
 /// sheet (and the composer after signing in, through
-/// [CafeGuestAction.writeReview]); everyone else the composer.
+/// [CafeGuestAction.writeReview]); everyone else the composer. [myCups]:
+/// your cups here already loaded, else the composer reads them.
 Future<CupComposerOutcome?> startCup(
   BuildContext context, {
   required PickedCafe cafe,
@@ -36,6 +37,7 @@ Future<CupComposerOutcome?> startCup(
   CupCard? editing,
   String? note,
   List<CupMenuOption> menu = const [],
+  List<CupCard>? myCups,
   double toastOffset = 0,
   ValueGetter<String?>? currentUserId,
 }) async {
@@ -56,6 +58,7 @@ Future<CupComposerOutcome?> startCup(
     editing: editing,
     note: note,
     menu: menu,
+    myCups: myCups,
     toastOffset: toastOffset,
   );
 }

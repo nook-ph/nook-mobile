@@ -70,6 +70,7 @@ void main() {
       CupCard? editing,
       FakeGalleryPhotoPicker? picker,
       CafeRankingCubit? ranking,
+      List<CupCard>? myCups,
     }) async {
       usePhone(tester, size: const Size(390, 1200));
       Widget host(Widget child) => ranking == null
@@ -89,6 +90,7 @@ void main() {
                     source: 'test',
                     editing: editing,
                     menu: _menu,
+                    myCups: myCups,
                     repository: cups,
                     picker: picker ?? FakeGalleryPhotoPicker(),
                   ),
@@ -210,6 +212,70 @@ void main() {
       expect(offersRankIt(posted, ranked: false, been: false), isFalse);
       expect(offersRankIt(marked, ranked: true, been: true), isFalse);
       expect(offersRankIt(updated, ranked: false, been: true), isFalse);
+    });
+
+    group('a repeat visit', () {
+      final earlier = CupCard(
+        id: 'old',
+        cupId: 'old',
+        cafeId: 'cafe-1',
+        userId: 'me',
+        username: 'me',
+        rating: 4,
+        isMine: true,
+        visitedAt: DateTime(2026, 7, 19),
+      );
+
+      testWidgets('shows your last cup and what new stars do', (tester) async {
+        await open(tester, myCups: [earlier]);
+        expect(find.text('Your last cup here · Jul 19'), findsOneWidget);
+        expect(
+          find.bySemanticsLabel('Your last cup here, Jul 19, 4 stars'),
+          findsOneWidget,
+        );
+        // No stars yet: the earlier ones stand.
+        expect(
+          find.text('Your Jul 19 rating (4★) still counts for this cafe.'),
+          findsOneWidget,
+        );
+        await tester.tap(find.bySemanticsLabel('2 stars'));
+        await tester.pump();
+        expect(
+          find.text(
+            'Your rating for this cafe now. Replaces your Jul 19 rating (4★).',
+          ),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('reads your cups here when the caller has none', (
+        tester,
+      ) async {
+        cups = FakeCupsRepository(me: 'demo-mae', now: () => _now);
+        await open(tester);
+        await tester.pumpAndSettle();
+        // mae has two cups at every demo cafe, the last rated 5, 3 days ago.
+        expect(find.text('Your last of 2 cups here · Oct 8'), findsOneWidget);
+        expect(
+          find.text('Your Oct 8 rating (5★) still counts for this cafe.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('a first visit says nothing about earlier ones', (
+        tester,
+      ) async {
+        await open(tester);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Your last'), findsNothing);
+        expect(find.textContaining('still counts'), findsNothing);
+      });
+
+      testWidgets('editing says nothing about earlier ones', (tester) async {
+        await open(tester, editing: earlier, myCups: [earlier]);
+        expect(find.textContaining('Your last'), findsNothing);
+        expect(find.textContaining('Replaces'), findsNothing);
+      });
     });
 
     testWidgets('stars are optional and can be cleared', (tester) async {

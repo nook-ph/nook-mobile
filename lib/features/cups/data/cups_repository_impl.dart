@@ -184,6 +184,7 @@ class CupsRepositoryImpl implements ICupsRepository {
         cards: page.cards,
         total: page.total,
         hasMore: page.hasMore,
+        myCups: page.myCups,
       );
     }
     // A kind: filtered here from the cafe's cups, in the asked order.
@@ -207,6 +208,7 @@ class CupsRepositoryImpl implements ICupsRepository {
       cards: page,
       total: matching.length,
       hasMore: offset + page.length < matching.length,
+      myCups: all.myCups,
     );
   }
 
@@ -232,6 +234,7 @@ class CupsRepositoryImpl implements ICupsRepository {
       cards: page,
       total: matching.length,
       hasMore: offset + page.length < matching.length,
+      myCups: LegacyCups.mine(all),
     );
   }
 

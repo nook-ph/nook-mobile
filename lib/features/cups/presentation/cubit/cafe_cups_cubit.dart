@@ -19,6 +19,7 @@ class CafeCupsState extends Equatable {
     this.loadingMore = false,
     this.loadMoreFailed = false,
     this.mode = CupsMode.unknown,
+    this.myCups = const [],
     this.error,
   });
 
@@ -43,6 +44,10 @@ class CafeCupsState extends Equatable {
 
   /// Which backend answered; [CupsMode.legacy] needs stars with a note.
   final CupsMode mode;
+
+  /// Your own cups here, newest first, for the composer's "Your last cup
+  /// here".
+  final List<CupCard> myCups;
   final Object? error;
 
   bool get isLoaded => status == CafeCupsStatus.loaded;
@@ -63,6 +68,7 @@ class CafeCupsState extends Equatable {
     bool? loadingMore,
     bool? loadMoreFailed,
     CupsMode? mode,
+    List<CupCard>? myCups,
     Object? error,
   }) => CafeCupsState(
     status: status ?? this.status,
@@ -76,6 +82,7 @@ class CafeCupsState extends Equatable {
     loadingMore: loadingMore ?? this.loadingMore,
     loadMoreFailed: loadMoreFailed ?? this.loadMoreFailed,
     mode: mode ?? this.mode,
+    myCups: myCups ?? this.myCups,
     error: error,
   );
 
@@ -92,6 +99,7 @@ class CafeCupsState extends Equatable {
     loadingMore,
     loadMoreFailed,
     mode,
+    myCups,
     error,
   ];
 }
@@ -154,6 +162,7 @@ class CafeCupsCubit extends Cubit<CafeCupsState> {
           ratingFilter: state.ratingFilter,
           kind: state.kind,
           mode: _repository.mode,
+          myCups: List.unmodifiable(page.myCups),
         ),
       );
     } catch (e) {
