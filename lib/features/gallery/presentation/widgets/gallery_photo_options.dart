@@ -60,16 +60,16 @@ Future<bool> showGalleryPhotoOptions(
                 ? 'Everyone can see it again.'
                 // A review photo stays on the review, which is public.
                 : photo.isFromReview
-                ? 'Takes it off your gallery. It still shows on your review.'
+                ? 'Takes it off your profile. It still shows on your cup.'
                 : 'Only you will see it. You can show it again any time.',
             onTap: () => Navigator.pop(sheetContext, _Option.hide),
           ),
           if (photo.isFromReview)
             ListsSheetAction(
-              title: 'Part of your review',
+              title: 'Part of your cup',
               subtitle: onOpenReview == null
-                  ? 'Remove it from the review to delete it.'
-                  : 'Open your reviews to remove it there.',
+                  ? 'Edit the cup on its cafe page to remove it.'
+                  : 'Open the cup to remove it there.',
               onTap: () => Navigator.pop(sheetContext, _Option.review),
             )
           else
@@ -347,7 +347,7 @@ class GalleryPublicNote extends StatelessWidget {
     final public = _galleryPublic(context) ?? true;
     final text = public
         ? '${adding ? 'Photos and notes' : 'Notes'} are public on your '
-              'profile. Keep opinions about the whole cafe for a review.'
+              'profile. Keep opinions about the whole cafe for your cup’s note.'
         : 'Your cups are hidden from visitors. If you show it again in '
               'Settings, ${adding ? 'photos and notes show' : 'notes show'} '
               'on your profile.';

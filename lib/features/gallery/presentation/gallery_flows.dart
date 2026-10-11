@@ -6,7 +6,9 @@ import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
-import 'package:nook/features/gallery/presentation/widgets/add_gallery_photos_sheet.dart';
+import 'package:nook/core/analytics/profile_events.dart';
+import 'package:nook/features/cups/domain/i_cups_repository.dart';
+import 'package:nook/features/cups/presentation/widgets/cup_composer_sheet.dart';
 import 'package:nook/features/gallery/presentation/widgets/cafe_picker_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 
@@ -17,18 +19,22 @@ class GalleryFlowDeps {
     required this.cubit,
     required this.picker,
     required this.cafes,
+    this.cups,
   });
 
   final GalleryCubit cubit;
   final GalleryPhotoPicker picker;
   final ICafePickerSource cafes;
+
+  /// Where cups are posted; the registered repository when null.
+  final ICupsRepository? cups;
 }
 
 const _pickFailed =
     "Couldn't open your photos. Check Nook's photo access in Settings.";
 
-/// + on the Gallery tab: pick photos → which cafe → add. One cafe for the
-/// batch (docs/ux/coffee-gallery.md, journey 3).
+/// + on the profile: pick photos → which cafe → the cup composer. One
+/// cafe for the batch (docs/ux/coffee-gallery.md, journey 3).
 Future<void> addPhotosToGallery(
   BuildContext context,
   GalleryFlowDeps deps,
@@ -61,79 +67,26 @@ Future<void> addPhotosToGallery(
   final cafe = await pickCafe();
   if (cafe == null || !context.mounted) return;
 
-  // The sheet only starts the upload and closes: the photos then wait in
-  // the grid with a progress bar, and a failed one offers Retry there
-  // (Figma E2), so nothing holds the person or can be lost by a swipe.
-  Future<({int added, int failed})>? upload;
-  final started = await showAddGalleryPhotosSheet(
+  // The photos become a new cup at that cafe (a cup is a visit), through
+  // the same composer as everywhere else.
+  final outcome = await openCupComposer(
     context,
-    photos: photos,
     cafe: cafe,
-    onChangeCafe: pickCafe,
-    onSave: ({required cafe, required photos, drinkName, caption}) async {
-      upload = deps.cubit.upload(
-        cafeId: cafe.id,
-        photos: photos,
-        source: GalleryPhotoSource.gallery,
-        drinkName: drinkName,
-        caption: caption,
-      );
-    },
+    source: CupSource.profile,
+    photos: photos,
+    repository: deps.cups,
   );
-  final pending = upload;
-  if (!started || pending == null) return;
-  final count = photos.length;
-  if (context.mounted) {
-    showPrimaryToast(
-      context,
-      count == 1
-          ? 'Adding your photo to your gallery…'
-          : 'Adding $count photos to your gallery…',
-    );
-  }
-  final result = await pending;
-  if (!context.mounted) return;
-  if (result.failed == 0) {
-    showPrimaryToast(
-      context,
-      result.added == 1
-          ? 'Photo added to your gallery'
-          : '${result.added} photos added',
-    );
-  } else {
-    showPrimaryToast(
-      context,
-      result.failed == 1
-          ? "A photo didn't upload. Tap Retry on it."
-          : "${result.failed} photos didn't upload. Tap Retry on them.",
-    );
-  }
+  if (outcome != null) await deps.cubit.load(refresh: true);
 }
 
 /// The ranking reveal's "Add a photo of what you had": camera or library,
-/// then the add sheet with the cafe fixed. Returns the photo that was added,
-/// or null when the person backed out or it failed (they were told).
+/// then the cup composer for this visit with the photo in it. Returns the
+/// photo when the cup was posted, or null when the person backed out or
+/// it failed (they were told).
 Future<PickedGalleryPhoto?> addRankPhoto(
   BuildContext context,
   GalleryFlowDeps deps, {
   required PickedCafe cafe,
-}) => _addPhotoAt(context, deps, cafe: cafe, saveAs: GalleryPhotoSource.rank);
-
-/// "Add a photo" on a cafe page with no community photos yet: the same
-/// steps as [addRankPhoto], saved as a gallery photo.
-Future<PickedGalleryPhoto?> addCafePhoto(
-  BuildContext context,
-  GalleryFlowDeps deps, {
-  required PickedCafe cafe,
-}) =>
-    _addPhotoAt(context, deps, cafe: cafe, saveAs: GalleryPhotoSource.gallery);
-
-/// Camera or library, then the add sheet with [cafe] fixed.
-Future<PickedGalleryPhoto?> _addPhotoAt(
-  BuildContext context,
-  GalleryFlowDeps deps, {
-  required PickedCafe cafe,
-  required GalleryPhotoSource saveAs,
 }) async {
   final source = await ListsSheet.show<_Source>(
     context,
@@ -165,21 +118,14 @@ Future<PickedGalleryPhoto?> _addPhotoAt(
   }
   if (photo == null || !context.mounted) return null;
 
-  final saved = await showAddGalleryPhotosSheet(
+  final outcome = await openCupComposer(
     context,
-    photos: [photo],
     cafe: cafe,
-    waitsForUpload: true,
-    onSave: ({required cafe, required photos, drinkName, caption}) =>
-        deps.cubit.addPhotos(
-          cafeId: cafe.id,
-          photos: photos,
-          source: saveAs,
-          drinkName: drinkName,
-          caption: caption,
-        ),
+    source: CupSource.rankReveal,
+    photos: [photo],
+    repository: deps.cups,
   );
-  return saved ? photo : null;
+  return outcome == null ? null : photo;
 }
 
 enum _Source { camera, library }

@@ -369,7 +369,7 @@ class ListDetailView extends StatelessWidget {
           title: 'Nowhere yet',
           subtitle:
               'Mark a cafe as Been and your diary starts here — ranked by '
-              'you, not by reviews.',
+              'you, not by ratings.',
           filled: true,
           onFind: onFindCafe,
         );

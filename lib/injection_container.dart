@@ -1,3 +1,8 @@
+import 'package:nook/features/cups/data/cups_backend.dart';
+import 'package:nook/features/cups/data/cups_community_photos_repository.dart';
+import 'package:nook/features/cups/data/cups_repository_impl.dart';
+import 'package:nook/features/cups/data/demo_cups_repository.dart';
+import 'package:nook/features/cups/domain/i_cups_repository.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get_it/get_it.dart';
@@ -211,9 +216,38 @@ Future<void> initDependencies() async {
 
   // A cafe's community photos: other people's gallery photos of it,
   // read-only, for the details page.
-  sl.registerLazySingleton<ICommunityPhotosRepository>(
-    () => CommunityPhotosRepositoryImpl(client: sl<SupabaseClient>()),
-  );
+  // Through the Cups RPCs when the server has them, else the user_photos
+  // read (the legacy-safe rule, nook-supabase docs/CUPS_APPLY.md).
+  sl.registerLazySingleton<ICommunityPhotosRepository>(() {
+    final cups = sl<ICupsRepository>();
+    if (cups is DemoCupsRepository) return cups.photos;
+    return CupsCommunityPhotosRepository(
+      client: sl<SupabaseClient>(),
+      backend: sl<CupsBackend>(),
+      legacy: CommunityPhotosRepositoryImpl(client: sl<SupabaseClient>()),
+    );
+  });
+
+  // Cups: reviews and the gallery as one card per visit. Decides once per
+  // run whether the Cups RPCs exist (CupsBackend) and otherwise reads and
+  // writes reviews and gallery photos as 1.1.x does. CUPS_DEMO (debug
+  // only) swaps in fixtures.
+  sl.registerLazySingleton<CupsBackend>(() => CupsBackend());
+  sl.registerLazySingleton<ICupsRepository>(() {
+    if (cupsDemoEnabled) {
+      return DemoCupsRepository(me: sl<SupabaseClient>().auth.currentUser?.id);
+    }
+    return CupsRepositoryImpl(
+      client: sl<SupabaseClient>(),
+      backend: sl<CupsBackend>(),
+      upload: ({required file, required cafeId}) => sl<UploadRemoteDataSource>()
+          .uploadGalleryPhoto(file: file, cafeId: cafeId),
+      cafes: sl<ICafeRepository>(),
+      legacyPhotos: CommunityPhotosRepositoryImpl(client: sl<SupabaseClient>()),
+      gallery: sl<IGalleryRepository>(),
+      profiles: sl<IPublicProfileRepository>(),
+    );
+  });
 
   // Public profiles. PUBLIC_PROFILE_DEMO (debug only) swaps in an
   // in-memory repository for local work without the backend.

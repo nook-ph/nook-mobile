@@ -90,3 +90,41 @@ abstract final class CafeStoryEvents {
   /// `story_count`.
   static const completed = 'cafe_stories_completed';
 }
+
+/// PostHog events for Cups (reviews and the gallery as one card per person
+/// per cafe), sent through `logAppEvent`. Every one carries `cafe_id` when
+/// there is a cafe.
+abstract final class CupEvents {
+  /// The composer opened. Properties: `source` (one of [CupSource]),
+  /// `editing` (you already had a cup there), `backend` (`cups` or
+  /// `legacy`).
+  static const composerOpened = 'cup_composer_opened';
+
+  /// A cup was posted or edited. Properties: `has_photo`, `has_note`,
+  /// `has_rating`, `photo_count` (new photos), `created`, `marked_been`,
+  /// `source`, `backend`.
+  static const posted = 'cup_posted';
+
+  /// Your cup was deleted. Properties: `backend`.
+  static const deleted = 'cup_deleted';
+
+  /// Helpful toggled on someone else's cup. Properties: `voted`,
+  /// `target` (`cup` or `review`).
+  static const helpfulToggled = 'cup_helpful_toggled';
+
+  /// A cup was reported. Properties: `reason`, `target` (`cup`, `review`
+  /// or `photos`).
+  static const reported = 'cup_reported';
+}
+
+/// Where the cup composer was opened from, for [CupEvents].
+abstract final class CupSource {
+  static const cafeSection = 'cafe_section';
+  static const cupsPage = 'cups_page';
+  static const storiesTray = 'stories_tray';
+  static const emptyState = 'empty_state';
+  static const rankReveal = 'rank_reveal';
+  static const visitBlock = 'visit_block';
+  static const profile = 'profile';
+  static const guestReturn = 'guest_return';
+}

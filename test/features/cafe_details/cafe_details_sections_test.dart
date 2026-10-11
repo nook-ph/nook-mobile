@@ -85,7 +85,7 @@ void main() {
         _host(CafeInfoHeader(cafe: _cafe(reviewCount: 0))),
       );
 
-      expect(find.text('No reviews yet'), findsOneWidget);
+      expect(find.text('No cups yet'), findsOneWidget);
       expect(find.text('4.9'), findsNothing);
     });
 

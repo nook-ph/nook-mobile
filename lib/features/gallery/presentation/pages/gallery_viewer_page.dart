@@ -446,7 +446,7 @@ class _CaptionState extends State<_Caption> {
       galleryMonthLabel(photo.takenAt),
       if (isOwner && photo.isPinned) 'Pinned',
       if (isOwner && photo.isHidden) 'Hidden from your profile',
-      if (photo.isFromReview) 'From a review',
+      if (photo.isFromReview) 'From a rated cup',
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),

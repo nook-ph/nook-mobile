@@ -98,7 +98,7 @@ class _StatusLine extends StatelessWidget {
       // beside a star reads as a bad cafe rather than a new one.
       if (reviewCount == 0)
         Text(
-          'No reviews yet',
+          'No cups yet',
           style: strong.copyWith(color: CafeDetailsTokens.muted),
         )
       else

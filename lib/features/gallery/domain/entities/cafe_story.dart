@@ -66,6 +66,16 @@ List<CommunityPhoto> _oldestFirst(List<CommunityPhoto> photos) {
   return List.unmodifiable([for (final e in indexed) e.$2]);
 }
 
+/// Under a person's ring in the tray: "2 visits" when their photos come
+/// from more than one cup, "3 photos" for several photos of one, else
+/// [age]. Never "3 cups" for one visit: a cup is a visit, not a photo.
+String storySubLabel(CafeStory story, String age) {
+  final visits = {for (final p in story.photos) p.visitKey}.length;
+  if (visits > 1) return '$visits visits';
+  final count = story.photos.length;
+  return count > 1 ? '$count photos' : age;
+}
+
 /// "now", "12m", "5h", "3d", "2w", then "Jul 2026": short enough for the
 /// viewer's header line. Past the first weeks a day count stops meaning
 /// much, and an EXIF date may not be that precise anyway.
@@ -83,13 +93,14 @@ String storyAgeLabel(DateTime takenAt, DateTime now) {
   return '${months[takenAt.month - 1]} ${takenAt.year}';
 }
 
-/// The review a review photo came from, as the story viewer shows it under
-/// the photo (Cups, phase 1: docs REVIEWS_GALLERY_MERGE.md). Read only.
+/// The words under a photo in the story viewer: its cup's stars and note
+/// (or, on the legacy read, the review a review photo came from). Read
+/// only. Docs: nook-supabase REVIEWS_GALLERY_MERGE.md.
 class StoryReview extends Equatable {
-  const StoryReview({required this.rating, required this.text});
+  const StoryReview({this.rating, required this.text});
 
-  /// 1 to 5 stars.
-  final int rating;
+  /// 1 to 5 stars, or null: stars are optional on a cup.
+  final int? rating;
   final String text;
 
   @override

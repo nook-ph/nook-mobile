@@ -7,7 +7,6 @@ import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.d
 import 'package:nook/core/utils/tag_icon_resolver.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_tag_groups.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_info_header.dart';
-import 'package:nook/features/cafe_details/presentation/widgets/reviews_preview_section.dart';
 
 Map<String, dynamic> _week(String open, String close) => {
   for (final day in CafeOpenStatus.orderedDays)
@@ -463,34 +462,6 @@ void main() {
       }
       expect(CafeTagGroups.coffeeHint('pour over'), isNotNull);
       expect(CafeTagGroups.coffeeHint('Free WiFi'), isNull);
-    });
-  });
-
-  group('ReviewDistribution', () {
-    test('counts each rating and averages them', () {
-      final distribution = ReviewDistribution.from([5, 5, 4, 3, 5]);
-
-      expect(distribution.total, 5);
-      expect(distribution.countFor(5), 3);
-      expect(distribution.countFor(4), 1);
-      expect(distribution.countFor(1), 0);
-      expect(distribution.fractionFor(5), closeTo(0.6, 1e-9));
-      expect(distribution.average, closeTo(4.4, 1e-9));
-    });
-
-    test('ignores ratings outside one to five', () {
-      final distribution = ReviewDistribution.from([0, 6, 4]);
-
-      expect(distribution.total, 1);
-      expect(distribution.average, 4);
-    });
-
-    test('is all zeroes with no reviews', () {
-      final distribution = ReviewDistribution.from(const []);
-
-      expect(distribution.total, 0);
-      expect(distribution.average, 0);
-      expect(distribution.fractionFor(5), 0);
     });
   });
 

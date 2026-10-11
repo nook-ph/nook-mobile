@@ -52,7 +52,7 @@ class MapSheetCafeCard extends StatelessWidget {
     return _fallbackImageUrl;
   }
 
-  static const noReviews = 'No reviews yet';
+  static const noReviews = 'No cups yet';
 
   /// "(32) · Lahug, Cebu City"; for an unrated cafe "No reviews yet · Lahug,
   /// Cebu City", or only "No reviews yet" when [withUnratedArea] is false.

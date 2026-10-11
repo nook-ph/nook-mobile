@@ -9,18 +9,10 @@ import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
-import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
-import 'package:nook/features/cafe_details/bloc/reviews_state.dart';
-import 'package:nook/features/cafe_details/presentation/pages/cafe_photos_page.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
-import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
 import 'package:nook/features/gallery/domain/entities/cafe_story.dart';
 import 'package:nook/features/gallery/domain/entities/community_photo.dart';
-import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
-import 'package:nook/features/gallery/domain/i_cafe_picker_source.dart';
 import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart';
-import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
-import 'package:nook/features/gallery/presentation/gallery_flows.dart';
 import 'package:nook/features/gallery/presentation/pages/gallery_viewer_page.dart';
 import 'package:nook/features/gallery/presentation/stories/cafe_story_viewer_page.dart';
 import 'package:nook/features/gallery/presentation/stories/story_seen_cubit.dart';
@@ -31,20 +23,16 @@ import 'package:nook/features/public_profile/presentation/pages/public_profile_p
 import 'package:nook/injection_container.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-/// Adds a photo of [cafe] to the signed-in person's gallery. True when one
-/// was added.
-typedef AddCafePhoto =
-    Future<bool> Function(BuildContext context, PickedCafe cafe);
-
 /// "Latest cups": the newest photos people posted at this cafe, near the
 /// top of its page as a stories tray, one ring per person, newest first,
 /// opening a full-screen story viewer (docs/references/cafe-stories:
 /// Instagram's tray, Google Maps' header). "See all" opens every photo as
-/// a grid ([CafePhotosPage]).
+/// a grid (the Cups page's Photos).
 ///
-/// Draws its own divider, so it can leave the page entirely: on a failed
-/// load (the rest of the page is what matters), and on a cafe with no
-/// photos unless the person has been there, when it asks for the first.
+/// Counts are honest: the title counts cups (visits), each ring says how
+/// many photos or visits that person has. Draws its own divider, so it can
+/// leave the page entirely: on a failed load or a cafe with no photos (the
+/// Cups section further down asks for the first cup).
 class CafeCommunityPhotosSection extends StatelessWidget {
   const CafeCommunityPhotosSection({
     super.key,
@@ -54,7 +42,9 @@ class CafeCommunityPhotosSection extends StatelessWidget {
     this.cafeImageUrl,
     this.cubit,
     this.seen,
-    this.addPhoto,
+    this.onAdd,
+    this.onSeeAll,
+    this.cupCount,
     this.reviewOf,
   });
 
@@ -69,10 +59,18 @@ class CafeCommunityPhotosSection extends StatelessWidget {
   /// For tests; the app keeps seen photos in SharedPreferences.
   final StorySeenCubit? seen;
 
-  /// For tests; the app runs the gallery's add flow.
-  final AddCafePhoto? addPhoto;
+  /// "Add your cup", first in the tray for someone who has been here and
+  /// has nothing in it yet. Null leaves the slot out.
+  final VoidCallback? onAdd;
 
-  /// For tests; the app reads the reviews the page already loaded.
+  /// "See all": every photo of the cafe's cups. Null hides it.
+  final ValueChanged<CafePhotosState>? onSeeAll;
+
+  /// The cafe's cups (visits), for the title's count. Null leaves the
+  /// count to the photos loaded: the distinct visits among them.
+  final int? cupCount;
+
+  /// The words of a legacy review photo's review, by review id.
   final StoryReview? Function(String reviewId)? reviewOf;
 
   @override
@@ -111,77 +109,28 @@ class _BodyState extends State<_Body> {
 
   String get _cafeId => widget.section.cafeId;
 
-  /// The app's add flow, when the gallery is set up (not in most tests).
-  AddCafePhoto? get _addPhoto {
-    final given = widget.section.addPhoto;
-    if (given != null) return given;
-    if (!sl.isRegistered<GalleryCubit>() ||
-        !sl.isRegistered<GalleryPhotoPicker>() ||
-        !sl.isRegistered<ICafePickerSource>()) {
-      return null;
-    }
-    return (context, cafe) async {
-      final deps = GalleryFlowDeps(
-        cubit: sl<GalleryCubit>(),
-        picker: sl<GalleryPhotoPicker>(),
-        cafes: sl<ICafePickerSource>(),
-      );
-      return await addCafePhoto(context, deps, cafe: cafe) != null;
-    };
-  }
-
-  Future<void> _add(AddCafePhoto add) async {
+  void _add(VoidCallback add) {
     logAppEvent(
       CafePhotoEvents.addTapped,
       properties: {'cafe_id': _cafeId, 'surface': CafePhotoSurface.strip},
     );
-    final section = widget.section;
-    final cubit = context.read<CafePhotosCubit>();
-    final added = await add(
-      context,
-      PickedCafe(
-        id: section.cafeId,
-        name: section.cafeName,
-        area: section.cafeArea,
-        imageUrl: section.cafeImageUrl,
-      ),
-    );
-    if (added && mounted) await cubit.load(refresh: true);
+    add();
   }
 
   void _openAll(CafePhotosState state) {
+    final open = widget.section.onSeeAll;
+    if (open == null) return;
     logAppEvent(
       CafePhotoEvents.seeAllTapped,
       properties: {'cafe_id': _cafeId, 'surface': CafePhotoSurface.strip},
     );
-    CafePhotosPage.open(
-      context,
-      cafeId: _cafeId,
-      cafeName: widget.section.cafeName,
-      seed: state,
-    );
+    open(state);
   }
 
   /// The review a review photo came from, out of the reviews the page has
   /// already loaded: no extra read. Null when it isn't among them.
-  StoryReview? _reviewOf(String reviewId) {
-    final given = widget.section.reviewOf;
-    if (given != null) return given(reviewId);
-    final ReviewsBloc bloc;
-    try {
-      bloc = context.read<ReviewsBloc>();
-    } catch (_) {
-      return null;
-    }
-    final state = bloc.state;
-    if (state is! ReviewsLoaded) return null;
-    for (final review in state.reviews) {
-      if (review.id == reviewId) {
-        return StoryReview(rating: review.rating, text: review.content);
-      }
-    }
-    return null;
-  }
+  StoryReview? _reviewOf(String reviewId) =>
+      widget.section.reviewOf?.call(reviewId);
 
   void _openStories(List<CafeStory> stories, int index) {
     final seen = context.read<StorySeenCubit>();
@@ -239,12 +188,11 @@ class _BodyState extends State<_Body> {
           CafePhotosStatus.loading => const _TraySkeleton(),
           // Quietly gone: photos are a bonus, not what the page is for.
           CafePhotosStatus.failed => null,
-          // Brings its own divider: it may turn out to be nothing.
-          CafePhotosStatus.loaded when state.photos.isEmpty => _emptyPrompt(),
+          // The Cups section further down asks for the first cup.
+          CafePhotosStatus.loaded when state.photos.isEmpty => null,
           CafePhotosStatus.loaded => _trayFor(state),
         };
         if (content == null) return const SizedBox.shrink();
-        if (state.isEmpty) return content;
         return _withDivider(content);
       },
     );
@@ -252,17 +200,22 @@ class _BodyState extends State<_Body> {
 
   Widget _trayFor(CafePhotosState state) {
     final stories = groupCafeStories(state.photos);
-    final add = _addPhoto;
+    final add = widget.section.onAdd;
     final hasOwn = stories.any((s) => s.credit.isSelf);
+    final cups =
+        widget.section.cupCount ??
+        {for (final p in state.photos) p.visitKey}.length;
     Widget tray({VoidCallback? onAdd}) => _Tray(
       stories: stories,
-      total: state.total,
+      cupCount: cups,
       onOpen: (i) => _openStories(stories, i),
-      onSeeAll: state.total > 1 ? () => _openAll(state) : null,
+      onSeeAll: widget.section.onSeeAll == null || state.photos.length < 2
+          ? null
+          : () => _openAll(state),
       onAdd: onAdd,
     );
     // Your own slot first, as on Instagram: "Add your cup" for someone who
-    // has been and has no cup here yet.
+    // has been and has no cup in the tray yet.
     if (add == null || hasOwn) return tray();
     return BlocBuilder<CafeStatusCubit, CafeStatusState>(
       buildWhen: (a, b) => a.statusFor(_cafeId) != b.statusFor(_cafeId),
@@ -273,23 +226,6 @@ class _BodyState extends State<_Body> {
       ),
     );
   }
-
-  /// Only for someone who has been: they are the ones with a photo to
-  /// add. Everyone else sees nothing rather than an empty box on most
-  /// cafes.
-  Widget? _emptyPrompt() {
-    final add = _addPhoto;
-    if (add == null) return null;
-    return BlocBuilder<CafeStatusCubit, CafeStatusState>(
-      buildWhen: (a, b) => a.statusFor(_cafeId) != b.statusFor(_cafeId),
-      builder: (context, statuses) {
-        if (statuses.statusFor(_cafeId) != CafeStatus.been) {
-          return const SizedBox.shrink();
-        }
-        return _withDivider(_EmptyPrompt(onAdd: () => _add(add)));
-      },
-    );
-  }
 }
 
 Widget _withDivider(Widget child) => Column(
@@ -297,11 +233,12 @@ Widget _withDivider(Widget child) => Column(
   children: [const CafeSectionDivider(), child],
 );
 
-/// The title row: "Latest cups", the count, and "See all" at the trailing
-/// edge (Google Maps' photo header).
+/// The title row: "Latest cups", how many cups (visits) the cafe has, and
+/// "See all" at the trailing edge (Google Maps' photo header).
 class _Header extends StatelessWidget {
   const _Header({required this.total, this.onSeeAll});
 
+  /// Cups, not photos: one person's three photos of one visit are one cup.
   final int total;
   final VoidCallback? onSeeAll;
 
@@ -338,7 +275,7 @@ class _Header extends StatelessWidget {
           if (seeAll != null)
             Semantics(
               button: true,
-              label: 'See all $total cups',
+              label: 'See all photos',
               excludeSemantics: true,
               child: AdaptiveTap(
                 onTap: seeAll,
@@ -383,14 +320,14 @@ class _Header extends StatelessWidget {
 class _Tray extends StatelessWidget {
   const _Tray({
     required this.stories,
-    required this.total,
+    required this.cupCount,
     required this.onOpen,
     required this.onSeeAll,
     required this.onAdd,
   });
 
   final List<CafeStory> stories;
-  final int total;
+  final int cupCount;
   final ValueChanged<int> onOpen;
   final VoidCallback? onSeeAll;
   final VoidCallback? onAdd;
@@ -401,7 +338,7 @@ class _Tray extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _Header(total: total, onSeeAll: onSeeAll),
+        _Header(total: cupCount, onSeeAll: onSeeAll),
         const SizedBox(height: 8),
         BlocBuilder<StorySeenCubit, Set<String>>(
           builder: (context, seen) => SingleChildScrollView(
@@ -457,11 +394,12 @@ class _StorySlot extends StatelessWidget {
     final credit = story.credit;
     final count = story.photos.length;
     final age = storyAgeLabel(story.latestAt, DateTime.now());
-    final cups = count == 1 ? '1 cup' : '$count cups';
+    final what = storySubLabel(story, age);
+    final photos = count == 1 ? '1 photo' : '$count photos';
     return Semantics(
       button: true,
       label:
-          '${credit.isSelf ? 'Your' : '${credit.label}’s'} $cups, $age'
+          '${credit.isSelf ? 'Your' : '${credit.label}’s'} $photos, $age'
           '${seen ? '' : ', new'}. Open',
       excludeSemantics: true,
       child: AdaptiveTap(
@@ -540,9 +478,9 @@ class _StorySlot extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  // The cup count says more than a date here; the viewer has
-                  // the date on every photo.
-                  count == 1 ? age : cups,
+                  // Visits, then photos, say more than a date here; the
+                  // viewer has the date on every photo.
+                  what,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -788,101 +726,6 @@ class CommunityPhotoTile extends StatelessWidget {
               ),
             ),
           ),
-      ],
-    );
-  }
-}
-
-/// No cups yet, for someone who has been: ask for the first one.
-class _EmptyPrompt extends StatelessWidget {
-  const _EmptyPrompt({required this.onAdd});
-
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _Header(total: 0),
-        const SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: CafeDetailsTokens.gutter,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  color: CafeDetailsTokens.tint,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  LucideIcons.camera,
-                  size: 20,
-                  color: CafeDetailsTokens.ink,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'No cups yet',
-                      style: theme.bodyMedium?.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: CafeDetailsTokens.ink,
-                      ),
-                    ),
-                    Text(
-                      'Be the first to add one from your visit.',
-                      style: theme.bodySmall?.copyWith(
-                        fontSize: 12,
-                        color: CafeDetailsTokens.muted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Semantics(
-                button: true,
-                label: 'Add your cup',
-                excludeSemantics: true,
-                child: AdaptiveTap(
-                  onTap: onAdd,
-                  borderRadius: BorderRadius.circular(999),
-                  // 32 tall as drawn, 44 to touch, like "Write a review".
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: CafeDetailsTokens.brand),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'Add your cup',
-                        style: theme.bodyMedium?.copyWith(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: CafeDetailsTokens.brand,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

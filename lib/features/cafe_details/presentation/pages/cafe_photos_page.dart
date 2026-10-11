@@ -135,7 +135,7 @@ class _CafePhotosViewState extends State<_CafePhotosView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Cups',
+              'Photos',
               style: theme.bodyLarge?.copyWith(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -154,24 +154,48 @@ class _CafePhotosViewState extends State<_CafePhotosView> {
           ],
         ),
       ),
-      body: BlocConsumer<CafePhotosCubit, CafePhotosState>(
-        listener: (_, state) => _logView(state),
-        builder: (context, state) => switch (state.status) {
-          CafePhotosStatus.initial ||
-          CafePhotosStatus.loading => const _GridSkeleton(),
-          CafePhotosStatus.failed => _Message.error(
-            error: state.error,
-            onRetry: () => context.read<CafePhotosCubit>().load(),
-          ),
-          CafePhotosStatus.loaded when state.photos.isEmpty =>
-            const _Message.empty(),
-          CafePhotosStatus.loaded => _Grid(
-            state: state,
-            cafeId: widget.cafeId,
-            cafeName: widget.cafeName,
-          ),
-        },
+      body: CafePhotosBody(
+        cafeId: widget.cafeId,
+        cafeName: widget.cafeName,
+        onLoaded: _logView,
       ),
+    );
+  }
+}
+
+/// The photo grid with its loading, failed and empty states, for the
+/// [CafePhotosCubit] above it. The Cups page's Photos tab shows it too.
+class CafePhotosBody extends StatelessWidget {
+  const CafePhotosBody({
+    super.key,
+    required this.cafeId,
+    required this.cafeName,
+    this.onLoaded,
+  });
+
+  final String cafeId;
+  final String cafeName;
+  final ValueChanged<CafePhotosState>? onLoaded;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<CafePhotosCubit, CafePhotosState>(
+      listener: (_, state) => onLoaded?.call(state),
+      builder: (context, state) => switch (state.status) {
+        CafePhotosStatus.initial ||
+        CafePhotosStatus.loading => const _GridSkeleton(),
+        CafePhotosStatus.failed => _Message.error(
+          error: state.error,
+          onRetry: () => context.read<CafePhotosCubit>().load(),
+        ),
+        CafePhotosStatus.loaded when state.photos.isEmpty =>
+          const _Message.empty(),
+        CafePhotosStatus.loaded => _Grid(
+          state: state,
+          cafeId: cafeId,
+          cafeName: cafeName,
+        ),
+      },
     );
   }
 }
@@ -390,7 +414,7 @@ class _Message extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              info?.title ?? 'No cups yet',
+              info?.title ?? 'No photos yet',
               textAlign: TextAlign.center,
               style: theme.bodyLarge?.copyWith(
                 fontSize: 16,
@@ -400,7 +424,7 @@ class _Message extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              info?.subtitle ?? 'Photos people add of this cafe show up here.',
+              info?.subtitle ?? 'Photos from people’s cups show up here.',
               textAlign: TextAlign.center,
               style: theme.bodyMedium?.copyWith(
                 fontSize: 14,
@@ -425,7 +449,7 @@ class _GridSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Loading cups',
+      label: 'Loading photos',
       child: Skeletonizer.zone(
         effect: const PulseEffect(
           from: CafeDetailsTokens.tint,

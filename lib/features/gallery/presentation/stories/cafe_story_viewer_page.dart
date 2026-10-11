@@ -409,9 +409,11 @@ class _StoryFrame extends StatelessWidget {
     final photo = story.photos[photoIndex];
     final credit = story.credit;
     final sourceId = photo.photo.sourceId;
-    final review = photo.photo.isFromReview && sourceId != null
-        ? reviewOf?.call(sourceId)
-        : null;
+    final review =
+        photo.cup ??
+        (photo.photo.isFromReview && sourceId != null
+            ? reviewOf?.call(sourceId)
+            : null);
     final still = MediaQuery.disableAnimationsOf(context);
     final chrome = Duration(milliseconds: still ? 0 : 150);
 
@@ -719,7 +721,7 @@ class _WordsState extends State<_Words> {
     final text = reviewText != null && reviewText.isNotEmpty
         ? reviewText
         : (note == null || note.isEmpty ? null : note);
-    if (drink == null && review == null && text == null) {
+    if (drink == null && review?.rating == null && text == null) {
       return const SizedBox(height: 20);
     }
 
@@ -742,9 +744,9 @@ class _WordsState extends State<_Words> {
                 color: StoryViewerTokens.text,
               ),
             ),
-          if (review != null) ...[
+          if (review?.rating case final stars?) ...[
             if (drink != null) const SizedBox(height: 6),
-            _Stars(rating: review.rating),
+            _Stars(rating: stars),
           ],
           if (text != null) ...[
             const SizedBox(height: 8),

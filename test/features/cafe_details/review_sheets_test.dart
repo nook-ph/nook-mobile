@@ -258,15 +258,15 @@ void main() {
     test('each review action has its own title and reason', () {
       expect(
         CafeGuestSignInSheet.titleFor(CafeGuestAction.writeReview, ''),
-        'Sign in to write a review',
+        'Sign in to add your cup',
       );
       expect(
         CafeGuestSignInSheet.messageFor(CafeGuestAction.writeReview),
-        'Reviews are posted under your name. Signing in takes a minute.',
+        'Cups are posted under your name. Signing in takes a minute.',
       );
       expect(
         CafeGuestSignInSheet.titleFor(CafeGuestAction.helpfulReview, ''),
-        'Sign in to mark reviews helpful',
+        'Sign in to mark cups helpful',
       );
       expect(
         CafeGuestSignInSheet.messageFor(CafeGuestAction.helpfulReview),
@@ -274,7 +274,7 @@ void main() {
       );
       expect(
         CafeGuestSignInSheet.titleFor(CafeGuestAction.reportReview, ''),
-        'Sign in to report a review',
+        'Sign in to report a cup',
       );
       final icons = {
         for (final action in [
