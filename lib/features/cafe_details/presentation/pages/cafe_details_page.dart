@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/analytics/profile_events.dart';
@@ -57,6 +58,15 @@ import 'package:nook/features/lists/presentation/widgets/save_to_list_bottom_she
 import 'package:nook/core/presentation/widgets/app_bar_circle_icon_button.dart';
 import 'package:nook/core/presentation/widgets/review_photo_viewer.dart';
 
+/// The scroll offset that puts a section whose top is at [reveal] just
+/// under a pinned bar [bar] tall, with a little air, within [min]..[max].
+double scrollOffsetUnderBar({
+  required double reveal,
+  required double bar,
+  required double min,
+  required double max,
+}) => (reveal - bar + 8).clamp(min, max);
+
 class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({super.key, required this.cafeId});
 
@@ -80,6 +90,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   static const double _sheetLip = 24;
 
   final GlobalKey _barKey = GlobalKey();
+
+  /// The Cups section, which the header's rating scrolls to.
+  final GlobalKey _cupsKey = GlobalKey();
 
   static const double _expandedHeight = 296;
   static const double _collapsedHeight = kToolbarHeight;
@@ -147,6 +160,32 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     final box = _barKey.currentContext?.findRenderObject();
     if (box is RenderBox && box.hasSize) return box.size.height;
     return 72 + MediaQuery.of(context).padding.bottom;
+  }
+
+  /// The header's rating was tapped: bring the Cups section up under the
+  /// pinned bar, where its numbers and kinds explain the rating.
+  void _scrollToCups() {
+    final box = _cupsKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !_scrollController.hasClients) return;
+    final viewport = RenderAbstractViewport.maybeOf(box);
+    if (viewport == null) return;
+    final bar = _collapsedHeight + MediaQuery.paddingOf(context).top;
+    final position = _scrollController.position;
+    final target = scrollOffsetUnderBar(
+      reveal: viewport.getOffsetToReveal(box, 0).offset,
+      bar: bar,
+      min: position.minScrollExtent,
+      max: position.maxScrollExtent,
+    );
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _scrollController.jumpTo(target);
+    } else {
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   PickedCafe _pickedCafe(CafeDetailsLoaded state) {
@@ -272,8 +311,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
         ),
       if (cafe.menuHighlights.isNotEmpty)
         MenuHighlights(width: menuCardWidth, cafe: cafe),
-      CafeHoursLocationSection(cafe: cafe, groups: groups),
+      // Cups above Hours: what people had and thought is the proof for
+      // deciding, so it sits higher than the logistics (UX review 1.2).
       CafeCupsSection(
+        key: _cupsKey,
         onSeeAll: () => _openCups(context, state),
         onAdd: () => _addCup(context, state, source: CupSource.cafeSection),
         onOpenPhoto: (card, index) => openCupPhotos(
@@ -304,6 +345,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
           toastOffset: _toastOffset(),
         ),
       ),
+      CafeHoursLocationSection(cafe: cafe, groups: groups),
     ];
 
     final cups = context.watch<CafeCupsCubit>().state;
@@ -312,7 +354,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CafeInfoHeader(cafe: cafe),
+        CafeInfoHeader(cafe: cafe, onRatingTap: _scrollToCups),
         const SizedBox(height: 16),
         CafeStatusPills(cafe: cafe, toastOffset: _toastOffset),
         // Your own history with the cafe, right under the actions that

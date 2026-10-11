@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart'
+    show scrollOffsetUnderBar;
 import 'package:nook/core/presentation/widgets/tag_icon.dart';
 import 'package:get_it/get_it.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -66,6 +68,13 @@ void main() {
     }
   });
 
+  test('the rating scrolls Cups to just under the pinned bar', () {
+    expect(scrollOffsetUnderBar(reveal: 900, bar: 80, min: 0, max: 2000), 828);
+    // Near the end of the page it stops at the end.
+    expect(scrollOffsetUnderBar(reveal: 900, bar: 80, min: 0, max: 500), 500);
+    expect(scrollOffsetUnderBar(reveal: 10, bar: 80, min: 0, max: 500), 0);
+  });
+
   group('CafeInfoHeader', () {
     testWidgets('puts rating and open status on one line', (tester) async {
       await tester.pumpWidget(_host(CafeInfoHeader(cafe: _cafe())));
@@ -87,6 +96,32 @@ void main() {
 
       expect(find.text('No cups yet'), findsOneWidget);
       expect(find.text('4.9'), findsNothing);
+    });
+
+    testWidgets('the rating is a button to Cups, 44 tall', (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        _host(CafeInfoHeader(cafe: _cafe(), onRatingTap: () => taps++)),
+      );
+      final button = find.bySemanticsLabel('Rated 4.9 from 32. Go to Cups');
+      expect(button, findsOneWidget);
+      expect(tester.getSize(button).height, greaterThanOrEqualTo(44));
+      await tester.tap(find.text('4.9'));
+      expect(taps, 1);
+    });
+
+    testWidgets('with no cups yet it still leads to Cups', (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        _host(
+          CafeInfoHeader(
+            cafe: _cafe(reviewCount: 0),
+            onRatingTap: () => taps++,
+          ),
+        ),
+      );
+      await tester.tap(find.bySemanticsLabel('No cups yet. Go to Cups'));
+      expect(taps, 1);
     });
 
     testWidgets('makes no open or closed claim without hours', (tester) async {

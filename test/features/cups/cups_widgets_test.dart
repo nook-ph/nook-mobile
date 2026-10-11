@@ -513,10 +513,12 @@ void main() {
       expect(find.text('@mae.brews'), findsOneWidget);
       expect(find.bySemanticsLabel('5 out of 5 stars'), findsOneWidget);
       expect(find.text('Helpful · 3'), findsOneWidget);
-      expect(find.text('See all 4 cups'), findsOneWidget);
+      // One See all, in the header; the footer is only Add your cup.
+      expect(find.text('See all'), findsOneWidget);
+      expect(find.textContaining('See all 4'), findsNothing);
 
       await tester.tap(find.text('Add your cup'));
-      await tester.tap(find.text('See all 4 cups'));
+      await tester.tap(find.text('See all'));
       await tester.tap(find.text('Helpful · 3'));
       expect(taps, ['add', 'all', 'helpful mae.brews']);
     });

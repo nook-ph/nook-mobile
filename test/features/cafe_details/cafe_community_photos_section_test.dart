@@ -161,7 +161,7 @@ void main() {
     expect(find.text('Add your cup'), findsNothing);
   });
 
-  testWidgets('one photo: one ring, no See all', (tester) async {
+  testWidgets('one photo: one ring, no Photos link', (tester) async {
     await pump(
       tester,
       FakeCommunityPhotosRepository([
@@ -172,7 +172,7 @@ void main() {
     expect(find.text('Latest cups'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
     expect(find.text('@sai'), findsOneWidget);
-    expect(find.text('See all'), findsNothing);
+    expect(find.bySemanticsLabel('See all photos'), findsNothing);
     expect(
       find.bySemanticsLabel(RegExp(r'^@sai’s 1 photo, .*, new\. Open$')),
       findsOneWidget,
@@ -284,7 +284,7 @@ void main() {
     expect(find.text('Add your cup'), findsNothing);
   });
 
-  testWidgets('many photos: See all hands over what the tray loaded', (
+  testWidgets('many photos: Photos hands over what the tray loaded', (
     tester,
   ) async {
     final repo = FakeCommunityPhotosRepository([
@@ -293,12 +293,14 @@ void main() {
     await pump(tester, repo, cupCount: 12);
 
     expect(find.text('12'), findsOneWidget);
-    expect(find.text('See all'), findsOneWidget);
+    // Named for where it goes, not a second "See all" (UX review 1.3).
+    expect(find.text('Photos'), findsOneWidget);
+    expect(find.text('See all'), findsNothing);
     // Only a tray's worth is loaded.
     expect(find.text('@u7'), findsOneWidget);
     expect(find.text('@u8'), findsNothing);
 
-    await tester.tap(find.text('See all'));
+    await tester.tap(find.text('Photos'));
     await tester.pump();
     expect(seeAll.single.photos, hasLength(8));
   });

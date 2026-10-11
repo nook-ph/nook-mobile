@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
@@ -7,10 +8,14 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 /// The top of the details sheet: name, area, and one status line carrying
 /// the three facts that decide a visit: rating, open or closed, distance.
+///
+/// [onRatingTap] makes the rating a button to what's behind it, the Cups
+/// section (Google Maps' and Apple Maps' rating jumps to the reviews).
 class CafeInfoHeader extends StatelessWidget {
-  const CafeInfoHeader({super.key, required this.cafe});
+  const CafeInfoHeader({super.key, required this.cafe, this.onRatingTap});
 
   final CafeDetailsResult cafe;
+  final VoidCallback? onRatingTap;
 
   static String locationText(String neighborhood, String city) => [
     neighborhood,
@@ -51,7 +56,8 @@ class CafeInfoHeader extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 10),
+          // A tappable rating is 44 tall and brings its own space above.
+          SizedBox(height: onRatingTap == null ? 10 : 0),
           CafeDistanceBuilder(
             lat: details.lat,
             lng: details.lng,
@@ -60,6 +66,7 @@ class CafeInfoHeader extends StatelessWidget {
               reviewCount: details.reviewCount,
               status: status,
               distance: distance,
+              onRatingTap: onRatingTap,
             ),
           ),
         ],
@@ -74,12 +81,14 @@ class _StatusLine extends StatelessWidget {
     required this.reviewCount,
     required this.status,
     required this.distance,
+    this.onRatingTap,
   });
 
   final double rating;
   final int reviewCount;
   final CafeOpenStatus status;
   final String? distance;
+  final VoidCallback? onRatingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -93,28 +102,47 @@ class _StatusLine extends StatelessWidget {
     );
     final detail = status.shortDetail;
 
+    // A catalog this young means most cafes have no reviews, and "0.0"
+    // beside a star reads as a bad cafe rather than a new one.
+    final Widget ratingPart = reviewCount == 0
+        ? Text(
+            'No cups yet',
+            style: strong.copyWith(color: CafeDetailsTokens.muted),
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                PhosphorIconsFill.star,
+                size: 14,
+                color: CafeDetailsTokens.star,
+              ),
+              const SizedBox(width: 5),
+              Text(rating.toStringAsFixed(1), style: strong),
+              const SizedBox(width: 5),
+              Text('($reviewCount)', style: regular),
+            ],
+          );
+    final tap = onRatingTap;
     final parts = <Widget>[
-      // A catalog this young means most cafes have no reviews, and "0.0"
-      // beside a star reads as a bad cafe rather than a new one.
-      if (reviewCount == 0)
-        Text(
-          'No cups yet',
-          style: strong.copyWith(color: CafeDetailsTokens.muted),
-        )
+      if (tap == null)
+        ratingPart
       else
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              PhosphorIconsFill.star,
-              size: 14,
-              color: CafeDetailsTokens.star,
+        Semantics(
+          button: true,
+          label: reviewCount == 0
+              ? 'No cups yet. Go to Cups'
+              : 'Rated ${rating.toStringAsFixed(1)} from $reviewCount. '
+                    'Go to Cups',
+          excludeSemantics: true,
+          child: AdaptiveTap(
+            onTap: tap,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+              child: Center(widthFactor: 1, child: ratingPart),
             ),
-            const SizedBox(width: 5),
-            Text(rating.toStringAsFixed(1), style: strong),
-            const SizedBox(width: 5),
-            Text('($reviewCount)', style: regular),
-          ],
+          ),
         ),
       // A listing with no hours at all makes no open-or-closed claim.
       if (status.hasAnyHours)

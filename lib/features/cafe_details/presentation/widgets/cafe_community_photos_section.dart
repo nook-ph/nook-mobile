@@ -234,7 +234,8 @@ Widget _withDivider(Widget child) => Column(
 );
 
 /// The title row: "Latest cups", how many cups (visits) the cafe has, and
-/// "See all" at the trailing edge (Google Maps' photo header).
+/// "Photos ›" at the trailing edge (Google Maps' photo header): every photo.
+/// Labelled for where it goes, so it reads apart from the Cups "See all".
 class _Header extends StatelessWidget {
   const _Header({required this.total, this.onSeeAll});
 
@@ -288,7 +289,7 @@ class _Header extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'See all',
+                          'Photos',
                           style: theme.bodyMedium?.copyWith(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,

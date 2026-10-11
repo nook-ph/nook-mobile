@@ -123,45 +123,16 @@ class CafeCupsSection extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              _Actions(
-                seeAll: CafeWideButton(
-                  label: state.total > shown
-                      ? 'See all ${state.total} cups'
-                      : 'See all',
-                  onTap: onSeeAll,
-                ),
-                add: AddCupPill(onTap: onAdd),
+              // The header's See all is the one way to every cup; the
+              // footer keeps only the add (UX review 1.3).
+              Align(
+                alignment: Alignment.centerLeft,
+                child: AddCupPill(onTap: onAdd),
               ),
             ],
           ),
         );
       },
-    );
-  }
-}
-
-/// See all and Add your cup side by side; stacked at large text, where
-/// they no longer fit one line.
-class _Actions extends StatelessWidget {
-  const _Actions({required this.seeAll, required this.add});
-
-  final Widget seeAll;
-  final Widget add;
-
-  @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.textScalerOf(context).scale(1) >= 1.25) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [seeAll, const SizedBox(height: 10), add],
-      );
-    }
-    return Row(
-      children: [
-        Expanded(child: seeAll),
-        const SizedBox(width: 10),
-        add,
-      ],
     );
   }
 }
