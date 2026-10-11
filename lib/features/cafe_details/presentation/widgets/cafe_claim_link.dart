@@ -22,8 +22,20 @@ class CafeClaimLink extends StatelessWidget {
 
   static const _claimBase = 'https://business.nookph.app/claim';
 
-  Future<void> _open(BuildContext context) async {
-    logAppEvent('claim_cafe_tapped', properties: {'cafe_id': cafeId});
+  Future<void> _open(BuildContext context) =>
+      open(context, cafeId: cafeId, source: 'footer');
+
+  /// Opens the claim page for [cafeId] in the browser. [source] says which
+  /// entry point was tapped (footer, unverified note, empty photo hero).
+  static Future<void> open(
+    BuildContext context, {
+    required String cafeId,
+    required String source,
+  }) async {
+    logAppEvent(
+      'claim_cafe_tapped',
+      properties: {'cafe_id': cafeId, 'source': source},
+    );
     final uri = Uri.parse('$_claimBase/${Uri.encodeComponent(cafeId)}');
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && context.mounted) {

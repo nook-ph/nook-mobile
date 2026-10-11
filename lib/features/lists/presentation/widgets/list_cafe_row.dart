@@ -33,7 +33,11 @@ class ListCafeRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
-                  ListsThumb(imageUrl: cafe.coverImage, size: 56),
+                  ListsThumb(
+                    imageUrl: cafe.coverImage,
+                    size: 56,
+                    placeholderSeed: cafe.name,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(

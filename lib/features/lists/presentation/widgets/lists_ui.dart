@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
+import 'package:nook/core/presentation/widgets/cafe_photo_placeholder.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -380,8 +381,10 @@ class ListsTextButton extends StatelessWidget {
   }
 }
 
-/// A square cafe or list photo. With no usable [imageUrl] it is a tinted
-/// tile carrying [placeholderIcon].
+/// A square cafe or list photo. With no usable [imageUrl] a cafe (the default
+/// coffee [placeholderIcon]) gets the shared no-photo tile, tinted by
+/// [placeholderSeed]; anything else gets a tinted tile carrying
+/// [placeholderIcon].
 class ListsThumb extends StatelessWidget {
   const ListsThumb({
     super.key,
@@ -389,7 +392,11 @@ class ListsThumb extends StatelessWidget {
     required this.size,
     this.radius = 12,
     this.placeholderIcon = LucideIcons.coffee,
+    this.placeholderSeed,
   });
+
+  /// Picks the no-photo tint for a cafe; pass the cafe's name.
+  final String? placeholderSeed;
 
   final String? imageUrl;
   final double size;
@@ -401,7 +408,16 @@ class ListsThumb extends StatelessWidget {
     final url = imageUrl?.trim();
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: url == null || url.isEmpty
+      child: (url == null || url.isEmpty) &&
+              placeholderIcon == LucideIcons.coffee
+          ? SizedBox.square(
+              dimension: size,
+              child: CafePhotoPlaceholder(
+                seed: placeholderSeed,
+                showCaption: false,
+              ),
+            )
+          : url == null || url.isEmpty
           ? Container(
               width: size,
               height: size,

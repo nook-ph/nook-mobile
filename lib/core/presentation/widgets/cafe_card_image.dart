@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:nook/core/cache/custom_cache_manager.dart';
+import 'package:nook/core/presentation/widgets/cafe_photo_placeholder.dart';
 
 /// The one way this app draws a cafe photo.
 ///
@@ -8,6 +9,10 @@ import 'package:nook/core/cache/custom_cache_manager.dart';
 /// no disk cache (so a photo is re-downloaded on every tab switch — real money
 /// on mobile data) and paints nothing while loading (so cards appear as blank
 /// holes on the discovery surfaces).
+///
+/// A cafe with no photo ([imageUrl] null or blank) gets the designed
+/// [CafePhotoPlaceholder], tinted by [placeholderSeed] (the cafe's name), never
+/// a stock photo standing in for the place.
 ///
 /// [height] and [width] default to filling the parent, for the cards that size
 /// their image with `Expanded` rather than a fixed box.
@@ -23,16 +28,26 @@ class CafeCardImage extends StatelessWidget {
     this.width = double.infinity,
     this.placeholder,
     this.errorWidget,
+    this.placeholderSeed,
+    this.showNoPhotoCaption = true,
   });
 
-  final String imageUrl;
+  /// The photo, or null / blank for a cafe that has none yet.
+  final String? imageUrl;
+
+  /// Picks the no-photo tint; pass the cafe's name.
+  final String? placeholderSeed;
+
+  /// Whether the no-photo tile may say "No photo yet" when it has room.
+  final bool showNoPhotoCaption;
   final double height;
   final double width;
 
   /// Shown while the photo loads. Defaults to a neutral grey block.
   final Widget? placeholder;
 
-  /// Shown when the photo cannot be loaded. Defaults to a coffee icon on grey.
+  /// Shown when the photo cannot be loaded. Defaults to the no-photo tile
+  /// without its caption (the cafe has a photo; it just didn't load).
   final Widget? errorWidget;
 
   /// The decode width, in physical pixels, for a box of [size] logical
@@ -54,13 +69,24 @@ class CafeCardImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final url = imageUrl?.trim() ?? '';
+    if (url.isEmpty) {
+      return SizedBox(
+        height: height,
+        width: width,
+        child: CafePhotoPlaceholder(
+          seed: placeholderSeed,
+          showCaption: showNoPhotoCaption,
+        ),
+      );
+    }
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     return SizedBox(
       height: height,
       width: width,
       child: LayoutBuilder(
         builder: (context, constraints) => CachedNetworkImage(
-          imageUrl: imageUrl,
+          imageUrl: url,
           cacheManager: CustomCacheManager.instance,
           fit: BoxFit.cover,
           width: constraints.hasBoundedWidth ? constraints.maxWidth : null,
@@ -75,15 +101,7 @@ class CafeCardImage extends StatelessWidget {
               placeholder ?? const ColoredBox(color: Color(0xFFE5E7EB)),
           errorWidget: (_, _, _) =>
               errorWidget ??
-              Container(
-                color: const Color(0xFFE5E7EB),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.coffee_outlined,
-                  color: Color(0xFF6B7280),
-                  size: 32,
-                ),
-              ),
+              CafePhotoPlaceholder(seed: placeholderSeed, showCaption: false),
         ),
       ),
     );

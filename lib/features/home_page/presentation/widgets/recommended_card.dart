@@ -12,9 +12,7 @@ class RecommendedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String imageUrl = (cafe.coverImage?.trim().isNotEmpty ?? false)
-        ? cafe.coverImage!.trim()
-        : 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
+    final String? imageUrl = cafe.coverImage;
 
     final String ratingText = cafe.rating.toStringAsFixed(1);
     final String? primaryTag = cafe.tags.isNotEmpty
@@ -41,7 +39,13 @@ class RecommendedCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Expanded(flex: 4, child: CafeCardImage(imageUrl: imageUrl)),
+            Expanded(
+              flex: 4,
+              child: CafeCardImage(
+                imageUrl: imageUrl,
+                placeholderSeed: cafe.name,
+              ),
+            ),
             Expanded(
               flex: 8,
               child: Padding(

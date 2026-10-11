@@ -40,6 +40,7 @@ import 'package:nook/core/cafe/domain/use_cases/get_user_lists_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/remove_cafe_from_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/set_cafe_status_usecase.dart';
+import 'package:nook/core/cafe/data/cafe_listing_status_source.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_statuses_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/set_cafe_note_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_note_usecase.dart';
@@ -163,6 +164,10 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<CrawlRemoteDataSource>(
     () => CrawlRemoteDataSource(sl<SupabaseClient>()),
+  );
+
+  sl.registerLazySingleton<CafeListingStatusSource>(
+    () => CafeListingStatusSource(sl<SupabaseClient>()),
   );
 
   // 3) Repositories

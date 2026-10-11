@@ -8,16 +8,14 @@ import 'package:nook/features/map/presentation/widgets/map_open_line.dart';
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
-const _fallbackImage =
-    'https://images.unsplash.com/photo-1497935586351-b67a49e012bf';
-
-String _imageUrl(CafeSummary cafe) {
+/// Featured image, else first extra photo, else null (no-photo tile).
+String? _imageUrl(CafeSummary cafe) {
   final featured = cafe.coverImage?.trim();
   if (featured != null && featured.isNotEmpty) return featured;
   for (final raw in cafe.photoUrls) {
     if (raw.trim().isNotEmpty) return raw.trim();
   }
-  return _fallbackImage;
+  return null;
 }
 
 /// "350 m" / "1.2 km" from the search's origin; empty when there is none.
@@ -54,7 +52,10 @@ class _Photo extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       child: SizedBox.square(
         dimension: size,
-        child: CafeCardImage(imageUrl: _imageUrl(cafe)),
+        child: CafeCardImage(
+          imageUrl: _imageUrl(cafe),
+          placeholderSeed: cafe.name,
+        ),
       ),
     );
   }
