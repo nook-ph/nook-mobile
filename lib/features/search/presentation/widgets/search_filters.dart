@@ -8,8 +8,8 @@ import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 /// Sort ids `get_cafes` understands, with the labels search shows.
 const kSearchSorts = [
   ('nearby', 'Nearest'),
-  ('top_rated', 'Top rated'),
-  ('trending', 'Trending'),
+  ('top_rated', 'Highest rated'),
+  ('trending', 'Crowd favorites'),
   ('newest', 'Newest'),
 ];
 

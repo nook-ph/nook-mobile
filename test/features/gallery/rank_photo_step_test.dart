@@ -130,7 +130,7 @@ void main() {
       caption: null,
     ));
     // Back on the reveal, which now says it worked.
-    expect(find.text('Added to your gallery'), findsOneWidget);
+    expect(find.text('Added to your cups'), findsOneWidget);
     expect(find.text('Add a photo of what you had'), findsNothing);
     expect(
       analytics.events,

@@ -563,7 +563,7 @@ class _Loaded extends StatelessWidget {
                   child: ProfileTabs(
                     controller: DefaultTabController.of(context),
                     tabs: const [
-                      ProfileTabData('Gallery', icon: PhosphorIcons.gridFour),
+                      ProfileTabData('Cups', icon: PhosphorIcons.gridFour),
                       ProfileTabData(
                         'Reviews',
                         icon: PhosphorIcons.chatCircleText,
@@ -623,7 +623,7 @@ class _PrivateNote extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Their gallery is private. Their reviews are public.',
+              'Their cups are private. Their reviews are public.',
               style: ProfileTokens.text(13, color: ProfileTokens.muted),
             ),
           ),

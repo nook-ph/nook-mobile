@@ -23,8 +23,8 @@ class HomeStateView extends StatelessWidget {
   /// Nothing to show and nothing failed (Figma 1605:14372).
   const HomeStateView.noCafes({super.key})
     : icon = LucideIcons.house,
-      title = 'No cafes yet',
-      subtitle = 'Pull to refresh. New spots appear here soon.',
+      title = 'Nothing brewing yet',
+      subtitle = 'Pull to refresh — new cafes land here first.',
       actionLabel = null,
       onAction = null,
       primaryAction = false,

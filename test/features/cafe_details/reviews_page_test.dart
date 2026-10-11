@@ -172,7 +172,7 @@ void main() {
     final label = tester.widget<Text>(find.text('Your review · May 23, 2026'));
     expect(label.style?.color, const Color(0xFF344E41));
     expect(label.style?.fontSize, 10);
-    expect(find.text('Write a review'), findsNothing);
+    expect(find.text('Add your cup'), findsNothing);
     expect(find.text('3 reviews'), findsNWidgets(2));
     // Own row first.
     expect(
@@ -203,7 +203,7 @@ void main() {
     expect(find.text('Review deleted'), findsOneWidget);
     expect(find.text('Review text from maria.c'), findsNothing);
     expect(find.text('2 reviews'), findsNWidgets(2));
-    expect(find.text('Write a review'), findsOneWidget);
+    expect(find.text('Add your cup'), findsOneWidget);
 
     // Let the toast close so no timer outlives the test.
     await tester.pump(const Duration(seconds: 4));
@@ -232,7 +232,7 @@ void main() {
     final harness = _Harness(others);
     await harness.pump(tester);
 
-    await tester.tap(find.text('Write a review'));
+    await tester.tap(find.text('Add your cup'));
     await tester.pumpAndSettle();
     expect(find.text('Sign in to write a review'), findsOneWidget);
     await tester.tap(find.text('Not now'));
@@ -267,14 +267,14 @@ void main() {
 
     expect(find.text("You're offline"), findsOneWidget);
     expect(find.text('Check your connection and try again'), findsOneWidget);
-    expect(find.text('Write a review'), findsNothing);
+    expect(find.text('Add your cup'), findsNothing);
 
     harness.getReviews.error = null;
     await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
 
     expect(find.text("You're offline"), findsNothing);
-    expect(find.text('Write a review'), findsOneWidget);
+    expect(find.text('Add your cup'), findsOneWidget);
   });
 
   testWidgets('blocking an author recomputes the score and the count', (
@@ -327,7 +327,7 @@ void main() {
 
     expect(find.text('Review text from jp_dev'), findsOneWidget);
     expect(find.text('2.5'), findsOneWidget);
-    expect(find.text('Write a review'), findsOneWidget);
+    expect(find.text('Add your cup'), findsOneWidget);
     expect(harness.getReviews.calls, 1);
   });
 
@@ -345,7 +345,7 @@ void main() {
     // Filter to 1 star: one of the two reviews.
     await tester.tap(find.bySemanticsLabel(RegExp('^1 star, 1 review')));
     await tester.pumpAndSettle();
-    expect(find.text('Write a review'), findsOneWidget);
+    expect(find.text('Add your cup'), findsOneWidget);
 
     // The user posts a 5-star review; the server now has three.
     final mine = _review('r1', 'maria.c', 5);
@@ -369,7 +369,7 @@ void main() {
     // The filter stays, the totals move, and a second review is not offered.
     expect(find.bySemanticsLabel(RegExp('^5 star, 1 review')), findsOneWidget);
     expect(find.text('3 reviews'), findsOneWidget);
-    expect(find.text('Write a review'), findsNothing);
+    expect(find.text('Add your cup'), findsNothing);
   });
 
   testWidgets('reporting files the page\'s cafe id when the review has none', (

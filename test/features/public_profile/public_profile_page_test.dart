@@ -82,7 +82,7 @@ void main() {
     expect(find.text('Top cafes'), findsNothing);
     expect(find.bySemanticsLabel(RegExp(r'^Number \d')), findsNothing);
     // Icon tabs, named for screen readers.
-    expect(find.bySemanticsLabel('Gallery'), findsOneWidget);
+    expect(find.bySemanticsLabel('Cups'), findsOneWidget);
     expect(find.bySemanticsLabel('Reviews'), findsOneWidget);
     expect(find.text('Reviews'), findsOneWidget); // the stat
     // No count badges on the tabs, and no gallery counts line.
@@ -116,7 +116,7 @@ void main() {
       repository: FakePublicProfileRepository(profile: beaProfile(ranked: 0)),
     );
     expect(find.text('Top cafes'), findsNothing);
-    expect(find.bySemanticsLabel('Gallery'), findsOneWidget);
+    expect(find.bySemanticsLabel('Cups'), findsOneWidget);
   });
 
   testWidgets('switch off: no gallery, a private note, reviews still shown', (
@@ -129,9 +129,9 @@ void main() {
       ),
     );
     expect(find.text('Top cafes'), findsNothing);
-    expect(find.bySemanticsLabel('Gallery'), findsNothing);
+    expect(find.bySemanticsLabel('Cups'), findsNothing);
     expect(
-      find.text('Their gallery is private. Their reviews are public.'),
+      find.text('Their cups are private. Their reviews are public.'),
       findsOneWidget,
     );
     expect(find.bySemanticsLabel('2 Reviews'), findsOneWidget);

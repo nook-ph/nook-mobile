@@ -55,8 +55,8 @@ Set<String> mergeTagsReplacingCategory(
 String mapFilterSortLabel(String sortId) {
   return switch (sortId) {
     'nearby' => 'Nearby',
-    'top_rated' => 'Top rated',
-    'trending' => 'Trending',
+    'top_rated' => 'Highest rated',
+    'trending' => 'Crowd favorites',
     'newest' => 'Newest',
     _ => 'Nearby',
   };
@@ -64,7 +64,7 @@ String mapFilterSortLabel(String sortId) {
 
 List<({String id, String label, IconData icon})> mapFilterSortOptions() => [
   (id: 'nearby', label: 'Nearby', icon: PhosphorIcons.mapPin()),
-  (id: 'top_rated', label: 'Top rated', icon: PhosphorIcons.star()),
-  (id: 'trending', label: 'Trending', icon: PhosphorIcons.trendUp()),
+  (id: 'top_rated', label: 'Highest rated', icon: PhosphorIcons.star()),
+  (id: 'trending', label: 'Crowd favorites', icon: PhosphorIcons.trendUp()),
   (id: 'newest', label: 'Newest', icon: PhosphorIcons.sparkle()),
 ];

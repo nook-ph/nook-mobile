@@ -22,7 +22,7 @@ class ShareService {
     await SharePlus.instance.share(
       ShareParams(
         // The link on its own line auto-links reliably in share targets.
-        text: 'Check out $name on Nook!\n\n$link',
+        text: "Coffee at $name? It's on Nook:\n\n$link",
         subject: name,
         // Required on iPadOS: without an anchor rect the share popover has
         // nowhere to point and UIKit throws.
@@ -43,7 +43,7 @@ class ShareService {
     bool own = false,
     Rect? sharePositionOrigin,
   }) async {
-    final title = own ? 'Find me on Nook' : '$name on Nook';
+    final title = own ? 'My cafes and cups on Nook' : '$name on Nook';
     final result = await SharePlus.instance.share(
       ShareParams(
         text: '$title\n\n${profileLink(username)}',
@@ -93,7 +93,7 @@ class ShareService {
     await SharePlus.instance.share(
       ShareParams(
         text:
-            'Join my crew for $title on Nook\n\n'
+            "Join my crew for $title — first stop's on the map.\n\n"
             '${crewInviteLink(shareCode, inviteCode)}\n\n'
             'Or enter crew code $inviteCode in the app.',
         subject: 'Join my crew: $title',

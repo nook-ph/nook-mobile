@@ -260,22 +260,58 @@ class _HomeContent extends StatelessWidget {
 
     final nearby = fresh(state.nearbyCafes);
     final featured = fresh(state.featuredCafes);
+    final specialty = fresh(state.specialtyNearbyCafes);
     final newest = fresh(state.newestCafes);
+    final laptop = fresh(state.laptopFriendlyCafes);
     final trending = fresh(state.trendingCafes);
     final topRated = fresh(state.topRatedCafes);
 
     // Sections with no cafes are left out, so the gap goes between the ones
-    // that remain rather than around blank space.
+    // that remain rather than around blank space. Titles stay plain; the
+    // coffee voice is in the subtitles (docs: COFFEE_VOICE.md, rule 1).
     final sections = <Widget>[
       if (nearby.isNotEmpty)
-        HomeCafeSection(title: 'Near you', cafes: nearby, sort: 'nearby'),
+        HomeCafeSection(
+          title: 'Near you',
+          subtitle: 'Closest first',
+          cafes: nearby,
+          sort: 'nearby',
+        ),
       if (featured.isNotEmpty) _FeaturedSection(cafes: featured),
+      if (specialty.isNotEmpty)
+        HomeCafeSection(
+          title: 'Specialty coffee near you',
+          subtitle: 'Tagged by the Nook team, closest first',
+          cafes: specialty,
+        ),
       if (newest.isNotEmpty)
-        HomeCafeSection(title: 'New', cafes: newest, sort: 'newest'),
+        HomeCafeSection(
+          title: 'Fresh on Nook',
+          subtitle: 'Just added',
+          cafes: newest,
+          sort: 'newest',
+        ),
+      if (laptop.isNotEmpty)
+        HomeCafeSection(
+          title: 'Laptop-friendly',
+          subtitle: 'Wi-Fi and outlets',
+          cafes: laptop,
+        ),
+      // Hidden by the bloc until enough cafes have enough reviews.
       if (trending.isNotEmpty)
-        HomeCafeSection(title: 'Trending', cafes: trending, sort: 'trending'),
+        HomeCafeSection(
+          title: 'Crowd favorites',
+          subtitle: 'Well rated by lots of people',
+          cafes: trending,
+          sort: 'trending',
+        ),
       if (topRated.isNotEmpty)
-        HomeCafeSection(title: 'Top Rated', cafes: topRated, sort: 'top_rated'),
+        HomeCafeSection(
+          title: 'Highest rated',
+          subtitle: "From people who've been",
+          cafes: topRated,
+          sort: 'top_rated',
+        ),
     ];
 
     return Column(
@@ -300,7 +336,10 @@ class _FeaturedSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeSectionTitle('Featured'),
+        const HomeSectionTitle(
+          'House picks',
+          subtitle: 'Chosen by the Nook team',
+        ),
         const SizedBox(height: 12),
         FeaturedCarousel(cafes: cafes),
       ],

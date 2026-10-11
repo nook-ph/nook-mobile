@@ -341,7 +341,7 @@ void main() {
       );
 
       final been = tester.getSize(find.bySemanticsLabel('Been'));
-      final want = tester.getSize(find.bySemanticsLabel('Want to Try'));
+      final want = tester.getSize(find.bySemanticsLabel('Want to try'));
       expect(been.width, want.width);
       expect(been.width, closeTo((346 - 8) / 2, 0.5));
       expect(tester.takeException(), isNull);
@@ -364,7 +364,7 @@ void main() {
       );
 
       expect(find.text('Been · 8.7'), findsOneWidget);
-      expect(find.text('Want to Try'), findsOneWidget);
+      expect(find.text('Want to try'), findsOneWidget);
       expect(find.textContaining('#3 of 12'), findsNothing);
       // Still announced by its name.
       expect(find.bySemanticsLabel('Been'), findsOneWidget);
@@ -403,7 +403,7 @@ void main() {
       );
 
       await tester.tap(find.text('Been'));
-      await tester.tap(find.text('Want to Try'));
+      await tester.tap(find.text('Want to try'));
       expect((been, want), (1, 1));
     });
   });

@@ -13,21 +13,21 @@ class OnboardingModel {
 class OnboardingData {
   static const List<OnboardingModel> items = [
     OnboardingModel(
-      title: "Find your\nperfect brew",
+      title: "Find your kind\nof cafe",
       description:
-          "Discover local hidden gems, rate your favorites, and never settle for bad coffee again",
+          "Pour-over bars, iced-latte spots, quiet corners to work — all on one map.",
       imagePath: "assets/images/relaxing.png",
     ),
     OnboardingModel(
-      title: "Explore local\ncafes",
+      title: "Know before\nyou go",
       description:
-          "Find the best spots for studying, meetings, or just a quick coffee with our interactive map",
+          "Wi-Fi, outlets, hours and menus, kept current by the community.",
       imagePath: "assets/images/looking.png",
     ),
     OnboardingModel(
-      title: "Join the coffee\ncommunity",
+      title: "Keep your\ncoffee story",
       description:
-          "Rate your favorites, save spots for later, and help others find the best study nooks",
+          "Mark where you've been, rank your favorites, save the ones to try next.",
       imagePath: "assets/images/friends.png",
     ),
   ];

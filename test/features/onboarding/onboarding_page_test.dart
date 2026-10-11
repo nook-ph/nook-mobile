@@ -16,7 +16,7 @@ void main() {
     tester,
   ) async {
     final finishes = await pumpOnboarding(tester);
-    expect(find.text('Find your\nperfect brew'), findsOneWidget);
+    expect(find.text('Find your kind\nof cafe'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
     expect(find.text('Next'), findsOneWidget);
 
@@ -30,12 +30,12 @@ void main() {
     final finishes = await pumpOnboarding(tester);
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('Explore local\ncafes'), findsOneWidget);
+    expect(find.text('Know before\nyou go'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
 
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    expect(find.text('Join the coffee\ncommunity'), findsOneWidget);
+    expect(find.text('Keep your\ncoffee story'), findsOneWidget);
     expect(find.text('Skip'), findsNothing);
     expect(find.text('Continue'), findsOneWidget);
 

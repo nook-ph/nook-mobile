@@ -427,7 +427,7 @@ void main() {
       tester,
     ) async {
       await pumpNote(tester, public: false);
-      expect(find.textContaining('Your gallery is hidden'), findsOneWidget);
+      expect(find.textContaining('Your cups are hidden'), findsOneWidget);
       expect(find.textContaining('are public'), findsNothing);
     });
   });

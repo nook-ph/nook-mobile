@@ -386,11 +386,25 @@ void main() {
       final chips = tester
           .widgetList<SearchChip>(find.byType(SearchChip))
           .toList();
-      expect(chips[1].label, 'Top rated');
+      expect(chips[1].label, 'Highest rated');
       expect(chips[1].selected, isTrue);
       expect(chips[2].label, 'Open now');
-      expect(chips[3].label, 'Pet Friendly');
-      expect(chips[3].selected, isTrue);
+
+      // The first tag sits past the screen edge; scroll it into view.
+      await tester.drag(find.byType(Scrollable).first, const Offset(-200, 0));
+      await tester.pump();
+      final tagLabels = tester
+          .widgetList<SearchChip>(find.byType(SearchChip))
+          .map((c) => c.label)
+          .where((l) => l == 'Pet Friendly' || kSearchQuickTags.contains(l))
+          .toList();
+      expect(tagLabels.first, 'Pet Friendly');
+      expect(
+        tester
+            .widget<SearchChip>(find.widgetWithText(SearchChip, 'Pet Friendly'))
+            .selected,
+        isTrue,
+      );
     });
 
     testWidgets('"Open now" is left out when there are no hours to filter '
@@ -469,7 +483,12 @@ void main() {
     ) async {
       await open(tester, 'top_rated', (_) {});
       expect(find.text('Sort by'), findsOneWidget);
-      for (final label in ['Nearest', 'Top rated', 'Trending', 'Newest']) {
+      for (final label in [
+        'Nearest',
+        'Highest rated',
+        'Crowd favorites',
+        'Newest',
+      ]) {
         expect(find.text(label), findsOneWidget);
       }
       expect(kSearchSorts.map((s) => s.$1), [
@@ -481,7 +500,7 @@ void main() {
       expect(find.byIcon(LucideIcons.check), findsOneWidget);
       expect(
         tester.getCenter(find.byIcon(LucideIcons.check)).dy,
-        moreOrLessEquals(tester.getCenter(find.text('Top rated')).dy),
+        moreOrLessEquals(tester.getCenter(find.text('Highest rated')).dy),
       );
     });
 
@@ -520,7 +539,7 @@ void main() {
       expect(close.top - sheet.top, 20);
       expect(title.left, 20);
       final nearest = tester.getRect(find.text('Nearest'));
-      final topRated = tester.getRect(find.text('Top rated'));
+      final topRated = tester.getRect(find.text('Highest rated'));
       // 13 below one label, 4 between rows, 13 above the next.
       expect(topRated.top - nearest.bottom, 30);
       // 4 under the header, then the row's own 13.

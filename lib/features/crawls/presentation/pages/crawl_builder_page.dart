@@ -192,7 +192,7 @@ class _CrawlBuilderViewState extends State<_CrawlBuilderView> {
                   counterInside: true,
                   gap: 10,
                   emphasisWidth: 1,
-                  hint: 'e.g. IT Park Study Crawl',
+                  hint: 'e.g. Lahug Pour-over Crawl',
                   errorText: titleError,
                   maxLength: CreateCrawlUseCase.maxTitleLength,
                   textCapitalization: TextCapitalization.words,

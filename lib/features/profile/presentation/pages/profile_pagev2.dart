@@ -186,10 +186,10 @@ class _ProfileViewState extends State<ProfileView> {
             onTap: () => Navigator.pop(sheetContext, _ShareOption.preview),
           ),
           ListsSheetAction(
-            title: 'Gallery privacy',
+            title: 'Cups privacy',
             subtitle: public
-                ? 'Visitors see your gallery. Change it in Settings.'
-                : 'Your gallery is hidden from visitors. Change it in '
+                ? 'Visitors see your cups. Change it in Settings.'
+                : 'Your cups are hidden from visitors. Change it in '
                       'Settings.',
             onTap: () => Navigator.pop(sheetContext, _ShareOption.privacy),
           ),
@@ -476,11 +476,11 @@ class _ProfileViewState extends State<ProfileView> {
                           ),
                           child: ProfileTabs(
                             controller: DefaultTabController.of(context),
-                            // Gallery first, as the profile's public face;
+                            // Cups (the gallery) first, as the profile's public face;
                             // counts are in the header's stat row.
                             tabs: const [
                               ProfileTabData(
-                                'Gallery',
+                                'Cups',
                                 icon: PhosphorIcons.gridFour,
                               ),
                               ProfileTabData(

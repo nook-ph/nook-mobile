@@ -291,9 +291,9 @@ void main() {
     testWidgets('no cafes has no button', (tester) async {
       await pump(tester, const HomeStateView.noCafes());
 
-      expect(find.text('No cafes yet'), findsOneWidget);
+      expect(find.text('Nothing brewing yet'), findsOneWidget);
       expect(
-        find.text('Pull to refresh. New spots appear here soon.'),
+        find.text('Pull to refresh — new cafes land here first.'),
         findsOneWidget,
       );
       expect(find.text('Try again'), findsNothing);

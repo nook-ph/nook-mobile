@@ -562,7 +562,7 @@ class _WriteBar extends StatelessWidget {
           8,
         ),
         child: ReviewPrimaryButton(
-          label: 'Write a review',
+          label: 'Add your cup',
           icon: LucideIcons.plus,
           onTap: onTap,
         ),

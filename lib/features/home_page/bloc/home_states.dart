@@ -15,6 +15,12 @@ class HomeLoadedState extends HomeState {
   final List<CafeSummary> trendingCafes;
   final List<CafeSummary> topRatedCafes;
 
+  /// Cafes tagged Specialty Coffee, closest first. Empty without a position.
+  final List<CafeSummary> specialtyNearbyCafes;
+
+  /// Cafes with both Free WiFi and Power Outlets.
+  final List<CafeSummary> laptopFriendlyCafes;
+
   /// Permission denied for device location (nearby/boost data may be limited).
   final bool locationDenied;
 
@@ -24,8 +30,7 @@ class HomeLoadedState extends HomeState {
   /// User dismissed the location banner for this loaded session.
   final bool locationBannerDismissed;
 
-  /// True when all sections (featured, nearby, newest, trending, topRated)
-  /// came back empty. Used by the UI to distinguish "no cafes in DB" from
+  /// True when every section came back empty. Used by the UI to distinguish "no cafes in DB" from
   /// "everything failed silently".
   final bool allEmpty;
 
@@ -44,6 +49,8 @@ class HomeLoadedState extends HomeState {
     required this.newestCafes,
     required this.trendingCafes,
     required this.topRatedCafes,
+    this.specialtyNearbyCafes = const [],
+    this.laptopFriendlyCafes = const [],
     this.locationDenied = false,
     this.locationServicesOff = false,
     this.locationBannerDismissed = false,
@@ -59,6 +66,8 @@ class HomeLoadedState extends HomeState {
     for (final cafe in newestCafes) cafe.id,
     for (final cafe in trendingCafes) cafe.id,
     for (final cafe in topRatedCafes) cafe.id,
+    for (final cafe in specialtyNearbyCafes) cafe.id,
+    for (final cafe in laptopFriendlyCafes) cafe.id,
   };
 
   bool get hasCafes => cafeIds.isNotEmpty;
@@ -73,6 +82,8 @@ class HomeLoadedState extends HomeState {
     List<CafeSummary>? newestCafes,
     List<CafeSummary>? trendingCafes,
     List<CafeSummary>? topRatedCafes,
+    List<CafeSummary>? specialtyNearbyCafes,
+    List<CafeSummary>? laptopFriendlyCafes,
     bool? locationDenied,
     bool? locationServicesOff,
     bool? locationBannerDismissed,
@@ -86,6 +97,8 @@ class HomeLoadedState extends HomeState {
       newestCafes: newestCafes ?? this.newestCafes,
       trendingCafes: trendingCafes ?? this.trendingCafes,
       topRatedCafes: topRatedCafes ?? this.topRatedCafes,
+      specialtyNearbyCafes: specialtyNearbyCafes ?? this.specialtyNearbyCafes,
+      laptopFriendlyCafes: laptopFriendlyCafes ?? this.laptopFriendlyCafes,
       locationDenied: locationDenied ?? this.locationDenied,
       locationServicesOff: locationServicesOff ?? this.locationServicesOff,
       locationBannerDismissed:

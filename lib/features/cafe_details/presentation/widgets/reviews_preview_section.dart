@@ -236,7 +236,7 @@ class _WriteReviewPill extends StatelessWidget {
               const SizedBox(width: 4),
               Flexible(
                 child: Text(
-                  'Write a review',
+                  'Add your cup',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w500,
                     color: Colors.white,
@@ -640,7 +640,7 @@ class _EmptyBody extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Be the first to leave a review!',
+            'Been here? Add the first one.',
             textAlign: TextAlign.center,
             style: textTheme.bodySmall?.copyWith(
               color: CafeDetailsTokens.muted,
@@ -658,7 +658,7 @@ class _EmptyBody extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                'Write a review',
+                'Add your cup',
                 style: textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w500,
                   color: Colors.white,

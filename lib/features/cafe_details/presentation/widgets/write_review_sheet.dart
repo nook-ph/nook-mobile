@@ -639,8 +639,7 @@ class _WriteReviewSheetState extends State<WriteReviewSheet> {
             height: 1.45,
           ),
           decoration: InputDecoration(
-            hintText:
-                'Tell us about the atmosphere, the coffee, and the service...',
+            hintText: 'What did you order? How was it?',
             hintStyle: context.textTheme.bodyMedium?.copyWith(
               color: ReviewTokens.muted,
               fontSize: 14,

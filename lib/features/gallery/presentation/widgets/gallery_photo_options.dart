@@ -348,7 +348,7 @@ class GalleryPublicNote extends StatelessWidget {
     final text = public
         ? '${adding ? 'Photos and notes' : 'Notes'} are public on your '
               'profile. Keep opinions about the whole cafe for a review.'
-        : 'Your gallery is hidden from visitors. If you show it again in '
+        : 'Your cups are hidden from visitors. If you show it again in '
               'Settings, ${adding ? 'photos and notes show' : 'notes show'} '
               'on your profile.';
     return Text(text, style: listsText(12, color: ListsTokens.muted));
