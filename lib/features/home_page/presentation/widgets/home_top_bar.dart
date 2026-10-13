@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -51,7 +53,10 @@ class HomeSearchEntry extends StatelessWidget {
       label: 'Search cafes',
       excludeSemantics: true,
       child: AdaptiveTap(
-        onTap: () => context.push('/search'),
+        onTap: () {
+          logAppEvent(HomeEvents.searchTapped);
+          context.push('/search');
+        },
         borderRadius: BorderRadius.circular(100),
         child: Container(
           height: 44,

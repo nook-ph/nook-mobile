@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/core/presentation/tab_back.dart';
@@ -57,11 +60,41 @@ class _MainShellState extends State<MainShell> {
   /// and no Saved or Profile requests for tabs nobody has looked at.
   final Set<int> _visited = {};
 
+  /// The tab last reported as a screen, so a rebuild does not report it again.
+  int? _reportedTab;
+
+  /// Tabs live inside the one root route, so the route observer never sees
+  /// a switch: each tab is reported as its own screen from here.
+  void _reportTab(BuildContext context, int index) {
+    if (_reportedTab == index) return;
+    _reportedTab = index;
+    ScreenTracker.instance.showRoot(
+      ScreenNames.tabs[index],
+      onTop: ModalRoute.of(context)?.isCurrent ?? true,
+    );
+  }
+
   /// Saved and Profile need an account. A guest gets the sign-in sheet and
   /// stays on the tab they were on.
   void _onTabTap(BuildContext context, int index) {
-    if ((index == MainShell.savedTab || index == MainShell.profileTab) &&
-        !widget.isAuthenticated()) {
+    final from = context.read<NavigationBloc>().state.tabIndex;
+    final needsAccount =
+        (index == MainShell.savedTab || index == MainShell.profileTab) &&
+        !widget.isAuthenticated();
+    logAppEvent(
+      NavEvents.tabTapped,
+      properties: {
+        'tab': ScreenNames.tabs[index],
+        'from_tab': ScreenNames.tabs[from],
+        'result': needsAccount
+            ? 'sign_in_required'
+            : index == from
+            ? 'reselected'
+            : 'switched',
+      },
+    );
+
+    if (needsAccount) {
       if (index == MainShell.savedTab) {
         GuestSignInSheet.show(
           context,
@@ -92,6 +125,7 @@ class _MainShellState extends State<MainShell> {
       child: BlocBuilder<NavigationBloc, NavigationState>(
         builder: (context, state) {
           _visited.add(state.tabIndex);
+          _reportTab(context, state.tabIndex);
           final pages = widget.pagesBuilder(state.tabIndex);
           // System Back on Map, Saved or Profile goes to Home first, as in
           // other tabbed apps; only Back on Home leaves the app. PopScope

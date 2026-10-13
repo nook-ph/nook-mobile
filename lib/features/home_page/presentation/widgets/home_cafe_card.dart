@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
@@ -18,11 +20,17 @@ class HomeCafeCard extends StatelessWidget {
   final double width;
   final double height;
 
+  /// The shelf this card sits in and its place there, for analytics.
+  final String? section;
+  final int? position;
+
   const HomeCafeCard({
     super.key,
     required this.cafe,
     required this.width,
     required this.height,
+    this.section,
+    this.position,
     this.isSkeleton = false,
   });
 
@@ -37,8 +45,16 @@ class HomeCafeCard extends StatelessWidget {
     return AdaptiveTap(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
-        if (isSkeleton) return;
-        if (cafe.id.isNotEmpty) context.push('/cafe/${cafe.id}');
+        if (isSkeleton || cafe.id.isEmpty) return;
+        logAppEvent(
+          HomeEvents.cafeCardTapped,
+          properties: {
+            'cafe_id': cafe.id,
+            'section': ?section,
+            'position': ?position,
+          },
+        );
+        context.push('/cafe/${cafe.id}');
       },
       child: SizedBox(
         width: width,

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/presentation/widgets/tag_icon.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -18,6 +19,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_location_ma
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// "What this cafe offers": a short preview of the cafe's tags as an icon
 /// grid, then "See all N" to [CafeTagsPage] when there are more.
@@ -56,6 +58,7 @@ class CafeAmenitiesSection extends StatelessWidget {
     );
     Navigator.of(context).push(
       MaterialPageRoute<void>(
+        settings: const RouteSettings(name: ScreenNames.cafeTags),
         builder: (_) => CafeTagsPage(groups: groups, cafeName: cafeName),
       ),
     );
@@ -230,6 +233,10 @@ class CafeHoursLocationSection extends StatelessWidget {
   }) async {
     final value = rawValue?.trim() ?? '';
     if (value.isEmpty) return;
+    logAppEvent(
+      CafeDetailsEvents.socialTapped,
+      properties: {'cafe_id': cafe.cafeDetails.id, 'platform': platform},
+    );
 
     final handle = _extractHandle(value);
     Uri? appUri;
@@ -339,7 +346,11 @@ class CafeHoursLocationSection extends StatelessWidget {
             button: hasMap,
             label: 'Map. Opens directions.',
             child: AdaptiveTap(
-              onTap: () => launchCafeDirections(context, cafe),
+              onTap: () => launchCafeDirections(
+                context,
+                cafe,
+                source: DirectionsSource.location,
+              ),
               borderRadius: BorderRadius.circular(12),
               child: hasMap
                   ? AbsorbPointer(

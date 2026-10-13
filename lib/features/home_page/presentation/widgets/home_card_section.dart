@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -57,7 +59,13 @@ class HomeCafeSection extends StatelessWidget {
           subtitle: subtitle,
           onSeeAll: sort == null || isSkeleton
               ? null
-              : () => context.push('/search?sort=$sort'),
+              : () {
+                  logAppEvent(
+                    HomeEvents.seeAllTapped,
+                    properties: {'sort': sort!},
+                  );
+                  context.push('/search?sort=$sort');
+                },
         ),
         const SizedBox(height: 12),
         PrototypeHeight(
@@ -82,6 +90,8 @@ class HomeCafeSection extends StatelessWidget {
               width: cardWidth,
               height: imageHeight,
               isSkeleton: isSkeleton,
+              section: sort ?? title,
+              position: index,
             ),
           ),
         ),

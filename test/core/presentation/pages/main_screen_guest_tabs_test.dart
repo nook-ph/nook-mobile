@@ -5,6 +5,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
+
+import '../../analytics/recording_analytics.dart';
 
 /// [MainShell] with placeholder pages, behind a router that has `/login`.
 Widget _app({required bool signedIn}) {
@@ -180,5 +184,31 @@ void main() {
     // Still in the tree, only off stage.
     expect(find.text('map page', skipOffstage: false), findsOneWidget);
     expect(find.text('map page'), findsNothing);
+  });
+
+  testWidgets('tab taps are logged and each tab becomes the screen', (
+    tester,
+  ) async {
+    final analytics = RecordingAnalytics.install(addTearDown);
+    ScreenTracker.instance.resetForTest();
+    await tester.pumpWidget(_app(signedIn: false));
+    expect(ScreenTracker.instance.current, ScreenNames.home);
+
+    await tester.tap(_tab('Map'));
+    await tester.pumpAndSettle();
+    expect(ScreenTracker.instance.current, ScreenNames.map);
+    expect(analytics.propertiesOf(NavEvents.tabTapped), {
+      'tab': ScreenNames.map,
+      'from_tab': ScreenNames.home,
+      'result': 'switched',
+    });
+
+    await tester.tap(_tab('Profile'));
+    await tester.pumpAndSettle();
+    expect(ScreenTracker.instance.current, ScreenNames.map);
+    expect(
+      analytics.propertiesOf(NavEvents.tabTapped)?['result'],
+      'sign_in_required',
+    );
   });
 }

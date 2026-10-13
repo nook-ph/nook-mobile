@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
 import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/cups/domain/entities/cup.dart';
@@ -693,7 +695,13 @@ class _ShareButton extends StatelessWidget {
       onTap: () {
         // Details are still loading — a share with no name reads broken, and
         // the load takes well under a second.
-        if (cafeName.isEmpty) return;
+        if (cafeName.isEmpty) {
+          logAppEvent(
+            CafeDetailsEvents.shareNotReady,
+            properties: {'cafe_id': cafeId},
+          );
+          return;
+        }
 
         // iPadOS anchors its share popover to this rect; everywhere else it
         // is ignored.
@@ -846,9 +854,15 @@ class _SavedButtonState extends State<_SavedButton> {
     }
   }
 
+  void _logSave(String result) => logAppEvent(
+    CafeDetailsEvents.saveTapped,
+    properties: {'cafe_id': widget.cafeId, 'result': result},
+  );
+
   Future<void> _onTap() async {
     final session = Supabase.instance.client.auth.currentSession;
     if (session == null) {
+      _logSave('guest');
       dismissToasts();
       await CafeGuestSignInSheet.show(
         context,
@@ -859,11 +873,15 @@ class _SavedButtonState extends State<_SavedButton> {
       return;
     }
 
-    if (_isSaving) return;
+    if (_isSaving) {
+      _logSave('busy');
+      return;
+    }
     await _savedStateLoad;
     if (!mounted) return;
 
     if (_isSaved) {
+      _logSave('opened_lists');
       await _showSaveToListSheet();
       return;
     }
@@ -891,6 +909,7 @@ class _SavedButtonState extends State<_SavedButton> {
 
       listsBloc.add(LoadUserLists());
 
+      _logSave('saved');
       if (!mounted) return;
       showSavedToListToast(
         context,
@@ -900,6 +919,7 @@ class _SavedButtonState extends State<_SavedButton> {
       );
     } catch (e, st) {
       debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
+      _logSave('failed');
       if (!mounted) return;
       setState(() => _isSaved = false);
       _showErrorToast(context, e, goLogin: true);
