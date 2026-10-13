@@ -19,6 +19,7 @@ import 'package:nook/features/lists/presentation/utils/lists_format.dart';
 import 'package:nook/features/lists/presentation/widgets/list_form_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The Saved tab (Figma "Lists — overview"): Want to try and Been as cards,
 /// the Crawls block, then every other list as one row style.
@@ -154,6 +155,7 @@ class _ListsPageState extends State<ListsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.listDetail),
         builder: (_) => ListDetailPage(
           listId: list.id,
           title: list.name,

@@ -17,6 +17,7 @@ import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// Where the app's location access stands, as Settings reports it.
 enum SettingsLocationStatus {
@@ -298,6 +299,9 @@ class _SettingsPageState extends State<SettingsPage>
                         trailing: LucideIcons.chevronRight,
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
+                            settings: const RouteSettings(
+                              name: ScreenNames.blockedUsers,
+                            ),
                             builder: (_) => const BlockedUsersPage(),
                           ),
                         ),

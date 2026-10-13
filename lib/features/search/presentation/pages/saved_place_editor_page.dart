@@ -19,6 +19,7 @@ import 'package:nook/features/search/presentation/widgets/saved_places_section.d
 import 'package:nook/features/search/presentation/widgets/search_filters.dart';
 import 'package:nook/features/search/presentation/widgets/search_option_row.dart';
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// Where a saved place is, before it is saved.
 typedef _Spot = ({String address, double lat, double lng});
@@ -192,6 +193,7 @@ class _SavedPlaceEditorPageState extends State<SavedPlaceEditorPage> {
         : const LatLng(10.3157, 123.8854);
     final pin = await Navigator.of(context).push<SearchOrigin>(
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.pickOnMap),
         builder: (_) => SearchPickOnMapPage(
           start: start,
           places: widget.places,

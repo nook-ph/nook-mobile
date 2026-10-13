@@ -9,6 +9,7 @@ import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_image.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_photo_options.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The viewer's dark ground and its text colours. Derived from the profile's
 /// ink, so the dark stays green-black rather than pure black.
@@ -88,6 +89,7 @@ class GalleryViewerPage extends StatefulWidget {
     cubit ??= context.read<GalleryCubit>();
     return Navigator.of(context).push(
       PageRouteBuilder<void>(
+        settings: const RouteSettings(name: ScreenNames.galleryViewer),
         opaque: true,
         transitionDuration: const Duration(milliseconds: 200),
         reverseTransitionDuration: const Duration(milliseconds: 150),

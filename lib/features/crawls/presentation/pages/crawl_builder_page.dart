@@ -17,6 +17,7 @@ import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/injection_container.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The toast shown when a seventh stop is tapped.
 const crawlStopLimitMessage =
@@ -138,6 +139,7 @@ class _CrawlBuilderViewState extends State<_CrawlBuilderView> {
           context.read<MyCrawlsCubit>().load();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
+              settings: const RouteSettings(name: ScreenNames.crawlDetail),
               builder: (_) =>
                   CrawlDetailPage(shareCode: crawl.shareCode, initial: crawl),
             ),

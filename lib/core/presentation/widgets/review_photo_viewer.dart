@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The second caption line: "May 23, 2026 · Tadaima", or whichever half is
 /// known. Null when neither is.
@@ -35,6 +36,7 @@ Future<void> showReviewPhotoViewer(
   if (imageUrls.isEmpty) return Future.value();
   return Navigator.of(context, rootNavigator: true).push(
     PageRouteBuilder<void>(
+      settings: const RouteSettings(name: ScreenNames.photoViewer),
       opaque: false,
       barrierDismissible: true,
       // The viewer paints its own black backdrop so a swipe down can fade

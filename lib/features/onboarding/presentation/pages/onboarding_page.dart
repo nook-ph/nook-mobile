@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
@@ -23,6 +24,12 @@ class OnboardingPage extends StatefulWidget {
 
 class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
+
+  @override
+  void initState() {
+    super.initState();
+    ScreenTracker.instance.showRoot(ScreenNames.onboarding);
+  }
 
   @override
   void dispose() {

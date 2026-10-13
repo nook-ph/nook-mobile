@@ -5,6 +5,7 @@ import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_use
 import 'package:nook/features/cafe_details/presentation/pages/menu_full_page.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/menu_highlight_card.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 class MenuHighlights extends StatelessWidget {
   const MenuHighlights({super.key, required this.width, required this.cafe});
@@ -36,6 +37,7 @@ class MenuHighlights extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
+                      settings: const RouteSettings(name: ScreenNames.cafeMenu),
                       builder: (context) => MenuFullPage(
                         menuItems: cafe?.allMenuItems ?? [],
                         cafeName: cafe?.cafeDetails.name,

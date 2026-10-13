@@ -9,6 +9,7 @@ import 'package:nook/features/crawls/presentation/widgets/crawl_ui.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// What a typed or pasted code points at.
 ///
@@ -92,6 +93,7 @@ class EnterCrawlCodeSheet extends StatefulWidget {
     if (result is Crawl) {
       navigator.push(
         MaterialPageRoute(
+          settings: const RouteSettings(name: ScreenNames.crawlDetail),
           builder: (_) =>
               CrawlDetailPage(shareCode: result.shareCode, initial: result),
         ),
@@ -99,6 +101,7 @@ class EnterCrawlCodeSheet extends StatefulWidget {
     } else if (result is CrawlCodeTarget && result.isInvite) {
       navigator.push(
         MaterialPageRoute(
+          settings: const RouteSettings(name: ScreenNames.crewInvite),
           builder: (_) => CrewInvitePage(inviteCode: result.code),
         ),
       );

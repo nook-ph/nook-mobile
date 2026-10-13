@@ -5,6 +5,7 @@ import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 class RecommendedCard extends StatelessWidget {
   final CafeSummary cafe;
@@ -24,6 +25,7 @@ class RecommendedCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
+            settings: const RouteSettings(name: ScreenNames.cafeDetails),
             builder: (context) => CafeDetailsPage(cafeId: cafe.id),
           ),
         );

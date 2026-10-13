@@ -26,6 +26,7 @@ import 'package:nook/features/lists/presentation/widgets/list_options_bottom_she
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/lists/presentation/widgets/ranked_been_list.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// One list opened from the Saved tab: Been as the ranked diary, everything
 /// else as plain cafe rows (Figma "Been — ranked", "Want to try", "Custom
@@ -116,6 +117,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     if (cafes == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.crawlBuilder),
         builder: (_) => CrawlBuilderPage(
           listId: widget.listId,
           listName: _title,
@@ -179,7 +181,10 @@ class _ListDetailPageState extends State<ListDetailPage> {
   void _openCafe(CafeSummary cafe) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CafeDetailsPage(cafeId: cafe.id)),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.cafeDetails),
+        builder: (_) => CafeDetailsPage(cafeId: cafe.id),
+      ),
     );
   }
 

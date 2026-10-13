@@ -18,6 +18,7 @@ import 'package:nook/features/gallery/domain/i_community_photos_repository.dart'
 import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 enum CafeCupsTab { posts, photos }
 
@@ -61,6 +62,7 @@ class CafeCupsPage extends StatefulWidget {
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
+        settings: const RouteSettings(name: ScreenNames.cafeCups),
         builder: (_) => CafeCupsPage(
           cafe: cafe,
           initialTab: initialTab,

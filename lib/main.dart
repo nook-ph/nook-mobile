@@ -33,6 +33,8 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
+import 'package:nook/core/analytics/rage_tap_detector.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 void main() async {
@@ -66,9 +68,22 @@ void main() async {
     // and no queued events on disk waiting to flush from a dev device.
     debugPrint('PostHog setup skipped: analytics disabled outside release.');
   } else if (posthogToken.isNotEmpty) {
+    final replay = ReplaySettings.fromEnv(dotenv.env);
     final config = PostHogConfig(posthogToken)
       ..host = dotenv.env['POSTHOG_HOST']?.trim() ?? 'https://us.i.posthog.com'
-      ..debug = kDebugMode;
+      ..debug = kDebugMode
+      ..sessionReplay = replay.enabled
+      ..beforeSend = [addScreenSize];
+    // Privacy first: every text (inputs included) and every image is masked
+    // in recordings. Layout, taps and screen names are what replay is for
+    // here; reviews, names and photos stay out of it.
+    config.sessionReplayConfig
+      ..maskAllTexts = true
+      ..maskAllImages = true
+      ..sampleRate = replay.sampleRate;
+    // The native iOS rage-click detector only sees the Flutter host view, so
+    // every `$rageclick` it sent said "Flutter". RageTapDetector replaces it.
+    config.rageClickConfig.enabled = false;
 
     await Posthog().setup(config);
   } else {
@@ -76,7 +91,10 @@ void main() async {
   }
 
   await initDependencies();
-  runApp(const MyApp());
+  // The session replay root: a frame is only captured inside it.
+  runApp(
+    kAnalyticsEnabled ? const PostHogWidget(child: MyApp()) : const MyApp(),
+  );
 }
 
 String _googleSignInNonce() {
@@ -177,8 +195,11 @@ class _MyAppState extends State<MyApp> {
                 title: 'Nook',
                 theme: TAppTheme.lightTheme,
                 routerConfig: _router,
-                builder: (context, child) =>
-                    DefaultSystemUi(child: child ?? const SizedBox.shrink()),
+                builder: (context, child) => RageTapDetector(
+                  child: DefaultSystemUi(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                ),
               ),
             ),
           );

@@ -43,6 +43,7 @@ import 'package:nook/features/public_profile/presentation/cubit/profile_visibili
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The Profile tab. Creates the profile's blocs and hands over to
 /// [ProfileView], which draws every state.
@@ -342,14 +343,20 @@ class _ProfileViewState extends State<ProfileView> {
   void _openCafe(String cafeId) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CafeDetailsPage(cafeId: cafeId)),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.cafeDetails),
+        builder: (_) => CafeDetailsPage(cafeId: cafeId),
+      ),
     );
   }
 
   void _openSettings() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const SettingsPage()),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.settings),
+        builder: (_) => const SettingsPage(),
+      ),
     );
   }
 
@@ -357,6 +364,7 @@ class _ProfileViewState extends State<ProfileView> {
     Navigator.push(
       context,
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.editProfile),
         builder: (_) => MultiBlocProvider(
           providers: [
             BlocProvider.value(value: context.read<ProfileCubit>()),

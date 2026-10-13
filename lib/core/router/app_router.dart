@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_state.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
@@ -29,6 +30,8 @@ GoRouter createAppRouter(AuthBloc authBloc) {
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: kDebugMode,
+    // `$screen` for every page; the root route's tabs report from MainShell.
+    observers: [NookScreenObserver()],
     refreshListenable: GoRouterRefreshStream(authBloc.stream),
     redirect: (context, state) {
       final authState = authBloc.state;
