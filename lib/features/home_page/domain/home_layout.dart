@@ -16,6 +16,18 @@ const Duration manilaOffset = Duration(hours: 8);
 /// device time zone is applied.
 DateTime toManila(DateTime now) => now.toUtc().add(manilaOffset);
 
+final _uuid = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+  caseSensitive: false,
+);
+
+/// [ids] without the strings Postgres would not cast to `uuid`, in order.
+/// `get_cafes_by_ids` takes `uuid[]`, so one bad id fails the whole batch.
+List<String> uuidsOnly(Iterable<String> ids) => [
+  for (final id in ids)
+    if (_uuid.hasMatch(id.trim())) id.trim(),
+];
+
 /// When a banner or section is shown. Every part is optional; an empty
 /// schedule is always on.
 class HomeSchedule {

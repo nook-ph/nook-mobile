@@ -20,7 +20,11 @@ class HomeLayoutRemoteSource {
   /// Published cafes for [ids], in the order of [ids] (unknown or
   /// unpublished ones are skipped by the RPC). Rows have the `get_cafes`
   /// shape, so they map with [CafeSummaryModel.fromJson].
+  ///
+  /// Strings that aren't uuids are dropped first: `p_ids` is `uuid[]`, so
+  /// one of them would fail the whole call.
   Future<List<CafeSummary>> fetchCafesByIds(List<String> ids) async {
+    ids = uuidsOnly(ids);
     if (ids.isEmpty) return const [];
     final rows = await supabase.rpc('get_cafes_by_ids', params: {'p_ids': ids});
     if (rows is! List) return const [];

@@ -227,6 +227,17 @@ void main() {
     });
   });
 
+  group('uuidsOnly', () {
+    test('drops strings that are not uuids and keeps the order', () {
+      const a = '9a2b3c4d-0000-4000-8000-00000000000a';
+      const b = '9A2B3C4D-0000-4000-8000-00000000000B';
+      expect(
+        uuidsOnly([b, 'not-a-uuid', '', a, '9a2b3c4d-0000-4000-8000', ' $a ']),
+        [b, a, a],
+      );
+    });
+  });
+
   group('HomeSchedule', () {
     test('no schedule is always on', () {
       expect(HomeSchedule.always.isActiveAt(DateTime.now()), isTrue);
