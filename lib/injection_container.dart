@@ -114,6 +114,9 @@ import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
+import 'package:nook/features/visit_reminders/data/local_notifier.dart';
+import 'package:nook/features/visit_reminders/data/visit_reminder_store.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
@@ -147,6 +150,8 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<FakeStampStore>(() => FakeStampStore());
   sl.registerLazySingleton<GuestSavesStore>(() => GuestSavesStore());
   sl.registerLazySingleton<RecentlyViewedStore>(() => RecentlyViewedStore());
+  sl.registerLazySingleton<VisitReminderStore>(() => VisitReminderStore());
+  sl.registerLazySingleton<LocalNotifier>(() => PluginLocalNotifier());
 
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
@@ -511,6 +516,16 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<RecentlyViewedCubit>(
     () => RecentlyViewedCubit(store: sl<RecentlyViewedStore>()),
+  );
+
+  // "How was [cafe]?" after Directions: the one notification sent from the
+  // phone. Started from main once the status cubit exists.
+  sl.registerLazySingleton<VisitReminderService>(
+    () => VisitReminderService(
+      notifier: sl<LocalNotifier>(),
+      store: sl<VisitReminderStore>(),
+      delayOverride: debugVisitReminderDelay(),
+    ),
   );
 
   // App-wide, so a photo added on the ranking reveal is on the profile.

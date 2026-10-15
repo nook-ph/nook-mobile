@@ -78,6 +78,8 @@ dependencies:
   google_sign_in_ios: ^6.3.0
   crypto: ^3.0.6
   exif: ^3.3.0
+  flutter_local_notifications: ^22.3.2
+  timezone: ^0.11.2
 
 dev_dependencies:
   flutter_test:
