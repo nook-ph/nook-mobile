@@ -303,11 +303,13 @@ class _HomeContent extends StatelessWidget {
         HomeRail.specialty => HomeCafeSection(
           title: 'Specialty coffee near you',
           cafes: cafes,
+          rail: 'specialty',
         ),
         // Hidden by the bloc until three cafes have the Philippine Beans tag.
         HomeRail.localBeans => HomeCafeSection(
           title: 'Local beans',
           cafes: cafes,
+          rail: 'local_beans',
         ),
         HomeRail.newest => HomeCafeSection(
           title: 'Fresh on Nook',
@@ -317,6 +319,7 @@ class _HomeContent extends StatelessWidget {
         HomeRail.laptopFriendly => HomeCafeSection(
           title: 'Laptop-friendly',
           cafes: cafes,
+          rail: 'laptop_friendly',
         ),
         // Hidden by the bloc until enough cafes have enough reviews.
         HomeRail.trending => HomeCafeSection(

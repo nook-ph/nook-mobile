@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
@@ -13,9 +15,11 @@ import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
 import 'package:nook/features/home_page/presentation/widgets/your_places_rail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../core/analytics/recording_analytics.dart';
 import '../../../auth/fake_auth_bloc.dart';
 
 CafeSummary _summary(String id) =>
@@ -127,6 +131,26 @@ void main() {
       expect([for (final c in cards) c.cafe.id], ['w', 'r']);
       expect(cards.first.section, YourPlacesRail.railId);
       expect([for (final c in cards) c.position], [0, 1]);
+    });
+
+    testWidgets('logs its impression and card taps as the your_places rail', (
+      tester,
+    ) async {
+      final analytics = RecordingAnalytics.install(addTearDown);
+      HomeRailImpression.resetForTest();
+      ScreenTracker.instance.resetForTest();
+      await tester.runAsync(() => saves.set(_snap('w'), CafeStatus.wantToTry));
+      await pump(tester);
+      await tester.pump();
+      await tester.pump();
+
+      expect(analytics.propertiesOf(HomeRailEvents.impression), {
+        'rail': YourPlacesRail.railId,
+      });
+      final card = tester
+          .widgetList<HomeCafeCard>(find.byType(HomeCafeCard))
+          .firstWhere((c) => !c.isSkeleton);
+      expect(card.rail, YourPlacesRail.railId);
     });
   });
 }

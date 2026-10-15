@@ -15,6 +15,7 @@ import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.d
 import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_card_section.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/injection_container.dart';
@@ -44,7 +45,8 @@ List<CafeSummary> yourPlaces({
 class YourPlacesRail extends StatefulWidget {
   const YourPlacesRail({super.key, this.isSignedIn, this.repository});
 
-  /// Rail id for analytics (`section` on its cards).
+  /// Rail id for analytics: `section` on its cards, and `rail` on
+  /// `home_rail_impression` / `home_rail_card_tapped`.
   static const railId = 'your_places';
   static const title = 'Your places';
   static const maxCards = 15;
@@ -178,6 +180,7 @@ class _YourPlacesRailState extends State<YourPlacesRail> {
 
 /// The row itself: a titled horizontal shelf of Home's compact cards, with
 /// the gap Home puts between shelves under it. Nothing when [cafes] is empty.
+/// Logs `home_rail_impression` and `home_rail_card_tapped` as `your_places`.
 class YourPlacesRow extends StatelessWidget {
   const YourPlacesRow({super.key, required this.cafes});
 
@@ -196,7 +199,7 @@ class YourPlacesRow extends StatelessWidget {
     if (cafes.isEmpty) return const SizedBox.shrink();
     final imageHeight = ResponsiveCardSizes.cafeImageHeight(context);
     final cardWidth = ResponsiveCardSizes.cafeCardWidth(context);
-    return Padding(
+    final row = Padding(
       padding: const EdgeInsets.only(bottom: 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,11 +227,13 @@ class YourPlacesRow extends StatelessWidget {
                 height: imageHeight,
                 section: YourPlacesRail.railId,
                 position: index,
+                rail: YourPlacesRail.railId,
               ),
             ),
           ),
         ],
       ),
     );
+    return HomeRailImpression(rail: YourPlacesRail.railId, child: row);
   }
 }
