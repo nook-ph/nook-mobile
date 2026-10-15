@@ -4,6 +4,7 @@ import 'package:nook/features/profile/presentation/pages/settings_page.dart';
 import 'package:nook/features/visit_reminders/data/local_notifier.dart';
 import 'package:nook/features/visit_reminders/data/visit_reminder_store.dart';
 import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
+import 'package:nook/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/analytics/recording_analytics.dart';
@@ -13,9 +14,11 @@ class _Notifier implements LocalNotifier {
   _Notifier({this.enabled = false});
 
   bool enabled;
-  final bool grant = true;
+  bool grant = true;
+  bool muted = false;
   int requests = 0;
   int settingsOpened = 0;
+  bool? openedChannel;
 
   @override
   Future<void> init({required void Function(NotificationTap) onTap}) async {}
@@ -24,6 +27,8 @@ class _Notifier implements LocalNotifier {
   @override
   Future<bool> areEnabled() async => enabled;
   @override
+  Future<bool> channelMuted() async => muted;
+  @override
   Future<bool> requestPermission() async {
     requests++;
     enabled = grant;
@@ -31,7 +36,11 @@ class _Notifier implements LocalNotifier {
   }
 
   @override
-  Future<void> openSettings() async => settingsOpened++;
+  Future<void> openSettings({bool channel = false}) async {
+    settingsOpened++;
+    openedChannel = channel;
+  }
+
   @override
   Future<void> schedule({
     required int id,
@@ -128,10 +137,46 @@ void main() {
     await tester.tap(find.text(SettingsPage.openSettingsLabel));
     await tester.pumpAndSettle();
     expect(notifier.settingsOpened, 1);
+    expect(notifier.openedChannel, isFalse);
     expect(notifier.requests, 0);
   });
 
-  testWidgets('a guest sees Permissions and Legal only', (tester) async {
+  testWidgets('a muted reminders channel shows as blocked', (tester) async {
+    final notifier = _Notifier(enabled: true)..muted = true;
+    await pump(tester, notifier);
+
+    expect(find.text(SettingsPage.visitRemindersMuted), findsOneWidget);
+    expect(reminderSwitch(tester).value, isFalse);
+    expect(reminderSwitch(tester).onChanged, isNull);
+
+    await tester.tap(find.text(SettingsPage.openSettingsLabel));
+    await tester.pumpAndSettle();
+    expect(notifier.openedChannel, isTrue);
+  });
+
+  testWidgets('a refusal says notifications stay off', (tester) async {
+    final notifier = _Notifier()..grant = false;
+    await pump(tester, notifier);
+
+    await tester.tap(find.text(SettingsPage.visitRemindersLabel));
+    await tester.pumpAndSettle();
+    expect(find.text(VisitReminderPrompts.deniedMessage), findsOneWidget);
+    expect(reminderSwitch(tester).value, isFalse);
+    await letToastExpire(tester);
+  });
+
+  testWidgets('visit reminders sit under Notifications', (tester) async {
+    await pump(tester, _Notifier(enabled: true));
+    final group = tester.getTopLeft(find.text(SettingsPage.notificationsGroup));
+    final row = tester.getTopLeft(find.text(SettingsPage.visitRemindersLabel));
+    final location = tester.getTopLeft(find.text('Location'));
+    expect(group.dy, greaterThan(location.dy));
+    expect(row.dy, greaterThan(group.dy));
+  });
+
+  testWidgets('a guest sees Permissions, Notifications and Legal only', (
+    tester,
+  ) async {
     await pump(tester, _Notifier(enabled: true), signedIn: false);
     expect(find.text(SettingsPage.visitRemindersLabel), findsOneWidget);
     expect(find.text('Legal'), findsOneWidget);

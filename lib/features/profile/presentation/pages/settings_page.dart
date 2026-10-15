@@ -10,6 +10,7 @@ import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/profile/presentation/pages/blocked_users_page.dart';
 import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/presentation/widgets/delete_account_sheet.dart';
@@ -19,6 +20,7 @@ import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/features/visit_reminders/domain/visit_reminder_rules.dart';
 import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
+import 'package:nook/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:url_launcher/url_launcher.dart';
@@ -61,9 +63,10 @@ SettingsLocationStatus settingsLocationStatusFor(
   return SettingsLocationStatus.unknown;
 }
 
-/// Settings, in groups: Permissions, Account, Legal, then Log out and
-/// Delete account on their own. A guest (opened from the Saved tab) sees
-/// only what works without an account: Permissions and Legal.
+/// Settings, in groups: Permissions, Notifications, Privacy, Account, Legal,
+/// then Log out and Delete account on their own. A guest (opened from the
+/// Saved tab: a guest has no Profile tab) sees only what works without an
+/// account: Permissions, Notifications and Legal.
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
@@ -79,10 +82,13 @@ class SettingsPage extends StatefulWidget {
 
   static const visitRemindersLabel = 'Visit reminders';
   static const visitRemindersDetail =
-      'A reminder to rate a cafe about 90 minutes after you get directions '
-      'to it.';
+      'After you get directions, one reminder to mark the cafe Been, '
+      'between 9 AM and 9 PM.';
   static const visitRemindersBlocked =
       "Notifications for Nook are off in your phone's settings.";
+  static const visitRemindersMuted =
+      "Visit reminders are muted in your phone's settings.";
+  static const notificationsGroup = 'Notifications';
   static const openSettingsLabel = 'Open settings';
 
   /// Who is signed in. Defaults to the Supabase session.
@@ -104,6 +110,7 @@ class _SettingsPageState extends State<SettingsPage>
 
   /// Null until read: the switch waits, disabled.
   NotificationPermission? _notificationPermission;
+  bool _remindersMuted = false;
   bool _remindersEnabled = true;
   bool _remindersBusy = false;
 
@@ -137,10 +144,12 @@ class _SettingsPageState extends State<SettingsPage>
     final reminders = _reminders;
     if (reminders == null) return;
     final permission = await reminders.permission();
+    final muted = await reminders.channelMuted();
     final enabled = await reminders.remindersEnabled();
     if (!mounted) return;
     setState(() {
       _notificationPermission = permission;
+      _remindersMuted = muted;
       _remindersEnabled = enabled;
     });
   }
@@ -159,16 +168,16 @@ class _SettingsPageState extends State<SettingsPage>
         );
         if (!granted) {
           await _refreshReminders();
+          if (mounted) {
+            showPrimaryToast(context, VisitReminderPrompts.deniedMessage);
+          }
           return;
         }
       }
       await reminders.setEnabled(value);
       logAppEvent(
         NotificationEvents.visitRemindersToggled,
-        properties: {
-          'enabled': value,
-          'permission': _permissionWire(permission),
-        },
+        properties: {'enabled': value, 'permission': permission.wire},
       );
       await _refreshReminders();
     } finally {
@@ -180,12 +189,6 @@ class _SettingsPageState extends State<SettingsPage>
     logAppEvent(NotificationEvents.notificationSettingsOpened);
     await _reminders?.openSystemSettings();
   }
-
-  static String _permissionWire(NotificationPermission p) => switch (p) {
-    NotificationPermission.granted => 'granted',
-    NotificationPermission.notAsked => 'not_asked',
-    NotificationPermission.blocked => 'blocked',
-  };
 
   Future<void> _setHighlights(bool value) async {
     final ok = await context.read<ProfileVisibilityCubit>().setHighlightsPublic(
@@ -329,14 +332,23 @@ class _SettingsPageState extends State<SettingsPage>
                         trailing: LucideIcons.chevronRight,
                         onTap: _openLocationSettings,
                       ),
-                      if (_reminders != null)
+                    ],
+                  ),
+                  // What Nook sends, one row per kind; only visit reminders
+                  // so far.
+                  if (_reminders != null)
+                    _Group(
+                      title: SettingsPage.notificationsGroup,
+                      rows: [
                         _SwitchRow(
                           icon: LucideIcons.bellRing,
                           label: SettingsPage.visitRemindersLabel,
                           detail:
-                              notifications == NotificationPermission.blocked
-                              ? SettingsPage.visitRemindersBlocked
-                              : SettingsPage.visitRemindersDetail,
+                              notifications != NotificationPermission.blocked
+                              ? SettingsPage.visitRemindersDetail
+                              : _remindersMuted
+                              ? SettingsPage.visitRemindersMuted
+                              : SettingsPage.visitRemindersBlocked,
                           value:
                               notifications == NotificationPermission.granted &&
                               _remindersEnabled,
@@ -358,8 +370,8 @@ class _SettingsPageState extends State<SettingsPage>
                               ? SettingsPage.openSettingsLabel
                               : null,
                         ),
-                    ],
-                  ),
+                      ],
+                    ),
                   if (signedIn)
                     _Group(
                       title: 'Privacy',
@@ -640,7 +652,9 @@ class _SwitchRow extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       detail,
-                      style: ProfileTokens.text(12, color: ProfileTokens.muted),
+                      // The darker muted (4.6:1 on white); ProfileTokens.muted
+                      // is 3.7:1 and shared, so it is left as it is.
+                      style: ProfileTokens.text(12, color: ListsTokens.muted),
                     ),
                     if (actionLabel case final action?)
                       // The row is the target (48+ tall); this names it.
