@@ -88,6 +88,21 @@ class CafeDetailsPage extends StatefulWidget {
   /// has loaded (signed in, that leads into rating it).
   final bool rateOnOpen;
 
+  /// Cafe pages open now, newest last.
+  static final List<_CafeDetailsPageState> _open = [];
+
+  /// Closes the page for [cafeId] if it is the one on screen, so opening
+  /// it again (from the visit reminder) replaces it instead of stacking a
+  /// second copy on top.
+  static void closeIfOnTop(String cafeId) {
+    if (_open.isEmpty) return;
+    final top = _open.last;
+    if (top.widget.cafeId != cafeId || !top.mounted) return;
+    final route = ModalRoute.of(top.context);
+    if (route == null || !route.isCurrent) return;
+    Navigator.of(top.context).pop();
+  }
+
   @override
   State<CafeDetailsPage> createState() => _CafeDetailsPageState();
 }
@@ -153,6 +168,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   @override
   void initState() {
     super.initState();
+    CafeDetailsPage._open.add(this);
     _directionsNudge = DirectionsSaveNudge(
       cafeId: widget.cafeId,
       host: this,
@@ -201,6 +217,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
 
   @override
   void dispose() {
+    CafeDetailsPage._open.remove(this);
     _scrollController.dispose();
     _collapseProgress.dispose();
     _cups.close();

@@ -19,6 +19,7 @@ import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -163,6 +164,7 @@ class _MyAppState extends State<MyApp> {
     final router = _router;
     if (request == null || router == null) return;
     _reminders.openRequests.value = null;
+    CafeDetailsPage.closeIfOnTop(request.cafeId);
     router.push(
       Uri(
         path: '/cafe/${request.cafeId}',

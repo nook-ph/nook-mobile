@@ -45,9 +45,10 @@ class NotificationPrePromptSheet extends StatelessWidget {
       "We'll send one notification in about 90 minutes, so you can rate it "
       'while it is fresh.';
 
-  static const saveTitle = 'Want a reminder to rate cafes you visit?';
+  // Named like the Settings switch it turns on: one name for one thing.
+  static const saveTitle = 'Want visit reminders?';
   static const saveReason =
-      'When you get directions to a cafe, Nook sends one notification '
+      'When you get directions to a cafe, Nook sends one reminder '
       'afterwards so you can rate it. Turn it off any time in Settings.';
 
   /// Shows the sheet; true when "Turn on" was tapped.
