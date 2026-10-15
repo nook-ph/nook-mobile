@@ -103,6 +103,7 @@ void main() {
         layout.banner!.dismissKey('v1'),
         'v1|Cebu Coffee Crawl this Saturday',
       );
+      expect(layout.banner!.id, isNull);
       expect(
         [for (final s in layout.sections) s.id],
         [

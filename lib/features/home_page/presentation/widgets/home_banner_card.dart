@@ -67,7 +67,13 @@ class _HomeBannerSlotState extends State<HomeBannerSlot> {
 
   String get _key => widget.banner.dismissKey(widget.version);
 
-  bool get _strip => _tapped.contains(_key);
+  /// Also the pre-`banner.id` key, so state stored before it still counts.
+  String get _legacyKey => widget.banner.legacyDismissKey(widget.version);
+
+  bool _remembered(Set<String> keys) =>
+      keys.contains(_key) || keys.contains(_legacyKey);
+
+  bool get _strip => _remembered(_tapped);
 
   Map<String, Object> get _properties => {
     'layout_version': widget.version,
@@ -99,7 +105,7 @@ class _HomeBannerSlotState extends State<HomeBannerSlot> {
 
   bool get _visible =>
       _dismissed != null &&
-      !_dismissed!.contains(_key) &&
+      !_remembered(_dismissed!) &&
       widget.banner.schedule.isActiveAt(widget.now);
 
   /// `home_banner_shown` once the banner has been drawn with Home on

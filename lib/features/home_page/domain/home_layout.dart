@@ -125,6 +125,7 @@ class HomeBanner {
     this.ctaLabel,
     this.link,
     this.schedule = HomeSchedule.always,
+    this.id,
   });
 
   final String title;
@@ -135,6 +136,11 @@ class HomeBanner {
   /// A `nook://` deep link or an `https://` URL; anything else is dropped.
   final Uri? link;
   final HomeSchedule schedule;
+
+  /// `banner.id` from nook-admin: a hash of what the banner says, shows and
+  /// opens, stable across re-publishes. Null on documents published before
+  /// it existed. Used only to remember a dismissal or a tap.
+  final String? id;
 
   /// Null when disabled, untitled or malformed.
   static HomeBanner? tryParse(Object? json) {
@@ -149,6 +155,7 @@ class HomeBanner {
       ctaLabel: _text(json['cta_label']),
       link: parseLink(json['link']),
       schedule: HomeSchedule.tryParse(json['schedule']) ?? HomeSchedule.always,
+      id: _text(json['id']),
     );
   }
 
@@ -169,9 +176,14 @@ class HomeBanner {
     return uri.scheme == 'https' || uri.scheme == 'http' ? uri : null;
   }
 
-  /// What a dismissal is remembered by: the published version and the
-  /// banner's title, so a new banner in the same version shows again.
-  String dismissKey(String version) => '$version|$title';
+  /// What a dismissal (and "already tapped") is remembered by: [id], so a
+  /// dismissed banner stays dismissed after an unrelated publish; else, for
+  /// documents without one, the published version and the title.
+  String dismissKey(String version) => id ?? legacyDismissKey(version);
+
+  /// The key used before `banner.id`. Still honoured when reading, so a
+  /// banner closed under it stays closed in the same version.
+  String legacyDismissKey(String version) => '$version|$title';
 }
 
 /// The built-in shelves an admin can order, hide and rename.

@@ -391,6 +391,57 @@ void main() {
     });
   });
 
+  group('banner.id keys', () {
+    HomeLayout withId(String version) => HomeLayout.fromRpc({
+      'version': version,
+      'document': {
+        'schema': 1,
+        'banner': {
+          'id': 'banner-1f3a9c0e5b7d2a41',
+          'title': 'Cebu Coffee Week',
+          'link': 'nook://shelf/custom:week',
+        },
+        'sections': <Object>[],
+      },
+    })!;
+
+    testWidgets('a dismissal is kept by id across a re-publish', (
+      tester,
+    ) async {
+      await pump(tester, _state(layout: withId('v10')));
+      await tester.tap(find.bySemanticsLabel('Close announcement'));
+      await settleToast(tester);
+      expect(await HomeBannerDismissStore().read(), {
+        'banner-1f3a9c0e5b7d2a41',
+      });
+
+      // An unrelated publish: new version, same banner.
+      await tester.pumpWidget(const SizedBox());
+      await pump(tester, _state(layout: withId('v11')));
+      expect(find.text('Cebu Coffee Week'), findsNothing);
+    });
+
+    testWidgets('state stored under the old version|title key still counts', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.homeBannerTapped': ['v10|Cebu Coffee Week'],
+      });
+      await pump(tester, _state(layout: withId('v10')));
+      expect(find.byType(HomeBannerStrip), findsOneWidget);
+    });
+
+    testWidgets('an old-key dismissal does not carry to a new version', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.homeBannerDismissed': ['v10|Cebu Coffee Week'],
+      });
+      await pump(tester, _state(layout: withId('v11')));
+      expect(find.text('Cebu Coffee Week'), findsOneWidget);
+    });
+  });
+
   group('HomeBannerCard', () {
     Future<void> pumpCard(WidgetTester tester, double scale) async {
       tester.view.physicalSize = const Size(360, 1600);

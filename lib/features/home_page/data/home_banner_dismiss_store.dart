@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Which Home banners this phone has closed, and which it has opened, by
-/// [HomeBanner.dismissKey] (layout version + title). Each list keeps the
-/// latest [_keep] so it cannot grow without end.
+/// [HomeBanner.dismissKey] (`banner.id`, else layout version + title). Each
+/// list keeps the latest [_keep] so it cannot grow without end.
 class HomeBannerDismissStore {
   HomeBannerDismissStore({Future<SharedPreferences> Function()? prefs})
     : _prefs = prefs ?? SharedPreferences.getInstance;
