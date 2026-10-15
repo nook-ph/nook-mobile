@@ -10,6 +10,7 @@ import 'package:nook/core/utils/responsive_card_sizes.dart';
 import 'package:nook/core/widgets/prototype_height.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
+import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
 
 /// A titled horizontal row of compact cards. Renders nothing when it has no
 /// cafes: an empty section is left out of the feed, not labelled.
@@ -140,8 +141,10 @@ class HomeSectionTitle extends StatelessWidget {
   /// dead end after a few cards).
   final VoidCallback? onSeeAll;
 
-  /// Read-only content at the row's end (Your places' progress pill). Not
-  /// shown with [onSeeAll], which owns that end.
+  /// Content at the row's end (Your places' progress pill); under the
+  /// title from text x1.6, where the two no longer share a line. Not shown
+  /// with [onSeeAll], which owns that end: a shelf with both would lose its
+  /// pill.
   final Widget? trailing;
 
   @override
@@ -180,11 +183,16 @@ class HomeSectionTitle extends StatelessWidget {
       child: seeAll == null
           ? (trailing == null
                 ? title
+                : placesProgressStacks(context)
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [title, trailing!],
+                  )
                 : Row(
                     children: [
                       Expanded(child: title),
                       const SizedBox(width: 12),
-                      trailing!,
+                      Flexible(child: trailing!),
                     ],
                   ))
           : AdaptiveTap(
