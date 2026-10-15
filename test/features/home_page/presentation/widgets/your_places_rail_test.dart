@@ -108,7 +108,7 @@ void main() {
       await pump(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text(YourPlacesRail.title), findsNothing);
+      expect(find.text(YourPlacesRail.defaultTitle), findsNothing);
       expect(find.byType(HomeCafeCard), findsNothing);
     });
 
@@ -122,7 +122,7 @@ void main() {
       await pump(tester);
       await tester.pump();
 
-      expect(find.text(YourPlacesRail.title), findsOneWidget);
+      expect(find.text(YourPlacesRail.defaultTitle), findsOneWidget);
       final cards = tester
           .widgetList<HomeCafeCard>(find.byType(HomeCafeCard))
           // The row measures itself with a skeleton prototype card.

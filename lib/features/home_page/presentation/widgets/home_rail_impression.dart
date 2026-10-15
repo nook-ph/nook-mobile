@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/analytics/screen_tracking.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_layout_scope.dart';
 
 /// Logs `home_rail_impression` for [rail] the first time at least
 /// [minVisibleFraction] of [child] is on screen during a Home visit.
@@ -101,7 +102,10 @@ class _HomeRailImpressionState extends State<HomeRailImpression> {
     if (!_isVisible()) return;
 
     HomeRailImpression._loggedInVisit[widget.rail] = _visits.value;
-    logAppEvent(HomeRailEvents.impression, properties: {'rail': widget.rail});
+    logAppEvent(
+      HomeRailEvents.impression,
+      properties: HomeLayoutScope.withVersion(context, {'rail': widget.rail}),
+    );
   }
 
   bool _isVisible() {

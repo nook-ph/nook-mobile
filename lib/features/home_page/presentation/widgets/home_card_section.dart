@@ -31,6 +31,11 @@ class HomeCafeSection extends StatelessWidget {
   /// snake_case ("Laptop-friendly" -> `laptop_friendly`).
   final String? rail;
 
+  /// `section` on `cafe_card_tapped`. Defaults to [sort], else [title]; a
+  /// shelf renamed by the Home layout passes its default title here so the
+  /// event keeps its value.
+  final String? section;
+
   const HomeCafeSection({
     super.key,
     required this.title,
@@ -39,6 +44,7 @@ class HomeCafeSection extends StatelessWidget {
     this.isSkeleton = false,
     this.sort,
     this.rail,
+    this.section,
   });
 
   /// [rail], else [sort], else the title in snake_case.
@@ -107,7 +113,7 @@ class HomeCafeSection extends StatelessWidget {
               width: cardWidth,
               height: imageHeight,
               isSkeleton: isSkeleton,
-              section: sort ?? title,
+              section: this.section ?? sort ?? title,
               position: index,
               rail: isSkeleton ? null : railId,
             ),

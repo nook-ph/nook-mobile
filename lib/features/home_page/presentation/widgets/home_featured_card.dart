@@ -8,6 +8,7 @@ import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_badge.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_layout_scope.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_tag_chip.dart';
@@ -49,11 +50,11 @@ class FeaturedCard extends StatelessWidget {
         if (rail != null) {
           logAppEvent(
             HomeRailEvents.cardTapped,
-            properties: {
+            properties: HomeLayoutScope.withVersion(context, {
               'rail': rail,
               'position': position ?? -1,
               'cafe_id': cafe.id,
-            },
+            }),
           );
         }
         context.push('/cafe/${cafe.id}');

@@ -42,6 +42,24 @@ abstract final class HomeRailEvents {
 
   /// A card in a rail. Properties: `rail`, `position` (0-based), `cafe_id`.
   static const cardTapped = 'home_rail_card_tapped';
+
+  // Both rail events also carry `layout_version` (the published Home layout
+  // row id) when an admin layout is in force, and custom shelves report
+  // `rail` as `custom:<id>`.
+}
+
+/// The admin banner at the top of Home (nook-supabase `HOME_LAYOUT.md`).
+/// Properties on all three: `layout_version`, `link_type` (`nook`, `https`,
+/// `none`).
+abstract final class HomeBannerEvents {
+  /// The banner was drawn, once per banner per app run.
+  static const shown = 'home_banner_shown';
+
+  /// The banner (or its button) was tapped and its link opened.
+  static const tapped = 'home_banner_tapped';
+
+  /// The close button; it stays hidden for that banner version.
+  static const dismissed = 'home_banner_dismissed';
 }
 
 /// Screens that end up with nothing to show.
