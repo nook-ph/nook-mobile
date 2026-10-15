@@ -10,10 +10,10 @@ import '../../core/analytics/recording_analytics.dart';
 import 'profile_test_support.dart';
 
 class _Notifier implements LocalNotifier {
-  _Notifier({this.enabled = false, this.grant = true});
+  _Notifier({this.enabled = false});
 
   bool enabled;
-  bool grant;
+  final bool grant = true;
   int requests = 0;
   int settingsOpened = 0;
 
