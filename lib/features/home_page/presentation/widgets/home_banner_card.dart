@@ -133,7 +133,18 @@ class _HomeBannerSlotState extends State<HomeBannerSlot> {
       'Announcement hidden',
       actionLabel: 'Undo',
       onAction: () => _undo(key),
+      bottomOffset: _barHeight(),
     );
+  }
+
+  /// What sits under Home's feed (the tab bar), measured, so the toast
+  /// lands above it rather than on its labels.
+  double _barHeight() {
+    final feed = Scrollable.maybeOf(context)?.context.findRenderObject();
+    if (feed is! RenderBox || !feed.hasSize) return 0;
+    final bottom = feed.localToGlobal(Offset(0, feed.size.height)).dy;
+    final screen = MediaQuery.sizeOf(context).height;
+    return (screen - bottom).clamp(0, screen / 3).toDouble();
   }
 
   void _undo(String key) {
@@ -308,8 +319,11 @@ class HomeBannerCard extends StatelessWidget {
   /// ellipsized).
   static const double stackAtScale = 1.6;
 
+  /// Measured at the card's 16sp title: Android scales large text less
+  /// than small text (non-linear font scaling), so a large base size would
+  /// read a 2.0 setting as about 1.5.
   static bool stacksAt(BuildContext context) =>
-      MediaQuery.textScalerOf(context).scale(100) >= stackAtScale * 100;
+      MediaQuery.textScalerOf(context).scale(16) >= stackAtScale * 16;
 
   @override
   Widget build(BuildContext context) {
