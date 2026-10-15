@@ -99,6 +99,7 @@ import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
 import 'package:nook/features/home_page/data/home_banner_dismiss_store.dart';
 import 'package:nook/features/home_page/data/home_layout_repository.dart';
 import 'package:nook/features/home_page/debug/home_layout_fixture.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_home_shelf_usecase.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_layout_shelves_usecase.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/onboarding/domain/get_purpose_suggestions_usecase.dart';
@@ -330,6 +331,15 @@ Future<void> initDependencies() async {
           : sl<HomeLayoutRemoteSource>().fetchCafesByIds,
     ),
   );
+  sl.registerLazySingleton<CurrentHomeLayout>(CurrentHomeLayout.new);
+  sl.registerLazySingleton<GetHomeShelfUseCase>(
+    () => GetHomeShelfUseCase(
+      current: sl<CurrentHomeLayout>(),
+      // The fixture is not on the server: the shelf page reads Home's copy.
+      repository: homeLayoutFixtureEnabled ? null : sl<HomeLayoutRepository>(),
+      loadShelves: sl<GetLayoutShelvesUseCase>().call,
+    ),
+  );
   sl.registerLazySingleton<GetCafesUseCase>(
     () => GetCafesUseCase(sl<ICafeRepository>()),
   );
@@ -496,6 +506,7 @@ Future<void> initDependencies() async {
       layoutRepository: sl<HomeLayoutRepository>(),
       getLayoutShelves: sl<GetLayoutShelvesUseCase>(),
       debugLayoutFixture: homeLayoutFixtureEnabled ? homeLayoutFixture : null,
+      currentLayout: sl<CurrentHomeLayout>(),
     ),
   );
   sl.registerFactory<CafeDetailsBloc>(

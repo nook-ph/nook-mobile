@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Hosts whose links the app opens itself (App Links / Universal Links).
@@ -38,12 +39,41 @@ String? inAppLocation(Uri link) {
   return null;
 }
 
+/// Built-in shelves whose full list is a search, as that search's
+/// location: `nook://shelf/nearby` opens what Near you's "See all" opens.
+/// Null for every other id (custom shelves, House picks, Your places,
+/// Laptop-friendly), which the shelf page handles.
+String? builtinShelfSearch(String sectionId) => switch (sectionId) {
+  'nearby' ||
+  'newest' ||
+  'trending' ||
+  'top_rated' => '/search?sort=$sectionId',
+  'specialty' => Uri(
+    path: '/search',
+    queryParameters: {'tag': specialtyCoffeeTag, 'sort': 'nearby'},
+  ).toString(),
+  'local_beans' => Uri(
+    path: '/search',
+    queryParameters: {'tag': localBeansTag},
+  ).toString(),
+  _ => null,
+};
+
 /// Opens [link]: in the app when [inAppLocation] places it, else in the
-/// browser.
-Future<void> openHomeLink(BuildContext context, Uri link) async {
+/// browser. The future completes when the in-app page is closed (or once
+/// the browser is asked).
+///
+/// [extra] goes to the in-app page (the banner passes a
+/// `HomeShelfHeader` so a shelf it opens carries its title).
+Future<void> openHomeLink(
+  BuildContext context,
+  Uri link, {
+  Object? extra,
+}) async {
   final location = inAppLocation(link);
   if (location != null) {
-    context.push(location);
+    // Completes when that page is closed.
+    await context.push<Object?>(location, extra: extra);
     return;
   }
   if (link.scheme == 'https') {

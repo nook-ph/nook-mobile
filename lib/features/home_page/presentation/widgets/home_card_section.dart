@@ -36,6 +36,10 @@ class HomeCafeSection extends StatelessWidget {
   /// event keeps its value.
   final String? section;
 
+  /// Where "See all" goes when it is not a sorted search: a custom shelf's
+  /// own page (`/shelf/custom:<id>`). Takes precedence over [sort].
+  final String? seeAllLocation;
+
   const HomeCafeSection({
     super.key,
     required this.title,
@@ -45,6 +49,7 @@ class HomeCafeSection extends StatelessWidget {
     this.sort,
     this.rail,
     this.section,
+    this.seeAllLocation,
   });
 
   /// [rail], else [sort], else the title in snake_case.
@@ -80,15 +85,7 @@ class HomeCafeSection extends StatelessWidget {
         HomeSectionTitle(
           title,
           subtitle: subtitle,
-          onSeeAll: sort == null || isSkeleton
-              ? null
-              : () {
-                  logAppEvent(
-                    HomeEvents.seeAllTapped,
-                    properties: {'sort': sort!},
-                  );
-                  context.push('/search?sort=$sort');
-                },
+          onSeeAll: isSkeleton ? null : _seeAll(context, railId),
         ),
         const SizedBox(height: 12),
         PrototypeHeight(
@@ -123,6 +120,24 @@ class HomeCafeSection extends StatelessWidget {
     );
     if (isSkeleton) return section;
     return HomeRailImpression(rail: railId, child: section);
+  }
+}
+
+extension on HomeCafeSection {
+  VoidCallback? _seeAll(BuildContext context, String railId) {
+    final location = seeAllLocation;
+    if (location != null) {
+      return () {
+        logAppEvent(HomeEvents.seeAllTapped, properties: {'rail': railId});
+        context.push(location);
+      };
+    }
+    final sort = this.sort;
+    if (sort == null) return null;
+    return () {
+      logAppEvent(HomeEvents.seeAllTapped, properties: {'sort': sort});
+      context.push('/search?sort=$sort');
+    };
   }
 }
 

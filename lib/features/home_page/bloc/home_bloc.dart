@@ -5,6 +5,7 @@ import 'package:nook/core/preferences/onboarding_purpose_store.dart';
 import 'package:nook/features/home_page/data/home_layout_repository.dart';
 import 'package:nook/features/home_page/domain/home_layout.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_home_shelf_usecase.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_layout_shelves_usecase.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
@@ -53,12 +54,16 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   /// real cafe ids), used instead of the server's. Never set in release.
   final HomeLayout Function(HomeFeedResult feed)? debugLayoutFixture;
 
+  /// Told the layout and shelves Home draws, for the shelf page.
+  final CurrentHomeLayout? currentLayout;
+
   HomeBloc({
     required this.getHomeFeedUseCase,
     this.readPurpose,
     this.layoutRepository,
     this.getLayoutShelves,
     this.debugLayoutFixture,
+    this.currentLayout,
   }) : super(HomeInitialState()) {
     on<LoadHomeDataEvent>(_onLoadHomeData);
     on<HomeDismissLocationBannerEvent>(_onDismissLocationBanner);
@@ -70,6 +75,18 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   void _onReviewsChanged() {
     if (isClosed || state is! HomeLoadedState) return;
     add(LoadHomeDataEvent(refresh: true));
+  }
+
+  @override
+  void onChange(Change<HomeState> change) {
+    super.onChange(change);
+    final next = change.nextState;
+    final current = currentLayout;
+    if (current != null && next is HomeLoadedState) {
+      current
+        ..layout = next.layout
+        ..shelves = next.layoutShelves;
+    }
   }
 
   @override

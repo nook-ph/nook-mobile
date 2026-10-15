@@ -59,6 +59,9 @@ abstract final class ScreenNames {
   static const editProfile = 'Edit Profile';
 
   static const linkNotFound = 'Link Not Found';
+
+  // Home layout.
+  static const homeShelf = 'Home Shelf';
 }
 
 /// go_router names a page after its path pattern when the route has no
@@ -66,6 +69,7 @@ abstract final class ScreenNames {
 const Map<String, String> _goRouteScreens = {
   'u/:username': ScreenNames.publicProfile,
   'c/:code': ScreenNames.crawlDetail,
+  'shelf/:id': ScreenNames.homeShelf,
   '/login': ScreenNames.login,
   '/login-password': ScreenNames.loginPassword,
   '/change-email': ScreenNames.changeEmail,

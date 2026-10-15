@@ -14,7 +14,8 @@ const bool homeLayoutFixtureEnabled =
 /// A layout that shows every feature of the contract at once, built from
 /// the loaded feed so its cafe ids are real:
 ///
-/// - the banner, linking to a sorted search;
+/// - the banner, landing on a shelf made only for it (hidden on Home):
+///   `nook://shelf/custom:debug-coffee-week`;
 /// - House picks renamed, hand-picked (three top rated cafes, reversed);
 /// - a custom picked shelf and a custom rule shelf (tag Specialty Coffee);
 /// - a shelf scheduled on now, and one scheduled off (never shown);
@@ -40,6 +41,7 @@ HomeLayout homeLayoutFixture(HomeFeedResult feed) {
   final top = ids(feed.topRated, 3).reversed.toList();
   final picked = ids(feed.newest.skip(3).toList(), 4);
   final evening = ids(feed.trending.skip(2).toList(), 5);
+  final coffeeWeek = ids([...feed.trending, ...feed.newest], 8);
 
   final layout = HomeLayout.fromRpc({
     'version': 'debug-fixture-1',
@@ -55,8 +57,8 @@ HomeLayout homeLayoutFixture(HomeFeedResult feed) {
         'image_url': feed.topRated.isEmpty
             ? null
             : feed.topRated.first.coverImage,
-        'cta_label': 'See crowd favorites',
-        'link': 'nook://search?sort=trending',
+        'cta_label': 'See the cafes',
+        'link': 'nook://shelf/custom:debug-coffee-week',
       },
       'sections': [
         {'id': 'newest', 'type': 'builtin', 'visible': true},
@@ -104,6 +106,14 @@ HomeLayout homeLayoutFixture(HomeFeedResult feed) {
           'title': 'Specialty, best rated',
           'source': 'rule',
           'rule': {'tag': 'Specialty Coffee', 'sort': 'top_rated', 'limit': 8},
+        },
+        {
+          'id': 'custom:debug-coffee-week',
+          'type': 'custom',
+          'visible': false,
+          'title': 'Coffee Week cafes',
+          'source': 'picked',
+          'cafe_ids': coffeeWeek,
         },
         {'id': 'laptop_friendly', 'type': 'builtin', 'visible': false},
         {'id': 'not_a_shelf_yet', 'type': 'builtin', 'visible': true},

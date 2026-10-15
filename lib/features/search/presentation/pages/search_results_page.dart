@@ -53,13 +53,22 @@ String searchCountLine(
 }
 
 class SearchResultsPage extends StatefulWidget {
-  const SearchResultsPage({super.key, required this.query, this.sort});
+  const SearchResultsPage({
+    super.key,
+    required this.query,
+    this.sort,
+    this.tag,
+  });
 
   final String query;
 
   /// Opens straight on results in this order with no text: the full list
   /// behind a Home shelf ("nearby", "newest", "trending", "top_rated").
   final String? sort;
+
+  /// Opens on results filtered to this tag (`/search?tag=`), in [sort]
+  /// when given: a link's way to "every cafe with X".
+  final String? tag;
 
   @override
   State<SearchResultsPage> createState() => _SearchResultsPageState();
@@ -99,7 +108,12 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _bloc.add(const SearchLocationChecked());
 
     final sort = widget.sort;
-    if (sort != null && widget.query.trim().isEmpty) {
+    final tag = widget.tag;
+    if (tag != null && widget.query.trim().isEmpty) {
+      _submitted = true;
+      if (sort != null) _bloc.add(SearchSortChanged(sort));
+      _bloc.add(SearchTagsChanged({tag}));
+    } else if (sort != null && widget.query.trim().isEmpty) {
       _browsing = true;
       _submitted = true;
       _bloc.add(SearchSortChanged(sort));

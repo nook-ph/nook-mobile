@@ -19,6 +19,7 @@ import 'package:nook/features/home_page/domain/home_layout.dart';
 import 'package:nook/features/home_page/domain/home_layout_plan.dart';
 import 'package:nook/features/home_page/domain/home_rail_order.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_layout_shelves_usecase.dart';
+import 'package:nook/features/home_page/presentation/pages/home_shelf_page.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_banner_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_card_section.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_featured_card.dart';
@@ -354,6 +355,8 @@ class HomeContent extends StatelessWidget {
             cafes: cafes,
             rail: custom.railId,
             section: custom.railId,
+            // Picked and rule shelves both open their own page in full.
+            seeAllLocation: homeShelfLocation(custom.id),
           ),
         );
         continue;
