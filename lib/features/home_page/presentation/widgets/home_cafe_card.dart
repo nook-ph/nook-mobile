@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/analytics/discovery_events.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
@@ -24,6 +25,9 @@ class HomeCafeCard extends StatelessWidget {
   final String? section;
   final int? position;
 
+  /// The Home rail id; with it a tap also logs `home_rail_card_tapped`.
+  final String? rail;
+
   const HomeCafeCard({
     super.key,
     required this.cafe,
@@ -31,6 +35,7 @@ class HomeCafeCard extends StatelessWidget {
     required this.height,
     this.section,
     this.position,
+    this.rail,
     this.isSkeleton = false,
   });
 
@@ -54,6 +59,17 @@ class HomeCafeCard extends StatelessWidget {
             'position': ?position,
           },
         );
+        final rail = this.rail;
+        if (rail != null) {
+          logAppEvent(
+            HomeRailEvents.cardTapped,
+            properties: {
+              'rail': rail,
+              'position': position ?? -1,
+              'cafe_id': cafe.id,
+            },
+          );
+        }
         context.push('/cafe/${cafe.id}');
       },
       child: SizedBox(

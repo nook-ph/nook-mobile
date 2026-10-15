@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
@@ -119,10 +120,17 @@ class ScreenTracker {
     if (onTop) report(name);
   }
 
+  /// Counts screen changes: bumps on every new [report], so a widget can
+  /// tell one visit to a screen from the next (Home, then a cafe, then Home
+  /// again is two Home visits).
+  ValueListenable<int> get visits => _visits;
+  final ValueNotifier<int> _visits = ValueNotifier<int>(0);
+
   /// Sends a `$screen` for [name] unless it is already the current screen.
   void report(String name) {
     if (name == _current) return;
     _current = name;
+    _visits.value++;
     if (!kAnalyticsEnabled) return;
     Posthog().screen(screenName: name).catchError((Object e) {
       debugPrint('PostHog screen failed: $e');

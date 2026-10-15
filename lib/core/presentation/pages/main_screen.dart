@@ -101,6 +101,7 @@ class _MainShellState extends State<MainShell> {
           icon: LucideIcons.bookmark,
           title: 'Sign in to save cafes',
           reason: 'Keep lists, mark the places you have been, and rank them.',
+          trigger: 'saved_tab',
         );
       } else {
         GuestSignInSheet.show(
@@ -110,6 +111,7 @@ class _MainShellState extends State<MainShell> {
           reason:
               'Your cups, lists and rankings live in one place once you '
               'have an account.',
+          trigger: 'profile_tab',
         );
       }
       return;

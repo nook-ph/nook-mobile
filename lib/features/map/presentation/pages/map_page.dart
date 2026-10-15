@@ -22,6 +22,7 @@ import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
+import 'package:nook/core/location/location_prompt_tracking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
@@ -218,6 +219,7 @@ class _MapPageState extends State<MapPage>
     if (await store.hasRequested()) return;
     await store.markRequested();
 
+    final prompt = LocationPromptTracker(LocationPromptSurface.map);
     try {
       final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.whileInUse ||
@@ -228,6 +230,7 @@ class _MapPageState extends State<MapPage>
         return;
       }
       if (!mounted) return;
+      prompt.shown();
       // Say why before the system asks, and offer the alternative: a
       // cold prompt that was refused left the map on Cebu with nothing
       // said.
@@ -241,6 +244,9 @@ class _MapPageState extends State<MapPage>
         cancelLabel: 'Choose an area',
         destructive: false,
       );
+      if (!useLocation) {
+        prompt.result('denied', systemPrompt: false);
+      }
       if (!mounted) return;
       if (!useLocation) {
         await _chooseOrigin();
@@ -249,7 +255,7 @@ class _MapPageState extends State<MapPage>
       // The recenter button's path: ask, then centre on the phone and reload,
       // so "Nearby" sorts and the rows measure from the position just
       // granted rather than from the none they started with.
-      await _requestLocationAccessUnguarded();
+      await _requestLocationAccessUnguarded(prompt: prompt);
       if (!mounted) return;
       final answer = await Geolocator.checkPermission();
       if (!mounted) return;
@@ -262,6 +268,7 @@ class _MapPageState extends State<MapPage>
       }
     } catch (_) {
       // Best-effort: the user can re-enable via Settings.
+      if (prompt.wasShown) prompt.result('unavailable');
     }
   }
 
@@ -794,7 +801,11 @@ class _MapPageState extends State<MapPage>
     // "Current location" recentres on the phone, asking for access if needed.
     if (pick.origin == null) {
       await WidgetsBinding.instance.endOfFrame;
-      if (mounted) await _requestLocationAccess();
+      if (mounted) {
+        await _requestLocationAccess(
+          prompt: LocationPromptTracker(LocationPromptSurface.map),
+        );
+      }
     }
   }
 
@@ -1319,10 +1330,15 @@ class _MapPageState extends State<MapPage>
   /// while one is open, a platform error); a tap on recenter must not turn
   /// that into an unhandled error. It still says something: a tap that
   /// shows nothing reads as a broken button and gets tapped again.
-  Future<_RecenterOutcome> _requestLocationAccess() async {
+  Future<_RecenterOutcome> _requestLocationAccess({
+    LocationPromptTracker? prompt,
+  }) async {
+    final tracker =
+        prompt ?? LocationPromptTracker(LocationPromptSurface.mapFab);
     try {
-      return await _requestLocationAccessUnguarded();
+      return await _requestLocationAccessUnguarded(prompt: tracker);
     } catch (e) {
+      if (tracker.wasShown) tracker.result('unavailable');
       debugPrint('MapPage: location access failed: $e');
       if (mounted) {
         showPrimaryToast(
@@ -1339,7 +1355,13 @@ class _MapPageState extends State<MapPage>
     }
   }
 
-  Future<_RecenterOutcome> _requestLocationAccessUnguarded() async {
+  /// Every prompt it shows (the Settings dialogs, the system prompt) is
+  /// logged on [prompt], `map_fab` unless the caller passes its own.
+  Future<_RecenterOutcome> _requestLocationAccessUnguarded({
+    LocationPromptTracker? prompt,
+  }) async {
+    final tracker =
+        prompt ?? LocationPromptTracker(LocationPromptSurface.mapFab);
     final permission = await Geolocator.checkPermission();
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     _RecenterOutcome outcome(String result) => (
@@ -1352,6 +1374,7 @@ class _MapPageState extends State<MapPage>
     // while it is off, so say so first, with the way to turn it on.
     if (!serviceEnabled) {
       if (!mounted) return outcome('services_off');
+      tracker.shown();
       final open = await showMapLocationDeniedDialog(
         context,
         title: 'Location Services are off',
@@ -1359,6 +1382,7 @@ class _MapPageState extends State<MapPage>
             'Turn on Location Services in Settings to center the map on you '
             'and sort cafes by distance.',
       );
+      tracker.result('unavailable');
       if (open) await Geolocator.openLocationSettings();
       return outcome(open ? 'services_off_settings' : 'services_off');
     }
@@ -1368,6 +1392,7 @@ class _MapPageState extends State<MapPage>
       // Permission granted somewhere else (search, a crawl, Settings) never
       // went through the branch below, so the location layer is still off;
       // tracking does nothing without it.
+      if (tracker.wasShown) tracker.resultFor(permission);
       if (!_myLocationEnabled) {
         if (!mounted) return outcome('tracking');
         setState(() => _myLocationEnabled = true);
@@ -1380,12 +1405,14 @@ class _MapPageState extends State<MapPage>
     if (permission == LocationPermission.deniedForever) {
       if (!mounted) return outcome('denied_forever');
       // Say why before leaving the app; the system won't ask again.
+      tracker.shown();
       final open = await showMapLocationDeniedDialog(context);
+      tracker.result('denied_forever');
       if (open) await Geolocator.openAppSettings();
       return outcome(open ? 'denied_forever_settings' : 'denied_forever');
     }
 
-    final updated = await Geolocator.requestPermission();
+    final updated = await tracker.request();
     if (!mounted) return outcome('prompt_${updated.name}');
     if (updated == LocationPermission.whileInUse ||
         updated == LocationPermission.always) {

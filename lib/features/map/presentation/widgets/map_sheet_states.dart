@@ -35,6 +35,23 @@ class MapSheetStateView extends StatelessWidget {
     );
   }
 
+  /// "No cafes in this area" for someone clearly outside Cebu: says Nook is
+  /// Cebu-only for now and asks which city they want instead.
+  factory MapSheetStateView.outsideCebu({required VoidCallback onRequestCity}) {
+    return MapSheetStateView(
+      icon: LucideIcons.mapPinned,
+      iconColor: MapTokens.ink,
+      title: outsideCebuTitle,
+      subtitle: outsideCebuSubtitle,
+      actionLabel: requestCityLabel,
+      onAction: onRequestCity,
+    );
+  }
+
+  static const outsideCebuTitle = 'Nook covers Cebu for now';
+  static const outsideCebuSubtitle = 'Want us in your city?';
+  static const requestCityLabel = 'Ask for my city';
+
   /// A failed load, with the icon and copy for its kind. A session that ran
   /// out offers Sign in; everything else offers Try again.
   factory MapSheetStateView.error({

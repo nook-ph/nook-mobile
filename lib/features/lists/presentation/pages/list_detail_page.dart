@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/empty_state_tracker.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -370,13 +371,17 @@ class ListDetailView extends StatelessWidget {
       // Been gets its own empty state and no title: it is the one list a
       // user never creates, so "no cafes yet" is a beginning, not an error.
       if (_isBeen) {
-        return _EmptyList(
-          title: 'Nowhere yet',
-          subtitle:
-              'Mark a cafe as Been and your diary starts here — ranked by '
-              'you, not by ratings.',
-          filled: true,
-          onFind: onFindCafe,
+        return EmptyStateTracker(
+          screen: 'list_detail',
+          reason: 'empty_been',
+          child: _EmptyList(
+            title: 'Nowhere yet',
+            subtitle:
+                'Mark a cafe as Been and your diary starts here — ranked by '
+                'you, not by ratings.',
+            filled: true,
+            onFind: onFindCafe,
+          ),
         );
       }
       return Column(
@@ -384,13 +389,19 @@ class ListDetailView extends StatelessWidget {
         children: [
           _ListTitle(title: title, subtitle: null),
           Expanded(
-            child: _EmptyList(
-              title: 'No cafes in this list yet.',
-              subtitle: listType == 'want_to_try'
-                  ? 'Tap Want to try on a cafe and it waits here.'
-                  : 'Save a cafe from its page and choose this list.',
-              filled: false,
-              onFind: onFindCafe,
+            child: EmptyStateTracker(
+              screen: 'list_detail',
+              reason: listType == 'want_to_try'
+                  ? 'empty_want_to_try'
+                  : 'empty_list',
+              child: _EmptyList(
+                title: 'No cafes in this list yet.',
+                subtitle: listType == 'want_to_try'
+                    ? 'Tap Want to try on a cafe and it waits here.'
+                    : 'Save a cafe from its page and choose this list.',
+                filled: false,
+                onFind: onFindCafe,
+              ),
             ),
           ),
         ],

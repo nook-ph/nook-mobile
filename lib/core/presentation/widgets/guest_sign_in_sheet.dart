@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
@@ -45,12 +47,18 @@ class GuestSignInSheet extends StatelessWidget {
 
   /// Opens the sheet. Google or Apple signs in from here and comes back to
   /// this page; email pushes `/login` ([continueSignInFromSheet]).
+  ///
+  /// [trigger] names what needed an account (`saved_tab`, `save_place`, ...)
+  /// for `signin_prompt_shown` / `signin_prompt_dismissed`.
   static Future<void> show(
     BuildContext context, {
     required IconData icon,
     required String title,
     required String reason,
+    String trigger = 'other',
   }) async {
+    final props = <String, Object>{'trigger': trigger};
+    logAppEvent(SignInPromptEvents.shown, properties: props);
     final choice = await showModalBottomSheet<SignInChoice>(
       context: context,
       isScrollControlled: true,
@@ -62,6 +70,10 @@ class GuestSignInSheet extends StatelessWidget {
       builder: (_) =>
           GuestSignInSheet(icon: icon, title: title, reason: reason),
     );
+    if (choice == null) {
+      logAppEvent(SignInPromptEvents.dismissed, properties: props);
+      return;
+    }
     if (context.mounted) await continueSignInFromSheet(context, choice);
   }
 

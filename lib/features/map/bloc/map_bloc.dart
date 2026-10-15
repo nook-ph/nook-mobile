@@ -49,6 +49,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
   /// immediately re-fetch the area the user is currently looking at.
   MapViewport? _lastViewport;
 
+  /// The area the map last reported, or null before it has reported one.
+  MapViewport? get lastViewport => _lastViewport;
+
   /// How many cafes the current viewport holds under [filter]: the number
   /// "Show N cafes" promises, and the list's count once it is applied.
   ///

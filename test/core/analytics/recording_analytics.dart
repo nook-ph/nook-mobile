@@ -7,6 +7,11 @@ class RecordingAnalytics extends AnalyticsService {
 
   List<String> get names => [for (final e in events) e.$1];
 
+  /// Each event as `[name, properties]`, for a deep-equality `expect`.
+  List<List<Object?>> get flat => [
+    for (final e in events) [e.$1, e.$2],
+  ];
+
   Map<String, Object>? propertiesOf(String name) =>
       events.lastWhere((e) => e.$1 == name).$2;
 

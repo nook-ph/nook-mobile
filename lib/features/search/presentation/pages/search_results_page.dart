@@ -23,6 +23,11 @@ import 'package:nook/features/search/presentation/widgets/search_tag_match.dart'
 import 'package:nook/features/search/presentation/widgets/search_tokens.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/empty_state_tracker.dart';
+import 'package:nook/core/location/cebu_coverage.dart';
+import 'package:nook/core/location/device_location.dart';
+import 'package:nook/core/presentation/widgets/city_waitlist_sheet.dart';
+import 'package:nook/core/utils/geo.dart';
 
 /// "12 cafes near you", "8 cafes near IT Park · distances from IT Park", or
 /// "12 cafes · sorted by rating" when there was no position to be near and
@@ -492,11 +497,13 @@ class _Results extends StatelessWidget {
     final cafes = state.visibleCafes;
 
     if (state.status == SearchStatus.failure && state.cafes.isEmpty) {
-      return SearchErrorBlock(
-        error: AppErrorCopy.fromException(
-          state.lastError ?? Exception('Search failed'),
-        ),
-        onRetry: onRetry,
+      final error = AppErrorCopy.fromException(
+        state.lastError ?? Exception('Search failed'),
+      );
+      return EmptyStateTracker(
+        screen: 'search',
+        reason: 'load_error_${error.type.name}',
+        child: SearchErrorBlock(error: error, onRetry: onRetry),
       );
     }
 
@@ -506,16 +513,44 @@ class _Results extends StatelessWidget {
         state.query,
         max: 1,
       ).where((t) => !state.tags.contains(t)).firstOrNull;
-      return SearchEmptyView(
-        line: searchNoResultsLine(
-          query: state.query,
-          place: state.origin?.isPin == true ? 'your pin' : state.origin?.label,
-          filters: filters,
+      final phone = DeviceLocation.instance.position.value;
+      final origin = state.origin;
+      final outside =
+          !state.hasFilters &&
+          CebuCoverage.isOutside(
+            device: phone == null
+                ? null
+                : GeoPoint(lat: phone.latitude, lng: phone.longitude),
+            viewing: origin == null
+                ? null
+                : GeoPoint(lat: origin.lat, lng: origin.lng),
+          );
+      final reason = outside
+          ? 'outside_cebu'
+          : state.hasFilters
+          ? 'filtered'
+          : state.query.trim().isNotEmpty
+          ? 'no_match'
+          : 'no_cafes_in_area';
+      return EmptyStateTracker(
+        screen: 'search',
+        reason: reason,
+        child: SearchEmptyView(
+          onRequestCity: outside
+              ? () => requestCityWaitlist(context, surface: 'search')
+              : null,
+          line: searchNoResultsLine(
+            query: state.query,
+            place: state.origin?.isPin == true
+                ? 'your pin'
+                : state.origin?.label,
+            filters: filters,
+          ),
+          onClearFilters: state.hasFilters ? onClearFilters : null,
+          onSearchNearMe: state.origin != null ? onSearchNearMe : null,
+          suggestedTag: suggested,
+          onSuggestedTag: suggested == null ? null : () => onTag(suggested),
         ),
-        onClearFilters: state.hasFilters ? onClearFilters : null,
-        onSearchNearMe: state.origin != null ? onSearchNearMe : null,
-        suggestedTag: suggested,
-        onSuggestedTag: suggested == null ? null : () => onTag(suggested),
       );
     }
 

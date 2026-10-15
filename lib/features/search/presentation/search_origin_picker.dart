@@ -123,6 +123,7 @@ Future<SearchOriginPick?> pickSearchOrigin(
           reason:
               'Keep Home, School or work and your own places, and search '
               'near them in one tap. Only you can see them.',
+          trigger: 'save_place',
         );
       }
       return null;

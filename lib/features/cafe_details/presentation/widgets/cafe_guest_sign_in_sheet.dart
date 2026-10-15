@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
@@ -50,7 +52,8 @@ class CafeGuestSignInSheet extends StatelessWidget {
   /// `/login` ([continueSignInFromSheet]). With [cafeId], a Save, Been,
   /// Want to try or Write a review is finished on that cafe's page once the
   /// guest is signed in ([GuestActionReplay]). [title] and [reason] replace
-  /// the action's own copy.
+  /// the action's own copy. [trigger] replaces [triggerFor] in the
+  /// `signin_prompt_shown` / `signin_prompt_dismissed` events.
   static Future<void> show(
     BuildContext context, {
     required CafeGuestAction action,
@@ -58,7 +61,10 @@ class CafeGuestSignInSheet extends StatelessWidget {
     String? cafeId,
     String? title,
     String? reason,
+    String? trigger,
   }) async {
+    final props = <String, Object>{'trigger': trigger ?? triggerFor(action)};
+    logAppEvent(SignInPromptEvents.shown, properties: props);
     final choice = await showModalBottomSheet<SignInChoice>(
       context: context,
       isScrollControlled: true,
@@ -74,6 +80,10 @@ class CafeGuestSignInSheet extends StatelessWidget {
         reason: reason,
       ),
     );
+    if (choice == null) {
+      logAppEvent(SignInPromptEvents.dismissed, properties: props);
+      return;
+    }
     if (!context.mounted) return;
     await continueSignInFromSheet(
       context,
@@ -83,6 +93,16 @@ class CafeGuestSignInSheet extends StatelessWidget {
       },
     );
   }
+
+  /// The `trigger` property of the sign-in prompt events.
+  static String triggerFor(CafeGuestAction action) => switch (action) {
+    CafeGuestAction.been => 'been',
+    CafeGuestAction.wantToTry => 'want_to_try',
+    CafeGuestAction.saveToList => 'save_to_list',
+    CafeGuestAction.writeReview => 'write_review',
+    CafeGuestAction.reportReview => 'report_review',
+    CafeGuestAction.helpfulReview => 'helpful_review',
+  };
 
   static String titleFor(CafeGuestAction action, String cafeName) {
     final name = cafeName.trim();
