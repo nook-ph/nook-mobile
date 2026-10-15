@@ -67,6 +67,7 @@ void main() {
     WidgetTester tester,
     FakeCommunityPhotosRepository repo, {
     bool been = false,
+    bool guestBeen = false,
     bool load = true,
     Set<String> seenIds = const {},
     int? cupCount,
@@ -78,6 +79,7 @@ void main() {
       setCafeStatusUseCase: SetCafeStatusUseCase(statusRepo),
     );
     await statuses.loadFor(['cafe-1']);
+    if (guestBeen) statuses.showLocal({'cafe-1': CafeStatus.been});
     final cubit = CafePhotosCubit(
       repository: repo,
       cafeId: 'cafe-1',
@@ -268,6 +270,18 @@ void main() {
     await tester.tap(find.text('Add your cup'));
     await tester.pump();
     expect(addTaps, 1);
+  });
+
+  testWidgets('a guest\'s on-phone Been offers no add slot (it needs an '
+      'account)', (tester) async {
+    await pump(
+      tester,
+      FakeCommunityPhotosRepository([communityPhoto('p1', username: 'sai')]),
+      guestBeen: true,
+    );
+
+    expect(find.text('@sai'), findsOneWidget);
+    expect(find.text('Add your cup'), findsNothing);
   });
 
   testWidgets('your own cup reads "You", and no add slot', (tester) async {

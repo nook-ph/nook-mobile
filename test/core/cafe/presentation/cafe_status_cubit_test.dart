@@ -105,4 +105,14 @@ void main() {
       expect(cubit.state.statusFor('a'), CafeStatus.none);
     },
   );
+
+  test('serverStatusFor ignores the guest overlay', () async {
+    cubit.showLocal({'a': CafeStatus.been});
+    repo.server = {'b': CafeStatus.been};
+    await cubit.loadFor(['b']);
+
+    expect(cubit.state.statusFor('a'), CafeStatus.been);
+    expect(cubit.state.serverStatusFor('a'), CafeStatus.none);
+    expect(cubit.state.serverStatusFor('b'), CafeStatus.been);
+  });
 }

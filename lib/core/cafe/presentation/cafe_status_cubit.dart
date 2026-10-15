@@ -126,6 +126,12 @@ class CafeStatusState extends Equatable {
   CafeStatus statusFor(String cafeId) =>
       statuses[cafeId] ?? local[cafeId] ?? CafeStatus.none;
 
+  /// The account's own status, ignoring the guest overlay in [local]. For
+  /// surfaces whose actions need an account (ranking, the private note,
+  /// adding a cup): a guest's on-phone Been must not offer them.
+  CafeStatus serverStatusFor(String cafeId) =>
+      statuses[cafeId] ?? CafeStatus.none;
+
   bool isPending(String cafeId) => pending.contains(cafeId);
 
   /// Whether [statusFor] is the server's answer rather than a default. A

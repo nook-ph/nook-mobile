@@ -218,9 +218,10 @@ class _BodyState extends State<_Body> {
     // has been and has no cup in the tray yet.
     if (add == null || hasOwn) return tray();
     return BlocBuilder<CafeStatusCubit, CafeStatusState>(
-      buildWhen: (a, b) => a.statusFor(_cafeId) != b.statusFor(_cafeId),
+      buildWhen: (a, b) =>
+          a.serverStatusFor(_cafeId) != b.serverStatusFor(_cafeId),
       builder: (context, statuses) => tray(
-        onAdd: statuses.statusFor(_cafeId) == CafeStatus.been
+        onAdd: statuses.serverStatusFor(_cafeId) == CafeStatus.been
             ? () => _add(add)
             : null,
       ),
