@@ -9,6 +9,8 @@ import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/presentation/pages/main_screen.dart';
+import 'package:nook/core/presentation/tab_requests.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
@@ -17,6 +19,9 @@ import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.d
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/injection_container.dart';
+
+/// Opens the Saved tab from anywhere: a toast's "View", the merge toast.
+void openSavedTab() => TabRequests.open(MainShell.savedTab);
 
 /// The copy of the one-time prompt after a guest's first save.
 const keepSavesPromptMessage =

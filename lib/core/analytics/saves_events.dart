@@ -10,9 +10,10 @@ abstract final class SavesEvents {
   /// when from the visit reminder's "I went"; absent otherwise).
   static const guestSaveCreated = 'guest_save_created';
 
-  /// Saves kept on this phone were added to the account after sign-in.
-  /// Properties: `count` (how many were added; ones the account already had
-  /// are not counted).
+  /// Saves kept on this phone were moved to the account after sign-in (or
+  /// some failed to). Properties: `count` (how many were added; ones the
+  /// account already had are not counted), `moved` (now in the account,
+  /// including those), `failed` (left on the phone for a retry).
   static const guestSavesMerged = 'guest_saves_merged';
 
   /// The first Want to Try / Been made on this phone, by anyone. Properties:

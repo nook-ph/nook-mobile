@@ -247,6 +247,8 @@ class _MyAppState extends State<MyApp> {
                 }
               },
               child: GuestSavesSync(
+                toastContext: () =>
+                    _router?.routerDelegate.navigatorKey.currentContext,
                 child: MaterialApp.router(
                   debugShowCheckedModeBanner: false,
                   title: 'Nook',

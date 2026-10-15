@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/guest_saves_merger.dart';
+import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -22,12 +24,21 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 /// Sits under `main.dart`'s providers, below the listener that resets the
 /// status cache on sign-out, so its own work lands after that reset.
 class GuestSavesSync extends StatefulWidget {
-  const GuestSavesSync({super.key, required this.child, this.isSignedIn});
+  const GuestSavesSync({
+    super.key,
+    required this.child,
+    this.isSignedIn,
+    this.toastContext,
+  });
 
   final Widget child;
 
   /// Defaults to the Supabase session; tests pass their own.
   final bool Function()? isSignedIn;
+
+  /// A context under the app's navigator, for the "Moved 3 cafes to your
+  /// account" toast (this widget sits above it). No toast when null.
+  final BuildContext? Function()? toastContext;
 
   @override
   State<GuestSavesSync> createState() => _GuestSavesSyncState();
@@ -69,9 +80,16 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
 
   Future<void> _merge() async {
     final lists = context.read<ListsBloc>();
-    final merged = await _merger.merge();
+    final result = await _merger.merge();
     // Saved-tab counts and previews come from the lists.
-    if (merged > 0 && mounted) lists.add(LoadUserLists());
+    if (result.added > 0 && mounted) lists.add(LoadUserLists());
+    if (mounted) _confirm(result);
+  }
+
+  void _confirm(GuestMergeResult result) {
+    final toast = widget.toastContext?.call();
+    if (toast == null || !toast.mounted) return;
+    showMergeToast(toast, result, onRetry: () => unawaited(_merge()));
   }
 
   @override
@@ -106,4 +124,46 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
       child: widget.child,
     );
   }
+}
+
+/// The sheet promised "everything you saved on this phone moves to your
+/// account": says that it did (with View, which opens Saved), or that some
+/// did not and offers to try again. Nothing when there was nothing to move.
+void showMergeToast(
+  BuildContext context,
+  GuestMergeResult result, {
+  required VoidCallback onRetry,
+}) {
+  final message = mergeToastMessage(result);
+  if (message == null) return;
+  if (result.failed == 0) {
+    showPrimaryToastWithAction(
+      context,
+      message,
+      actionLabel: mergeViewLabel,
+      onAction: openSavedTab,
+      duration: toastDurationFor(context, const Duration(seconds: 6)),
+    );
+    return;
+  }
+  showPrimaryToastWithAction(
+    context,
+    message,
+    actionLabel: mergeRetryLabel,
+    onAction: onRetry,
+    duration: toastDurationFor(context, const Duration(seconds: 8)),
+  );
+}
+
+const mergeViewLabel = 'View';
+const mergeRetryLabel = 'Retry';
+
+/// "Moved 3 cafes to your account", "Moved 2 of 3 cafes to your account",
+/// or "Couldn't move your saves yet"; null when there was nothing to move.
+String? mergeToastMessage(GuestMergeResult result) {
+  if (result.isEmpty) return null;
+  String cafes(int n) => n == 1 ? '1 cafe' : '$n cafes';
+  if (result.failed == 0) return 'Moved ${cafes(result.moved)} to your account';
+  if (result.moved == 0) return "Couldn't move your saves yet";
+  return 'Moved ${result.moved} of ${cafes(result.total)} to your account';
 }

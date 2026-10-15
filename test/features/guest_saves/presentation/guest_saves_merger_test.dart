@@ -77,7 +77,7 @@ void main() {
     await saves.set(_cafe('b'), CafeStatus.been);
     analytics.events.clear();
 
-    final merged = await merger.merge();
+    final merged = (await merger.merge()).added;
 
     expect(merged, 2);
     expect(repo.writes, ['a', 'b']);
@@ -85,7 +85,11 @@ void main() {
     expect(saves.state.isEmpty, isTrue);
     expect(await GuestSavesStore().read(), isEmpty);
     expect(analytics.names, [SavesEvents.guestSavesMerged]);
-    expect(analytics.propertiesOf(SavesEvents.guestSavesMerged), {'count': 2});
+    expect(analytics.propertiesOf(SavesEvents.guestSavesMerged), {
+      'count': 2,
+      'moved': 2,
+      'failed': 0,
+    });
   });
 
   test('a cafe the account already has keeps the account status and is '
@@ -94,9 +98,12 @@ void main() {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     await saves.set(_cafe('b'), CafeStatus.wantToTry);
 
-    final merged = await merger.merge();
+    final result = await merger.merge();
 
-    expect(merged, 1);
+    expect(result.added, 1);
+    // Both are in the account now, so both count as moved for the toast.
+    expect(result.moved, 2);
+    expect(result.failed, 0);
     expect(repo.writes, ['b']);
     expect(repo.server['a'], CafeStatus.been);
     expect(saves.state.isEmpty, isTrue);
@@ -106,7 +113,7 @@ void main() {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     statuses.showLocal(saves.state.statusMap);
 
-    expect(await merger.merge(), 1);
+    expect((await merger.merge()).added, 1);
     expect(repo.writes, ['a']);
     expect(statuses.state.local, isEmpty);
   });
@@ -118,10 +125,17 @@ void main() {
       await saves.set(_cafe('a'), CafeStatus.wantToTry);
       analytics.events.clear();
 
-      expect(await merger.merge(), 0);
+      final result = await merger.merge();
+      expect(result.added, 0);
+      expect(result.failed, 1);
       expect(repo.writes, isEmpty);
       expect(saves.state.statusFor('a'), CafeStatus.wantToTry);
-      expect(analytics.events, isEmpty);
+      // Reported, so failed moves can be counted.
+      expect(analytics.propertiesOf(SavesEvents.guestSavesMerged), {
+        'count': 0,
+        'moved': 0,
+        'failed': 1,
+      });
     },
   );
 
@@ -130,17 +144,20 @@ void main() {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     await saves.set(_cafe('b'), CafeStatus.been);
 
-    expect(await merger.merge(), 1);
+    final first = await merger.merge();
+    expect(first.added, 1);
+    expect(first.failed, 1);
+    expect(first.total, 2);
     expect([for (final s in saves.state.saves) s.cafeId], ['b']);
 
     repo.failWriteFor = {};
-    expect(await merger.merge(), 1);
+    expect((await merger.merge()).added, 1);
     expect(saves.state.isEmpty, isTrue);
     expect(repo.server, {'a': CafeStatus.wantToTry, 'b': CafeStatus.been});
   });
 
   test('nothing to merge logs nothing', () async {
-    expect(await merger.merge(), 0);
+    expect((await merger.merge()).isEmpty, isTrue);
     expect(analytics.events, isEmpty);
   });
 
@@ -149,7 +166,7 @@ void main() {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     repo.failRead = true;
 
-    expect(await merger.merge(), 0);
+    expect((await merger.merge()).added, 0);
     expect(saves.state.saves, hasLength(1));
 
     await merger.discardLeftovers();
