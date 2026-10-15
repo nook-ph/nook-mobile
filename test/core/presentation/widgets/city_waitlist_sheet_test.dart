@@ -29,6 +29,23 @@ void main() {
     expect(CityWaitlistSheet.clean('   '), '');
   });
 
+  test('analyticsCity sends place names, never contact details', () {
+    expect(CityWaitlistSheet.analyticsCity('davao'), 'Davao');
+    expect(CityWaitlistSheet.analyticsCity(' Iloilo City '), 'Iloilo City');
+    expect(CityWaitlistSheet.analyticsCity('Dumaguete'), 'Dumaguete');
+    expect(CityWaitlistSheet.analyticsCity('Parañaque'), 'Parañaque');
+    expect(
+      CityWaitlistSheet.analyticsCity('Juan Dela Cruz, juan@gmail.com, Makati'),
+      CityWaitlistSheet.other,
+    );
+    expect(CityWaitlistSheet.analyticsCity('0917 123 4567'), 'other');
+    expect(CityWaitlistSheet.analyticsCity('123 Rizal St, Makati'), 'other');
+    expect(
+      CityWaitlistSheet.analyticsCity('my house near the old church plaza'),
+      'other',
+    );
+  });
+
   testWidgets('a picked city is logged with its surface', (tester) async {
     await tester.pumpWidget(_app());
     await tester.tap(find.text('ask'));
