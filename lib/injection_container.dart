@@ -14,7 +14,9 @@ import 'package:nook/features/search/data/supabase_saved_places_repository.dart'
 import 'package:nook/features/search/domain/repositories/i_place_search_repository.dart';
 import 'package:nook/features/search/domain/repositories/i_saved_places_repository.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
+import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
+import 'package:nook/core/preferences/onboarding_purpose_store.dart';
 import 'package:nook/core/preferences/review_draft_store.dart';
 import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -130,6 +132,12 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<LastSavedListStore>(() => LastSavedListStore());
   sl.registerLazySingleton<LocationPromptStore>(() => LocationPromptStore());
+  sl.registerLazySingleton<HomeLocationPromptStore>(
+    () => HomeLocationPromptStore(),
+  );
+  sl.registerLazySingleton<OnboardingPurposeStore>(
+    () => OnboardingPurposeStore(),
+  );
   sl.registerLazySingleton<ReviewDraftStore>(() => ReviewDraftStore());
   sl.registerLazySingleton<TermsAcceptanceStore>(() => TermsAcceptanceStore());
   sl.registerLazySingleton<FakeStampStore>(() => FakeStampStore());
