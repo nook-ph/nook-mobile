@@ -195,6 +195,34 @@ void main() {
       },
     );
 
+    test('ids are sent at most 100 per call', () async {
+      final calls = <int>[];
+      final layout = HomeLayout.fromRpc(
+        _response(
+          'v1',
+          sections: [
+            for (var s = 0; s < 5; s++)
+              {
+                'id': 'custom:$s',
+                'type': 'custom',
+                'title': 'S$s',
+                'source': 'picked',
+                'cafe_ids': [for (var i = 0; i < 30; i++) 'c$s-$i'],
+              },
+          ],
+        ),
+      );
+      final shelves = await GetLayoutShelvesUseCase(
+        repository: _Repo(),
+        cafesByIds: (ids) async {
+          calls.add(ids.length);
+          return [for (final id in ids) _cafe(id)];
+        },
+      )(layout);
+      expect(calls, [100, 50]);
+      expect(shelves['custom:4'], hasLength(30));
+    });
+
     test('a failed id fetch leaves the sections out', () async {
       final shelves =
           await GetLayoutShelvesUseCase(

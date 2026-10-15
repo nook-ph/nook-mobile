@@ -20,6 +20,9 @@ const minCustomShelfCafes = 3;
 ///   beans) make. A `nearby` rule without a position falls back to
 ///   `top_rated`, as Local beans does.
 class GetLayoutShelvesUseCase {
+  /// `get_cafes_by_ids` raises above 100 ids.
+  static const maxIdsPerCall = 100;
+
   GetLayoutShelvesUseCase({
     required this.repository,
     required Future<List<CafeSummary>> Function(List<String> ids) cafesByIds,
@@ -59,16 +62,32 @@ class GetLayoutShelvesUseCase {
     final futures = <Future<void>>[];
 
     if (picked.isNotEmpty) {
+      // One call per [maxIdsPerCall] distinct ids (the RPC refuses more
+      // than 100). A section whose ids were in a failed call is left out.
       final ids = <String>{for (final s in picked) ...s.cafeIds}.toList();
       futures.add(() async {
-        try {
-          final cafes = await _cafesByIds(ids);
-          final byId = {for (final c in cafes) c.id: c};
-          for (final s in picked) {
-            out[s.id] = [for (final id in s.cafeIds) ?byId[id]];
-          }
-        } catch (_) {
+        final byId = <String, CafeSummary>{};
+        final failed = <String>{};
+        await Future.wait([
+          for (var i = 0; i < ids.length; i += maxIdsPerCall)
+            () async {
+              final chunk = ids.sublist(
+                i,
+                (i + maxIdsPerCall).clamp(0, ids.length),
+              );
+              try {
+                for (final c in await _cafesByIds(chunk)) {
+                  byId[c.id] = c;
+                }
+              } catch (_) {
+                failed.addAll(chunk);
+              }
+            }(),
+        ]);
+        for (final s in picked) {
           // Left out: House picks go automatic, custom shelves hide.
+          if (s.cafeIds.any(failed.contains)) continue;
+          out[s.id] = [for (final id in s.cafeIds) ?byId[id]];
         }
       }());
     }
