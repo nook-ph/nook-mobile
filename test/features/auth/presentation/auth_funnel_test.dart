@@ -107,6 +107,19 @@ void main() {
       expect(funnel.method, isNull);
     });
 
+    test('signing out from the username step is not a cancelled provider '
+        'sheet', () {
+      funnel.onEvent(const AuthSignInWithGoogleEvent());
+      go(AuthLoading());
+      go(const AuthNeedsUsername(user: _user));
+      // "Use a different account".
+      go(AuthLoading());
+      go(const AuthLoggedOut());
+
+      expect(logged.map((e) => e['event']), [AuthEvents.signinStarted]);
+      expect(funnel.method, isNull);
+    });
+
     test('a restored session is not an attempt', () {
       go(AuthLoading());
       go(const AuthAuthenticated(_user));

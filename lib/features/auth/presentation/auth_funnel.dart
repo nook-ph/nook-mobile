@@ -64,10 +64,12 @@ class AuthFunnel {
 
     if (next is AuthUnauthenticated || next is AuthLoggedOut) {
       // Google and Apple report a closed sheet by going straight back to
-      // signed out; nothing else ends a provider attempt that way.
+      // signed out; nothing else ends a provider attempt that way. Once the
+      // provider has answered with a new account (the username step), a
+      // sign-out is that step's to report (AuthStepTracker), not a cancel.
       final provider =
           method == AuthMethod.google || method == AuthMethod.apple;
-      if (provider && current is AuthLoading) {
+      if (provider && current is AuthLoading && !_newAccount) {
         _log(AuthEvents.signinStepAbandoned, {
           'step': AuthStep.provider,
           'reason': AuthAbandonReason.cancelled,
