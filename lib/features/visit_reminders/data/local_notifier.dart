@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:nook/features/visit_reminders/data/visit_reminder_store.dart';
 import 'package:timezone/timezone.dart' as tz;
@@ -13,7 +13,7 @@ enum NookChannel {
   visits(
     id: 'visits_and_ratings',
     name: 'Visits and ratings',
-    description: 'A quick reminder to rate a cafe after you visit',
+    description: 'One reminder to mark a cafe Been after you get directions',
   );
 
   const NookChannel({
@@ -29,11 +29,11 @@ enum NookChannel {
 
 /// Ids carried by the post-visit notification and its buttons.
 abstract final class VisitReminderActions {
-  static const rate = 'rate';
+  static const went = 'went';
   static const didntGo = 'didnt_go';
   static const category = 'visit_reminder';
 
-  static const rateLabel = 'Rate it';
+  static const wentLabel = 'I went';
   static const didntGoLabel = "Didn't go";
 }
 
@@ -58,12 +58,19 @@ abstract class LocalNotifier {
   /// The tap that launched the app from scratch, if any.
   Future<NotificationTap?> launchTap();
 
+  /// Whether the OS lets Nook post at all (app level).
   Future<bool> areEnabled();
+
+  /// Whether the visit reminders channel is muted on its own in the
+  /// phone's settings (Android). False where channels don't exist.
+  Future<bool> channelMuted();
 
   /// Shows the system dialog where the platform has one. True if granted.
   Future<bool> requestPermission();
 
-  Future<void> openSettings();
+  /// The phone's notification settings for Nook; with [channel], the
+  /// visit reminders channel's own page where the platform has one.
+  Future<void> openSettings({bool channel = false});
 
   Future<void> schedule({
     required int id,
@@ -99,6 +106,9 @@ class PluginLocalNotifier implements LocalNotifier {
   final FlutterLocalNotificationsPlugin _plugin;
   bool _ready = false;
 
+  /// `MainActivity`: opens one channel's settings page.
+  static const _settings = MethodChannel('app.nookph/notification_settings');
+
   static bool get _isIOS => defaultTargetPlatform == TargetPlatform.iOS;
 
   AndroidFlutterLocalNotificationsPlugin? get _android => _plugin
@@ -127,8 +137,8 @@ class PluginLocalNotifier implements LocalNotifier {
             VisitReminderActions.category,
             actions: [
               DarwinNotificationAction.plain(
-                VisitReminderActions.rate,
-                VisitReminderActions.rateLabel,
+                VisitReminderActions.went,
+                VisitReminderActions.wentLabel,
                 options: {DarwinNotificationActionOption.foreground},
               ),
               DarwinNotificationAction.plain(
@@ -151,8 +161,20 @@ class PluginLocalNotifier implements LocalNotifier {
       ),
       onDidReceiveBackgroundNotificationResponse: visitReminderBackgroundTap,
     );
+    // Made up front, so the channel is in the phone's settings (and can be
+    // read as muted) before the first reminder. Asks for nothing.
+    try {
+      await _android?.createNotificationChannel(_visitsChannel);
+    } catch (_) {}
     _ready = true;
   }
+
+  static AndroidNotificationChannel get _visitsChannel =>
+      AndroidNotificationChannel(
+        NookChannel.visits.id,
+        NookChannel.visits.name,
+        description: NookChannel.visits.description,
+      );
 
   @override
   Future<NotificationTap?> launchTap() async {
@@ -182,6 +204,20 @@ class PluginLocalNotifier implements LocalNotifier {
   }
 
   @override
+  Future<bool> channelMuted() async {
+    if (_isIOS) return false;
+    try {
+      final channels = await _android?.getNotificationChannels();
+      for (final c in channels ?? const <AndroidNotificationChannel>[]) {
+        if (c.id == NookChannel.visits.id) {
+          return c.importance == Importance.none;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  @override
   Future<bool> requestPermission() async {
     try {
       if (_isIOS) {
@@ -199,7 +235,15 @@ class PluginLocalNotifier implements LocalNotifier {
   }
 
   @override
-  Future<void> openSettings() async {
+  Future<void> openSettings({bool channel = false}) async {
+    if (channel && !_isIOS) {
+      try {
+        final opened = await _settings.invokeMethod<bool>('openChannel', {
+          'channelId': NookChannel.visits.id,
+        });
+        if (opened == true) return;
+      } catch (_) {}
+    }
     try {
       await _plugin.openAppNotificationSettings();
     } catch (_) {}
@@ -227,8 +271,8 @@ class PluginLocalNotifier implements LocalNotifier {
         autoCancel: true,
         actions: const [
           AndroidNotificationAction(
-            VisitReminderActions.rate,
-            VisitReminderActions.rateLabel,
+            VisitReminderActions.went,
+            VisitReminderActions.wentLabel,
             showsUserInterface: true,
           ),
           AndroidNotificationAction(
