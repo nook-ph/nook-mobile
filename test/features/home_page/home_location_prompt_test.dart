@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_location_prompt.dart';
 import 'package:nook/utils/theme/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/analytics/recording_analytics.dart';
+
 void main() {
+  late RecordingAnalytics analytics;
+
   setUp(() {
+    analytics = RecordingAnalytics.install(addTearDown);
     SharedPreferences.setMockInitialValues({});
     resetHomeLocationPromptLog();
   });
@@ -66,16 +72,6 @@ void main() {
     });
   });
 
-  test('locationResultName', () {
-    expect(locationResultName(LocationPermission.whileInUse), 'granted');
-    expect(locationResultName(LocationPermission.always), 'granted');
-    expect(locationResultName(LocationPermission.denied), 'denied');
-    expect(
-      locationResultName(LocationPermission.deniedForever),
-      'denied_forever',
-    );
-  });
-
   group('HomeLocationPrompt', () {
     Future<void> pump(
       WidgetTester tester, {
@@ -122,6 +118,16 @@ void main() {
 
       expect(requests, 1);
       expect(granted, 1);
+      expect(analytics.flat, [
+        [
+          LocationPromptEvents.shown,
+          {'surface': 'home'},
+        ],
+        [
+          LocationPromptEvents.result,
+          {'surface': 'home', 'result': 'while_in_use', 'system_prompt': true},
+        ],
+      ]);
       expect(find.text('See cafes near you'), findsNothing);
       expect(await LocationPromptStore().hasRequested(), isTrue);
     });
@@ -143,6 +149,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(requests, 0);
+      expect(analytics.flat.last, [
+        LocationPromptEvents.result,
+        {'surface': 'home', 'result': 'not_now', 'system_prompt': false},
+      ]);
       expect(find.text('See cafes near you'), findsNothing);
       expect(await HomeLocationPromptStore().isDismissed(), isTrue);
       expect(await LocationPromptStore().hasRequested(), isFalse);

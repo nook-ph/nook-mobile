@@ -2,15 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/location/location_prompt_tracking.dart';
 import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
 import 'package:nook/injection_container.dart';
-
-/// `surface` on this prompt's location events.
-const homeLocationSurface = 'home';
 
 /// Whether Home should offer "See cafes near you".
 ///
@@ -38,20 +35,15 @@ Future<bool> shouldOfferHomeLocation({
   }
 }
 
-/// `result` for `location_permission_result` from a system answer.
-String locationResultName(LocationPermission permission) =>
-    switch (permission) {
-      LocationPermission.always || LocationPermission.whileInUse => 'granted',
-      LocationPermission.deniedForever => 'denied_forever',
-      _ => 'denied',
-    };
-
-/// `location_prompt_shown` goes once per launch, even if the feed is rebuilt
-/// (a retry) and the row with it.
-bool _shownLogged = false;
+/// One tracker per launch, so `location_prompt_shown` and the answer go once
+/// even if the feed is rebuilt (a retry) and the row with it.
+LocationPromptTracker _tracker = LocationPromptTracker(
+  LocationPromptSurface.home,
+);
 
 @visibleForTesting
-void resetHomeLocationPromptLog() => _shownLogged = false;
+void resetHomeLocationPromptLog() =>
+    _tracker = LocationPromptTracker(LocationPromptSurface.home);
 
 /// A soft "See cafes near you" row on Home. Home used to never ask for
 /// location (only Map did), so "Near you" never appeared for anyone who
@@ -115,15 +107,9 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
     if (mounted && offer) setState(() => _visible = true);
   }
 
-  void _logResult(String result) {
-    logAppEvent(
-      'location_permission_result',
-      properties: {'surface': homeLocationSurface, 'result': result},
-    );
-  }
-
   void _dismiss(String result) {
-    _logResult(result);
+    // Turned down before the system prompt was shown.
+    _tracker.result(result, systemPrompt: false);
     unawaited(_store.markDismissed().catchError((_) {}));
     setState(() => _visible = false);
   }
@@ -153,12 +139,15 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
       final answer =
           await (widget.requestPermission ?? Geolocator.requestPermission)();
       if (!mounted) return false;
-      final result = locationResultName(answer);
-      _logResult(result);
+      _tracker.resultFor(answer);
       setState(() => _visible = false);
-      if (result == 'granted') widget.onGranted();
-      return result == 'granted';
+      final granted =
+          answer == LocationPermission.always ||
+          answer == LocationPermission.whileInUse;
+      if (granted) widget.onGranted();
+      return granted;
     } catch (_) {
+      _tracker.result('unavailable');
       if (mounted) setState(() => _visible = false);
       return false;
     } finally {
@@ -172,13 +161,7 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
     // Not while a page covers Home (a suggestion opened from onboarding):
     // "shown" should mean seen.
     final onTop = ModalRoute.of(context)?.isCurrent ?? true;
-    if (onTop && !_shownLogged) {
-      _shownLogged = true;
-      logAppEvent(
-        'location_prompt_shown',
-        properties: {'surface': homeLocationSurface},
-      );
-    }
+    if (onTop) _tracker.shown();
     // Figma "Banner wrap": 4 above and below, like the denied banner.
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
