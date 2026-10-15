@@ -32,6 +32,15 @@ class HomeCafeSection extends StatelessWidget {
   /// snake_case ("Laptop-friendly" -> `laptop_friendly`).
   final String? rail;
 
+  /// `section` on `cafe_card_tapped`. Defaults to [sort], else [title]; a
+  /// shelf renamed by the Home layout passes its default title here so the
+  /// event keeps its value.
+  final String? section;
+
+  /// Where "See all" goes when it is not a sorted search: a custom shelf's
+  /// own page (`/shelf/custom:<id>`). Takes precedence over [sort].
+  final String? seeAllLocation;
+
   const HomeCafeSection({
     super.key,
     required this.title,
@@ -40,6 +49,8 @@ class HomeCafeSection extends StatelessWidget {
     this.isSkeleton = false,
     this.sort,
     this.rail,
+    this.section,
+    this.seeAllLocation,
   });
 
   /// [rail], else [sort], else the title in snake_case.
@@ -75,15 +86,7 @@ class HomeCafeSection extends StatelessWidget {
         HomeSectionTitle(
           title,
           subtitle: subtitle,
-          onSeeAll: sort == null || isSkeleton
-              ? null
-              : () {
-                  logAppEvent(
-                    HomeEvents.seeAllTapped,
-                    properties: {'sort': sort!},
-                  );
-                  context.push('/search?sort=$sort');
-                },
+          onSeeAll: isSkeleton ? null : _seeAll(context, railId),
         ),
         const SizedBox(height: 12),
         PrototypeHeight(
@@ -108,7 +111,7 @@ class HomeCafeSection extends StatelessWidget {
               width: cardWidth,
               height: imageHeight,
               isSkeleton: isSkeleton,
-              section: sort ?? title,
+              section: this.section ?? sort ?? title,
               position: index,
               rail: isSkeleton ? null : railId,
             ),
@@ -118,6 +121,24 @@ class HomeCafeSection extends StatelessWidget {
     );
     if (isSkeleton) return section;
     return HomeRailImpression(rail: railId, child: section);
+  }
+}
+
+extension on HomeCafeSection {
+  VoidCallback? _seeAll(BuildContext context, String railId) {
+    final location = seeAllLocation;
+    if (location != null) {
+      return () {
+        logAppEvent(HomeEvents.seeAllTapped, properties: {'rail': railId});
+        context.push(location);
+      };
+    }
+    final sort = this.sort;
+    if (sort == null) return null;
+    return () {
+      logAppEvent(HomeEvents.seeAllTapped, properties: {'sort': sort});
+      context.push('/search?sort=$sort');
+    };
   }
 }
 

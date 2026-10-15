@@ -24,6 +24,8 @@ import 'package:nook/features/auth/presentation/pages/signup_details_page.dart';
 import 'package:nook/features/auth/presentation/pages/username_setup_page.dart';
 import 'package:nook/features/search/presentation/pages/search_results_page.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
+import 'package:nook/features/home_page/presentation/home_link.dart';
+import 'package:nook/features/home_page/presentation/pages/home_shelf_page.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
 GoRouter createAppRouter(AuthBloc authBloc) {
@@ -175,6 +177,21 @@ GoRouter createAppRouter(AuthBloc authBloc) {
                   : CrawlDetailPage(shareCode: target.code);
             },
           ),
+
+          /// One shelf of the Home layout in full (`nook://shelf/<id>`): a
+          /// banner's landing and custom shelves' "See all". Built-in
+          /// shelves that are a search open that search instead.
+          GoRoute(
+            path: 'shelf/:id',
+            redirect: (context, state) =>
+                builtinShelfSearch(state.pathParameters['id'] ?? ''),
+            builder: (context, state) => HomeShelfPage(
+              sectionId: state.pathParameters['id'] ?? '',
+              header: state.extra is HomeShelfHeader
+                  ? state.extra! as HomeShelfHeader
+                  : null,
+            ),
+          ),
         ],
       ),
 
@@ -254,7 +271,13 @@ GoRouter createAppRouter(AuthBloc authBloc) {
           final query = state.uri.queryParameters['q'] ?? '';
           // A Home shelf's "See all" opens the full list in its order.
           final sort = state.uri.queryParameters['sort'];
-          return SearchResultsPage(query: query, sort: sort);
+          // `tag=` (one tag name) opens results filtered to it.
+          final tag = state.uri.queryParameters['tag']?.trim();
+          return SearchResultsPage(
+            query: query,
+            sort: sort,
+            tag: tag == null || tag.isEmpty ? null : tag,
+          );
         },
       ),
     ],

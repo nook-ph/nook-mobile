@@ -46,12 +46,25 @@ List<CafeSummary> yourPlaces({
 /// than the same shelves as the first. For guests (saves kept on this phone)
 /// and accounts alike. Renders nothing while empty.
 class YourPlacesRail extends StatefulWidget {
-  const YourPlacesRail({super.key, this.isSignedIn, this.repository});
+  const YourPlacesRail({
+    super.key,
+    this.isSignedIn,
+    this.repository,
+    this.title = YourPlacesRail.defaultTitle,
+    this.padding = YourPlacesRow.leadingPadding,
+  });
 
   /// Rail id for analytics: `section` on its cards, and `rail` on
   /// `home_rail_impression` / `home_rail_card_tapped`.
   static const railId = 'your_places';
-  static const title = 'Your places';
+  static const defaultTitle = 'Your places';
+
+  /// The shelf title (the Home layout can rename it).
+  final String title;
+
+  /// Space around the row; it carries its own gap so an empty row leaves
+  /// none. [YourPlacesRow.leadingPadding] at the top of Home.
+  final EdgeInsets padding;
   static const maxCards = 15;
 
   /// Defaults to the Supabase session; tests pass their own.
@@ -133,6 +146,8 @@ class _YourPlacesRailState extends State<YourPlacesRail> {
                             s.cafe.toSummary(),
                         ];
                   return YourPlacesRow(
+                    title: widget.title,
+                    padding: widget.padding,
                     cafes: yourPlaces(
                       wantToTry: wantToTry,
                       recent: [for (final r in recent) r.cafe.toSummary()],
@@ -209,11 +224,21 @@ class YourPlacesRow extends StatelessWidget {
   const YourPlacesRow({
     super.key,
     required this.cafes,
+    this.title = YourPlacesRail.defaultTitle,
+    this.padding = leadingPadding,
     this.progress,
     this.onProgressTap,
   });
 
+  /// Above the other shelves: the gap Home puts between shelves, under it.
+  static const leadingPadding = EdgeInsets.only(bottom: 28);
+
+  /// Below another shelf: the gap above it instead.
+  static const followingPadding = EdgeInsets.only(top: 28);
+
   final List<CafeSummary> cafes;
+  final String title;
+  final EdgeInsets padding;
 
   /// "1 been · 2 to try" beside the title. Shown only while something is
   /// still on Want to Try: the rail leads with those, and with none left
@@ -238,12 +263,12 @@ class YourPlacesRow extends StatelessWidget {
     final imageHeight = ResponsiveCardSizes.cafeImageHeight(context);
     final cardWidth = ResponsiveCardSizes.cafeCardWidth(context);
     final row = Padding(
-      padding: const EdgeInsets.only(bottom: 28),
+      padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           HomeSectionTitle(
-            YourPlacesRail.title,
+            title,
             trailing: showProgress
                 ? PlacesProgressPill(progress: progress!, onTap: onProgressTap)
                 : null,
