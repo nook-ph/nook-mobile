@@ -37,4 +37,31 @@ void main() {
       'reason': 'outside_cebu',
     });
   });
+
+  testWidgets('sticky: a remount with the same reason logs nothing until '
+      'reset', (tester) async {
+    final analytics = RecordingAnalytics.install(addTearDown);
+    addTearDown(() => EmptyStateTracker.reset('map'));
+    Widget sticky() => Directionality(
+      textDirection: TextDirection.ltr,
+      child: EmptyStateTracker(
+        screen: 'map',
+        reason: 'outside_cebu',
+        sticky: true,
+        child: const Text('empty'),
+      ),
+    );
+
+    // Empty, skeleton, empty again: one pan.
+    await tester.pumpWidget(sticky());
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(sticky());
+    expect(analytics.names, [EmptyStateEvents.shown]);
+
+    // Results came back in between: a new empty state.
+    EmptyStateTracker.reset('map');
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(sticky());
+    expect(analytics.names, [EmptyStateEvents.shown, EmptyStateEvents.shown]);
+  });
 }

@@ -298,6 +298,7 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
                       Flexible(
                         child: EmptyStateTracker(
                           screen: 'map',
+                          sticky: true,
                           reason:
                               'load_error_${AppErrorCopy.fromException(widget.error!).type.name}',
                           child: MapSheetStateView.error(
@@ -555,6 +556,7 @@ class _CafeList extends StatelessWidget {
       if (!filtered && _outsideCebu(context)) {
         return EmptyStateTracker(
           screen: 'map',
+          sticky: true,
           reason: 'outside_cebu',
           child: MapSheetStateView.outsideCebu(
             onRequestCity: () => requestCityWaitlist(context, surface: 'map'),
@@ -563,6 +565,7 @@ class _CafeList extends StatelessWidget {
       }
       return EmptyStateTracker(
         screen: 'map',
+        sticky: true,
         reason: filtered ? 'filtered' : 'no_cafes_in_area',
         child: MapSheetStateView.noCafes(
           onClearFilters: filtered
@@ -576,6 +579,10 @@ class _CafeList extends StatelessWidget {
         ),
       );
     }
+
+    // Results: the next empty state (each pan reloads through the skeleton)
+    // is a new one, worth logging again.
+    if (!isLoadingCafes) EmptyStateTracker.reset('map');
 
     // "Nearby" lists the cafes by distance from where distances are
     // measured (the chosen place, else the phone), the same point the rows
