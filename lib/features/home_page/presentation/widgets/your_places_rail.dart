@@ -221,7 +221,10 @@ class YourPlacesRow extends StatelessWidget {
               itemCount: cafes.length,
               separatorBuilder: (_, _) =>
                   const SizedBox(width: ResponsiveCardSizes.homeCardGap),
+              // Keyed by cafe: the newest save comes first, so positions
+              // change hands on every save (review #1).
               itemBuilder: (_, index) => HomeCafeCard(
+                key: ValueKey(cafes[index].id),
                 cafe: cafes[index],
                 width: cardWidth,
                 height: imageHeight,
