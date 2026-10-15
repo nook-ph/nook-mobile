@@ -36,6 +36,20 @@ class AuthReturn {
     _target = location;
   }
 
+  /// Remembers the page on screen now, for a sign-in that starts in place
+  /// (Google or Apple from a guest sheet) rather than on a pushed login
+  /// screen. Home (`/`) is not recorded, as in [rememberOrigin].
+  static void rememberCurrent(GoRouter router) {
+    _target = null;
+    final config = router.routerDelegate.currentConfiguration;
+    if (config.matches.isEmpty) return;
+    final top = config.matches.last;
+    final location =
+        (top is ImperativeRouteMatch ? top.matches.uri : config.uri).toString();
+    if (location == '/' || location.startsWith('/login')) return;
+    _target = location;
+  }
+
   /// The recorded page, cleared so it is used once.
   static String? take() {
     final target = _target;
@@ -46,8 +60,12 @@ class AuthReturn {
 
 /// Ends sign-in: Home, then the page the guest started from on top of it, so
 /// Back from that page still leads Home.
-void finishSignIn(BuildContext context) {
-  final router = GoRouter.of(context);
+void finishSignIn(BuildContext context) =>
+    finishSignInWith(GoRouter.of(context));
+
+/// [finishSignIn] for a caller whose own context may be gone by then (a
+/// sheet that closed when sign-in began).
+void finishSignInWith(GoRouter router) {
   final target = AuthReturn.take();
   logAppEvent(
     'sign_in_finished',

@@ -1,11 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
+import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 
 /// Tells a guest why an action needs an account instead of dropping them on
-/// the login page. "Not now" leaves them where they were.
+/// the login page. Google and Apple sign in from the sheet; email opens the
+/// login page. "Not now" leaves them where they were.
+///
+/// [title] and [reason] are the caller's, so each place can say what the
+/// account is for there ("Keep your saves on any phone").
 ///
 /// Values are the Figma "Sheet / Guest sign-in" frame (1605:11273, and the
 /// Saved / Profile variants 1605:15849 and 1605:16067).
@@ -26,6 +31,8 @@ class GuestSignInSheet extends StatelessWidget {
   /// One or two lines under the title saying what the account is for.
   final String reason;
 
+  /// The single button the sheet used to have. No longer shown: Google,
+  /// Apple and email ([SheetSignInChoices]) took its place.
   static const primaryLabel = 'Sign in or create account';
   static const dismissLabel = 'Not now';
 
@@ -36,14 +43,15 @@ class GuestSignInSheet extends StatelessWidget {
   static const _ink = Color(0xFF0A0F0D);
   static const _muted = Color(0xFF868584);
 
-  /// Opens the sheet; the primary button closes it and pushes `/login`.
+  /// Opens the sheet. Google or Apple signs in from here and comes back to
+  /// this page; email pushes `/login` ([continueSignInFromSheet]).
   static Future<void> show(
     BuildContext context, {
     required IconData icon,
     required String title,
     required String reason,
   }) async {
-    final signIn = await showModalBottomSheet<bool>(
+    final choice = await showModalBottomSheet<SignInChoice>(
       context: context,
       isScrollControlled: true,
       backgroundColor: _sheet,
@@ -54,7 +62,7 @@ class GuestSignInSheet extends StatelessWidget {
       builder: (_) =>
           GuestSignInSheet(icon: icon, title: title, reason: reason),
     );
-    if (signIn == true && context.mounted) context.push('/login');
+    if (context.mounted) await continueSignInFromSheet(context, choice);
   }
 
   @override
@@ -115,19 +123,15 @@ class GuestSignInSheet extends StatelessWidget {
           gap,
           const SizedBox(height: 12),
           gap,
-          _SheetButton(
-            label: primaryLabel,
-            height: 48,
-            color: _brand,
-            textColor: _sheet,
-            onTap: () => Navigator.of(context).pop(true),
+          SheetSignInChoices(
+            onChoice: (choice) => Navigator.of(context).pop(choice),
           ),
           gap,
           _SheetButton(
             label: dismissLabel,
             height: 44,
             textColor: _ink,
-            onTap: () => Navigator.of(context).pop(false),
+            onTap: () => Navigator.of(context).pop(),
           ),
         ],
       ),
@@ -141,12 +145,10 @@ class _SheetButton extends StatelessWidget {
     required this.height,
     required this.textColor,
     required this.onTap,
-    this.color,
   });
 
   final String label;
   final double height;
-  final Color? color;
   final Color textColor;
   final VoidCallback onTap;
 
@@ -162,12 +164,6 @@ class _SheetButton extends StatelessWidget {
           // A minimum, so the label can grow with large text settings.
           constraints: BoxConstraints(minHeight: height),
           alignment: Alignment.center,
-          decoration: color == null
-              ? null
-              : BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(100),
-                ),
           child: Text(
             label,
             textAlign: TextAlign.center,
