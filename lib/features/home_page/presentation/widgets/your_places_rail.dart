@@ -19,6 +19,7 @@ import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart
 import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
+import 'package:nook/features/lists/presentation/open_want_to_try.dart';
 import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -143,6 +144,13 @@ class _YourPlacesRailState extends State<YourPlacesRail> {
                         : PlacesProgress.fromStatuses(
                             guest.saves.map((s) => s.status),
                           ),
+                    onProgressTap: () => openWantToTry(
+                      context,
+                      surface: 'home',
+                      lists: _signedIn
+                          ? _maybeListsBloc()?.userLists ?? const []
+                          : const [],
+                    ),
                   );
                 },
               ),
@@ -198,14 +206,22 @@ class _YourPlacesRailState extends State<YourPlacesRail> {
 /// the gap Home puts between shelves under it. Nothing when [cafes] is empty.
 /// Logs `home_rail_impression` and `home_rail_card_tapped` as `your_places`.
 class YourPlacesRow extends StatelessWidget {
-  const YourPlacesRow({super.key, required this.cafes, this.progress});
+  const YourPlacesRow({
+    super.key,
+    required this.cafes,
+    this.progress,
+    this.onProgressTap,
+  });
 
   final List<CafeSummary> cafes;
 
-  /// "Been to 3 of 8" beside the title. Shown only while something is
+  /// "1 been · 2 to try" beside the title. Shown only while something is
   /// still on Want to Try: the rail leads with those, and with none left
   /// the count has no goal to point at.
   final PlacesProgress? progress;
+
+  /// The pill opens the Want to try list.
+  final VoidCallback? onProgressTap;
 
   static const _prototypeCafe = CafeSummary(
     id: '',
@@ -229,7 +245,7 @@ class YourPlacesRow extends StatelessWidget {
           HomeSectionTitle(
             YourPlacesRail.title,
             trailing: showProgress
-                ? PlacesProgressPill(progress: progress!)
+                ? PlacesProgressPill(progress: progress!, onTap: onProgressTap)
                 : null,
           ),
           const SizedBox(height: 12),

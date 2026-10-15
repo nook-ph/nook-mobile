@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
@@ -129,7 +130,7 @@ void main() {
       tester,
     ) async {
       await pump(tester, system);
-      expect(find.textContaining('Been to'), findsNothing);
+      expect(find.byType(PlacesProgressPill), findsNothing);
     });
 
     testWidgets('progress counts Been against Been plus Want to Try', (
@@ -146,9 +147,9 @@ void main() {
         // Custom lists are not counted.
         cafeList(id: 'c', name: 'Matcha', cafeCount: 9),
       ]);
-      expect(find.text('Been to 3 of 8'), findsOneWidget);
+      expect(find.text('3 been · 5 to try'), findsOneWidget);
       expect(
-        find.bySemanticsLabel('Been to 3 of your 8 places'),
+        find.bySemanticsLabel('3 cafes been, 5 to try, open Want to try'),
         findsOneWidget,
       );
       expect(tester.takeException(), isNull);

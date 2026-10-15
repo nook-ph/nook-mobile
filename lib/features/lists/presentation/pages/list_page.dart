@@ -1,3 +1,6 @@
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/analytics/saves_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -208,6 +211,10 @@ class ListsOverview extends StatelessWidget {
         return _recencyOf(b).compareTo(_recencyOf(a));
       });
 
+    final wantToTry = systemLists
+        .where((l) => l.listType == CafeStatus.wantToTry.wire)
+        .firstOrNull;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         ListsTokens.gutter,
@@ -219,6 +226,15 @@ class ListsOverview extends StatelessWidget {
         ListsTitleRow(
           title: 'Your lists',
           progress: PlacesProgress.fromLists(lists),
+          onProgressTap: wantToTry == null
+              ? null
+              : () {
+                  logAppEvent(
+                    SavesEvents.placesProgressTapped,
+                    properties: {'surface': 'saved_tab'},
+                  );
+                  onOpenList(wantToTry);
+                },
         ),
         const SizedBox(height: 20),
         for (var i = 0; i < systemLists.length; i++) ...[
