@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
+import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/discovery_events.dart';
@@ -201,6 +203,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       AnalyticsService.viewDetails,
       metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
     );
+    recordEngagement(EngagementAction.cafeView);
     // A cafe has been seen: Home may now offer "See cafes near you".
     if (sl.isRegistered<HomeLocationPromptStore>()) {
       unawaited(

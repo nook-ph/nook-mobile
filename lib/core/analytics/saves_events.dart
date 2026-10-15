@@ -27,22 +27,40 @@ abstract final class SavesEvents {
   /// The nudge's Save was tapped. Properties: `cafe_id`.
   static const directionsSaveNudgeTapped = 'directions_save_nudge_tapped';
 
-  /// "Saved on this phone. Sign in to keep it everywhere." Properties:
-  /// `surface` (`first_save_toast`, the one-time toast after a guest's first
-  /// save; `saved_tab`, the card on a guest's Saved tab).
+  /// A keep-your-saves sign-in offer was shown. Properties: `surface`
+  /// (`saved_tab`, the card on a guest's Saved tab; `first_save_toast`, the
+  /// old first-save toast, no longer sent).
   static const keepSavesPromptShown = 'keep_saves_prompt_shown';
 
   /// That prompt's Sign in was tapped. Properties: `surface`.
   static const keepSavesPromptTapped = 'keep_saves_prompt_tapped';
+
+  /// The engagement-score ask (the keep-saves sign-in sheet) was shown.
+  /// Properties: `trigger` (`after_save`, `home_return`), `score` (the
+  /// guest's score at the ask), `ask_number` (1 to 3).
+  static const signUpAskShown = 'signup_ask_shown';
+
+  /// That ask was dismissed. Properties: as shown, plus `score_after` (the
+  /// score once the dismissal took its points off).
+  static const signUpAskDismissed = 'signup_ask_dismissed';
+
+  /// A sign-in was chosen from that ask. Properties: as shown, plus
+  /// `provider` (`google`, `apple`, `email`).
+  static const signUpAskAccepted = 'signup_ask_accepted';
 }
 
 /// Values of the `surface` property on the keep-saves prompt events.
 abstract final class KeepSavesSurface {
+  /// The one-time toast after a guest's first save. No longer sent: that
+  /// line has no Sign in now, and the engagement score asks instead.
   static const firstSaveToast = 'first_save_toast';
   static const savedTab = 'saved_tab';
 
   /// After "I went" on the visit reminder.
   static const reminder = 'reminder';
+
+  /// The sheet the engagement score asks with.
+  static const engagementAsk = 'engagement_ask';
 }
 
 /// Values of the `source` property on a save or a ranking that did not come
@@ -50,4 +68,7 @@ abstract final class KeepSavesSurface {
 abstract final class SavesSource {
   /// "I went" (or the body) on the visit reminder.
   static const reminder = 'reminder';
+
+  /// The "Save to Want to try?" nudge after directions.
+  static const directionsNudge = 'directions_nudge';
 }

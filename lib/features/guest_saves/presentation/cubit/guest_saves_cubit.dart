@@ -105,11 +105,11 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     }
   }
 
-  /// True once per phone: whether to show "Saved on this phone. Sign in to
-  /// keep it everywhere."
-  Future<bool> claimKeepSavesPrompt() async {
+  /// True once per phone: whether to show "Saved on this phone. Sign in any
+  /// time to keep it."
+  Future<bool> claimFirstSaveLine() async {
     try {
-      return await _store.claimKeepSavesPrompt();
+      return await _store.claimFirstSaveLine();
     } catch (_) {
       return false;
     }

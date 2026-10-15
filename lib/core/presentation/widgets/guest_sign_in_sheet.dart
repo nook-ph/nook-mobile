@@ -50,7 +50,10 @@ class GuestSignInSheet extends StatelessWidget {
   ///
   /// [trigger] names what needed an account (`saved_tab`, `save_place`, ...)
   /// for `signin_prompt_shown` / `signin_prompt_dismissed`.
-  static Future<void> show(
+  ///
+  /// Returns how they chose to sign in, or null when the sheet was
+  /// dismissed ("Not now", a swipe, Back).
+  static Future<SignInChoice?> show(
     BuildContext context, {
     required IconData icon,
     required String title,
@@ -72,9 +75,10 @@ class GuestSignInSheet extends StatelessWidget {
     );
     if (choice == null) {
       logAppEvent(SignInPromptEvents.dismissed, properties: props);
-      return;
+      return null;
     }
     if (context.mounted) await continueSignInFromSheet(context, choice);
+    return choice;
   }
 
   @override
@@ -141,7 +145,8 @@ class GuestSignInSheet extends StatelessWidget {
           gap,
           _SheetButton(
             label: dismissLabel,
-            height: 44,
+            // 48: the touch floor (review finding 6).
+            height: 48,
             textColor: _ink,
             onTap: () => Navigator.of(context).pop(),
           ),

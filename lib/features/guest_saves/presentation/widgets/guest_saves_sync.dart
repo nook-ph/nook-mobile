@@ -7,7 +7,10 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
+import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
+import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/features/guest_saves/presentation/guest_saves_merger.dart';
+import 'package:nook/injection_container.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
@@ -54,9 +57,33 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
       widget.isSignedIn?.call() ??
       Supabase.instance.client.auth.currentSession != null;
 
+  /// When the app was last sent to the background, to tell a new session
+  /// (back after [SignUpAskRules.sessionGap]) from a quick switch.
+  DateTime? _hiddenAt;
+  late final AppLifecycleListener _lifecycle;
+
+  void _onShow() {
+    final hidden = _hiddenAt;
+    _hiddenAt = null;
+    if (hidden != null &&
+        DateTime.now().difference(hidden) >= SignUpAskRules.sessionGap) {
+      _recordSession();
+    }
+  }
+
+  void _recordSession() {
+    if (!sl.isRegistered<EngagementScore>()) return;
+    unawaited(sl<EngagementScore>().recordSession());
+  }
+
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(
+      onHide: () => _hiddenAt = DateTime.now(),
+      onShow: _onShow,
+    );
+    _recordSession();
     unawaited(context.read<RecentlyViewedCubit>().load());
     final saves = context.read<GuestSavesCubit>();
     unawaited(
@@ -90,6 +117,12 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     final toast = widget.toastContext?.call();
     if (toast == null || !toast.mounted) return;
     showMergeToast(toast, result, onRetry: () => unawaited(_merge()));
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   @override

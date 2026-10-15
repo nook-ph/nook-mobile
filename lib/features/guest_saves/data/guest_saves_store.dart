@@ -81,8 +81,11 @@ class GuestSavesStore {
   /// True the first time it is called on this phone, false after.
   Future<bool> claimFirstSave() => _claim(_firstSaveKey);
 
-  /// True the first time it is called on this phone, false after.
-  Future<bool> claimKeepSavesPrompt() => _claim(_keepPromptKey);
+  /// True the first time it is called on this phone, false after: whether
+  /// a guest save shows "Saved on this phone. Sign in any time to keep it."
+  /// The key predates that line (it once held a sign-in prompt), so a phone
+  /// that saw the old prompt does not get the line again.
+  Future<bool> claimFirstSaveLine() => _claim(_keepPromptKey);
 
   Future<bool> _claim(String key) async {
     final prefs = await SharedPreferences.getInstance();

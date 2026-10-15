@@ -116,9 +116,9 @@ void main() {
   test('the keep-saves prompt is claimed once per phone', () async {
     final cubit = newCubit();
 
-    expect(await cubit.claimKeepSavesPrompt(), isTrue);
-    expect(await cubit.claimKeepSavesPrompt(), isFalse);
-    expect(await newCubit().claimKeepSavesPrompt(), isFalse);
+    expect(await cubit.claimFirstSaveLine(), isTrue);
+    expect(await cubit.claimFirstSaveLine(), isFalse);
+    expect(await newCubit().claimFirstSaveLine(), isFalse);
     await cubit.close();
   });
 

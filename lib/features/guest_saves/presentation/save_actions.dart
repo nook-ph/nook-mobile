@@ -5,16 +5,18 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
-import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
 import 'package:nook/core/presentation/tab_requests.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
+import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
+import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
+import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
@@ -23,9 +25,19 @@ import 'package:nook/injection_container.dart';
 /// Opens the Saved tab from anywhere: a toast's "View", the merge toast.
 void openSavedTab() => TabRequests.open(MainShell.savedTab);
 
-/// The copy of the one-time prompt after a guest's first save.
-const keepSavesPromptMessage =
-    'Saved on this phone. Sign in to keep it everywhere.';
+/// The line after a guest's first save: where it went, and that an account
+/// is optional. Not an ask (that comes from the engagement score).
+const firstSaveMessage = 'Saved on this phone. Sign in any time to keep it.';
+
+/// After later saves: where it went, with View (Saved) and Undo.
+String savedToMessage(CafeStatus status) =>
+    status == CafeStatus.been ? 'Added to Been' : 'Saved to Want to try';
+const saveUndoLabel = 'Undo';
+const saveViewLabel = 'View';
+
+/// The first-save line stays this long (or, with a screen reader on, until
+/// closed).
+const firstSaveDuration = Duration(seconds: 10);
 
 /// The sign-in sheet's title and reason when a guest asks to keep their
 /// saves (the first-save toast, the Saved tab card).
@@ -36,14 +48,16 @@ const keepSavesSheetReason =
 /// Opens the guest sign-in sheet with the keep-your-saves reason. Google or
 /// Apple sign in right there (GuestSavesSync then moves the saves to the
 /// account); email opens `/login`. [surface] is a [KeepSavesSurface] value.
-Future<void> openKeepSavesSignIn(BuildContext context, String surface) =>
-    GuestSignInSheet.show(
-      context,
-      icon: LucideIcons.bookmark,
-      title: keepSavesSheetTitle,
-      reason: keepSavesSheetReason,
-      trigger: 'keep_saves_$surface',
-    );
+Future<SignInChoice?> openKeepSavesSignIn(
+  BuildContext context,
+  String surface,
+) => GuestSignInSheet.show(
+  context,
+  icon: LucideIcons.bookmark,
+  title: keepSavesSheetTitle,
+  reason: keepSavesSheetReason,
+  trigger: 'keep_saves_$surface',
+);
 
 /// The sheet after a guest's "I went" on the visit reminder: the cafe is
 /// already marked Been on this phone; ranking it needs an account.
@@ -75,6 +89,7 @@ Future<void> markBeenFromReminder(
       showPrimaryToast(context, "Couldn't save. Please try again.");
       return;
     }
+    recordEngagement(EngagementAction.save);
   }
   if (!context.mounted) return;
   dismissToasts();
@@ -90,11 +105,13 @@ Future<void> markBeenFromReminder(
 /// A guest tapped Been or Want to Try on [cafe]: kept on this phone, with
 /// the same toggle rule as the signed-in pills (tapping the current status
 /// clears it). Been skips the ranking flow, which needs an account.
+/// [source] is a [SavesSource] value when the tap was not a plain one.
 Future<void> toggleGuestStatus(
   BuildContext context, {
   required CafeSnapshot cafe,
   required CafeStatus tapped,
   double bottomOffset = 0,
+  String? source,
 }) async {
   final saves = context.read<GuestSavesCubit>();
   await saves.load();
@@ -102,7 +119,7 @@ Future<void> toggleGuestStatus(
   final next = current == tapped ? CafeStatus.none : tapped;
   if (next != CafeStatus.none) HapticFeedback.lightImpact();
 
-  final outcome = await saves.set(cafe, next);
+  final outcome = await saves.set(cafe, next, source: source);
   if (!context.mounted) return;
   if (outcome == null) {
     showPrimaryToast(
@@ -130,49 +147,65 @@ Future<void> toggleGuestStatus(
   await _confirmGuestSave(
     context,
     saves: saves,
+    cafe: cafe,
     status: next,
+    previous: current,
     bottomOffset: bottomOffset,
+    source: source,
   );
 }
 
-/// The toast after a guest's save: once per phone, the soft sign-in prompt;
-/// afterwards the same words a signed-in save gets.
+/// After a guest's save: the engagement score's ask when it is due (a save
+/// is a value moment), else a toast saying where the save went. Once per
+/// phone that is the "Saved on this phone" line; after it, "Saved to Want
+/// to try" with View and Undo.
 Future<void> _confirmGuestSave(
   BuildContext context, {
   required GuestSavesCubit saves,
+  required CafeSnapshot cafe,
   required CafeStatus status,
+  required CafeStatus previous,
   required double bottomOffset,
+  String? source,
 }) async {
-  final prompt = await saves.claimKeepSavesPrompt();
+  final engagement = sl.isRegistered<EngagementScore>()
+      ? sl<EngagementScore>()
+      : null;
+  await engagement?.record(EngagementAction.save);
   if (!context.mounted) return;
-  if (prompt) {
-    showKeepSavesPrompt(context, bottomOffset: bottomOffset);
+  // One ask per trip: the directions nudge was this trip's, so its save
+  // only confirms. The score asks at the next value moment instead.
+  if (engagement != null && source != SavesSource.directionsNudge) {
+    final asked = await engagement.maybeAsk(
+      context,
+      trigger: SignUpAskTrigger.afterSave,
+      hasSaves: true,
+    );
+    if (asked || !context.mounted) return;
+  }
+
+  void undo() => unawaited(saves.set(cafe, previous));
+  final firstLine = await saves.claimFirstSaveLine();
+  if (!context.mounted) return;
+  if (firstLine) {
+    showPrimaryToastWithAction(
+      context,
+      firstSaveMessage,
+      actionLabel: saveUndoLabel,
+      onAction: undo,
+      duration: toastDurationFor(context, firstSaveDuration),
+      bottomOffset: bottomOffset,
+    );
     return;
   }
-  showPrimaryToast(context, switch (status) {
-    CafeStatus.been => 'Added to Been',
-    _ => 'Saved for your next coffee run',
-  }, bottomOffset: bottomOffset);
-}
-
-/// "Saved on this phone. Sign in to keep it everywhere." A toast with a
-/// Sign in action, never a wall: ignoring it keeps the save.
-void showKeepSavesPrompt(BuildContext context, {double bottomOffset = 0}) {
-  const surface = {'surface': KeepSavesSurface.firstSaveToast};
-  logAppEvent(SavesEvents.keepSavesPromptShown, properties: surface);
   showPrimaryToastWithAction(
     context,
-    keepSavesPromptMessage,
-    actionLabel: 'Sign in',
-    duration: const Duration(seconds: 6),
-    onAction: () {
-      logAppEvent(SavesEvents.keepSavesPromptTapped, properties: surface);
-      if (context.mounted) {
-        unawaited(
-          openKeepSavesSignIn(context, KeepSavesSurface.firstSaveToast),
-        );
-      }
-    },
+    savedToMessage(status),
+    secondaryActionLabel: saveUndoLabel,
+    onSecondaryAction: undo,
+    actionLabel: saveViewLabel,
+    onAction: openSavedTab,
+    duration: toastDurationFor(context, const Duration(seconds: 5)),
     bottomOffset: bottomOffset,
   );
 }
@@ -185,6 +218,7 @@ Future<bool> saveWantToTry(
   required CafeSnapshot cafe,
   required bool signedIn,
   double bottomOffset = 0,
+  String? source,
 }) async {
   if (!signedIn) {
     final saves = context.read<GuestSavesCubit>();
@@ -196,6 +230,7 @@ Future<bool> saveWantToTry(
       cafe: cafe,
       tapped: CafeStatus.wantToTry,
       bottomOffset: bottomOffset,
+      source: source,
     );
     return saves.state.statusFor(cafe.id) == CafeStatus.wantToTry;
   }

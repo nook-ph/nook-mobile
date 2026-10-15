@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
+import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
@@ -146,6 +148,7 @@ Future<void> launchCafeDirections(
   // A likely visit, notifications already on: "Did you make it to …?" at
   // the time worked out above.
   if (decision.scheduleOnLaunch) unawaited(reminders?.confirmTrip());
+  recordEngagement(EngagementAction.directions);
   // The cafe page may offer to save it once the person is back.
   DirectionsLaunches.notify(cafeId);
 }

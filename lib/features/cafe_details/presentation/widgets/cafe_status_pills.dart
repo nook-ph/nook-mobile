@@ -20,6 +20,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_com
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
+import 'package:nook/features/guest_saves/presentation/widgets/directions_save_nudge.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
@@ -391,15 +392,25 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
               return BlocSelector<CafeRankingCubit, CafeRankingState, String?>(
                 selector: (ranking) =>
                     ranking.rankingFor(_cafeId)?.displayScore,
-                builder: (context, score) => CafeStatusControl(
-                  fill: true,
-                  compact: compact,
-                  status: state.statusFor(_cafeId),
-                  isBusy: state.isPending(_cafeId),
-                  score: score,
-                  onTapBeen: () => _onStatusTap(CafeStatus.been),
-                  onTapWantToTry: () => _onStatusTap(CafeStatus.wantToTry),
-                ),
+                builder: (context, score) =>
+                    ValueListenableBuilder<Set<String>>(
+                      valueListenable: DirectionsSaveNudge.offered,
+                      builder: (context, offered, _) => CafeStatusControl(
+                        fill: true,
+                        compact: compact,
+                        status: state.statusFor(_cafeId),
+                        isBusy: state.isPending(_cafeId),
+                        score: score,
+                        // The directions nudge's offer, kept on the pill
+                        // after its toast has gone.
+                        suggestWantToTry:
+                            offered.contains(_cafeId) &&
+                            state.statusFor(_cafeId) == CafeStatus.none,
+                        onTapBeen: () => _onStatusTap(CafeStatus.been),
+                        onTapWantToTry: () =>
+                            _onStatusTap(CafeStatus.wantToTry),
+                      ),
+                    ),
               );
             },
           );
