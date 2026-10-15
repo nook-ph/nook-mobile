@@ -108,8 +108,8 @@ void main() async {
   }
 
   await initDependencies();
-  // Sets notifications up without asking for anything; the ask comes after
-  // a Directions tap or a save.
+  // Sets notifications up without asking for anything; the ask comes at a
+  // Directions tap.
   unawaited(sl<VisitReminderService>().start(statuses: sl<CafeStatusCubit>()));
   // The session replay root: a frame is only captured inside it.
   runApp(
@@ -157,8 +157,8 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  /// "How was [cafe]?" was tapped: open that cafe, and with "Rate it" go
-  /// straight to marking it Been.
+  /// "Did you make it to [cafe]?" was tapped (the body or "I went"): open
+  /// that cafe and mark it Been.
   void _openFromReminder() {
     final request = _reminders.openRequests.value;
     final router = _router;
@@ -168,7 +168,7 @@ class _MyAppState extends State<MyApp> {
     router.push(
       Uri(
         path: '/cafe/${request.cafeId}',
-        queryParameters: request.rate ? const {'rate': '1'} : null,
+        queryParameters: const {'went': '1'},
       ).toString(),
     );
   }

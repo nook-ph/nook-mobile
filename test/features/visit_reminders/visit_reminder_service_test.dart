@@ -29,8 +29,14 @@ class _FakeNotifier implements LocalNotifier {
   @override
   Future<NotificationTap?> launchTap() async => launch;
 
+  bool muted = false;
+  bool? openedChannel;
+
   @override
   Future<bool> areEnabled() async => enabled;
+
+  @override
+  Future<bool> channelMuted() async => muted;
 
   @override
   Future<bool> requestPermission() async {
@@ -42,7 +48,8 @@ class _FakeNotifier implements LocalNotifier {
   }
 
   @override
-  Future<void> openSettings() async {}
+  Future<void> openSettings({bool channel = false}) async =>
+      openedChannel = channel;
 
   @override
   Future<void> schedule({
@@ -65,6 +72,34 @@ class _NoRepo implements ICafeRepository {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
+/// An install id in the [arm] bucket.
+String installIn(HoldoutArm arm) {
+  for (var i = 0; ; i++) {
+    if (VisitReminderRules.holdoutArm('install$i') == arm) return 'install$i';
+  }
+}
+
+/// Every day the same hours, Manila wall clock.
+Map<String, dynamic> _daily(String open, String close) => {
+  for (final day in const [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+  ])
+    day: {'open': open, 'close': close},
+};
+
+/// Cafe hours are Manila wall clock and the 09-21 window is the phone's;
+/// the hours tests read 12:00 local as 12:00 Manila.
+final Object notManila =
+    DateTime(2026, 10, 16, 12).timeZoneOffset != const Duration(hours: 8)
+    ? 'needs a UTC+8 host'
+    : false;
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -82,7 +117,9 @@ void main() {
   );
 
   setUp(() {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({
+      'visitReminders.installId': installIn(HoldoutArm.ask),
+    });
     notifier = _FakeNotifier();
     store = VisitReminderStore();
     analytics = RecordingAnalytics.install(addTearDown);
@@ -101,55 +138,237 @@ void main() {
     return service;
   }
 
-  Future<void> directions(VisitReminderService s, String id) =>
-      s.onDirections(cafeId: id, cafeName: 'Cafe $id', status: CafeStatus.none);
+  Future<DirectionsDecision> tap(
+    VisitReminderService s,
+    String id, {
+    CafeStatus status = CafeStatus.none,
+    Map<String, dynamic>? hours,
+  }) => s.onDirectionsTap(
+    cafeId: id,
+    cafeName: 'Cafe $id',
+    status: status,
+    operatingHours: hours,
+  );
+
+  /// A Directions tap with permission already on, Maps opened.
+  Future<void> directions(VisitReminderService s, String id) async {
+    final decision = await tap(s, id);
+    if (decision.scheduleOnLaunch) await s.confirmTrip();
+  }
+
+  String? skipReason() =>
+      analytics.propertiesOf(NotificationEvents.prePromptSkipped)?['reason']
+          as String?;
 
   test(
-    'with permission, Directions schedules "How was …?" 90 min on',
+    'with permission, Directions schedules "Did you make it…?" 90 min on',
     () async {
       notifier.enabled = true;
       final service = await started();
-      await directions(service, 'a');
+      final decision = await tap(service, 'a');
+      expect(decision.ask, isFalse);
+      expect(decision.scheduleOnLaunch, isTrue);
+      // Nothing until Maps has opened.
+      expect(notifier.scheduled, isEmpty);
+      await service.confirmTrip();
 
       final sent = notifier.scheduled[visitReminderIdFor('a')]!;
-      expect(sent.at, DateTime(2026, 10, 16, 13, 30));
-      expect(sent.title, 'How was Cafe a?');
+      expect(sent.at, clock.add(const Duration(minutes: 90)));
+      expect(sent.title, 'Did you make it to Cafe a?');
       expect(sent.payload, 'a');
+      expect(skipReason(), 'granted');
       expect(analytics.propertiesOf(NotificationEvents.postVisitScheduled), {
         'cafe_id': 'a',
         'delay_min': 90,
         'deferred': false,
         'replaced': 0,
+        'cafe_open': 'unknown',
+        'promised_at': sent.at.toUtc().toIso8601String(),
       });
     },
   );
 
-  test('without permission nothing is scheduled', () async {
+  test('not asked yet: the ask is offered with the real time', () async {
     final service = await started();
-    await directions(service, 'a');
+    final decision = await tap(service, 'a');
+    expect(decision.ask, isTrue);
+    expect(decision.trip?.fireAt, clock.add(const Duration(minutes: 90)));
     expect(notifier.scheduled, isEmpty);
-    expect(
-      analytics.propertiesOf(NotificationEvents.postVisitSkipped)?['reason'],
-      'no_permission',
-    );
   });
 
-  test(
-    'turned off in Settings: nothing scheduled, pending cancelled',
-    () async {
+  test('Remind me, then Allow, schedules at the promised time', () async {
+    final service = await started();
+    final decision = await tap(service, 'a');
+    clock = clock.add(const Duration(seconds: 20));
+    final granted = await service.requestPermission(
+      trigger: NotificationPromptTrigger.directions,
+    );
+    expect(granted, isTrue);
+    expect(notifier.scheduled.values.single.at, decision.trip!.fireAt);
+    expect(await store.readTrip(), isNull);
+    expect(analytics.propertiesOf(NotificationEvents.permissionResult), {
+      'trigger': 'directions',
+      'granted': true,
+      'prompted': true,
+    });
+  });
+
+  test('Deny drops the trip; nothing is scheduled', () async {
+    notifier.grant = false;
+    final service = await started();
+    await tap(service, 'a');
+    await service.requestPermission(
+      trigger: NotificationPromptTrigger.directions,
+    );
+    expect(notifier.scheduled, isEmpty);
+    expect(await store.readTrip(), isNull);
+  });
+
+  test('a trip survives the app being killed during the ask', () async {
+    final first = await started();
+    await tap(first, 'a');
+    // Killed with the system dialog up; allowed from the phone's settings.
+    notifier.enabled = true;
+    final second = make();
+    await second.start(statuses: statuses);
+    addTearDown(second.dispose);
+    expect(notifier.scheduled.keys, [visitReminderIdFor('a')]);
+    expect(await store.readTrip(), isNull);
+  });
+
+  group('no ask when nothing would be sent', () {
+    test(
+      'closed at the tap and not opening in time',
+      skip: notManila,
+      () async {
+        final service = await started();
+        // 12:00 Manila; opens 16:00, after the 13:30 send time.
+        final decision = await tap(
+          service,
+          'a',
+          hours: _daily('16:00', '22:00'),
+        );
+        expect(decision.ask, isFalse);
+        expect(decision.trip, isNull);
+        expect(skipReason(), 'closed');
+        expect(
+          analytics.propertiesOf(
+            NotificationEvents.postVisitSkipped,
+          )?['reason'],
+          'closed',
+        );
+      },
+    );
+
+    test('closed but opening first: 90 min from opening', () async {
+      notifier.enabled = true;
+      final service = await started();
+      // 12:00 Manila; opens 13:00, before the 13:30 send time.
+      final decision = await tap(service, 'a', hours: _daily('13:00', '22:00'));
+      await service.confirmTrip();
+      expect(decision.trip, isNotNull);
+      expect(
+        notifier.scheduled.values.single.at,
+        DateTime(2026, 10, 16, 14, 30), // 13:00 + 90 min
+      );
+      expect(
+        analytics.propertiesOf(
+          NotificationEvents.postVisitScheduled,
+        )?['cafe_open'],
+        'opens_later',
+      );
+    }, skip: notManila);
+
+    test('turned off in Settings', () async {
+      notifier.enabled = true;
+      final service = await started();
+      await service.setEnabled(false);
+      expect((await tap(service, 'a')).trip, isNull);
+      expect(skipReason(), 'disabled');
+    });
+
+    test('already Been', () async {
+      notifier.enabled = true;
+      final service = await started();
+      expect((await tap(service, 'a', status: CafeStatus.been)).trip, isNull);
+      expect(skipReason(), 'already_been');
+    });
+
+    test('blocked: no ask, no reminder', () async {
+      notifier.grant = false;
+      final service = await started();
+      await service.requestPermission(trigger: 'settings');
+      await service.requestPermission(trigger: 'settings');
+      expect(await service.permission(), NotificationPermission.blocked);
+      expect((await tap(service, 'a')).ask, isFalse);
+      expect(skipReason(), 'blocked');
+    });
+
+    test('a muted channel counts as blocked', () async {
+      notifier.enabled = true;
+      notifier.muted = true;
+      final service = await started();
+      expect(await service.permission(), NotificationPermission.blocked);
+      expect(await service.channelMuted(), isTrue);
+      expect((await tap(service, 'a')).trip, isNull);
+      expect(skipReason(), 'blocked');
+      await service.openSystemSettings();
+      expect(notifier.openedChannel, isTrue);
+    });
+
+    test('once one went out today, no second today', () async {
       notifier.enabled = true;
       final service = await started();
       await directions(service, 'a');
-      await service.setEnabled(false);
-      expect(notifier.scheduled, isEmpty);
-      await directions(service, 'b');
-      expect(notifier.scheduled, isEmpty);
+      clock = clock.add(const Duration(hours: 3)); // a's has gone out
+      notifier.scheduled.clear();
+      expect((await tap(service, 'b')).trip, isNull);
+      expect(skipReason(), 'daily_cap');
+    });
+  });
+
+  group('the ask limits', () {
+    test('capped at 3, 7 days apart', () async {
+      final service = await started();
+      for (var i = 0; i < 3; i++) {
+        expect((await tap(service, 'a')).ask, isTrue);
+        await service.recordPrePromptShown();
+        await service.dropTrip();
+        expect((await tap(service, 'a')).ask, isFalse);
+        expect(skipReason(), i < 2 ? 'gap' : 'cap');
+        clock = clock.add(const Duration(days: 7));
+      }
+      expect((await tap(service, 'a')).ask, isFalse);
+      expect(skipReason(), 'cap');
+    });
+
+    test('the holdout never gets the ask, and the arm is logged', () async {
+      SharedPreferences.setMockInitialValues({
+        'visitReminders.installId': installIn(HoldoutArm.holdout),
+      });
+      final service = await started();
+      await Future<void>.delayed(Duration.zero);
       expect(
-        analytics.propertiesOf(NotificationEvents.postVisitSkipped)?['reason'],
-        'disabled',
+        analytics.propertiesOf(
+          NotificationEvents.notificationState,
+        )?['holdout_arm'],
+        'holdout',
       );
-    },
-  );
+      expect((await tap(service, 'a')).ask, isFalse);
+      expect(skipReason(), 'holdout');
+    });
+
+    test('a new install is bucketed once', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = await started();
+      final arm = await service.holdoutArm();
+      expect(await service.holdoutArm(), arm);
+      expect(
+        analytics.names.where((n) => n == NotificationEvents.holdoutAssigned),
+        hasLength(1),
+      );
+    });
+  });
 
   test('re-tapping Directions reschedules instead of stacking', () async {
     notifier.enabled = true;
@@ -158,7 +377,10 @@ void main() {
     clock = clock.add(const Duration(minutes: 20));
     await directions(service, 'a');
     expect(notifier.scheduled.length, 1);
-    expect(notifier.scheduled.values.single.at, DateTime(2026, 10, 16, 13, 50));
+    expect(
+      notifier.scheduled.values.single.at,
+      clock.add(const Duration(minutes: 90)),
+    );
     expect((await store.readPending()).length, 1);
   });
 
@@ -169,45 +391,6 @@ void main() {
     await directions(service, 'b');
     expect(notifier.scheduled.keys, [visitReminderIdFor('b')]);
     expect(notifier.cancelled, contains(visitReminderIdFor('a')));
-  });
-
-  test('once one went out today, no second today', () async {
-    notifier.enabled = true;
-    final service = await started();
-    await directions(service, 'a');
-    clock = DateTime(2026, 10, 16, 15); // a's 13:30 reminder has gone out
-    notifier.scheduled.clear();
-    await directions(service, 'b');
-    expect(notifier.scheduled, isEmpty);
-    expect(
-      analytics.propertiesOf(NotificationEvents.postVisitSkipped)?['reason'],
-      'daily_cap',
-    );
-  });
-
-  test('a late tap is deferred to 10:00 the next day', () async {
-    notifier.enabled = true;
-    clock = DateTime(2026, 10, 16, 20, 30);
-    final service = await started();
-    await directions(service, 'a');
-    expect(notifier.scheduled.values.single.at, DateTime(2026, 10, 17, 10));
-    expect(
-      analytics.propertiesOf(
-        NotificationEvents.postVisitScheduled,
-      )?['deferred'],
-      true,
-    );
-  });
-
-  test('a cafe already Been gets no reminder', () async {
-    notifier.enabled = true;
-    final service = await started();
-    await service.onDirections(
-      cafeId: 'a',
-      cafeName: 'A',
-      status: CafeStatus.been,
-    );
-    expect(notifier.scheduled, isEmpty);
   });
 
   test('marking the cafe Been before it fires cancels it', () async {
@@ -225,82 +408,40 @@ void main() {
     );
   });
 
-  group('the in-app ask', () {
-    test('after Directions: offered once per trip, while fresh', () async {
-      final service = await started();
-      await directions(service, 'a');
-      expect(await service.takeDirectionsPrompt('b'), isNull);
-      expect(await service.takeDirectionsPrompt('a'), 'Cafe a');
-      expect(await service.takeDirectionsPrompt('a'), isNull);
-
-      await directions(service, 'a');
-      clock = clock.add(const Duration(minutes: 61));
-      expect(await service.takeDirectionsPrompt('a'), isNull);
-    });
-
-    test('capped at 3, 7 days apart', () async {
-      final service = await started();
-      for (var i = 0; i < 3; i++) {
-        expect(await service.canShowPrePrompt(), isTrue);
-        await service.recordPrePromptShown();
-        expect(await service.canShowPrePrompt(), isFalse);
-        clock = clock.add(const Duration(days: 7));
-      }
-      expect(await service.canShowPrePrompt(), isFalse);
-    });
-
-    test('never once granted', () async {
-      notifier.enabled = true;
-      final service = await started();
-      expect(await service.canShowPrePrompt(), isFalse);
-    });
-
-    test('Turn on after Directions schedules from the tap time', () async {
-      final service = await started();
-      await directions(service, 'a');
-      clock = clock.add(const Duration(minutes: 2));
-      final granted = await service.requestPermission(
-        trigger: NotificationPromptTrigger.directions,
-      );
-      expect(granted, isTrue);
-      expect(
-        notifier.scheduled.values.single.at,
-        DateTime(2026, 10, 16, 13, 30),
-      );
-      expect(analytics.propertiesOf(NotificationEvents.permissionResult), {
-        'trigger': 'directions',
-        'granted': true,
-        'prompted': true,
-      });
-    });
-
-    test('two refusals on Android block further asks', () async {
-      notifier.grant = false;
-      final service = await started();
-      await service.requestPermission(trigger: 'save');
-      expect(await service.permission(), NotificationPermission.notAsked);
-      await service.requestPermission(trigger: 'save');
-      expect(await service.permission(), NotificationPermission.blocked);
-      expect(await service.canShowPrePrompt(), isFalse);
+  test('app open logs the notification state', () async {
+    notifier.enabled = true;
+    notifier.muted = true;
+    await started();
+    await Future<void>.delayed(Duration.zero);
+    expect(analytics.propertiesOf(NotificationEvents.notificationState), {
+      'app_enabled': true,
+      'channel_muted': true,
+      'permission': 'blocked',
+      'reminders_enabled': true,
+      'holdout_arm': 'ask',
     });
   });
 
   group('taps on the notification', () {
-    test('the body opens the cafe; Rate it opens it to rate', () async {
+    test('the body and I went both open the cafe as "I went"', () async {
       final service = await started();
       notifier.onTap!(const NotificationTap(payload: 'a'));
       expect(service.openRequests.value?.cafeId, 'a');
-      expect(service.openRequests.value?.rate, isFalse);
+      expect(analytics.propertiesOf(NotificationEvents.postVisitOpened), {
+        'cafe_id': 'a',
+        'action': 'body',
+      });
+      service.openRequests.value = null;
       notifier.onTap!(
         const NotificationTap(
           payload: 'a',
-          actionId: VisitReminderActions.rate,
+          actionId: VisitReminderActions.went,
         ),
       );
-      expect(service.openRequests.value?.rate, isTrue);
+      expect(service.openRequests.value?.cafeId, 'a');
       expect(analytics.propertiesOf(NotificationEvents.postVisitOpened), {
         'cafe_id': 'a',
-        'action': 'rate',
+        'action': 'went',
       });
     });
 
@@ -312,6 +453,7 @@ void main() {
           actionId: VisitReminderActions.didntGo,
         ),
       );
+      await Future<void>.delayed(Duration.zero);
       expect(service.openRequests.value, isNull);
       expect(analytics.names, contains(NotificationEvents.postVisitDidntGo));
     });
@@ -326,11 +468,53 @@ void main() {
       await VisitReminderStore.queueEvent({
         'event': 'didnt_go',
         'cafe_id': 'a',
+        'at': clock.millisecondsSinceEpoch,
       });
       await started();
       expect(analytics.propertiesOf(NotificationEvents.postVisitDidntGo), {
         'cafe_id': 'a',
       });
+    });
+
+    test("two Didn't go in a row pause the cafe for 30 days", () async {
+      notifier.enabled = true;
+      for (var i = 0; i < 2; i++) {
+        await VisitReminderStore.queueEvent({
+          'event': 'didnt_go',
+          'cafe_id': 'a',
+          'at': clock.millisecondsSinceEpoch,
+        });
+      }
+      final service = await started();
+      expect(analytics.names, contains(NotificationEvents.postVisitPaused));
+      expect((await tap(service, 'a')).trip, isNull);
+      expect(skipReason(), 'paused');
+      // Another cafe is not affected.
+      expect((await tap(service, 'b')).trip, isNotNull);
+      clock = clock.add(const Duration(days: 30, minutes: 1));
+      expect((await tap(service, 'a')).trip, isNotNull);
+    });
+
+    test("I went between two Didn't go resets the count", () async {
+      notifier.enabled = true;
+      final service = await started();
+      notifier.onTap!(
+        const NotificationTap(
+          payload: 'a',
+          actionId: VisitReminderActions.didntGo,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      notifier.onTap!(const NotificationTap(payload: 'a'));
+      await Future<void>.delayed(Duration.zero);
+      notifier.onTap!(
+        const NotificationTap(
+          payload: 'a',
+          actionId: VisitReminderActions.didntGo,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect((await tap(service, 'a')).trip, isNotNull);
     });
   });
 }

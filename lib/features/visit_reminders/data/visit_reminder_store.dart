@@ -1,11 +1,13 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:nook/features/visit_reminders/domain/visit_reminder_rules.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// What Nook remembers on this phone about visit reminders: the ones the OS
 /// is holding, the day one last went out, the Settings switch, how often the
-/// in-app ask was shown, and what the system dialog said.
+/// in-app ask was shown, what the system dialog said, the Directions trip
+/// waiting on the ask, "Didn't go" per cafe, and the install's holdout id.
 ///
 /// Phone-only, like the guest saves: no server, nothing per account.
 class VisitReminderStore {
@@ -16,6 +18,9 @@ class VisitReminderStore {
   static const _systemAsksKey = 'visitReminders.systemAsks';
   static const _everGrantedKey = 'visitReminders.everGranted';
   static const _lastAskInstantKey = 'visitReminders.lastAskInstant';
+  static const _tripKey = 'visitReminders.trip';
+  static const _missesKey = 'visitReminders.misses';
+  static const _installIdKey = 'visitReminders.installId';
 
   /// Events from a notification button tapped while Nook was not running
   /// ("Didn't go"): written by the background isolate, sent by the app the
@@ -102,6 +107,84 @@ class VisitReminderStore {
     await (await _prefs).setBool(_everGrantedKey, true);
   }
 
+  /// The Directions trip the ask is about, kept until it is scheduled or
+  /// dropped, so a reminder the person asked for survives the app being
+  /// killed between the tap and the system dialog's answer.
+  Future<VisitTrip?> readTrip() async {
+    final raw = (await _prefs).getString(_tripKey);
+    if (raw == null) return null;
+    try {
+      return VisitTrip.fromJson(jsonDecode(raw));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> writeTrip(VisitTrip? trip) async {
+    final prefs = await _prefs;
+    if (trip == null) {
+      await prefs.remove(_tripKey);
+    } else {
+      await prefs.setString(_tripKey, jsonEncode(trip.toJson()));
+    }
+  }
+
+  /// "Didn't go" in a row, and any pause, per cafe id.
+  Future<Map<String, ({int misses, DateTime? pausedUntil})>>
+  readMisses() async {
+    final raw = (await _prefs).getString(_missesKey);
+    if (raw == null) return const {};
+    try {
+      final map = jsonDecode(raw);
+      if (map is! Map) return const {};
+      return {
+        for (final e in map.entries)
+          if (e.value case {'misses': final int misses})
+            '${e.key}': (
+              misses: misses,
+              pausedUntil: switch (e.value['paused_until']) {
+                final int ms => DateTime.fromMillisecondsSinceEpoch(ms),
+                _ => null,
+              },
+            ),
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  Future<void> writeMisses(
+    Map<String, ({int misses, DateTime? pausedUntil})> misses,
+  ) async {
+    await (await _prefs).setString(
+      _missesKey,
+      jsonEncode({
+        for (final e in misses.entries)
+          e.key: {
+            'misses': e.value.misses,
+            'paused_until': ?e.value.pausedUntil?.millisecondsSinceEpoch,
+          },
+      }),
+    );
+  }
+
+  /// A random id for this install, made on first read; only for the
+  /// holdout bucket, never sent. [created] is true the first time.
+  Future<({String id, bool created})> installId() async {
+    final prefs = await _prefs;
+    final existing = prefs.getString(_installIdKey);
+    if (existing != null && existing.isNotEmpty) {
+      return (id: existing, created: false);
+    }
+    final random = Random.secure();
+    final id = [
+      for (var i = 0; i < 16; i++)
+        random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ].join();
+    await prefs.setString(_installIdKey, id);
+    return (id: id, created: true);
+  }
+
   /// Reads and clears the events the background isolate queued. Reloads
   /// first: that isolate wrote to the platform store behind this one's
   /// cache.
@@ -132,5 +215,52 @@ class VisitReminderStore {
     await prefs.reload();
     final list = prefs.getStringList(queuedEventsKey) ?? const [];
     await prefs.setStringList(queuedEventsKey, [...list, jsonEncode(event)]);
+  }
+}
+
+/// A Directions tap Nook may remind about: the cafe, the tap, when the
+/// reminder would go out, and whether the cafe was open.
+class VisitTrip {
+  const VisitTrip({
+    required this.cafeId,
+    required this.cafeName,
+    required this.tappedAt,
+    required this.fireAt,
+    required this.cafeOpen,
+  });
+
+  final String cafeId;
+  final String cafeName;
+  final DateTime tappedAt;
+  final DateTime fireAt;
+
+  /// [CafeOpenAtTap.wire].
+  final String cafeOpen;
+
+  Map<String, Object> toJson() => {
+    'cafe_id': cafeId,
+    'cafe_name': cafeName,
+    'tapped_at': tappedAt.millisecondsSinceEpoch,
+    'fire_at': fireAt.millisecondsSinceEpoch,
+    'cafe_open': cafeOpen,
+  };
+
+  static VisitTrip? fromJson(Object? json) {
+    if (json case {
+      'cafe_id': final String cafeId,
+      'cafe_name': final String cafeName,
+      'tapped_at': final int tappedAt,
+      'fire_at': final int fireAt,
+      'cafe_open': final String cafeOpen,
+    }) {
+      return VisitTrip(
+        cafeId: cafeId,
+        cafeName: cafeName,
+        tappedAt: DateTime.fromMillisecondsSinceEpoch(tappedAt),
+        fireAt: DateTime.fromMillisecondsSinceEpoch(fireAt),
+        cafeOpen: cafeOpen,
+      );
+    }
+    return null;
   }
 }

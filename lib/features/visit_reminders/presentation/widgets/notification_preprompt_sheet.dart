@@ -2,21 +2,19 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/notification_events.dart';
-import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
-import 'package:nook/injection_container.dart';
 
-/// The in-app ask before the system notification dialog, shown right after
-/// a moment that explains it: Directions to a cafe, or a save. Its words
-/// only promise what the one channel does today, a reminder to rate a visit.
+/// The in-app ask before the system notification dialog, shown at the
+/// Directions tap before Maps opens. The title is the real send time, worked
+/// out from this tap; "Just directions" goes on to Maps as before.
 ///
 /// Structure follows the guest sign-in sheet (grabber, icon in a tinted
 /// circle, centred title and reason) with the two choices stacked under it;
@@ -31,27 +29,20 @@ class NotificationPrePromptSheet extends StatelessWidget {
   final String title;
   final String reason;
 
-  static const turnOnLabel = 'Turn on';
-  static const notNowLabel = 'Not now';
+  static const remindLabel = 'Remind me';
+  static const justDirectionsLabel = 'Just directions';
 
-  static String directionsTitle(String cafeName) {
-    final name = cafeName.trim();
-    return name.isEmpty
-        ? 'Want a reminder to rate this cafe after your visit?'
-        : 'Want a reminder to rate $name after your visit?';
+  /// "Want a reminder around 4:35 PM?" or "…tomorrow at 10 AM?".
+  static String titleFor(DateTime fireAt, DateTime now) =>
+      'Want a reminder ${reminderTimePhrase(fireAt, now)}?';
+
+  static String reasonFor(String cafeName) {
+    final name = cafeName.trim().isEmpty ? 'the cafe' : cafeName.trim();
+    return 'One notification after your visit to $name, so you can mark it '
+        'Been.';
   }
 
-  static const directionsReason =
-      "We'll send one notification in about 90 minutes, so you can rate it "
-      'while it is fresh.';
-
-  // Named like the Settings switch it turns on: one name for one thing.
-  static const saveTitle = 'Want visit reminders?';
-  static const saveReason =
-      'When you get directions to a cafe, Nook sends one reminder '
-      'afterwards so you can rate it. Turn it off any time in Settings.';
-
-  /// Shows the sheet; true when "Turn on" was tapped.
+  /// Shows the sheet; true when "Remind me" was tapped.
   static Future<bool> show(
     BuildContext context, {
     required String title,
@@ -122,11 +113,12 @@ class NotificationPrePromptSheet extends StatelessWidget {
             Text(
               reason,
               textAlign: TextAlign.center,
-              style: ProfileTokens.text(14, color: ProfileTokens.muted),
+              // The darker muted (4.6:1): this line carries the promise.
+              style: ProfileTokens.text(14, color: ListsTokens.muted),
             ),
             const SizedBox(height: 28),
             ProfilePillButton(
-              label: turnOnLabel,
+              label: remindLabel,
               onTap: () => Navigator.of(context).pop(true),
             ),
             gap,
@@ -139,7 +131,7 @@ class NotificationPrePromptSheet extends StatelessWidget {
                   constraints: const BoxConstraints(minHeight: 48),
                   alignment: Alignment.center,
                   child: Text(
-                    notNowLabel,
+                    justDirectionsLabel,
                     style: ProfileTokens.text(14, weight: FontWeight.w500),
                   ),
                 ),
@@ -152,64 +144,47 @@ class NotificationPrePromptSheet extends StatelessWidget {
   }
 }
 
-/// When to show [NotificationPrePromptSheet], and what follows it.
+/// "around 4:35 PM", "around 10 AM" (later today), or "tomorrow at 10 AM",
+/// in the phone's local time.
+String reminderTimePhrase(DateTime fireAt, DateTime now) {
+  final minute = fireAt.minute;
+  final hour12 = fireAt.hour % 12 == 0 ? 12 : fireAt.hour % 12;
+  final period = fireAt.hour >= 12 ? 'PM' : 'AM';
+  final time = minute == 0
+      ? '$hour12 $period'
+      : '$hour12:${minute.toString().padLeft(2, '0')} $period';
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(fireAt.year, fireAt.month, fireAt.day);
+  return day.difference(today).inDays >= 1
+      ? 'tomorrow at $time'
+      : 'around $time';
+}
+
+/// The ask at a Directions tap, and the line after the system dialog.
 abstract final class VisitReminderPrompts {
-  static VisitReminderService? get _service =>
-      sl.isRegistered<VisitReminderService>()
-      ? sl<VisitReminderService>()
-      : null;
+  static const deniedMessage =
+      "Notifications stay off. You can allow them in your phone's settings.";
 
-  /// Back on the cafe page after Directions to [cafeId]. True when the ask
-  /// was shown (the caller then skips its own nudge, one ask at a time).
-  static Future<bool> afterDirections(
+  static String setMessage(DateTime fireAt, DateTime now) =>
+      'Reminder set for ${reminderTimePhrase(fireAt, now)}';
+
+  /// Long enough to read the line before Maps covers it.
+  static const readDelay = Duration(milliseconds: 1200);
+
+  /// Shows the ask for [decision] (when it has one) before Maps opens.
+  /// Returns once the person has chosen and any system dialog is answered;
+  /// the caller then opens Maps either way.
+  static Future<void> atDirections(
     BuildContext context,
-    String cafeId,
-  ) async {
-    final service = _service;
-    if (service == null) return false;
-    final name = await service.takeDirectionsPrompt(cafeId);
-    if (name == null || !context.mounted) return false;
-    unawaited(
-      _ask(
-        context,
-        service,
-        trigger: NotificationPromptTrigger.directions,
-        title: NotificationPrePromptSheet.directionsTitle(name),
-        reason: NotificationPrePromptSheet.directionsReason,
-      ),
-    );
-    return true;
-  }
-
-  /// Just after a Want to try save, once its confirmation has been seen.
-  static Future<void> afterSave(BuildContext context) async {
-    final service = _service;
-    if (service == null) return;
-    if (!await service.canShowPrePrompt()) return;
-    // Long enough to read "Saved for your next coffee run".
-    await Future<void>.delayed(const Duration(milliseconds: 1500));
-    if (!context.mounted) return;
-    // Left the page, or something else is on top: not now.
-    if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
-    await _ask(
-      context,
-      service,
-      trigger: NotificationPromptTrigger.save,
-      title: NotificationPrePromptSheet.saveTitle,
-      reason: NotificationPrePromptSheet.saveReason,
-    );
-  }
-
-  static Future<void> _ask(
-    BuildContext context,
-    VisitReminderService service, {
-    required String trigger,
-    required String title,
-    required String reason,
+    VisitReminderService service,
+    DirectionsDecision decision, {
+    double bottomOffset = 0,
+    DateTime Function() now = DateTime.now,
   }) async {
-    final statuses = context.read<CafeStatusCubit?>();
+    final trip = decision.trip;
+    if (!decision.ask || trip == null) return;
+    const props = {'trigger': NotificationPromptTrigger.directions};
     final number = await service.recordPrePromptShown();
-    final props = {'trigger': trigger};
     logAppEvent(
       NotificationEvents.prePromptShown,
       properties: {...props, 'prompt_number': number},
@@ -218,17 +193,24 @@ abstract final class VisitReminderPrompts {
     dismissToasts();
     final accepted = await NotificationPrePromptSheet.show(
       context,
-      title: title,
-      reason: reason,
+      title: NotificationPrePromptSheet.titleFor(trip.fireAt, now()),
+      reason: NotificationPrePromptSheet.reasonFor(trip.cafeName),
     );
     if (!accepted) {
       logAppEvent(NotificationEvents.prePromptDismissed, properties: props);
+      await service.dropTrip();
       return;
     }
     logAppEvent(NotificationEvents.prePromptAccepted, properties: props);
-    await service.requestPermission(
-      trigger: trigger,
-      statusOf: statuses?.state.statusFor,
+    final granted = await service.requestPermission(
+      trigger: NotificationPromptTrigger.directions,
     );
+    if (!context.mounted) return;
+    showPrimaryToast(
+      context,
+      granted ? setMessage(trip.fireAt, now()) : deniedMessage,
+      bottomOffset: bottomOffset,
+    );
+    await Future<void>.delayed(readDelay);
   }
 }

@@ -30,7 +30,6 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/widgets/directions_save_nudge.dart';
-import 'package:nook/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/injection_container.dart';
@@ -79,14 +78,14 @@ class CafeDetailsPage extends StatefulWidget {
   const CafeDetailsPage({
     super.key,
     required this.cafeId,
-    this.rateOnOpen = false,
+    this.wentOnOpen = false,
   });
 
   final String cafeId;
 
-  /// Opened from the visit reminder's "Rate it": mark the cafe Been once it
-  /// has loaded (signed in, that leads into rating it).
-  final bool rateOnOpen;
+  /// Opened from the visit reminder ("I went"): mark the cafe Been once it
+  /// has loaded, then the one "How was it?" step.
+  final bool wentOnOpen;
 
   /// Cafe pages open now, newest last.
   static final List<_CafeDetailsPageState> _open = [];
@@ -155,13 +154,13 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   /// "Save to Want to try?" after directions to this cafe, if it isn't saved.
   late final DirectionsSaveNudge _directionsNudge;
 
-  /// [CafeDetailsPage.rateOnOpen], used once: a reload of the cafe must not
+  /// [CafeDetailsPage.wentOnOpen], used once: a reload of the cafe must not
   /// mark it again.
-  late bool _rateRequested = widget.rateOnOpen;
+  late bool _wentRequested = widget.wentOnOpen;
 
-  bool _takeRateRequest() {
-    final requested = _rateRequested;
-    _rateRequested = false;
+  bool _takeWentRequest() {
+    final requested = _wentRequested;
+    _wentRequested = false;
     return requested;
   }
 
@@ -174,9 +173,6 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       host: this,
       cafe: () => _snapshot,
       toastOffset: _toastOffset,
-      // The notification ask, when it is due, comes first; one ask at a time.
-      beforeNudge: () =>
-          VisitReminderPrompts.afterDirections(context, widget.cafeId),
     );
     _pendingAddCup =
         Supabase.instance.client.auth.currentSession != null &&
@@ -433,7 +429,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
         CafeStatusPills(
           cafe: cafe,
           toastOffset: _toastOffset,
-          takeRateRequest: _takeRateRequest,
+          takeWentRequest: _takeWentRequest,
         ),
         // Your own history with the cafe, right under the actions that
         // create it. Renders nothing unless it's a Been.

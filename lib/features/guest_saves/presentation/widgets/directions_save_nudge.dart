@@ -39,7 +39,6 @@ class DirectionsSaveNudge {
     required this.cafe,
     required this.toastOffset,
     bool Function()? isSignedIn,
-    this.beforeNudge,
   }) : _host = host,
        _isSignedIn = isSignedIn {
     _launches = DirectionsLaunches.stream
@@ -58,11 +57,6 @@ class DirectionsSaveNudge {
 
   /// Defaults to the Supabase session; tests pass their own.
   final bool Function()? _isSignedIn;
-
-  /// Runs first on the way back; true means it showed an ask of its own
-  /// (the notification ask), so this nudge stays quiet this time and can
-  /// still come on a later trip.
-  final Future<bool> Function()? beforeNudge;
 
   static const message = 'Save to Want to try?';
   static const actionLabel = 'Save';
@@ -96,13 +90,13 @@ class DirectionsSaveNudge {
       onPause: () => wentAway = true,
       onResume: () {
         _stopWaiting();
-        _timer = Timer(settleDelay, () => unawaited(_show()));
+        _timer = Timer(settleDelay, _show);
       },
     );
     _timer = Timer(fallbackDelay, () {
       if (wentAway) return;
       _stopWaiting();
-      unawaited(_show());
+      _show();
     });
   }
 
@@ -113,15 +107,12 @@ class DirectionsSaveNudge {
     _lifecycle = null;
   }
 
-  Future<void> _show() async {
+  void _show() {
     if (!_host.mounted) return;
-    final before = beforeNudge;
-    if (before != null && await before()) return;
-    final context = _host.context;
-    if (!context.mounted) return;
     if (_nudged.contains(cafeId)) return;
     final snapshot = cafe();
     if (snapshot == null) return;
+    final context = _host.context;
     final signedIn = _signedIn;
     final statuses = context.read<CafeStatusCubit>().state;
     // Signed in, an unread status may be Been: asking to save it would read
