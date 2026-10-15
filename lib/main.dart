@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -33,6 +34,7 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
+import 'package:nook/core/analytics/install_source.dart';
 import 'package:nook/core/analytics/rage_tap_detector.dart';
 import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -84,8 +86,18 @@ void main() async {
     // The native iOS rage-click detector only sees the Flutter host view, so
     // every `$rageclick` it sent said "Flutter". RageTapDetector replaces it.
     config.rageClickConfig.enabled = false;
+    // Uncaught Dart errors go to error tracking as `$exception`. The SDK
+    // wraps FlutterError.onError and PlatformDispatcher.onError and calls
+    // whatever handler was there before, so console output and any other
+    // reporter keep working.
+    config.errorTrackingConfig
+      ..captureFlutterErrors = true
+      ..capturePlatformDispatcherErrors = true
+      ..captureIsolateErrors = true
+      ..inAppIncludes.add('nook');
 
     await Posthog().setup(config);
+    unawaited(InstallSourceRecorder().recordOnFirstOpen());
   } else {
     debugPrint('PostHog setup skipped: missing POSTHOG_PROJECT_TOKEN in .env');
   }
