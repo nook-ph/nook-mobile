@@ -10,10 +10,13 @@ Map<String, Object?> _rpc(Map<String, Object?> document) => {
   'document': {'schema': 1, ...document},
 };
 
-HomeLayout _layout(List<Map<String, Object?>> sections, {bool? purpose}) =>
-    HomeLayout.fromRpc(
-      _rpc({'sections': sections, 'respect_purpose': ?purpose}),
-    )!;
+HomeLayout _layout(
+  List<Map<String, Object?>> sections, {
+  bool? purpose,
+  bool? pinTop,
+}) => HomeLayout.fromRpc(
+  _rpc({'sections': sections, 'respect_purpose': ?purpose, 'pin_top': ?pinTop}),
+)!;
 
 /// Manila wall clock as an instant.
 DateTime _manila(int y, int m, int d, [int h = 0, int min = 0]) =>
@@ -341,7 +344,7 @@ void main() {
           'cafe_ids': ['a'],
         },
         {'id': 'laptop_friendly', 'type': 'builtin', 'visible': false},
-      ]);
+      ], pinTop: false);
       final slots = planHomeSlots(
         layout: layout,
         purpose: null,
@@ -418,7 +421,7 @@ void main() {
         expect(
           ids(
             planHomeSlots(
-              layout: _layout(sections),
+              layout: _layout(sections, pinTop: false),
               purpose: OnboardingPurpose.work,
               available: _allRails,
               now: now,
@@ -429,7 +432,7 @@ void main() {
         expect(
           ids(
             planHomeSlots(
-              layout: _layout(sections, purpose: false),
+              layout: _layout(sections, purpose: false, pinTop: false),
               purpose: OnboardingPurpose.work,
               available: _allRails,
               now: now,
@@ -459,5 +462,111 @@ void main() {
         expect(slots, isNot(contains('specialty')));
       },
     );
+  });
+
+  group('pin_top', () {
+    final now = _manila(2026, 10, 16, 12);
+    List<String> plan(HomeLayout layout, {Set<HomeRail>? available}) => [
+      for (final s in planHomeSlots(
+        layout: layout,
+        purpose: null,
+        available: available ?? _allRails,
+        now: now,
+      ))
+        '$s',
+    ];
+
+    test('is on by default and parsed from the document', () {
+      expect(_layout(const []).pinTop, isTrue);
+      expect(_layout(const [], pinTop: false).pinTop, isFalse);
+    });
+
+    test('pulls Your places and Near you into the first three', () {
+      final layout = _layout([
+        {'id': 'newest', 'type': 'builtin'},
+        {'id': 'featured', 'type': 'builtin'},
+        {
+          'id': 'custom:x',
+          'type': 'custom',
+          'title': 'X',
+          'source': 'picked',
+          'cafe_ids': ['a'],
+        },
+        {'id': 'trending', 'type': 'builtin'},
+        {'id': 'your_places', 'type': 'builtin'},
+        {'id': 'nearby', 'type': 'builtin'},
+      ]);
+      expect(plan(layout), [
+        'newest',
+        'your_places',
+        'nearby',
+        'featured',
+        'custom:x',
+        'trending',
+        'specialty',
+        'local_beans',
+        'laptop_friendly',
+        'top_rated',
+      ]);
+    });
+
+    test('moves nothing when both already lead', () {
+      final layout = _layout([
+        {'id': 'featured', 'type': 'builtin'},
+        {'id': 'nearby', 'type': 'builtin'},
+        {'id': 'your_places', 'type': 'builtin'},
+        {'id': 'newest', 'type': 'builtin'},
+      ]);
+      expect(plan(layout).take(4), [
+        'featured',
+        'nearby',
+        'your_places',
+        'newest',
+      ]);
+    });
+
+    test('Near you with no cafes (no position) stays put', () {
+      final layout = _layout([
+        {'id': 'newest', 'type': 'builtin'},
+        {'id': 'featured', 'type': 'builtin'},
+        {'id': 'trending', 'type': 'builtin'},
+        {'id': 'top_rated', 'type': 'builtin'},
+        {'id': 'nearby', 'type': 'builtin'},
+        {'id': 'your_places', 'type': 'builtin'},
+      ]);
+      final slots = plan(
+        layout,
+        available: _allRails.difference({HomeRail.nearby}),
+      );
+      expect(slots.take(3), ['newest', 'featured', 'your_places']);
+      expect(slots.indexOf('nearby'), 5);
+    });
+
+    test('a hidden Near you is not brought back', () {
+      final layout = _layout([
+        {'id': 'newest', 'type': 'builtin'},
+        {'id': 'featured', 'type': 'builtin'},
+        {'id': 'trending', 'type': 'builtin'},
+        {'id': 'nearby', 'type': 'builtin', 'visible': false},
+      ]);
+      expect(plan(layout), isNot(contains('nearby')));
+    });
+
+    test('pin_top false keeps the document order', () {
+      final layout = _layout([
+        {'id': 'newest', 'type': 'builtin'},
+        {'id': 'featured', 'type': 'builtin'},
+        {'id': 'trending', 'type': 'builtin'},
+        {'id': 'nearby', 'type': 'builtin'},
+        {'id': 'your_places', 'type': 'builtin'},
+      ], pinTop: false);
+      expect(plan(layout).take(5), [
+        'newest',
+        'featured',
+        'trending',
+        'nearby',
+        'your_places',
+      ]);
+    });
   });
 }

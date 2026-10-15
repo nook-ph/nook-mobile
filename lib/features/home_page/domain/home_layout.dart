@@ -338,6 +338,7 @@ class HomeLayout {
     required this.version,
     this.publishedAt,
     this.respectPurpose = true,
+    this.pinTop = true,
     this.banner,
     this.sections = const [],
   });
@@ -350,11 +351,24 @@ class HomeLayout {
   final String version;
   final DateTime? publishedAt;
   final bool respectPurpose;
+
+  /// `pin_top` (default true): Your places and Near you stay in the first
+  /// three shelves when they have something to show, wherever the document
+  /// puts them. False keeps the admin's order for them too.
+  final bool pinTop;
   final HomeBanner? banner;
   final List<HomeSection> sections;
 
   /// No sections and no banner: "reset to default", the built-in Home.
   bool get isDefault => sections.isEmpty && banner == null;
+
+  /// The section with [id] (`custom:<id>` or a builtin id), else null.
+  HomeSection? sectionById(String id) {
+    for (final s in sections) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
 
   /// The layout in an RPC response, or null for the built-in Home: no
   /// published layout, an unreadable response, or a schema this app does
@@ -390,6 +404,7 @@ class HomeLayout {
           ? DateTime.tryParse(publishedAt)
           : null,
       respectPurpose: document['respect_purpose'] != false,
+      pinTop: document['pin_top'] != false,
       banner: HomeBanner.tryParse(document['banner']),
       sections: sections,
     );

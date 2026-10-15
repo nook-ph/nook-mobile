@@ -69,6 +69,10 @@ List<HomeSlot> defaultHomeSlots(
 ///   still shown moves to the top of the shelves (below Your places when
 ///   that leads), as today.
 ///
+/// - With `pin_top` (the default), Your places and Near you (when it has
+///   cafes) are pulled into the first [pinnedSlots] shelves: see
+///   [pinPersonalShelves].
+///
 /// Whether a shelf has enough cafes is decided where it is built; this only
 /// orders.
 List<HomeSlot> planHomeSlots({
@@ -111,5 +115,50 @@ List<HomeSlot> planHomeSlots({
       break;
     }
   }
-  return slots;
+  if (!layout.pinTop) return slots;
+  return pinPersonalShelves(slots, available: available);
+}
+
+/// How many shelves from the top Your places and Near you must sit within.
+const pinnedSlots = 3;
+
+/// [slots] with Your places and Near you in the first [pinnedSlots], for a
+/// "where now" app the two shelves most likely to get a tap (UX research
+/// 2026-10-16, finding 2).
+///
+/// Near you counts only when it is in [available] (it has cafes, so the
+/// phone has a position). Your places always counts: with nothing saved it
+/// draws nothing and takes no room.
+///
+/// When both already sit in the first [pinnedSlots], nothing moves.
+/// Otherwise the first shelves are the pinned ones plus the admin's first
+/// other shelves, kept in the document's order; everything else follows in
+/// its order. A shelf the layout hides is not in [slots] and is not brought
+/// back.
+List<HomeSlot> pinPersonalShelves(
+  List<HomeSlot> slots, {
+  required Set<HomeRail> available,
+}) {
+  bool pinned(HomeSlot s) =>
+      s.builtin == HomeBuiltin.yourPlaces ||
+      (s.builtin == HomeBuiltin.nearby && available.contains(HomeRail.nearby));
+
+  final pins = [
+    for (final s in slots)
+      if (pinned(s)) s,
+  ];
+  if (pins.isEmpty) return slots;
+  if (pins.every((p) => slots.indexOf(p) < pinnedSlots)) return slots;
+
+  final lead = pinnedSlots - pins.length;
+  final others = [
+    for (final s in slots)
+      if (!pinned(s)) s,
+  ];
+  final top = {...pins, ...others.take(lead)};
+  return [
+    for (final s in slots)
+      if (top.contains(s)) s,
+    for (final s in others.skip(lead)) s,
+  ];
 }
