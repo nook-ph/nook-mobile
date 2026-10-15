@@ -158,40 +158,53 @@ void main() {
     });
   });
 
-  group('canShowPrePrompt', () {
-    bool can({
+  group('prePromptBlock', () {
+    PrePromptSkipReason? block({
       List<DateTime> shown = const [],
       NotificationPermission permission = NotificationPermission.notAsked,
       bool enabled = true,
-      DateTime? now,
-    }) => VisitReminderRules.canShowPrePrompt(
-      now: now ?? at(16, 12),
+      bool holdout = false,
+    }) => VisitReminderRules.prePromptBlock(
+      now: at(16, 12),
       shownAt: shown,
       permission: permission,
       remindersEnabled: enabled,
+      holdout: holdout,
     );
 
-    test('first time: yes', () => expect(can(), isTrue));
+    test('first time: no block', () => expect(block(), isNull));
 
     test('never once granted or blocked', () {
-      expect(can(permission: NotificationPermission.granted), isFalse);
-      expect(can(permission: NotificationPermission.blocked), isFalse);
+      expect(
+        block(permission: NotificationPermission.granted),
+        PrePromptSkipReason.granted,
+      );
+      expect(
+        block(permission: NotificationPermission.blocked),
+        PrePromptSkipReason.blocked,
+      );
     });
 
     test('never after visit reminders were turned off in Settings', () {
-      expect(can(enabled: false), isFalse);
+      expect(block(enabled: false), PrePromptSkipReason.disabled);
+    });
+
+    test('never in the holdout', () {
+      expect(block(holdout: true), PrePromptSkipReason.holdout);
     });
 
     test('at least 7 days apart', () {
-      final last = DateTime(2026, 10, 9, 12, 1);
-      expect(can(shown: [last]), isFalse);
-      expect(can(shown: [DateTime(2026, 10, 9, 12)]), isTrue);
+      expect(
+        block(shown: [DateTime(2026, 10, 9, 12, 1)]),
+        PrePromptSkipReason.gap,
+      );
+      expect(block(shown: [DateTime(2026, 10, 9, 12)]), isNull);
     });
 
     test('the gap counts from the latest ask, in any order', () {
       expect(
-        can(shown: [DateTime(2026, 10, 15), DateTime(2026, 9, 1)]),
-        isFalse,
+        block(shown: [DateTime(2026, 10, 15), DateTime(2026, 9, 1)]),
+        PrePromptSkipReason.gap,
       );
     });
 
@@ -201,8 +214,145 @@ void main() {
         DateTime(2026, 8, 20),
         DateTime(2026, 9, 10),
       ];
-      expect(can(shown: three), isFalse);
-      expect(can(shown: three.take(2).toList()), isTrue);
+      expect(block(shown: three), PrePromptSkipReason.cap);
+      expect(block(shown: three.take(2).toList()), isNull);
+    });
+  });
+
+  group('opening hours', () {
+    test('open, or no readable hours: counts from the tap', () {
+      expect(
+        VisitReminderRules.visitStart(at(16, 12), const CafeOpenAtTap.open()),
+        at(16, 12),
+      );
+      expect(
+        VisitReminderRules.visitStart(at(16, 12), CafeOpenAtTap.unknown),
+        at(16, 12),
+      );
+    });
+
+    test('closed, opening before the send time: counts from opening', () {
+      final open = CafeOpenAtTap.closed(opensAt: at(16, 8));
+      final plan = VisitReminderRules.plan(
+        cafeId: 'a',
+        now: at(16, 7, 30),
+        pending: const [],
+        open: open,
+      );
+      // 8:00 + 90 min = 9:30, inside the window.
+      expect(plan.fireAt, at(16, 9, 30));
+    });
+
+    test('closed, opening early: the window still holds', () {
+      final plan = VisitReminderRules.plan(
+        cafeId: 'a',
+        now: at(16, 6),
+        pending: const [],
+        open: CafeOpenAtTap.closed(opensAt: at(16, 7)),
+      );
+      // 7:00 + 90 = 8:30, before 09:00: moved to 10:00.
+      expect(plan.fireAt, at(16, 10));
+    });
+
+    test('closed, opening at or after the send time: no reminder', () {
+      for (final open in [
+        CafeOpenAtTap.closed(opensAt: at(16, 13, 30)),
+        CafeOpenAtTap.closed(opensAt: at(17, 8)),
+        const CafeOpenAtTap.closed(),
+      ]) {
+        final plan = VisitReminderRules.plan(
+          cafeId: 'a',
+          now: at(16, 12),
+          pending: const [],
+          open: open,
+        );
+        expect(plan, const ReminderPlan.skip(ReminderSkipReason.closed));
+      }
+    });
+
+    test('a night tap to a cafe that opens tomorrow gets nothing', () {
+      final plan = VisitReminderRules.plan(
+        cafeId: 'a',
+        now: at(16, 20),
+        pending: const [],
+        open: CafeOpenAtTap.closed(opensAt: at(17, 7)),
+      );
+      expect(plan.skipReason, ReminderSkipReason.closed);
+    });
+
+    test('read from operating_hours on the Manila clock', () {
+      final hours = {
+        for (final d in const [
+          'monday',
+          'tuesday',
+          'wednesday',
+          'thursday',
+          'friday',
+          'saturday',
+          'sunday',
+        ])
+          d: {'open': '08:00', 'close': '20:00'},
+      };
+      // 07:30 in Manila is 23:30 UTC the day before.
+      final early = DateTime.utc(2026, 10, 15, 23, 30);
+      expect(
+        CafeOpenAtTap.fromHours(hours, early),
+        CafeOpenAtTap.closed(opensAt: early.add(const Duration(minutes: 30))),
+      );
+      expect(
+        CafeOpenAtTap.fromHours(hours, DateTime.utc(2026, 10, 16, 4)),
+        const CafeOpenAtTap.open(),
+      );
+      expect(CafeOpenAtTap.fromHours(const {}, early), CafeOpenAtTap.unknown);
+      expect(CafeOpenAtTap.unknown.wire, 'unknown');
+    });
+  });
+
+  group("Didn't go", () {
+    test('the second in a row pauses for 30 days and starts over', () {
+      final first = VisitReminderRules.afterDidntGo(0, at(16, 12));
+      expect(first, (misses: 1, pausedUntil: null));
+      final second = VisitReminderRules.afterDidntGo(1, at(18, 12));
+      expect(second.misses, 0);
+      expect(second.pausedUntil, at(18, 12).add(const Duration(days: 30)));
+    });
+
+    test('a paused cafe gets nothing until the pause ends', () {
+      final until = at(30, 12);
+      expect(
+        VisitReminderRules.plan(
+          cafeId: 'a',
+          now: at(16, 12),
+          pending: const [],
+          pausedUntil: until,
+        ).skipReason,
+        ReminderSkipReason.paused,
+      );
+      expect(
+        VisitReminderRules.plan(
+          cafeId: 'a',
+          now: until,
+          pending: const [],
+          pausedUntil: until,
+        ).fireAt,
+        isNotNull,
+      );
+    });
+  });
+
+  group('holdout', () {
+    test('stable per install and about 10% of installs', () {
+      expect(
+        VisitReminderRules.holdoutArm('abc'),
+        VisitReminderRules.holdoutArm('abc'),
+      );
+      var holdout = 0;
+      for (var i = 0; i < 10000; i++) {
+        if (VisitReminderRules.holdoutArm('install-$i') == HoldoutArm.holdout) {
+          holdout++;
+        }
+      }
+      expect(holdout, inInclusiveRange(800, 1200));
     });
   });
 

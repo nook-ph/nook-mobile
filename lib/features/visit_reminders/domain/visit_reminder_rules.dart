@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:nook/core/cafe/domain/cafe_open_status.dart';
 
 /// The timing rules for the one notification Nook sends after a likely
 /// visit (a Directions tap), and for the in-app ask that comes before the
@@ -25,16 +26,20 @@ abstract final class VisitReminderRules {
   static const maxPrePrompts = 3;
   static const prePromptGap = Duration(days: 7);
 
-  /// The Directions ask is only offered if the person comes back to the
-  /// cafe page this soon after tapping; later, the visit may be over.
-  static const directionsPromptFreshness = Duration(minutes: 60);
+  /// Two "Didn't go" in a row for one cafe pause its reminders this long.
+  static const missesToPause = 2;
+  static const missPause = Duration(days: 30);
+
+  /// The share of installs that never get the in-app ask, to compare
+  /// against (see [holdoutArm]).
+  static const holdoutPercent = 10;
 
   static bool inWindow(DateTime t) =>
       t.hour >= windowStartHour && t.hour < windowEndHour;
 
   /// When to deliver a reminder for a Directions tap at [tappedAt], or null
   /// when it should not be sent at all. [delayOverride] is for debug builds
-  /// only (see `VisitReminderConfig`).
+  /// only (see `debugVisitReminderDelay`).
   static DateTime? deliveryTime(DateTime tappedAt, {Duration? delayOverride}) {
     final candidate = tappedAt.add(delayOverride ?? delay);
     if (inWindow(candidate)) return candidate;
@@ -61,10 +66,30 @@ abstract final class VisitReminderRules {
   static bool sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  /// When the 90 minutes start for a tap at [tappedAt] to a cafe in state
+  /// [open], or null when the visit can't happen in time: a cafe closed at
+  /// the tap counts from its opening, but only if it opens before the
+  /// reminder would have gone out from the tap itself. A cafe with no
+  /// readable hours is not held against it.
+  static DateTime? visitStart(
+    DateTime tappedAt,
+    CafeOpenAtTap open, {
+    Duration? delayOverride,
+  }) {
+    if (open.isOpen || !open.known) return tappedAt;
+    final opensAt = open.opensAt;
+    if (opensAt == null) return null;
+    final straight = tappedAt.add(delayOverride ?? delay);
+    return opensAt.isBefore(straight) ? opensAt : null;
+  }
+
   /// What to do with a Directions tap to [cafeId] at [now], given the
   /// reminders already scheduled ([pending]) and the day a reminder last
   /// went out ([lastDeliveredDay]).
   ///
+  /// - Nothing while the cafe's reminders are paused ([pausedUntil]).
+  /// - Nothing for a cafe closed at the tap that doesn't open before the
+  ///   reminder would go out; one that does counts from its opening.
   /// - At most one pending reminder per cafe: a second tap reschedules.
   /// - At most one reminder a day: a reminder for another cafe on the same
   ///   day is replaced (the newer tap is the likelier visit); a day that
@@ -73,10 +98,19 @@ abstract final class VisitReminderRules {
     required String cafeId,
     required DateTime now,
     required List<PendingVisitReminder> pending,
+    CafeOpenAtTap open = CafeOpenAtTap.unknown,
     DateTime? lastDeliveredDay,
+    DateTime? pausedUntil,
     Duration? delayOverride,
   }) {
-    final fireAt = deliveryTime(now, delayOverride: delayOverride);
+    if (pausedUntil != null && now.isBefore(pausedUntil)) {
+      return const ReminderPlan.skip(ReminderSkipReason.paused);
+    }
+    final start = visitStart(now, open, delayOverride: delayOverride);
+    if (start == null) {
+      return const ReminderPlan.skip(ReminderSkipReason.closed);
+    }
+    final fireAt = deliveryTime(start, delayOverride: delayOverride);
     if (fireAt == null) {
       return const ReminderPlan.skip(ReminderSkipReason.outsideWindow);
     }
@@ -110,23 +144,54 @@ abstract final class VisitReminderRules {
     return (upcoming: upcoming, lastDelivered: latest);
   }
 
-  /// Whether the in-app ask may be shown at [now]. Never when permission is
-  /// already granted or permanently refused, never after the person turned
-  /// visit reminders off in Settings, at most [maxPrePrompts] times, and at
-  /// least [prePromptGap] apart.
-  static bool canShowPrePrompt({
+  /// Why the in-app ask may not be shown at [now], or null when it may.
+  /// Never when permission is already granted or permanently refused, never
+  /// after the person turned visit reminders off in Settings, never in the
+  /// holdout, at most [maxPrePrompts] times, and at least [prePromptGap]
+  /// apart.
+  static PrePromptSkipReason? prePromptBlock({
     required DateTime now,
     required List<DateTime> shownAt,
     required NotificationPermission permission,
     required bool remindersEnabled,
+    bool holdout = false,
   }) {
-    if (permission != NotificationPermission.notAsked) return false;
-    if (!remindersEnabled) return false;
-    if (shownAt.length >= maxPrePrompts) return false;
-    if (shownAt.isEmpty) return true;
+    if (!remindersEnabled) return PrePromptSkipReason.disabled;
+    if (permission == NotificationPermission.granted) {
+      return PrePromptSkipReason.granted;
+    }
+    if (permission == NotificationPermission.blocked) {
+      return PrePromptSkipReason.blocked;
+    }
+    if (holdout) return PrePromptSkipReason.holdout;
+    if (shownAt.length >= maxPrePrompts) return PrePromptSkipReason.cap;
+    if (shownAt.isEmpty) return null;
     final last = shownAt.reduce((a, b) => a.isAfter(b) ? a : b);
-    return now.difference(last) >= prePromptGap;
+    return now.difference(last) >= prePromptGap
+        ? null
+        : PrePromptSkipReason.gap;
   }
+
+  /// [misses] "Didn't go" in a row for a cafe, after one more at [at]: the
+  /// new count, and the end of a pause when this one reached
+  /// [missesToPause] (the count then starts over).
+  static ({int misses, DateTime? pausedUntil}) afterDidntGo(
+    int misses,
+    DateTime at,
+  ) {
+    final next = misses + 1;
+    if (next >= missesToPause) {
+      return (misses: 0, pausedUntil: at.add(missPause));
+    }
+    return (misses: next, pausedUntil: null);
+  }
+
+  /// Whether an install is in the holdout that never gets the ask: a
+  /// stable bucket from its [installId], so it never changes arms.
+  static HoldoutArm holdoutArm(String installId) =>
+      visitReminderIdFor(installId) % 100 < holdoutPercent
+      ? HoldoutArm.holdout
+      : HoldoutArm.ask;
 
   /// Whether the OS permission can still be asked for, from what is known:
   /// [enabled] (the OS says notifications are on), how many times the system
@@ -154,18 +219,73 @@ abstract final class VisitReminderRules {
 
 /// Where the OS notification permission stands, as Nook can tell.
 enum NotificationPermission {
-  granted,
+  granted('granted'),
 
   /// Not granted, and the system dialog can still be shown.
-  notAsked,
+  notAsked('not_asked'),
 
-  /// Refused for good: only the system settings can turn it on.
-  blocked,
+  /// Refused for good, or the reminders channel muted: only the system
+  /// settings can turn it on.
+  blocked('blocked');
+
+  const NotificationPermission(this.wire);
+
+  /// The `permission` property on analytics events.
+  final String wire;
+}
+
+/// Whether a cafe was open when Directions was tapped, from its weekly
+/// hours: open, closed until [opensAt], closed with no opening ahead, or not
+/// [known] (no readable hours).
+class CafeOpenAtTap extends Equatable {
+  const CafeOpenAtTap.open() : isOpen = true, known = true, opensAt = null;
+  const CafeOpenAtTap.closed({this.opensAt}) : isOpen = false, known = true;
+  const CafeOpenAtTap._unknown()
+    : isOpen = false,
+      known = false,
+      opensAt = null;
+
+  static const unknown = CafeOpenAtTap._unknown();
+
+  /// Read from a cafe's `operating_hours` at [now], by the same resolver
+  /// the cafe page and the cards use (Manila wall-clock hours).
+  factory CafeOpenAtTap.fromHours(
+    Map<String, dynamic>? operatingHours,
+    DateTime now,
+  ) {
+    final status = CafeOpenStatus.resolve(operatingHours, now: now);
+    if (status.isOpen) return const CafeOpenAtTap.open();
+    if (status.state == CafeOpenState.unknown) return unknown;
+    final next = status.nextOpening;
+    return CafeOpenAtTap.closed(
+      opensAt: next == null
+          ? null
+          : now.add(Duration(minutes: next.minutesFromNow)),
+    );
+  }
+
+  final bool isOpen;
+  final bool known;
+  final DateTime? opensAt;
+
+  /// The `cafe_open` property on analytics events.
+  String get wire => !known
+      ? 'unknown'
+      : isOpen
+      ? 'open'
+      : opensAt == null
+      ? 'closed'
+      : 'opens_later';
+
+  @override
+  List<Object?> get props => [isOpen, known, opensAt];
 }
 
 enum ReminderSkipReason {
   outsideWindow('outside_window'),
   dailyCap('daily_cap'),
+  closed('closed'),
+  paused('paused'),
   alreadyBeen('already_been'),
   disabled('disabled'),
   noPermission('no_permission');
@@ -173,6 +293,40 @@ enum ReminderSkipReason {
   const ReminderSkipReason(this.wire);
 
   /// The `reason` property on analytics events.
+  final String wire;
+}
+
+/// Why a Directions tap did not show the in-app ask.
+enum PrePromptSkipReason {
+  /// Visit reminders are off in Settings.
+  disabled('disabled'),
+
+  /// Permission is already granted: nothing to ask (the reminder is set).
+  granted('granted'),
+
+  /// Refused for good, or muted in the phone's settings.
+  blocked('blocked'),
+
+  /// This install is in the holdout.
+  holdout('holdout'),
+
+  /// Asked [VisitReminderRules.maxPrePrompts] times already.
+  cap('cap'),
+
+  /// Asked less than [VisitReminderRules.prePromptGap] ago.
+  gap('gap');
+
+  const PrePromptSkipReason(this.wire);
+
+  final String wire;
+}
+
+enum HoldoutArm {
+  ask('ask'),
+  holdout('holdout');
+
+  const HoldoutArm(this.wire);
+
   final String wire;
 }
 
