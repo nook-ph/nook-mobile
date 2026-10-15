@@ -9,6 +9,7 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
 import 'package:nook/core/widgets/prototype_height.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
 
 /// A titled horizontal row of compact cards. Renders nothing when it has no
 /// cafes: an empty section is left out of the feed, not labelled.
@@ -25,6 +26,11 @@ class HomeCafeSection extends StatelessWidget {
   /// the title plain.
   final String? sort;
 
+  /// The rail's analytics id (`home_rail_impression`,
+  /// `home_rail_card_tapped`). Defaults to [sort], else the title in
+  /// snake_case ("Laptop-friendly" -> `laptop_friendly`).
+  final String? rail;
+
   const HomeCafeSection({
     super.key,
     required this.title,
@@ -32,7 +38,17 @@ class HomeCafeSection extends StatelessWidget {
     required this.cafes,
     this.isSkeleton = false,
     this.sort,
+    this.rail,
   });
+
+  /// [rail], else [sort], else the title in snake_case.
+  String get railId => rail ?? sort ?? railIdFor(title);
+
+  /// "Specialty coffee near you" -> `specialty_coffee_near_you`.
+  static String railIdFor(String title) => title
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+      .replaceAll(RegExp(r'^_+|_+$'), '');
 
   // Dummy cafe for the prototype: same shape as real data.
   static const _prototypeCafe = CafeSummary(
@@ -50,8 +66,9 @@ class HomeCafeSection extends StatelessWidget {
 
     final double imageHeight = ResponsiveCardSizes.cafeImageHeight(context);
     final double cardWidth = ResponsiveCardSizes.cafeCardWidth(context);
+    final railId = this.railId;
 
-    return Column(
+    final section = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         HomeSectionTitle(
@@ -92,11 +109,14 @@ class HomeCafeSection extends StatelessWidget {
               isSkeleton: isSkeleton,
               section: sort ?? title,
               position: index,
+              rail: isSkeleton ? null : railId,
             ),
           ),
         ),
       ],
     );
+    if (isSkeleton) return section;
+    return HomeRailImpression(rail: railId, child: section);
   }
 }
 
