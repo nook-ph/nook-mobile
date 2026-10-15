@@ -16,6 +16,10 @@ import 'package:nook/features/map/presentation/widgets/map_filter_sub_sheet.dart
 import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/location/device_location.dart';
+import 'package:nook/core/analytics/empty_state_tracker.dart';
+import 'package:nook/core/location/cebu_coverage.dart';
+import 'package:nook/core/presentation/widgets/city_waitlist_sheet.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/geo.dart';
 import 'package:nook/features/map/domain/entities/cafe_tags_entity.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -292,10 +296,15 @@ class _BottomModalSheetState extends State<BottomModalSheet> {
                     // are isolated here and don't invalidate the list below.
                     if (widget.error != null)
                       Flexible(
-                        child: MapSheetStateView.error(
-                          error: widget.error!,
-                          onRetry: widget.onRetry ?? () {},
-                          onSignIn: () => context.push('/login'),
+                        child: EmptyStateTracker(
+                          screen: 'map',
+                          reason:
+                              'load_error_${AppErrorCopy.fromException(widget.error!).type.name}',
+                          child: MapSheetStateView.error(
+                            error: widget.error!,
+                            onRetry: widget.onRetry ?? () {},
+                            onSignIn: () => context.push('/login'),
+                          ),
                         ),
                       )
                     else ...[
@@ -488,6 +497,23 @@ class _FilterChipRow extends StatelessWidget {
   }
 }
 
+/// Whether the phone, else the map's centre, is clearly outside Cebu.
+bool _outsideCebu(BuildContext context) {
+  final phone = DeviceLocation.instance.position.value;
+  GeoPoint? centre;
+  try {
+    centre = context.read<MapBloc>().lastViewport?.center;
+  } catch (_) {
+    // No MapBloc above (a widget test of the sheet alone).
+  }
+  return CebuCoverage.isOutside(
+    device: phone == null
+        ? null
+        : GeoPoint(lat: phone.latitude, lng: phone.longitude),
+    viewing: centre,
+  );
+}
+
 // [OPT-3] Extracted cafe list into its own StatelessWidget. Receives
 // pre-computed cardWidth/cardHeight so it never needs its own LayoutBuilder.
 class _CafeList extends StatelessWidget {
@@ -525,15 +551,29 @@ class _CafeList extends StatelessWidget {
 
     if (showEmpty) {
       final filtered = _anyMapFilterActive(context.watch<FilterCubit>().state);
-      return MapSheetStateView.noCafes(
-        onClearFilters: filtered
-            ? () {
-                context.read<FilterCubit>().reset();
-                context.read<MapBloc>().add(
-                  LoadMapDataEvent(filter: const CafeFilter()),
-                );
-              }
-            : null,
+      // Filters are the likelier cause, so their way out comes first.
+      if (!filtered && _outsideCebu(context)) {
+        return EmptyStateTracker(
+          screen: 'map',
+          reason: 'outside_cebu',
+          child: MapSheetStateView.outsideCebu(
+            onRequestCity: () => requestCityWaitlist(context, surface: 'map'),
+          ),
+        );
+      }
+      return EmptyStateTracker(
+        screen: 'map',
+        reason: filtered ? 'filtered' : 'no_cafes_in_area',
+        child: MapSheetStateView.noCafes(
+          onClearFilters: filtered
+              ? () {
+                  context.read<FilterCubit>().reset();
+                  context.read<MapBloc>().add(
+                    LoadMapDataEvent(filter: const CafeFilter()),
+                  );
+                }
+              : null,
+        ),
       );
     }
 

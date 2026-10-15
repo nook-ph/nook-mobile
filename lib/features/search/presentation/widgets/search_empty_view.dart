@@ -36,7 +36,16 @@ class SearchEmptyView extends StatelessWidget {
     this.onSearchNearMe,
     this.suggestedTag,
     this.onSuggestedTag,
+    this.onRequestCity,
   });
+
+  /// Set when the user is clearly outside Cebu: the view then says Nook is
+  /// Cebu-only for now and offers this ("Ask for my city") first.
+  final VoidCallback? onRequestCity;
+
+  static const outsideCebuTitle = 'Nook covers Cebu for now';
+  static const outsideCebuLine = 'Want us in your city?';
+  static const requestCityLabel = 'Ask for my city';
 
   final String line;
   final VoidCallback? onClearFilters;
@@ -51,22 +60,27 @@ class SearchEmptyView extends StatelessWidget {
   Widget build(BuildContext context) {
     final clear = onClearFilters;
     final nearMe = onSearchNearMe;
+    final requestCity = onRequestCity;
     return ListView(
       padding: const EdgeInsets.fromLTRB(32, 72, 32, 24),
       children: [
         const Icon(LucideIcons.searchX, size: 32, color: SearchTokens.muted),
         const SizedBox(height: 8),
         Text(
-          'No cafes found',
+          requestCity == null ? 'No cafes found' : outsideCebuTitle,
           textAlign: TextAlign.center,
           style: SearchTokens.text(context, size: 16, weight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
         Text(
-          line,
+          requestCity == null ? line : outsideCebuLine,
           textAlign: TextAlign.center,
           style: SearchTokens.text(context, color: SearchTokens.muted),
         ),
+        if (requestCity != null) ...[
+          const SizedBox(height: 20),
+          SearchPillButton(label: requestCityLabel, onTap: requestCity),
+        ],
         if (suggestedTag != null && onSuggestedTag != null) ...[
           const SizedBox(height: 20),
           SearchPillButton(
