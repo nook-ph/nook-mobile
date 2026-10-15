@@ -83,7 +83,8 @@ class SettingsPage extends StatefulWidget {
   static const visitRemindersLabel = 'Visit reminders';
   static const visitRemindersDetail =
       'After you get directions, one reminder to mark the cafe Been, '
-      'between 9 AM and 9 PM.';
+      // No-break spaces: "PM." never wraps onto a line of its own.
+      'between 9\u00A0AM and 9\u00A0PM.';
   static const visitRemindersBlocked =
       "Notifications for Nook are off in your phone's settings.";
   static const visitRemindersMuted =

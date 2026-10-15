@@ -5,8 +5,8 @@ Nothing guessed beyond the states no reference showed (noted below).
 Researched 2026-10-16 with partwise. Crops are gitignored (other companies' screens).
 
 ## Notification pre-prompt sheet
-Bottom sheet after Directions or a Want to try save, before the system dialog:
-icon, title tied to the moment, one-line reason, "Turn on", "Not now".
+Superseded by "Directions ask sheet" below: the ask moved to the Directions tap and the save
+ask was removed. Kept for the record.
 Built in `lib/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart`.
 
 **Primary: Roi.** Borrow: none taken. Rejected: Airbnb's close X, Box Box Club.
@@ -31,3 +31,22 @@ Built in `lib/features/profile/presentation/pages/settings_page.dart` (`_SwitchR
 
 No reference showed a "not asked yet" or loading row: not asked keeps the switch usable and
 asks on turn-on; loading disables the switch until the permission is read.
+
+## Directions ask sheet
+At the Directions tap, before Maps opens: the real send time as the title ("Want a reminder
+around 4:35 PM?" / "…tomorrow at 10 AM?"), the cafe in the reason, "Remind me", "Just
+directions". Shown only when a reminder would actually go out.
+Built in `lib/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart`
+(`NotificationPrePromptSheet`, `VisitReminderPrompts.atDirections`). Researched 2026-10-16.
+
+**Primary: the existing sheet (Roi structure).** Borrow: Linear, Clearful. Rejected: Airbnb's
+close X (as before).
+
+| | Product | Taken |
+|---|---|---|
+| ![](ask-linear.png) | [Linear](https://refero.design/screens/3b00073f-9a3a-4b05-82ee-fa2b3a89f6e7) | The resolved clock time is the promise ("12:39 PM", "Jul 23 at 9:00 AM"); here it is the title |
+| ![](ask-clearful.png) | [Clearful](https://refero.design/screens/9cf4bf42-239f-4d19-b3eb-76facfda6966) | "Remind me" pill with a quiet text secondary centred under it |
+| ![](ask-airbnb.png) | [Airbnb](https://refero.design/screens/a292abe9-8a8b-405f-b588-588d9aeb739b) | Considered, not taken: the close X; grabber, scrim and "Just directions" already dismiss |
+
+No reference showed an ask attached to a Directions or follow tap that then continues; the
+today / tomorrow wording follows Linear's.
