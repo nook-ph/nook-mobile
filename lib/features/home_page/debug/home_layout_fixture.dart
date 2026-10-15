@@ -21,6 +21,18 @@ const bool homeLayoutFixtureEnabled =
 /// - shelves reordered (Fresh on Nook first, Your places after House
 ///   picks), Laptop-friendly hidden, the rest appended in default order.
 HomeLayout homeLayoutFixture(HomeFeedResult feed) {
+  _fixtureCafes
+    ..clear()
+    ..addAll({
+      for (final c in [
+        ...feed.topRated,
+        ...feed.trending,
+        ...feed.newest,
+        ...feed.laptopFriendly,
+      ])
+        c.id: c,
+    });
+
   List<String> ids(List<CafeSummary> cafes, int n) => [
     for (final c in cafes.take(n)) c.id,
   ];
@@ -100,3 +112,12 @@ HomeLayout homeLayoutFixture(HomeFeedResult feed) {
   });
   return layout!;
 }
+
+final Map<String, CafeSummary> _fixtureCafes = {};
+
+/// Stands in for `get_cafes_by_ids` while the fixture is on (the RPC is not
+/// deployed yet): the fixture's hand-picked ids, from the loaded feed, in
+/// order.
+Future<List<CafeSummary>> fixtureCafesByIds(List<String> ids) async => [
+  for (final id in ids) ?_fixtureCafes[id],
+];

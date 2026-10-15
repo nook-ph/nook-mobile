@@ -325,7 +325,9 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<GetLayoutShelvesUseCase>(
     () => GetLayoutShelvesUseCase(
       repository: sl<ICafeRepository>(),
-      cafesByIds: sl<HomeLayoutRemoteSource>().fetchCafesByIds,
+      cafesByIds: homeLayoutFixtureEnabled
+          ? fixtureCafesByIds
+          : sl<HomeLayoutRemoteSource>().fetchCafesByIds,
     ),
   );
   sl.registerLazySingleton<GetCafesUseCase>(

@@ -264,7 +264,11 @@ class HomeContent extends StatelessWidget {
     super.key,
     required this.state,
     this.clock = DateTime.now,
+    this.isSignedIn,
   });
+
+  /// Passed to Your places; tests set it so no Supabase session is read.
+  final bool Function()? isSignedIn;
 
   /// The shelves' default titles, also their `section` on card taps.
   static const titles = {
@@ -363,6 +367,7 @@ class HomeContent extends StatelessWidget {
         // Your places carries its own gap, so an empty row leaves none.
         children.add(
           YourPlacesRail(
+            isSignedIn: isSignedIn,
             title: title,
             padding: hasShelf
                 ? YourPlacesRow.followingPadding
