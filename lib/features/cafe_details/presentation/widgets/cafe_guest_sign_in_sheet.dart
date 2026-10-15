@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 
@@ -43,6 +45,8 @@ class CafeGuestSignInSheet extends StatelessWidget {
     String cafeName = '',
     String? cafeId,
   }) async {
+    final props = <String, Object>{'trigger': triggerFor(action)};
+    logAppEvent(SignInPromptEvents.shown, properties: props);
     final signIn = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -53,11 +57,25 @@ class CafeGuestSignInSheet extends StatelessWidget {
       ),
       builder: (_) => CafeGuestSignInSheet(action: action, cafeName: cafeName),
     );
-    if (signIn == true && context.mounted) {
+    if (signIn != true) {
+      logAppEvent(SignInPromptEvents.dismissed, properties: props);
+      return;
+    }
+    if (context.mounted) {
       if (cafeId != null) GuestActionReplay.remember(action, cafeId);
       context.push('/login');
     }
   }
+
+  /// The `trigger` property of the sign-in prompt events.
+  static String triggerFor(CafeGuestAction action) => switch (action) {
+    CafeGuestAction.been => 'been',
+    CafeGuestAction.wantToTry => 'want_to_try',
+    CafeGuestAction.saveToList => 'save_to_list',
+    CafeGuestAction.writeReview => 'write_review',
+    CafeGuestAction.reportReview => 'report_review',
+    CafeGuestAction.helpfulReview => 'helpful_review',
+  };
 
   static String titleFor(CafeGuestAction action, String cafeName) {
     final name = cafeName.trim();

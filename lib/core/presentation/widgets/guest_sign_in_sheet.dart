@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 
 /// Tells a guest why an action needs an account instead of dropping them on
@@ -37,12 +39,18 @@ class GuestSignInSheet extends StatelessWidget {
   static const _muted = Color(0xFF868584);
 
   /// Opens the sheet; the primary button closes it and pushes `/login`.
+  ///
+  /// [trigger] names what needed an account (`saved_tab`, `save_place`, ...)
+  /// for `signin_prompt_shown` / `signin_prompt_dismissed`.
   static Future<void> show(
     BuildContext context, {
     required IconData icon,
     required String title,
     required String reason,
+    String trigger = 'other',
   }) async {
+    final props = <String, Object>{'trigger': trigger};
+    logAppEvent(SignInPromptEvents.shown, properties: props);
     final signIn = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -54,7 +62,11 @@ class GuestSignInSheet extends StatelessWidget {
       builder: (_) =>
           GuestSignInSheet(icon: icon, title: title, reason: reason),
     );
-    if (signIn == true && context.mounted) context.push('/login');
+    if (signIn != true) {
+      logAppEvent(SignInPromptEvents.dismissed, properties: props);
+      return;
+    }
+    if (context.mounted) context.push('/login');
   }
 
   @override
