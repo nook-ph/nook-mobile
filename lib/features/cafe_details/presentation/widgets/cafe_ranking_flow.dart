@@ -59,6 +59,7 @@ Future<RankingFlowOutcome?> showCafeRankingFlow(
   String? cafeImageUrl,
   String? cafeLocation,
   GalleryFlowDeps? gallery,
+  String? source,
 }) {
   return ListsSheet.show<RankingFlowOutcome>(
     context,
@@ -69,6 +70,7 @@ Future<RankingFlowOutcome?> showCafeRankingFlow(
       cafeImageUrl: cafeImageUrl,
       cafeLocation: cafeLocation,
       gallery: gallery ?? _appGallery(),
+      source: source,
     ),
   );
 }
@@ -124,6 +126,7 @@ class CafeRankingFlow extends StatefulWidget {
     this.cafeImageUrl,
     this.cafeLocation,
     this.gallery,
+    this.source,
   });
 
   final CafeRankingCubit cubit;
@@ -134,6 +137,10 @@ class CafeRankingFlow extends StatefulWidget {
 
   /// Offers "Add a photo of what you had" on the reveal. Null hides it.
   final GalleryFlowDeps? gallery;
+
+  /// `source` on every rank_* event when the flow was opened by something
+  /// other than a Been tap (`reminder`).
+  final String? source;
 
   @override
   State<CafeRankingFlow> createState() => _CafeRankingFlowState();
@@ -237,7 +244,11 @@ class _CafeRankingFlowState extends State<CafeRankingFlow> {
       sl<AnalyticsService>().track(
         widget.cafeId,
         event,
-        metadata: {AnalyticsMetadataKeys.screen: 'cafe_details', ...?extra},
+        metadata: {
+          AnalyticsMetadataKeys.screen: 'cafe_details',
+          'source': ?widget.source,
+          ...?extra,
+        },
       ),
     );
   }

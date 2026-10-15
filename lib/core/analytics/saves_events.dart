@@ -6,7 +6,8 @@
 /// Guest saves, first saves and the prompts that follow them.
 abstract final class SavesEvents {
   /// A guest marked a cafe Want to Try or Been, kept on this phone.
-  /// Properties: `status` (`want_to_try` or `been`).
+  /// Properties: `status` (`want_to_try` or `been`), `source` (`reminder`
+  /// when from the visit reminder's "I went"; absent otherwise).
   static const guestSaveCreated = 'guest_save_created';
 
   /// Saves kept on this phone were added to the account after sign-in.
@@ -38,4 +39,14 @@ abstract final class SavesEvents {
 abstract final class KeepSavesSurface {
   static const firstSaveToast = 'first_save_toast';
   static const savedTab = 'saved_tab';
+
+  /// After "I went" on the visit reminder.
+  static const reminder = 'reminder';
+}
+
+/// Values of the `source` property on a save or a ranking that did not come
+/// from a plain tap on the cafe page.
+abstract final class SavesSource {
+  /// "I went" (or the body) on the visit reminder.
+  static const reminder = 'reminder';
 }

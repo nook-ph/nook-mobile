@@ -5,6 +5,7 @@ import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_note_usecase.dart';
@@ -18,9 +19,7 @@ import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_use
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
-import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
-import 'package:nook/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
@@ -39,14 +38,15 @@ class CafeStatusPills extends StatefulWidget {
     super.key,
     required this.cafe,
     required this.toastOffset,
-    this.takeRateRequest,
+    this.takeWentRequest,
   });
 
   final CafeDetailsResult cafe;
 
-  /// True once when the page was opened from the visit reminder's "Rate
-  /// it": the pills then tap Been for the person (unless it already is).
-  final bool Function()? takeRateRequest;
+  /// True once when the page was opened from the visit reminder ("I
+  /// went"): the pills then mark it Been for the person (unless it already
+  /// is) and show the one follow-up.
+  final bool Function()? takeWentRequest;
 
   /// Height of the pinned bar, read at tap time, so toasts land above it
   /// and never cover Directions.
@@ -66,28 +66,29 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
     super.initState();
     _loadStatus();
     _finishGuestAction();
-    if (widget.takeRateRequest?.call() ?? false) _rateFromReminder();
+    if (widget.takeWentRequest?.call() ?? false) _wentFromReminder();
   }
 
-  /// "Rate it" on "How was [cafe]?": the same as tapping Been, which signed
-  /// in goes on to the ranking (the rating), and as a guest is kept on this
-  /// phone. A cafe already Been is left as it is: a tap would clear it.
-  void _rateFromReminder() {
+  /// "I went" on "Did you make it to [cafe]?": marks it Been, then one
+  /// "How was it?" step. Signed in, that is the ranking flow (the same as
+  /// tapping Been); a guest keeps the Been on this phone and is offered a
+  /// sign-in to rank it. A cafe already Been is left as it is: a tap would
+  /// clear it.
+  void _wentFromReminder() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final CafeStatus current;
       if (Supabase.instance.client.auth.currentSession == null) {
-        final saves = context.read<GuestSavesCubit>();
-        await saves.load();
-        current = saves.state.statusFor(_cafeId);
-      } else {
-        final cubit = context.read<CafeStatusCubit>();
-        await cubit.loadFor([_cafeId]);
-        if (!mounted || !cubit.state.isKnown(_cafeId)) return;
-        current = cubit.state.statusFor(_cafeId);
+        await markBeenFromReminder(
+          context,
+          cafe: CafeSnapshot.fromDetails(widget.cafe.cafeDetails),
+        );
+        return;
       }
-      if (!mounted || current == CafeStatus.been) return;
-      await _onStatusTap(CafeStatus.been);
+      final cubit = context.read<CafeStatusCubit>();
+      await cubit.loadFor([_cafeId]);
+      if (!mounted || !cubit.state.isKnown(_cafeId)) return;
+      if (cubit.state.statusFor(_cafeId) == CafeStatus.been) return;
+      await _onStatusTap(CafeStatus.been, source: SavesSource.reminder);
     });
   }
 
@@ -130,26 +131,20 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
     if (!ranking.state.loaded) unawaited(ranking.load());
   }
 
-  Future<void> _onStatusTap(CafeStatus tapped) async {
+  /// [source] is a [SavesSource] value when the tap was not the person's
+  /// own (the visit reminder).
+  Future<void> _onStatusTap(CafeStatus tapped, {String? source}) async {
     // A guest's Been / Want to Try is kept on this phone and moved to the
     // account on sign-in (GuestSavesSync); Been skips the ranking, which
     // needs an account.
     if (Supabase.instance.client.auth.currentSession == null) {
       dismissToasts();
-      final result = await toggleGuestStatus(
+      await toggleGuestStatus(
         context,
         cafe: CafeSnapshot.fromDetails(widget.cafe.cafeDetails),
         tapped: tapped,
         bottomOffset: _toastOffset,
       );
-      // After a save, the notification ask may follow; never on top of the
-      // one-time sign-in prompt.
-      if (result != null &&
-          result.next == CafeStatus.wantToTry &&
-          !result.askedToSignIn &&
-          mounted) {
-        unawaited(VisitReminderPrompts.afterSave(context));
-      }
       return;
     }
 
@@ -232,7 +227,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
       CafeStatus.been => 'mark_been',
       CafeStatus.wantToTry => 'mark_want_to_try',
       CafeStatus.none => 'unmark_status',
-    });
+    }, metadata: source == null ? null : {'source': source});
     if (next != CafeStatus.none) unawaited(recordSignedInSave(next));
 
     // Leaving Been drops the ranking server-side (trigger); refresh the local
@@ -256,6 +251,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
             ? details.featuredImageUrl!.trim()
             : (details.photos.isNotEmpty ? details.photos.first : null),
         cafeLocation: details.locationLabel,
+        source: source,
       );
       if (!mounted) return;
 
@@ -333,9 +329,6 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
       CafeStatus.wantToTry => 'Saved for your next coffee run',
       CafeStatus.none => '',
     }, bottomOffset: _toastOffset);
-    if (next == CafeStatus.wantToTry) {
-      unawaited(VisitReminderPrompts.afterSave(context));
-    }
   }
 
   /// Restores the mark, and the ranking and note that went with it. Takes

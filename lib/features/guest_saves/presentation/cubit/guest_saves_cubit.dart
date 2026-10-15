@@ -47,7 +47,12 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
 
   /// Sets [cafe]'s on-phone status; [CafeStatus.none] removes it. Null when
   /// the phone could not store it (the state is then left as it was).
-  Future<GuestSaveOutcome?> set(CafeSnapshot cafe, CafeStatus status) async {
+  /// [source] is a [SavesSource] value for the `guest_save_created` event.
+  Future<GuestSaveOutcome?> set(
+    CafeSnapshot cafe,
+    CafeStatus status, {
+    String? source,
+  }) async {
     await load();
     // Writing now would replace saves that are there but could not be read.
     if (_readFailed) return null;
@@ -75,7 +80,7 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     }
     logAppEvent(
       SavesEvents.guestSaveCreated,
-      properties: {'status': status.wire},
+      properties: {'status': status.wire, 'source': ?source},
     );
     final first = await recordFirstSave(_store, status, guest: true);
     return GuestSaveOutcome(previous: previous, firstSave: first);

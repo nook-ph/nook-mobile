@@ -40,13 +40,52 @@ Future<void> openKeepSavesSignIn(BuildContext context, String surface) =>
       trigger: 'keep_saves_$surface',
     );
 
+/// The sheet after a guest's "I went" on the visit reminder: the cafe is
+/// already marked Been on this phone; ranking it needs an account.
+const reminderSignInTitle = 'Sign in to add it to your ranking';
+String reminderSignInReason(String cafeName) {
+  final name = cafeName.trim().isEmpty ? 'This cafe' : cafeName.trim();
+  return '$name is marked Been on this phone. Sign in to say how it was '
+      'and rank it.';
+}
+
+/// "I went" on the visit reminder, for a guest: marks [cafe] Been on this
+/// phone (unless it already is), then the one follow-up, the keep-saves
+/// sign-in with a reason about ranking. Skipping it keeps the Been.
+Future<void> markBeenFromReminder(
+  BuildContext context, {
+  required CafeSnapshot cafe,
+}) async {
+  final saves = context.read<GuestSavesCubit>();
+  await saves.load();
+  if (saves.state.statusFor(cafe.id) != CafeStatus.been) {
+    HapticFeedback.lightImpact();
+    final outcome = await saves.set(
+      cafe,
+      CafeStatus.been,
+      source: SavesSource.reminder,
+    );
+    if (!context.mounted) return;
+    if (outcome == null) {
+      showPrimaryToast(context, "Couldn't save. Please try again.");
+      return;
+    }
+  }
+  if (!context.mounted) return;
+  dismissToasts();
+  await GuestSignInSheet.show(
+    context,
+    icon: LucideIcons.listOrdered,
+    title: reminderSignInTitle,
+    reason: reminderSignInReason(cafe.name),
+    trigger: 'keep_saves_${KeepSavesSurface.reminder}',
+  );
+}
+
 /// A guest tapped Been or Want to Try on [cafe]: kept on this phone, with
 /// the same toggle rule as the signed-in pills (tapping the current status
 /// clears it). Been skips the ranking flow, which needs an account.
-///
-/// Returns the status it set and whether the one-time sign-in prompt was
-/// the confirmation, or null when nothing could be saved.
-Future<({CafeStatus next, bool askedToSignIn})?> toggleGuestStatus(
+Future<void> toggleGuestStatus(
   BuildContext context, {
   required CafeSnapshot cafe,
   required CafeStatus tapped,
@@ -59,14 +98,14 @@ Future<({CafeStatus next, bool askedToSignIn})?> toggleGuestStatus(
   if (next != CafeStatus.none) HapticFeedback.lightImpact();
 
   final outcome = await saves.set(cafe, next);
-  if (!context.mounted) return null;
+  if (!context.mounted) return;
   if (outcome == null) {
     showPrimaryToast(
       context,
       "Couldn't save. Please try again.",
       bottomOffset: bottomOffset,
     );
-    return null;
+    return;
   }
 
   if (next == CafeStatus.none) {
@@ -80,38 +119,35 @@ Future<({CafeStatus next, bool askedToSignIn})?> toggleGuestStatus(
       onAction: () => unawaited(saves.set(cafe, current)),
       bottomOffset: bottomOffset,
     );
-    return (next: next, askedToSignIn: false);
+    return;
   }
 
-  final asked = await _confirmGuestSave(
+  await _confirmGuestSave(
     context,
     saves: saves,
     status: next,
     bottomOffset: bottomOffset,
   );
-  return (next: next, askedToSignIn: asked);
 }
 
 /// The toast after a guest's save: once per phone, the soft sign-in prompt;
-/// afterwards the same words a signed-in save gets. True when it was the
-/// sign-in prompt.
-Future<bool> _confirmGuestSave(
+/// afterwards the same words a signed-in save gets.
+Future<void> _confirmGuestSave(
   BuildContext context, {
   required GuestSavesCubit saves,
   required CafeStatus status,
   required double bottomOffset,
 }) async {
   final prompt = await saves.claimKeepSavesPrompt();
-  if (!context.mounted) return false;
+  if (!context.mounted) return;
   if (prompt) {
     showKeepSavesPrompt(context, bottomOffset: bottomOffset);
-    return true;
+    return;
   }
   showPrimaryToast(context, switch (status) {
     CafeStatus.been => 'Added to Been',
     _ => 'Saved for your next coffee run',
   }, bottomOffset: bottomOffset);
-  return false;
 }
 
 /// "Saved on this phone. Sign in to keep it everywhere." A toast with a
