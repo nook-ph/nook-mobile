@@ -38,7 +38,8 @@ abstract final class HomeEvents {
   static const searchTapped = 'home_search_tapped';
 
   /// A shelf's "See all". Properties: `sort` (the shelf: `nearby`,
-  /// `newest`, `trending`, `top_rated`).
+  /// `newest`, `trending`, `top_rated`, or `your_places`, whose See all
+  /// opens the Saved tab).
   static const seeAllTapped = 'home_see_all_tapped';
 
   /// A cafe card in a shelf (Home's rows, and "If you like this…" on Cafe

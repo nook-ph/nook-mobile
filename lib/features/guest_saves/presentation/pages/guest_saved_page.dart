@@ -188,8 +188,37 @@ class _KeepSavesCard extends StatelessWidget {
 
   final VoidCallback onSignIn;
 
+  /// Above this text scale the button goes under the text, so the text
+  /// keeps the card's width instead of three words a line (finding 9).
+  static const stackAbove = 1.3;
+
   @override
   Widget build(BuildContext context) {
+    final stacked =
+        MediaQuery.textScalerOf(context).scale(14) / 14 > stackAbove;
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          GuestSavedPage.keepTitle,
+          style: listsText(14, weight: FontWeight.w600),
+        ),
+        Text(
+          GuestSavedPage.keepBody,
+          // 14: the screen's secondary text size (finding 9).
+          style: listsText(14, color: ListsTokens.muted),
+        ),
+      ],
+    );
+    const icon = Icon(
+      LucideIcons.smartphone,
+      size: 22,
+      color: ListsTokens.brand,
+    );
+    final button = _PillButton(
+      label: GuestSavedPage.keepAction,
+      onTap: onSignIn,
+    );
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -197,33 +226,34 @@ class _KeepSavesCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: ListsTokens.border),
       ),
-      child: Row(
-        children: [
-          const Icon(
-            LucideIcons.smartphone,
-            size: 22,
-            color: ListsTokens.brand,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+      child: stacked
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  GuestSavedPage.keepTitle,
-                  style: listsText(14, weight: FontWeight.w600),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: icon,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: text),
+                  ],
                 ),
-                Text(
-                  GuestSavedPage.keepBody,
-                  style: listsText(12, color: ListsTokens.muted),
-                ),
+                const SizedBox(height: 12),
+                button,
+              ],
+            )
+          : Row(
+              children: [
+                icon,
+                const SizedBox(width: 12),
+                Expanded(child: text),
+                const SizedBox(width: 12),
+                button,
               ],
             ),
-          ),
-          const SizedBox(width: 12),
-          _PillButton(label: GuestSavedPage.keepAction, onTap: onSignIn),
-        ],
-      ),
     );
   }
 }
