@@ -243,6 +243,21 @@ void main() {
       expect(s.isActiveAt(_manila(2026, 10, 27, 0, 0)), isFalse);
     });
 
+    test('an end written as HH:MM:59.999 shows through that minute', () {
+      final s = HomeSchedule.tryParse({
+        'starts_at': '2026-10-20T00:00:00+08:00',
+        'ends_at': '2026-10-26T23:59:59.999+08:00',
+      })!;
+      expect(s.endsAt, DateTime.utc(2026, 10, 26, 15, 59, 59, 999));
+      final lastMs = DateTime.utc(2026, 10, 26, 15, 59, 59, 999);
+      expect(s.isActiveAt(_manila(2026, 10, 26, 23, 59)), isTrue);
+      expect(s.isActiveAt(lastMs), isTrue);
+      expect(
+        s.isActiveAt(lastMs.add(const Duration(milliseconds: 1))),
+        isFalse,
+      );
+    });
+
     test('days are Manila weekdays, 1 = Monday', () {
       final weekend = HomeSchedule.tryParse({
         'days': [6, 7],
