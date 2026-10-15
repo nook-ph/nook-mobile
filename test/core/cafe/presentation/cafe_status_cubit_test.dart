@@ -88,4 +88,21 @@ void main() {
     cubit.reset();
     expect(cubit.state.isKnown('a'), isFalse);
   });
+
+  test(
+    'local statuses show where the server has none, never as known',
+    () async {
+      cubit.showLocal({'a': CafeStatus.wantToTry, 'b': CafeStatus.wantToTry});
+      repo.server = {'b': CafeStatus.been};
+      await cubit.loadFor(['b']);
+
+      expect(cubit.state.statusFor('a'), CafeStatus.wantToTry);
+      expect(cubit.state.isKnown('a'), isFalse);
+      // The server's own status wins.
+      expect(cubit.state.statusFor('b'), CafeStatus.been);
+
+      cubit.showLocal(const {});
+      expect(cubit.state.statusFor('a'), CafeStatus.none);
+    },
+  );
 }

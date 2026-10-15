@@ -17,6 +17,8 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
+import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
+import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
@@ -99,15 +101,16 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
   }
 
   Future<void> _onStatusTap(CafeStatus tapped) async {
+    // A guest's Been / Want to Try is kept on this phone and moved to the
+    // account on sign-in (GuestSavesSync); Been skips the ranking, which
+    // needs an account.
     if (Supabase.instance.client.auth.currentSession == null) {
       dismissToasts();
-      await CafeGuestSignInSheet.show(
+      await toggleGuestStatus(
         context,
-        action: tapped == CafeStatus.been
-            ? CafeGuestAction.been
-            : CafeGuestAction.wantToTry,
-        cafeName: widget.cafe.cafeDetails.name,
-        cafeId: _cafeId,
+        cafe: CafeSnapshot.fromDetails(widget.cafe.cafeDetails),
+        tapped: tapped,
+        bottomOffset: _toastOffset,
       );
       return;
     }
@@ -192,6 +195,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
       CafeStatus.wantToTry => 'mark_want_to_try',
       CafeStatus.none => 'unmark_status',
     });
+    if (next != CafeStatus.none) unawaited(recordSignedInSave(next));
 
     // Leaving Been drops the ranking server-side (trigger); refresh the local
     // cache so a stale score doesn't linger on this session's surfaces.

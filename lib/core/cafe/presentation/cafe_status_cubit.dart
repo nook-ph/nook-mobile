@@ -64,6 +64,15 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
   /// Drops all cached statuses (e.g. on sign-out).
   void reset() => emit(const CafeStatusState());
 
+  /// Statuses a guest keeps on this phone (see `GuestSavesCubit`), shown
+  /// wherever a server status would be. Replaces the previous set; an empty
+  /// map clears it. They never count as [CafeStatusState.isKnown] and are
+  /// never written to the server from here.
+  void showLocal(Map<String, CafeStatus> statuses) {
+    if (mapEquals(statuses, state.local)) return;
+    emit(state.copyWith(local: Map.unmodifiable(statuses)));
+  }
+
   void _emitStatus(
     String cafeId,
     CafeStatus status, {
@@ -97,6 +106,7 @@ class CafeStatusState extends Equatable {
     this.statuses = const {},
     this.pending = const {},
     this.known = const {},
+    this.local = const {},
   });
 
   /// Cafes with a status; absent means none (or not yet loaded).
@@ -109,7 +119,12 @@ class CafeStatusState extends Equatable {
   /// Tells "none" apart from "the read failed", which [statuses] cannot.
   final Set<String> known;
 
-  CafeStatus statusFor(String cafeId) => statuses[cafeId] ?? CafeStatus.none;
+  /// A guest's on-phone statuses, read when the server has none for a cafe
+  /// (a guest has no server statuses at all).
+  final Map<String, CafeStatus> local;
+
+  CafeStatus statusFor(String cafeId) =>
+      statuses[cafeId] ?? local[cafeId] ?? CafeStatus.none;
 
   bool isPending(String cafeId) => pending.contains(cafeId);
 
@@ -122,14 +137,16 @@ class CafeStatusState extends Equatable {
     Map<String, CafeStatus>? statuses,
     Set<String>? pending,
     Set<String>? known,
+    Map<String, CafeStatus>? local,
   }) {
     return CafeStatusState(
       statuses: statuses ?? this.statuses,
       pending: pending ?? this.pending,
       known: known ?? this.known,
+      local: local ?? this.local,
     );
   }
 
   @override
-  List<Object?> get props => [statuses, pending, known];
+  List<Object?> get props => [statuses, pending, known, local];
 }
