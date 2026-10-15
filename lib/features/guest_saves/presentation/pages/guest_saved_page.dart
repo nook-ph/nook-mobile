@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/saves_events.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -13,6 +14,7 @@ import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/features/profile/presentation/pages/settings_page.dart';
 
 /// The Saved tab for someone without an account: the Want to Try and Been
 /// they kept on this phone, and a card (not a wall) offering to keep them
@@ -24,10 +26,11 @@ class GuestSavedPage extends StatefulWidget {
   /// state's button when null.
   final VoidCallback? onBrowse;
 
-  static const title = 'Your lists';
-  static const emptyTitle = 'Start your Want to Try list';
+  // One name for the tab and its page (review finding 7).
+  static const title = 'Saved';
+  static const emptyTitle = 'Start your Want to try list';
   static const emptyBody =
-      'Tap Want to Try or Been on any cafe. It stays on this phone, no '
+      'Tap Want to try or Been on any cafe. It stays on this phone, no '
       'account needed.';
   static const keepTitle = 'Keep your saves on any phone';
   static const keepBody = 'Sign in and everything here moves to your account.';
@@ -58,6 +61,15 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
     openKeepSavesSignIn(context, KeepSavesSurface.savedTab);
   }
 
+  void _openSettings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.settings),
+        builder: (_) => const SettingsPage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -79,9 +91,18 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
                 40,
               ),
               children: [
-                Text(
-                  GuestSavedPage.title,
-                  style: listsText(24, weight: FontWeight.w600),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        GuestSavedPage.title,
+                        style: listsText(24, weight: FontWeight.w600),
+                      ),
+                    ),
+                    // A guest has no Profile tab, so Settings (location,
+                    // visit reminders) is reached from here.
+                    _SettingsButton(onTap: _openSettings),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 if (state.isEmpty)
@@ -207,6 +228,28 @@ class _KeepSavesCard extends StatelessWidget {
   }
 }
 
+class _SettingsButton extends StatelessWidget {
+  const _SettingsButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AdaptiveTap(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Semantics(
+        button: true,
+        label: 'Settings',
+        child: const SizedBox.square(
+          dimension: 48,
+          child: Icon(LucideIcons.settings, size: 22, color: ListsTokens.ink),
+        ),
+      ),
+    );
+  }
+}
+
 class _PillButton extends StatelessWidget {
   const _PillButton({required this.label, required this.onTap});
 
@@ -221,7 +264,8 @@ class _PillButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(100),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 40),
+          // 48: the touch floor (review finding 6).
+          constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
           alignment: Alignment.center,
           decoration: BoxDecoration(
