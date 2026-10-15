@@ -3,12 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
@@ -20,6 +21,24 @@ import 'package:nook/injection_container.dart';
 /// The copy of the one-time prompt after a guest's first save.
 const keepSavesPromptMessage =
     'Saved on this phone. Sign in to keep it everywhere.';
+
+/// The sign-in sheet's title and reason when a guest asks to keep their
+/// saves (the first-save toast, the Saved tab card).
+const keepSavesSheetTitle = 'Keep your saves on any phone';
+const keepSavesSheetReason =
+    'Sign in and everything you saved on this phone moves to your account.';
+
+/// Opens the guest sign-in sheet with the keep-your-saves reason. Google or
+/// Apple sign in right there (GuestSavesSync then moves the saves to the
+/// account); email opens `/login`. [surface] is a [KeepSavesSurface] value.
+Future<void> openKeepSavesSignIn(BuildContext context, String surface) =>
+    GuestSignInSheet.show(
+      context,
+      icon: LucideIcons.bookmark,
+      title: keepSavesSheetTitle,
+      reason: keepSavesSheetReason,
+      trigger: 'keep_saves_$surface',
+    );
 
 /// A guest tapped Been or Want to Try on [cafe]: kept on this phone, with
 /// the same toggle rule as the signed-in pills (tapping the current status
@@ -101,7 +120,11 @@ void showKeepSavesPrompt(BuildContext context, {double bottomOffset = 0}) {
     duration: const Duration(seconds: 6),
     onAction: () {
       logAppEvent(SavesEvents.keepSavesPromptTapped, properties: surface);
-      if (context.mounted) context.push('/login');
+      if (context.mounted) {
+        unawaited(
+          openKeepSavesSignIn(context, KeepSavesSurface.firstSaveToast),
+        );
+      }
     },
     bottomOffset: bottomOffset,
   );

@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/pages/guest_saved_page.dart';
+import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/analytics/recording_analytics.dart';
@@ -77,5 +79,34 @@ void main() {
     expect(analytics.propertiesOf(SavesEvents.keepSavesPromptShown), {
       'surface': KeepSavesSurface.savedTab,
     });
+  });
+
+  testWidgets('Sign in opens the sign-in sheet with the keep-saves reason', (
+    tester,
+  ) async {
+    await tester.runAsync(
+      () => saves.set(
+        const CafeSnapshot(id: 'a', name: 'Kape Uno'),
+        CafeStatus.wantToTry,
+      ),
+    );
+    await pump(tester);
+    await tester.pump();
+    analytics.events.clear();
+
+    await tester.tap(find.text(GuestSavedPage.keepAction));
+    await tester.pumpAndSettle();
+
+    expect(find.text(keepSavesSheetReason), findsOneWidget);
+    expect(analytics.flat, [
+      [
+        SavesEvents.keepSavesPromptTapped,
+        {'surface': KeepSavesSurface.savedTab},
+      ],
+      [
+        SignInPromptEvents.shown,
+        {'trigger': 'keep_saves_saved_tab'},
+      ],
+    ]);
   });
 }

@@ -9,6 +9,7 @@ import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
@@ -54,7 +55,7 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
 
   void _signIn() {
     logAppEvent(SavesEvents.keepSavesPromptTapped, properties: _surface);
-    context.push('/login');
+    openKeepSavesSignIn(context, KeepSavesSurface.savedTab);
   }
 
   @override
