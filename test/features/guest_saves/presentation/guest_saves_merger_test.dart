@@ -143,4 +143,26 @@ void main() {
     expect(await merger.merge(), 0);
     expect(analytics.events, isEmpty);
   });
+
+  test('a sign-out after a failed merge drops the leftovers, so the next '
+      'account does not get them', () async {
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    repo.failRead = true;
+
+    expect(await merger.merge(), 0);
+    expect(saves.state.saves, hasLength(1));
+
+    await merger.discardLeftovers();
+
+    expect(saves.state.isEmpty, isTrue);
+    expect(await GuestSavesStore().read(), isEmpty);
+  });
+
+  test('a sign-out with no merge tried keeps the guest\'s saves', () async {
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+
+    await merger.discardLeftovers();
+
+    expect(saves.state.saves, hasLength(1));
+  });
 }

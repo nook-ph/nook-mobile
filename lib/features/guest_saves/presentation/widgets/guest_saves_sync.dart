@@ -16,7 +16,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 /// - while signed out, they are the statuses every badge and pill shows;
 /// - on sign-in (and on any launch that is signed in with saves left over
 ///   from a failed attempt) they are moved to the account, in the
-///   background: signing in never waits for it.
+///   background: signing in never waits for it;
+/// - on signing out of an account, saves a merge left behind are dropped.
 ///
 /// Sits under `main.dart`'s providers, below the listener that resets the
 /// status cache on sign-out, so its own work lands after that reset.
@@ -90,6 +91,9 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
           listener: (context, state) {
             if (state is AuthLoggedOut || state is AuthAccountDeleted) {
               context.read<RecentlyViewedCubit>().clear();
+              // Saves that failed to reach the account that just left are
+              // not the next guest's, nor the next account's.
+              unawaited(_merger.discardLeftovers().whenComplete(_mirror));
             }
             // After the app's own listener has reset the status cache.
             scheduleMicrotask(_mirror);

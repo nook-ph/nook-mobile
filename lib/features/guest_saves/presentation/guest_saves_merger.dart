@@ -21,6 +21,27 @@ class GuestSavesMerger {
 
   bool _running = false;
 
+  /// A merge into the signed-in account has been tried with saves on the
+  /// phone. Whatever is left belongs to that account's owner from then on.
+  bool _attempted = false;
+
+  /// On an explicit sign-out (or account deletion): drops saves left over
+  /// from a merge that did not finish, so they are neither shown as the next
+  /// guest's nor merged into whichever account signs in next on this phone.
+  /// Saves no merge was tried for (a guest who backed out of sign-in before
+  /// reaching an account) are kept.
+  Future<void> discardLeftovers() async {
+    if (!_attempted) return;
+    _attempted = false;
+    try {
+      await saves.load();
+      final left = {for (final s in saves.state.saves) s.cafeId};
+      await saves.removeAll(left);
+    } catch (e, st) {
+      debugPrint('[GuestSavesMerger] discard failed: $e\n$st');
+    }
+  }
+
   /// The number of saves added to the account. Never throws.
   Future<int> merge() async {
     if (_running) return 0;
@@ -42,6 +63,7 @@ class GuestSavesMerger {
     statuses.showLocal(const {});
     final pending = saves.state.saves;
     if (pending.isEmpty) return 0;
+    _attempted = true;
 
     final ids = [for (final s in pending) s.cafeId];
     await statuses.loadFor(ids);
