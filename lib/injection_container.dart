@@ -97,6 +97,7 @@ import 'package:nook/features/crawls/domain/use_cases/enable_crawl_link_usecase.
 import 'package:nook/features/crawls/domain/use_cases/update_crawl_title_usecase.dart';
 import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
+import 'package:nook/features/onboarding/domain/get_purpose_suggestions_usecase.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/data/profile_remote_data_source.dart';
 import 'package:nook/features/profile/data/profile_repository_impl.dart';
@@ -304,6 +305,9 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetCafesUseCase>(
     () => GetCafesUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<GetPurposeSuggestionsUseCase>(
+    () => GetPurposeSuggestionsUseCase(sl<ICafeRepository>()),
   );
   sl.registerLazySingleton<GetSimilarCafesUseCase>(
     () => GetSimilarCafesUseCase(sl<ICafeRepository>()),
