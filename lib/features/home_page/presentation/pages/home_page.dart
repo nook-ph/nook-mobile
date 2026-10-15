@@ -18,6 +18,7 @@ import 'package:nook/features/home_page/bloc/home_states.dart';
 import 'package:nook/features/home_page/domain/home_rail_order.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_card_section.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_featured_card.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_location_prompt.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
 import 'package:nook/injection_container.dart';
@@ -181,6 +182,12 @@ class HomePage extends StatelessWidget {
         onRefresh: () => _onRefresh(context),
         children: [
           ?banner,
+          if (banner == null)
+            HomeLocationPrompt(
+              onGranted: () => context.read<HomeBloc>().add(
+                LoadHomeDataEvent(refresh: true),
+              ),
+            ),
           const SizedBox(height: 12),
           _HomeContent(state: state),
           const SizedBox(height: 36),
