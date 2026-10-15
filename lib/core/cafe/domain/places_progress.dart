@@ -2,7 +2,8 @@ import 'package:equatable/equatable.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 
-/// How many of a person's places they have been to: "Been to 3 of 8".
+/// How many of a person's places they have been to, and how many are left
+/// to try: "3 been · 5 to try".
 ///
 /// Been and Want to Try are mutually exclusive per cafe, and marking a Want
 /// to Try cafe Been moves it out of Want to Try (`set_cafe_status`,
@@ -10,7 +11,8 @@ import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 /// two lists together, and the ones visited are the Been list:
 /// `been of (been + wantToTry)`. Nothing records which Been cafes started on
 /// Want to Try, so a cafe marked Been straight away counts as a place
-/// visited too; the copy says "of your places", never "of your Want to Try".
+/// visited too, and the finished state says "All 3 been", never "Been to
+/// all of your Want to Try".
 class PlacesProgress extends Equatable {
   const PlacesProgress({required this.been, required this.wantToTry})
     : assert(been >= 0 && wantToTry >= 0);
@@ -55,23 +57,33 @@ class PlacesProgress extends Equatable {
 
   bool get isComplete => total > 0 && wantToTry == 0;
 
-  /// 0 to 1, for a progress bar. 0 when there is nothing saved.
+  /// 0 to 1: the share of places that are Been. 0 when nothing is saved.
   double get fraction => total == 0 ? 0 : been / total;
 
-  /// "Been to 3 of 8", "Been to all 3"; null when nothing is saved (show
-  /// nothing then).
+  /// Two counts, never a ratio: a ratio falls each time a cafe is saved
+  /// (1 of 3 becomes 1 of 4), and "Been to 0 of 3" counts a goal nobody
+  /// set (UX research 2026-10-16, findings 4 and 5).
+  ///
+  /// - nothing Been yet: "3 to try";
+  /// - some of each: "1 been · 2 to try";
+  /// - nothing left to try: "All 3 been". Nothing records whether those
+  ///   started on Want to Try, so this does not say "Been to all".
+  ///
+  /// Null when nothing is saved (show nothing then).
   String? get label {
     if (isEmpty) return null;
-    if (isComplete) return 'Been to all $total';
-    return 'Been to $been of $total';
+    if (been == 0) return '$wantToTry to try';
+    if (wantToTry == 0) return 'All $been been';
+    return '$been been · $wantToTry to try';
   }
 
-  /// For screen readers, where "3 of 8" alone loses what is counted.
+  /// For screen readers: what is counted, in words.
   String? get semanticsLabel {
     if (isEmpty) return null;
-    final places = total == 1 ? 'place' : 'places';
-    if (isComplete) return 'Been to all $total of your $places';
-    return 'Been to $been of your $total $places';
+    String cafes(int n) => n == 1 ? '1 cafe' : '$n cafes';
+    if (been == 0) return '${cafes(wantToTry)} to try';
+    if (wantToTry == 0) return 'All ${cafes(been)} been';
+    return '${cafes(been)} been, $wantToTry to try';
   }
 
   @override

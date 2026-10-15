@@ -24,9 +24,10 @@ void main() {
       expect(p.fraction, 0);
     });
 
-    test('none visited yet', () {
+    test('none visited yet: only what is left, never "0 of"', () {
       const p = PlacesProgress(been: 0, wantToTry: 5);
-      expect(p.label, 'Been to 0 of 5');
+      expect(p.label, '5 to try');
+      expect(p.semanticsLabel, '5 cafes to try');
       expect(p.fraction, 0);
       expect(p.isComplete, isFalse);
     });
@@ -34,23 +35,35 @@ void main() {
     test('some visited', () {
       const p = PlacesProgress(been: 3, wantToTry: 5);
       expect(p.total, 8);
-      expect(p.label, 'Been to 3 of 8');
-      expect(p.semanticsLabel, 'Been to 3 of your 8 places');
+      expect(p.label, '3 been · 5 to try');
+      expect(p.semanticsLabel, '3 cafes been, 5 to try');
       expect(p.fraction, closeTo(0.375, 1e-9));
     });
 
     test('all visited', () {
       const p = PlacesProgress(been: 8, wantToTry: 0);
       expect(p.isComplete, isTrue);
-      expect(p.label, 'Been to all 8');
+      expect(p.label, 'All 8 been');
+      expect(p.semanticsLabel, 'All 8 cafes been');
       expect(p.fraction, 1);
     });
 
-    test('one place reads singular for screen readers', () {
+    test('one cafe reads singular for screen readers', () {
       expect(
         const PlacesProgress(been: 0, wantToTry: 1).semanticsLabel,
-        'Been to 0 of your 1 place',
+        '1 cafe to try',
       );
+      expect(
+        const PlacesProgress(been: 1, wantToTry: 1).semanticsLabel,
+        '1 cafe been, 1 to try',
+      );
+    });
+
+    test('saving one more never reads as going backwards', () {
+      const before = PlacesProgress(been: 1, wantToTry: 2);
+      const after = PlacesProgress(been: 1, wantToTry: 3);
+      expect(before.label, '1 been · 2 to try');
+      expect(after.label, '1 been · 3 to try');
     });
 
     test('fromStatuses counts Been and Want to Try, ignores none', () {
@@ -72,8 +85,8 @@ void main() {
         CafeStatus.been,
         CafeStatus.wantToTry,
       ]);
-      expect(before.label, 'Been to 0 of 2');
-      expect(after.label, 'Been to 1 of 2');
+      expect(before.label, '2 to try');
+      expect(after.label, '1 been · 1 to try');
     });
 
     test('fromLists reads the system lists only', () {
