@@ -111,12 +111,12 @@ void main() {
     expect(_currentTab(tester), 1);
   });
 
-  testWidgets('the primary button opens /login', (tester) async {
+  testWidgets('Continue with email opens /login', (tester) async {
     await tester.pumpWidget(_app(signedIn: false));
 
     await tester.tap(_tab('Saved'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in or create account'));
+    await tester.tap(find.text('Continue with email'));
     await tester.pumpAndSettle();
 
     expect(find.byType(GuestSignInSheet), findsNothing);

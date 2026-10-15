@@ -7,6 +7,7 @@ import 'package:nook/features/auth/presentation/pages/email_entry_page.dart';
 import 'package:nook/features/auth/presentation/pages/login_page.dart';
 import 'package:nook/features/auth/presentation/pages/signup_details_page.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
+import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 import 'package:nook/injection_container.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -62,17 +63,23 @@ void main() {
       await pumpEntry(tester);
       expect(find.text('Log in or sign up'), findsOneWidget);
       expect(find.text('Email'), findsOneWidget);
-      expect(_opacityOf(tester, 'Continue'), 0.4);
+      expect(_opacityOf(tester, 'Continue with email'), 0.4);
       expect(_opacityOf(tester, 'Continue with Google'), 0.4);
 
       await tester.enterText(find.byType(TextField), 'maria.cruz@gmail.com');
       await tester.pump();
-      expect(_opacityOf(tester, 'Continue'), 0.4);
+      expect(_opacityOf(tester, 'Continue with email'), 0.4);
 
       await tester.tap(find.byType(AuthCheckbox));
       await tester.pump();
-      expect(_opacityOf(tester, 'Continue'), 1);
+      expect(_opacityOf(tester, 'Continue with email'), 1);
       expect(_opacityOf(tester, 'Continue with Google'), 1);
+      // Google leads; email is the second option, under it.
+      expect(
+        tester.getTopLeft(find.text('Continue with Google')).dy,
+        lessThan(tester.getTopLeft(find.text('Continue with email')).dy),
+      );
+      expect(find.text('Continue with Apple'), findsNothing);
       // A typed email can be cleared from inside the field.
       expect(find.byIcon(LucideIcons.x), findsOneWidget);
     });
@@ -82,11 +89,11 @@ void main() {
       await tester.tap(find.byType(AuthCheckbox));
       await tester.enterText(find.byType(TextField), 'maria.cruz@gmail');
       await tester.pump();
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('Continue with email'));
       await tester.pump();
 
       expect(find.text('This email is invalid'), findsOneWidget);
-      expect(_opacityOf(tester, 'Continue'), 0.4);
+      expect(_opacityOf(tester, 'Continue with email'), 0.4);
       expect(bloc.events, isEmpty);
 
       await tester.enterText(find.byType(TextField), 'maria.cruz@gmail.com');
@@ -101,7 +108,7 @@ void main() {
       await tester.tap(find.byType(AuthCheckbox));
       await tester.enterText(find.byType(TextField), 'maria.cruz@gmail.com');
       await tester.pump();
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('Continue with email'));
       await tester.pump();
       expect(bloc.events.single, isA<AuthCheckEmailEvent>());
 
@@ -113,7 +120,7 @@ void main() {
       bloc.push(const AuthError('Connection failed. Check your internet.'));
       await _pumpToast(tester);
       expect(find.text('Connection failed. Check your internet.'), findsOne);
-      expect(find.text('Continue'), findsOneWidget);
+      expect(find.text('Continue with email'), findsOneWidget);
       await _drainToasts(tester);
     });
 
@@ -132,6 +139,13 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(AuthOutlineButton),
+          matching: find.byType(AuthSpinner),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(AuthProviderButton),
           matching: find.byType(AuthSpinner),
         ),
         findsOneWidget,

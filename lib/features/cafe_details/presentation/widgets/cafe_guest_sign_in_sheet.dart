@@ -2,9 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
+import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 
 /// Which guest action opened the sign-in sheet; each gets its own reason.
@@ -19,31 +20,46 @@ enum CafeGuestAction {
 
 /// Says why an account is needed before a guest's Been, Want to try, Save,
 /// or a review action (write, report, helpful), instead of dropping them on
-/// the login page. "Not now" leaves them where they were.
+/// the login page. Google and Apple sign in from the sheet; email opens the
+/// login page. "Not now" leaves them where they were.
 class CafeGuestSignInSheet extends StatelessWidget {
   const CafeGuestSignInSheet({
     super.key,
     required this.action,
     required this.cafeName,
+    this.title,
+    this.reason,
   });
 
   final CafeGuestAction action;
   final String cafeName;
 
+  /// Replaces the action's own title ([titleFor]) when the caller has a
+  /// better one for where the guest is.
+  final String? title;
+
+  /// Replaces the action's own reason ([messageFor]), e.g. "Keep your saves
+  /// on any phone".
+  final String? reason;
+
   static const _sheetColor = Color(0xFFFEFEFE);
   static const _grabber = Color(0xFFE0E0E0);
   static const _muted = Color(0xFF868584);
 
-  /// Opens the sheet; "Sign in or create account" pushes `/login`.
-  /// With [cafeId], a Save, Been, Want to try or Write a review is finished
-  /// on that cafe's page once the guest is signed in ([GuestActionReplay]).
+  /// Opens the sheet. Google or Apple signs in from here; email pushes
+  /// `/login` ([continueSignInFromSheet]). With [cafeId], a Save, Been,
+  /// Want to try or Write a review is finished on that cafe's page once the
+  /// guest is signed in ([GuestActionReplay]). [title] and [reason] replace
+  /// the action's own copy.
   static Future<void> show(
     BuildContext context, {
     required CafeGuestAction action,
     String cafeName = '',
     String? cafeId,
+    String? title,
+    String? reason,
   }) async {
-    final signIn = await showModalBottomSheet<bool>(
+    final choice = await showModalBottomSheet<SignInChoice>(
       context: context,
       isScrollControlled: true,
       backgroundColor: _sheetColor,
@@ -51,12 +67,21 @@ class CafeGuestSignInSheet extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => CafeGuestSignInSheet(action: action, cafeName: cafeName),
+      builder: (_) => CafeGuestSignInSheet(
+        action: action,
+        cafeName: cafeName,
+        title: title,
+        reason: reason,
+      ),
     );
-    if (signIn == true && context.mounted) {
-      if (cafeId != null) GuestActionReplay.remember(action, cafeId);
-      context.push('/login');
-    }
+    if (!context.mounted) return;
+    await continueSignInFromSheet(
+      context,
+      choice,
+      beforeSignIn: () {
+        if (cafeId != null) GuestActionReplay.remember(action, cafeId);
+      },
+    );
   }
 
   static String titleFor(CafeGuestAction action, String cafeName) {
@@ -134,7 +159,7 @@ class CafeGuestSignInSheet extends StatelessWidget {
           ),
           gap,
           Text(
-            titleFor(action, cafeName),
+            title ?? titleFor(action, cafeName),
             textAlign: TextAlign.center,
             style: textTheme.titleLarge?.copyWith(
               fontSize: 20,
@@ -144,26 +169,22 @@ class CafeGuestSignInSheet extends StatelessWidget {
           ),
           gap,
           Text(
-            messageFor(action),
+            reason ?? messageFor(action),
             textAlign: TextAlign.center,
             style: textTheme.bodyMedium?.copyWith(fontSize: 14, color: _muted),
           ),
           gap,
           const SizedBox(height: 12),
           gap,
-          _SheetButton(
-            label: 'Sign in or create account',
-            height: 48,
-            color: CafeDetailsTokens.brand,
-            textColor: _sheetColor,
-            onTap: () => Navigator.of(context).pop(true),
+          SheetSignInChoices(
+            onChoice: (choice) => Navigator.of(context).pop(choice),
           ),
           gap,
           _SheetButton(
             label: 'Not now',
             height: 44,
             textColor: CafeDetailsTokens.ink,
-            onTap: () => Navigator.of(context).pop(false),
+            onTap: () => Navigator.of(context).pop(),
           ),
         ],
       ),
@@ -177,12 +198,10 @@ class _SheetButton extends StatelessWidget {
     required this.height,
     required this.textColor,
     required this.onTap,
-    this.color,
   });
 
   final String label;
   final double height;
-  final Color? color;
   final Color textColor;
   final VoidCallback onTap;
 
@@ -197,12 +216,6 @@ class _SheetButton extends StatelessWidget {
           width: double.infinity,
           constraints: BoxConstraints(minHeight: height),
           alignment: Alignment.center,
-          decoration: color == null
-              ? null
-              : BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(100),
-                ),
           child: Text(
             label,
             textAlign: TextAlign.center,

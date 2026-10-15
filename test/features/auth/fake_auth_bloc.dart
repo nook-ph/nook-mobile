@@ -15,4 +15,8 @@ class FakeAuthBloc extends Bloc<AuthEvent, AuthState> implements AuthBloc {
 
   @override
   ListsBloc get listsBloc => throw UnimplementedError();
+
+  /// What the step pages read for `method`; set by a test.
+  @override
+  String? signInMethod;
 }

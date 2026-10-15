@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
+import 'package:nook/core/analytics/auth_events.dart';
+import 'package:nook/features/auth/presentation/auth_funnel.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 
@@ -39,6 +41,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final GetCurrentSessionUseCase _getCurrentSessionUseCase;
   final ListsBloc listsBloc;
   final Future<Map<String, dynamic>> Function(String userId) _fetchProfile;
+  final AuthFunnel _funnel;
   late final StreamSubscription<supabase.AuthState> _authStateSubscription;
 
   /// True while this bloc is itself signing out. gotrue announces `signedOut`
@@ -64,7 +67,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required this.listsBloc,
     Stream<supabase.AuthState>? authStateChanges,
     Future<Map<String, dynamic>> Function(String userId)? fetchProfile,
+    AuthFunnel? funnel,
   }) : _fetchProfile = fetchProfile ?? _fetchSupabaseProfile,
+       _funnel = funnel ?? AuthFunnel(),
        _checkEmailExistsUseCase = checkEmailExistsUseCase,
        _signUpWithEmailUseCase = signUpWithEmailUseCase,
        _signInWithEmailUseCase = signInWithEmailUseCase,
@@ -94,6 +99,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     _authStateSubscription =
         (authStateChanges ?? Supabase.instance.client.auth.onAuthStateChange)
             .listen(_onSupabaseAuthStateChange, onError: _onAuthStreamError);
+  }
+
+  /// The sign-in attempt in progress (`google`, `apple` or `email`), if
+  /// any. The step pages stamp it on what they report.
+  String? get signInMethod => _funnel.method;
+
+  @override
+  void onEvent(AuthEvent event) {
+    super.onEvent(event);
+    _funnel.onEvent(event);
+  }
+
+  @override
+  void onChange(Change<AuthState> change) {
+    super.onChange(change);
+    _funnel.onChange(change.currentState, change.nextState);
   }
 
   static const expiredLinkMessage =

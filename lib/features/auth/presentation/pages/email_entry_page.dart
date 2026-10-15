@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,6 +8,7 @@ import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
+import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 import 'package:nook/injection_container.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
@@ -18,9 +17,13 @@ import 'package:nook/core/analytics/log_app_event.dart';
 /// (B4 "Checking…" on Continue, B9 the provider's own button).
 enum _Pending { email, google, apple }
 
-/// "Log in or sign up" (Figma B1–B5, B9, F10).
+/// "Log in or sign up" (Figma B1–B5, B9, F10), with Google and Apple first
+/// and email as the second option.
 class EmailEntryScreen extends StatefulWidget {
   const EmailEntryScreen({super.key});
+
+  /// The email path's button, under the field.
+  static const emailContinueLabel = 'Continue with email';
 
   @override
   State<EmailEntryScreen> createState() => _EmailEntryScreenState();
@@ -206,6 +209,43 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
               ),
             ),
             const Text('Log in or sign up', style: AuthText.title),
+            // Google and Apple first: one tap and no password, so they are
+            // the way in this page leads with. Email follows as the second
+            // option. The terms box gates all three, so it sits above them.
+            AuthTermsAgreement(
+              value: _agreedToTerms,
+              onChanged: (value) => setState(() {
+                _agreedToTerms = value;
+                if (value) _termsNudge = false;
+              }),
+              showNudge: _termsNudge,
+              eulaRecognizer: _eulaTap,
+              privacyRecognizer: _privacyTap,
+            ),
+            if (showAppleSignIn)
+              _TermsGate(
+                locked: !_agreedToTerms && !isLoading,
+                onLockedTap: _nudgeTerms,
+                child: AuthProviderButton(
+                  provider: SignInChoice.apple,
+                  loading: pending == _Pending.apple,
+                  onPressed: providersEnabled
+                      ? () => _signInWith(_Pending.apple)
+                      : null,
+                ),
+              ),
+            _TermsGate(
+              locked: !_agreedToTerms && !isLoading,
+              onLockedTap: _nudgeTerms,
+              child: AuthProviderButton(
+                provider: SignInChoice.google,
+                loading: pending == _Pending.google,
+                onPressed: providersEnabled
+                    ? () => _signInWith(_Pending.google)
+                    : null,
+              ),
+            ),
+            const AuthOrDivider(),
             AuthTextField(
               controller: _emailController,
               label: 'Email',
@@ -232,62 +272,16 @@ class _EmailEntryScreenState extends State<EmailEntryScreen> {
                       onTap: isLoading ? () {} : _emailController.clear,
                     ),
             ),
-            AuthTermsAgreement(
-              value: _agreedToTerms,
-              onChanged: (value) => setState(() {
-                _agreedToTerms = value;
-                if (value) _termsNudge = false;
-              }),
-              showNudge: _termsNudge,
-              eulaRecognizer: _eulaTap,
-              privacyRecognizer: _privacyTap,
-            ),
             _TermsGate(
               locked: !_agreedToTerms && !isLoading,
               onLockedTap: _nudgeTerms,
-              child: AuthPrimaryButton(
-                label: 'Continue',
+              child: AuthOutlineButton(
+                label: EmailEntryScreen.emailContinueLabel,
                 loading: pending == _Pending.email,
                 loadingLabel: 'Checking…',
                 onPressed: canSubmit ? _onContinuePressed : null,
               ),
             ),
-            const AuthOrDivider(),
-            _TermsGate(
-              locked: !_agreedToTerms && !isLoading,
-              onLockedTap: _nudgeTerms,
-              child: AuthOutlineButton(
-                label: 'Continue with Google',
-                icon: Image.asset(
-                  'assets/logos/googleLogo.png',
-                  width: 18,
-                  height: 18,
-                  cacheWidth: (18 * MediaQuery.devicePixelRatioOf(context))
-                      .ceil(),
-                ),
-                loading: pending == _Pending.google,
-                onPressed: providersEnabled
-                    ? () => _signInWith(_Pending.google)
-                    : null,
-              ),
-            ),
-            if (Platform.isIOS)
-              _TermsGate(
-                locked: !_agreedToTerms && !isLoading,
-                onLockedTap: _nudgeTerms,
-                child: AuthOutlineButton(
-                  label: 'Continue with Apple',
-                  icon: const Icon(
-                    LucideIcons.apple,
-                    size: 18,
-                    color: AuthColors.ink,
-                  ),
-                  loading: pending == _Pending.apple,
-                  onPressed: providersEnabled
-                      ? () => _signInWith(_Pending.apple)
-                      : null,
-                ),
-              ),
           ],
         );
       },

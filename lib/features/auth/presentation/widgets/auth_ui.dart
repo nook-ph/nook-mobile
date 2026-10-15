@@ -492,12 +492,16 @@ class AuthOutlineButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.loading = false,
+    this.loadingLabel,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final Widget? icon;
   final bool loading;
+
+  /// Shown in place of [label] while [loading] ("Checking…").
+  final String? loadingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -526,7 +530,7 @@ class AuthOutlineButton extends StatelessWidget {
                 if (loading) const AuthSpinner() else ?icon,
                 if (loading || icon != null) const SizedBox(width: 8),
                 Text(
-                  label,
+                  loading ? loadingLabel ?? label : label,
                   style: AuthText.button.copyWith(color: AuthColors.ink),
                 ),
               ],
