@@ -2,7 +2,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/cafe_data_revision.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/preferences/onboarding_purpose_store.dart';
+import 'package:nook/features/home_page/data/home_layout_repository.dart';
+import 'package:nook/features/home_page/domain/home_layout.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_layout_shelves_usecase.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
 
@@ -40,8 +43,23 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   /// Reads the onboarding purpose, whose shelf leads the feed.
   final Future<OnboardingPurpose?> Function()? readPurpose;
 
-  HomeBloc({required this.getHomeFeedUseCase, this.readPurpose})
-    : super(HomeInitialState()) {
+  /// The admin-controlled layout. Null keeps the built-in Home.
+  final HomeLayoutRepository? layoutRepository;
+
+  /// Loads the cafes a layout adds (House picks, custom shelves).
+  final GetLayoutShelvesUseCase? getLayoutShelves;
+
+  /// Debug builds only: a layout built from the loaded feed (so it can use
+  /// real cafe ids), used instead of the server's. Never set in release.
+  final HomeLayout Function(HomeFeedResult feed)? debugLayoutFixture;
+
+  HomeBloc({
+    required this.getHomeFeedUseCase,
+    this.readPurpose,
+    this.layoutRepository,
+    this.getLayoutShelves,
+    this.debugLayoutFixture,
+  }) : super(HomeInitialState()) {
     on<LoadHomeDataEvent>(_onLoadHomeData);
     on<HomeDismissLocationBannerEvent>(_onDismissLocationBanner);
     CafeDataRevision.reviews.addListener(_onReviewsChanged);
@@ -72,6 +90,24 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
 
     final purpose = await _readPurpose();
 
+    // The layout loads alongside the feed: the cached one (and its shelves)
+    // for this paint, the server's behind it.
+    final layoutRepository = this.layoutRepository;
+    final fixture = debugLayoutFixture;
+    HomeLayout? layout;
+    var layoutShelves = const <String, List<CafeSummary>>{};
+    Future<void>? layoutReady;
+    Future<HomeLayoutRefresh>? refreshed;
+    if (fixture == null && layoutRepository != null) {
+      final cachedLayout = layoutRepository.cached();
+      // Asked after the cache is read, so "changed" compares with it.
+      refreshed = cachedLayout.then((_) => layoutRepository.refresh());
+      layoutReady = () async {
+        layout = await cachedLayout;
+        layoutShelves = await _shelvesFor(layout);
+      }();
+    }
+
     try {
       // Cafes already announced in this load, so the page asks for each
       // cafe's status once.
@@ -81,6 +117,13 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       await for (final update in getHomeFeedUseCase.watch()) {
         if (emit.isDone) return;
         final out = update.data;
+
+        if (fixture != null && layout == null) {
+          layout = fixture(out.feed);
+          layoutShelves = await _shelvesFor(layout);
+        }
+        await layoutReady;
+        if (emit.isDone) return;
 
         // The early step of a refresh has no "Near you" yet. The one on
         // screen stays until its replacement arrives.
@@ -130,10 +173,28 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
               current.locationBannerDismissed,
           allEmpty: allEmpty,
           purpose: purpose,
+          layout: layout,
+          layoutShelves: layoutShelves,
         );
         emit(loaded.copyWith(newCafeIds: loaded.cafeIds.difference(announced)));
         announced = loaded.cafeIds;
         firstStep = false;
+      }
+
+      // The server's layout, once the feed is on screen. Only a change is
+      // drawn; a failed fetch keeps the cached layout (or the built-in Home).
+      final fresh = await refreshed;
+      final current = state;
+      if (fresh != null &&
+          fresh.changed &&
+          !emit.isDone &&
+          current is HomeLoadedState) {
+        final shelves = await _shelvesFor(fresh.layout);
+        if (emit.isDone) return;
+        final next = fresh.layout == null
+            ? current.copyWith(clearLayout: true)
+            : current.copyWith(layout: fresh.layout, layoutShelves: shelves);
+        emit(next.copyWith(newCafeIds: next.cafeIds.difference(announced)));
       }
     } catch (e) {
       // A refresh that fails keeps the feed it was refreshing; only the
@@ -144,6 +205,16 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         return;
       }
       emit(HomeError(e));
+    }
+  }
+
+  Future<Map<String, List<CafeSummary>>> _shelvesFor(HomeLayout? layout) async {
+    final load = getLayoutShelves;
+    if (layout == null || load == null) return const {};
+    try {
+      return await load(layout);
+    } catch (_) {
+      return const {};
     }
   }
 

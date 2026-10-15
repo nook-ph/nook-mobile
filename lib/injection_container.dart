@@ -96,6 +96,10 @@ import 'package:nook/features/crawls/domain/use_cases/start_crawl_run_usecase.da
 import 'package:nook/features/crawls/domain/use_cases/enable_crawl_link_usecase.dart';
 import 'package:nook/features/crawls/domain/use_cases/update_crawl_title_usecase.dart';
 import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
+import 'package:nook/features/home_page/data/home_banner_dismiss_store.dart';
+import 'package:nook/features/home_page/data/home_layout_repository.dart';
+import 'package:nook/features/home_page/debug/home_layout_fixture.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_layout_shelves_usecase.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/onboarding/domain/get_purpose_suggestions_usecase.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
@@ -188,6 +192,10 @@ Future<void> initDependencies() async {
     () => CrawlRemoteDataSource(sl<SupabaseClient>()),
   );
 
+  sl.registerLazySingleton<HomeLayoutRemoteSource>(
+    () => HomeLayoutRemoteSource(sl<SupabaseClient>()),
+  );
+  sl.registerLazySingleton<HomeBannerDismissStore>(HomeBannerDismissStore.new);
   sl.registerLazySingleton<CafeListingStatusSource>(
     () => CafeListingStatusSource(sl<SupabaseClient>()),
   );
@@ -307,6 +315,18 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetHomeFeedUseCase>(
     () => GetHomeFeedUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<HomeLayoutRepository>(
+    () => HomeLayoutRepository(
+      fetch: sl<HomeLayoutRemoteSource>().fetchLayout,
+      cache: HomeLayoutCache(),
+    ),
+  );
+  sl.registerLazySingleton<GetLayoutShelvesUseCase>(
+    () => GetLayoutShelvesUseCase(
+      repository: sl<ICafeRepository>(),
+      cafesByIds: sl<HomeLayoutRemoteSource>().fetchCafesByIds,
+    ),
   );
   sl.registerLazySingleton<GetCafesUseCase>(
     () => GetCafesUseCase(sl<ICafeRepository>()),
@@ -471,6 +491,9 @@ Future<void> initDependencies() async {
     () => HomeBloc(
       getHomeFeedUseCase: sl<GetHomeFeedUseCase>(),
       readPurpose: sl<OnboardingPurposeStore>().read,
+      layoutRepository: sl<HomeLayoutRepository>(),
+      getLayoutShelves: sl<GetLayoutShelvesUseCase>(),
+      debugLayoutFixture: homeLayoutFixtureEnabled ? homeLayoutFixture : null,
     ),
   );
   sl.registerFactory<CafeDetailsBloc>(
