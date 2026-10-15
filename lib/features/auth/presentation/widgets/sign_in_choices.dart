@@ -26,6 +26,7 @@ class AuthProviderButton extends StatelessWidget {
     required this.onPressed,
     this.loading = false,
     this.height = 52,
+    this.agreeFirst = false,
   }) : assert(provider != SignInChoice.email);
 
   final SignInChoice provider;
@@ -33,10 +34,18 @@ class AuthProviderButton extends StatelessWidget {
   final bool loading;
   final double height;
 
+  /// The terms were shown because the box was not ticked: the button then
+  /// says that tapping it agrees ("Agree and continue with Google").
+  final bool agreeFirst;
+
   static const googleLabel = 'Continue with Google';
   static const appleLabel = 'Continue with Apple';
+  static const agreeGoogleLabel = 'Agree and continue with Google';
+  static const agreeAppleLabel = 'Agree and continue with Apple';
 
-  String get label => provider == SignInChoice.apple ? appleLabel : googleLabel;
+  String get label => provider == SignInChoice.apple
+      ? (agreeFirst ? agreeAppleLabel : appleLabel)
+      : (agreeFirst ? agreeGoogleLabel : googleLabel);
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +104,13 @@ class AuthProviderButton extends StatelessWidget {
 /// guest who tapped Save is two taps from done instead of a whole flow.
 ///
 /// Google and Apple need the terms agreed first, as on the login page. Once
-/// agreed on this device the box is not shown again.
+/// agreed on this device the box is not shown again. A provider tapped with
+/// the box unticked opens the terms inline, and its button becomes "Agree
+/// and continue with ...": one more tap, never a red error. The agreement
+/// stays an explicit act (the tick or that button), which App Review asks
+/// of apps with user content (guideline 1.2 rejections: "Require that users
+/// agree to terms (EULA)"); a passive "By continuing..." line has been
+/// rejected on its own.
 class SheetSignInChoices extends StatefulWidget {
   const SheetSignInChoices({
     super.key,
@@ -127,7 +142,10 @@ class _SheetSignInChoicesState extends State<SheetSignInChoices> {
   /// see the box flash up.
   bool? _alreadyAgreed;
   bool _agreed = false;
-  bool _nudge = false;
+
+  /// The provider tapped with the box unticked: the terms are open inline
+  /// and its button agrees and continues.
+  SignInChoice? _confirming;
   late final TapGestureRecognizer _eulaTap = TapGestureRecognizer()
     ..onTap = () => _openLegal(AppConstants.eulaUrl);
   late final TapGestureRecognizer _privacyTap = TapGestureRecognizer()
@@ -170,8 +188,8 @@ class _SheetSignInChoicesState extends State<SheetSignInChoices> {
   }
 
   void _provider(SignInChoice choice) {
-    if (!_agreed) {
-      setState(() => _nudge = true);
+    if (!_agreed && _confirming != choice) {
+      setState(() => _confirming = choice);
       return;
     }
     if (_alreadyAgreed != true) {
@@ -189,15 +207,21 @@ class _SheetSignInChoicesState extends State<SheetSignInChoices> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (showTerms) ...[
-          AuthTermsAgreement(
-            value: _agreed,
-            onChanged: (value) => setState(() {
-              _agreed = value;
-              if (value) _nudge = false;
-            }),
-            showNudge: _nudge,
-            eulaRecognizer: _eulaTap,
-            privacyRecognizer: _privacyTap,
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: _confirming != null && !_agreed
+                ? _InlineTerms(
+                    eulaRecognizer: _eulaTap,
+                    privacyRecognizer: _privacyTap,
+                  )
+                : AuthTermsAgreement(
+                    value: _agreed,
+                    onChanged: (value) => setState(() => _agreed = value),
+                    eulaRecognizer: _eulaTap,
+                    privacyRecognizer: _privacyTap,
+                  ),
           ),
           const SizedBox(height: 12),
         ],
@@ -205,6 +229,7 @@ class _SheetSignInChoicesState extends State<SheetSignInChoices> {
           AuthProviderButton(
             provider: SignInChoice.apple,
             height: widget.buttonHeight,
+            agreeFirst: !_agreed && _confirming == SignInChoice.apple,
             onPressed: () => _provider(SignInChoice.apple),
           ),
           gap,
@@ -212,6 +237,7 @@ class _SheetSignInChoicesState extends State<SheetSignInChoices> {
         AuthProviderButton(
           provider: SignInChoice.google,
           height: widget.buttonHeight,
+          agreeFirst: !_agreed && _confirming == SignInChoice.google,
           onPressed: () => _provider(SignInChoice.google),
         ),
         gap,
@@ -236,6 +262,79 @@ class _SheetSignInChoicesState extends State<SheetSignInChoices> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The terms, opened in the sheet when a provider was tapped before the box
+/// was ticked. Says what agreeing means; the provider button under it is the
+/// "I agree".
+class _InlineTerms extends StatelessWidget {
+  const _InlineTerms({
+    required this.eulaRecognizer,
+    required this.privacyRecognizer,
+  });
+
+  final GestureRecognizer eulaRecognizer;
+  final GestureRecognizer privacyRecognizer;
+
+  static const title = 'Before you continue';
+
+  @override
+  Widget build(BuildContext context) {
+    final link = AuthText.small.copyWith(
+      color: AuthColors.brand,
+      fontWeight: FontWeight.w500,
+      decoration: TextDecoration.underline,
+      decorationColor: AuthColors.brand,
+    );
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AuthColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: AuthText.small.copyWith(
+                color: AuthColors.ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text.rich(
+              TextSpan(
+                style: AuthText.small,
+                children: [
+                  const TextSpan(text: 'Your account follows the '),
+                  TextSpan(
+                    text: 'Terms of Use (EULA)',
+                    style: link,
+                    recognizer: eulaRecognizer,
+                  ),
+                  const TextSpan(text: ' and '),
+                  TextSpan(
+                    text: 'Privacy Policy',
+                    style: link,
+                    recognizer: privacyRecognizer,
+                  ),
+                  const TextSpan(
+                    text:
+                        '. Nook has zero tolerance for objectionable content '
+                        'and abusive behavior.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
