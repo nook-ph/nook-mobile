@@ -189,8 +189,9 @@ class HomeSectionTitle extends StatelessWidget {
                     children: [title, trailing!],
                   )
                 : Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(child: title),
+                      Flexible(child: title),
                       const SizedBox(width: 12),
                       Flexible(child: trailing!),
                     ],

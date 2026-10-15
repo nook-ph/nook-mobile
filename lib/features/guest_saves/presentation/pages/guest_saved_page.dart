@@ -86,8 +86,21 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
       actionLabel: 'Undo',
       // The cubit is app-wide, so Undo works after leaving the tab.
       onAction: () => unawaited(saves.set(cafe, CafeStatus.wantToTry)),
+      bottomOffset: _barHeight(),
     );
   }
+
+  /// What sits under this page's list (the tab bar), measured, so the
+  /// toast lands above it rather than on its labels.
+  double _barHeight() {
+    final box = _listKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return 0;
+    final bottom = box.localToGlobal(Offset(0, box.size.height)).dy;
+    final screen = MediaQuery.sizeOf(context).height;
+    return (screen - bottom).clamp(0, screen / 3).toDouble();
+  }
+
+  final _listKey = GlobalKey();
 
   @override
   void initState() {
@@ -120,6 +133,7 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
             if (!state.isEmpty) _logPromptShown();
 
             return ListView(
+              key: _listKey,
               padding: const EdgeInsets.fromLTRB(
                 ListsTokens.gutter,
                 8,

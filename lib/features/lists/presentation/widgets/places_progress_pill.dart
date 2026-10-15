@@ -172,9 +172,12 @@ class ListsTitleRow extends StatelessWidget {
         children: [heading, pill],
       );
     }
+    // Both loose, space between: the pill ends on the gutter, and a long
+    // label can wrap inside it instead of overflowing.
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(child: heading),
+        Flexible(child: heading),
         const SizedBox(width: 12),
         Flexible(child: pill),
       ],

@@ -169,5 +169,7 @@ void main() {
     final pill = tester.getRect(find.byType(PlacesProgressPill));
     expect(pill.left, greaterThan(title.right));
     expect(pill.center.dy, closeTo(title.center.dy, 2));
+    // The pill ends on the row's right edge.
+    expect(pill.right, tester.getRect(find.byType(ListsTitleRow)).right);
   });
 }
