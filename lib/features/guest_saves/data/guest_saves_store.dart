@@ -11,22 +11,59 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// without an account, and are cleared once they reach an account.
 class GuestSavesStore {
   static const _savesKey = 'guest_saves_v1';
+  static const _unreadableKey = 'guest_saves_v1_unreadable';
   static const _firstSaveKey = 'saves_first_save_logged';
   static const _keepPromptKey = 'saves_keep_prompt_shown';
 
+  /// The saves on this phone. An entry that cannot be read is skipped, not
+  /// the whole list. A value that is not a JSON list at all is set aside
+  /// under [_unreadableKey] (so the next write cannot destroy it) and reads
+  /// as empty.
+  ///
+  /// Throws [GuestSavesReadException] when the phone's storage itself could
+  /// not be read: the saves may well be there, so the caller must not write
+  /// over them.
   Future<List<GuestSave>> read() async {
+    final SharedPreferences prefs;
+    final String? raw;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_savesKey);
-      if (raw == null || raw.isEmpty) return const [];
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return const [];
-      return decoded.map(GuestSave.fromJson).whereType<GuestSave>().toList();
+      prefs = await SharedPreferences.getInstance();
+      raw = prefs.getString(_savesKey);
     } catch (e) {
-      // A corrupt entry must not take the Saved tab down with it.
       debugPrint('[GuestSavesStore] read failed: $e');
+      throw GuestSavesReadException(e);
+    }
+    if (raw == null || raw.isEmpty) return const [];
+
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } catch (_) {
+      decoded = null;
+    }
+    if (decoded is! List) {
+      debugPrint('[GuestSavesStore] unreadable saves set aside');
+      try {
+        await prefs.setString(_unreadableKey, raw);
+        await prefs.remove(_savesKey);
+      } catch (e) {
+        throw GuestSavesReadException(e);
+      }
       return const [];
     }
+
+    final saves = <GuestSave>[];
+    for (final entry in decoded) {
+      try {
+        final save = GuestSave.fromJson(entry);
+        if (save != null) saves.add(save);
+      } catch (e) {
+        // A corrupt entry must not take the Saved tab, or the other saves,
+        // down with it.
+        debugPrint('[GuestSavesStore] skipped an unreadable save: $e');
+      }
+    }
+    return saves;
   }
 
   Future<void> write(List<GuestSave> saves) async {
@@ -55,6 +92,17 @@ class GuestSavesStore {
   }
 }
 
+/// The phone's storage could not be read, so the saves are unknown (not
+/// empty).
+class GuestSavesReadException implements Exception {
+  const GuestSavesReadException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => 'GuestSavesReadException: $cause';
+}
+
 /// The last [maxEntries] cafe pages opened on this phone, newest first.
 class RecentlyViewedStore {
   static const _key = 'recently_viewed_cafes_v1';
@@ -67,11 +115,17 @@ class RecentlyViewedStore {
       if (raw == null || raw.isEmpty) return const [];
       final decoded = jsonDecode(raw);
       if (decoded is! List) return const [];
-      return decoded
-          .map(RecentlyViewedCafe.fromJson)
-          .whereType<RecentlyViewedCafe>()
-          .take(maxEntries)
-          .toList();
+      final entries = <RecentlyViewedCafe>[];
+      for (final entry in decoded) {
+        try {
+          final cafe = RecentlyViewedCafe.fromJson(entry);
+          if (cafe != null) entries.add(cafe);
+        } catch (_) {
+          // Skip just this one.
+        }
+        if (entries.length == maxEntries) break;
+      }
+      return entries;
     } catch (e) {
       debugPrint('[RecentlyViewedStore] read failed: $e');
       return const [];

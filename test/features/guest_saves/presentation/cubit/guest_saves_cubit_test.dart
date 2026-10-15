@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
@@ -130,4 +132,78 @@ void main() {
     expect(cubit.state.isEmpty, isTrue);
     await cubit.close();
   });
+
+  test('a corrupt store is set aside, not written over', () async {
+    SharedPreferences.setMockInitialValues({'guest_saves_v1': '{not json'});
+    final cubit = newCubit();
+
+    await cubit.set(_a, CafeStatus.wantToTry);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('guest_saves_v1_unreadable'), '{not json');
+    expect([for (final s in await store.read()) s.cafeId], ['a']);
+    await cubit.close();
+  });
+
+  test('one bad entry costs only that entry, and a new save keeps the '
+      'rest', () async {
+    SharedPreferences.setMockInitialValues({
+      'guest_saves_v1': jsonEncode([
+        {
+          'cafe': {'id': 'a', 'name': 'Cafe A', 'rating': '4.5'},
+          'status': 'want_to_try',
+          'saved_at': '2026-09-01T00:00:00Z',
+        },
+        {'cafe': 'not a map', 'status': 42, 'saved_at': 7},
+        {
+          'cafe': {'id': 'b', 'name': 'Cafe B', 'lat': 'x'},
+          'status': 'been',
+          'saved_at': '2026-09-02T00:00:00Z',
+        },
+      ]),
+    });
+    final cubit = newCubit();
+    await cubit.load();
+
+    expect([for (final s in cubit.state.saves) s.cafeId], ['a', 'b']);
+    expect(cubit.state.saves.first.cafe.rating, 0);
+
+    await cubit.set(
+      const CafeSnapshot(id: 'c', name: 'Cafe C'),
+      CafeStatus.been,
+    );
+    expect([for (final s in await store.read()) s.cafeId], ['c', 'a', 'b']);
+    await cubit.close();
+  });
+
+  test('when the phone cannot be read, nothing is written over the saves '
+      'and the next load tries again', () async {
+    final failing = _FailingStore();
+    final cubit = GuestSavesCubit(store: failing, now: () => clock);
+
+    await cubit.load();
+    expect(cubit.state.loaded, isTrue);
+    expect(await cubit.set(_a, CafeStatus.wantToTry), isNull);
+    await cubit.removeAll({'a'});
+    expect(failing.writes, 0);
+
+    failing.fail = false;
+    expect(await cubit.set(_a, CafeStatus.wantToTry), isNotNull);
+    expect(failing.writes, 1);
+    await cubit.close();
+  });
+}
+
+class _FailingStore extends GuestSavesStore {
+  bool fail = true;
+  int writes = 0;
+
+  @override
+  Future<List<GuestSave>> read() async {
+    if (fail) throw const GuestSavesReadException('disk');
+    return const [];
+  }
+
+  @override
+  Future<void> write(List<GuestSave> saves) async => writes++;
 }

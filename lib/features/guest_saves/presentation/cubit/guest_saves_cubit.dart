@@ -21,11 +21,26 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
   final DateTime Function() _now;
   Future<void>? _loading;
 
-  /// Reads the saves once; later calls wait for the same read.
+  /// Whether the last read of the phone's storage failed. The saves are then
+  /// unknown rather than empty, so nothing is written over them.
+  bool _readFailed = false;
+
+  /// Reads the saves once; later calls wait for the same read. A failed read
+  /// is not kept: the next call tries again.
   Future<void> load() => _loading ??= _load();
 
   Future<void> _load() async {
-    final saves = await _store.read();
+    final List<GuestSave> saves;
+    try {
+      saves = await _store.read();
+    } catch (e) {
+      debugPrint('[GuestSaves] load failed: $e');
+      _readFailed = true;
+      _loading = null;
+      if (!isClosed) emit(state.copyWith(loaded: true));
+      return;
+    }
+    _readFailed = false;
     if (isClosed) return;
     emit(GuestSavesState(saves: saves, loaded: true));
   }
@@ -34,6 +49,8 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
   /// the phone could not store it (the state is then left as it was).
   Future<GuestSaveOutcome?> set(CafeSnapshot cafe, CafeStatus status) async {
     await load();
+    // Writing now would replace saves that are there but could not be read.
+    if (_readFailed) return null;
     final before = state;
     final previous = before.statusFor(cafe.id);
     if (previous == status) {
@@ -68,6 +85,7 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
   Future<void> removeAll(Set<String> cafeIds) async {
     if (cafeIds.isEmpty) return;
     await load();
+    if (_readFailed) return;
     final saves = state.saves
         .where((s) => !cafeIds.contains(s.cafeId))
         .toList();

@@ -120,19 +120,25 @@ class CafeSnapshot extends Equatable {
       id: id,
       name: name,
       address: json['address'] is String ? json['address'] as String : '',
-      neighborhood: json['neighborhood'] as String?,
-      city: json['city'] as String?,
-      coverImage: json['cover_image'] as String?,
-      rating: (json['rating'] as num?)?.toDouble() ?? 0,
-      reviewCount: (json['review_count'] as num?)?.toInt() ?? 0,
+      neighborhood: _str(json['neighborhood']),
+      city: _str(json['city']),
+      coverImage: _str(json['cover_image']),
+      rating: _num(json['rating'])?.toDouble() ?? 0,
+      reviewCount: _num(json['review_count'])?.toInt() ?? 0,
       tags: tags is List ? tags.whereType<String>().toList() : const [],
-      lat: (json['lat'] as num?)?.toDouble(),
-      lng: (json['lng'] as num?)?.toDouble(),
+      lat: _num(json['lat'])?.toDouble(),
+      lng: _num(json['lng'])?.toDouble(),
       operatingHours: hours is Map ? Map<String, dynamic>.from(hours) : null,
     );
   }
 
   static String? _blankToNull(String s) => s.trim().isEmpty ? null : s;
+
+  // Lenient reads: a field of an unexpected type (written by an older or
+  // newer build) is dropped, not thrown, so one odd field never costs the
+  // whole entry.
+  static String? _str(Object? v) => v is String ? v : null;
+  static num? _num(Object? v) => v is num ? v : null;
 
   @override
   List<Object?> get props => [
@@ -176,8 +182,10 @@ class GuestSave extends Equatable {
   static GuestSave? fromJson(Object? json) {
     if (json is! Map) return null;
     final cafe = CafeSnapshot.fromJson(json['cafe']);
-    final status = CafeStatus.fromWire(json['status'] as String?);
-    final savedAt = DateTime.tryParse(json['saved_at'] as String? ?? '');
+    final status = CafeStatus.fromWire(CafeSnapshot._str(json['status']));
+    final savedAt = DateTime.tryParse(
+      CafeSnapshot._str(json['saved_at']) ?? '',
+    );
     if (cafe == null || status == CafeStatus.none || savedAt == null) {
       return null;
     }
@@ -203,7 +211,7 @@ class RecentlyViewedCafe extends Equatable {
   static RecentlyViewedCafe? fromJson(Object? json) {
     if (json is! Map) return null;
     final cafe = CafeSnapshot.fromJson(json['cafe']);
-    final at = DateTime.tryParse(json['viewed_at'] as String? ?? '');
+    final at = DateTime.tryParse(CafeSnapshot._str(json['viewed_at']) ?? '');
     if (cafe == null || at == null) return null;
     return RecentlyViewedCafe(cafe: cafe, viewedAt: at);
   }
