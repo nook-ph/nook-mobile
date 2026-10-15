@@ -44,30 +44,16 @@ int _currentTab(WidgetTester tester) =>
     tester.widget<BottomNav>(find.byType(BottomNav)).currentIndex;
 
 void main() {
-  testWidgets('a guest tapping Saved gets the save sheet and stays on Home', (
-    tester,
-  ) async {
+  testWidgets('a guest tapping Saved opens it, no sheet', (tester) async {
     await tester.pumpWidget(_app(signedIn: false));
 
     await tester.tap(_tab('Saved'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(GuestSignInSheet), findsOneWidget);
-    expect(find.text('Sign in to save cafes'), findsOneWidget);
-    expect(
-      find.text('Keep lists, mark the places you have been, and rank them.'),
-      findsOneWidget,
-    );
-    // The tab bar draws the same glyph, so look inside the sheet.
-    expect(
-      find.descendant(
-        of: find.byType(GuestSignInSheet),
-        matching: find.byIcon(LucideIcons.bookmark),
-      ),
-      findsOneWidget,
-    );
-    expect(_currentTab(tester), 0);
-    expect(find.text('login page'), findsNothing);
+    // Saves kept on this phone live there; no sign-in wall.
+    expect(find.byType(GuestSignInSheet), findsNothing);
+    expect(_currentTab(tester), 2);
+    expect(find.text('saved page'), findsOneWidget);
   });
 
   testWidgets('a guest tapping Profile gets the profile sheet', (tester) async {
@@ -104,7 +90,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(_currentTab(tester), 1);
 
-    await tester.tap(_tab('Saved'));
+    await tester.tap(_tab('Profile'));
     await tester.pumpAndSettle();
 
     expect(find.byType(GuestSignInSheet), findsOneWidget);
@@ -114,7 +100,7 @@ void main() {
   testWidgets('Continue with email opens /login', (tester) async {
     await tester.pumpWidget(_app(signedIn: false));
 
-    await tester.tap(_tab('Saved'));
+    await tester.tap(_tab('Profile'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Continue with email'));
     await tester.pumpAndSettle();

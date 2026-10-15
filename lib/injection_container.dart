@@ -110,6 +110,9 @@ import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/data/datasources/cafe_tags_remote_data_source.dart';
@@ -133,6 +136,8 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<ReviewDraftStore>(() => ReviewDraftStore());
   sl.registerLazySingleton<TermsAcceptanceStore>(() => TermsAcceptanceStore());
   sl.registerLazySingleton<FakeStampStore>(() => FakeStampStore());
+  sl.registerLazySingleton<GuestSavesStore>(() => GuestSavesStore());
+  sl.registerLazySingleton<RecentlyViewedStore>(() => RecentlyViewedStore());
 
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
@@ -482,6 +487,15 @@ Future<void> initDependencies() async {
       getCafeStatusesUseCase: sl<GetCafeStatusesUseCase>(),
       setCafeStatusUseCase: sl<SetCafeStatusUseCase>(),
     ),
+  );
+
+  // A guest's on-phone Want to Try / Been, and the cafes last opened here.
+  // App-wide (like CafeStatusCubit): badges, Saved and Home all read them.
+  sl.registerLazySingleton<GuestSavesCubit>(
+    () => GuestSavesCubit(store: sl<GuestSavesStore>()),
+  );
+  sl.registerLazySingleton<RecentlyViewedCubit>(
+    () => RecentlyViewedCubit(store: sl<RecentlyViewedStore>()),
   );
 
   // App-wide, so a photo added on the ranking reveal is on the profile.

@@ -9,7 +9,7 @@ import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/core/presentation/tab_back.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/features/home_page/presentation/pages/home_page.dart';
-import 'package:nook/features/lists/presentation/pages/list_page.dart';
+import 'package:nook/features/guest_saves/presentation/pages/saved_tab.dart';
 import 'package:nook/features/map/presentation/pages/map_page.dart';
 import 'package:nook/features/profile/presentation/pages/profile_pagev2.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -25,7 +25,7 @@ class MainScreen extends StatelessWidget {
       pagesBuilder: (tabIndex) => [
         const HomePage(),
         MapPage(isActive: tabIndex == 1),
-        const ListsPage(showBackButton: false),
+        const SavedTab(),
         ProfileRedesignPage(isActive: tabIndex == 3),
       ],
     );
@@ -74,13 +74,13 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  /// Saved and Profile need an account. A guest gets the sign-in sheet and
-  /// stays on the tab they were on.
+  /// Profile needs an account: a guest gets the sign-in sheet and stays on
+  /// the tab they were on. Saved opens for everyone; a guest sees the saves
+  /// kept on this phone ([SavedTab]).
   void _onTabTap(BuildContext context, int index) {
     final from = context.read<NavigationBloc>().state.tabIndex;
     final needsAccount =
-        (index == MainShell.savedTab || index == MainShell.profileTab) &&
-        !widget.isAuthenticated();
+        index == MainShell.profileTab && !widget.isAuthenticated();
     logAppEvent(
       NavEvents.tabTapped,
       properties: {
@@ -95,25 +95,15 @@ class _MainShellState extends State<MainShell> {
     );
 
     if (needsAccount) {
-      if (index == MainShell.savedTab) {
-        GuestSignInSheet.show(
-          context,
-          icon: LucideIcons.bookmark,
-          title: 'Sign in to save cafes',
-          reason: 'Keep lists, mark the places you have been, and rank them.',
-          trigger: 'saved_tab',
-        );
-      } else {
-        GuestSignInSheet.show(
-          context,
-          icon: LucideIcons.userRound,
-          title: 'Sign in to see your profile',
-          reason:
-              'Your cups, lists and rankings live in one place once you '
-              'have an account.',
-          trigger: 'profile_tab',
-        );
-      }
+      GuestSignInSheet.show(
+        context,
+        icon: LucideIcons.userRound,
+        title: 'Sign in to see your profile',
+        reason:
+            'Your cups, lists and rankings live in one place once you '
+            'have an account.',
+        trigger: 'profile_tab',
+      );
       return;
     }
 

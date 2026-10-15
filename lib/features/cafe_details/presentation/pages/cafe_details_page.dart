@@ -26,6 +26,9 @@ import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.
 import 'package:nook/core/preferences/last_saved_list_store.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/widgets/directions_save_nudge.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/injection_container.dart';
@@ -121,9 +124,21 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     param1: widget.cafeId,
   )..load();
 
+  /// The loaded cafe, kept for the directions nudge.
+  CafeSnapshot? _snapshot;
+
+  /// "Save to Want to Try?" after directions to this cafe, if it isn't saved.
+  late final DirectionsSaveNudge _directionsNudge;
+
   @override
   void initState() {
     super.initState();
+    _directionsNudge = DirectionsSaveNudge(
+      cafeId: widget.cafeId,
+      host: this,
+      cafe: () => _snapshot,
+      toastOffset: _toastOffset,
+    );
     _pendingAddCup =
         Supabase.instance.client.auth.currentSession != null &&
         GuestActionReplay.take(CafeGuestAction.writeReview, widget.cafeId);
@@ -148,12 +163,20 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     );
   }
 
+  /// Home's "Your places" row leads with the cafes opened lately.
+  void _onCafeLoaded(BuildContext context, CafeDetailsLoaded state) {
+    final snapshot = CafeSnapshot.fromDetails(state.data.cafeDetails);
+    _snapshot = snapshot;
+    context.read<RecentlyViewedCubit>().record(snapshot);
+  }
+
   @override
   void dispose() {
     _scrollController.dispose();
     _collapseProgress.dispose();
     _cups.close();
     _photos.close();
+    _directionsNudge.dispose();
     super.dispose();
   }
 
@@ -471,7 +494,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                   ),
               body: BlocConsumer<CafeDetailsBloc, CafeDetailsState>(
                 listenWhen: (_, current) => current is CafeDetailsLoaded,
-                listener: (_, _) => _trackViewDetails(),
+                listener: (context, state) {
+                  _trackViewDetails();
+                  if (state is CafeDetailsLoaded) _onCafeLoaded(context, state);
+                },
                 buildWhen: (previous, current) {
                   if (previous is CafeDetailsLoaded &&
                       current is CafeDetailsLoading) {
