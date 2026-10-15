@@ -18,7 +18,7 @@ abstract final class SavesEvents {
   /// `status` (`want_to_try` or `been`), `guest` (bool).
   static const firstSave = 'first_save';
 
-  /// "Save to Want to Try?" after returning from directions to a cafe that
+  /// "Save to Want to try?" after returning from directions to a cafe that
   /// was not saved. Properties: `cafe_id`.
   static const directionsSaveNudgeShown = 'directions_save_nudge_shown';
 

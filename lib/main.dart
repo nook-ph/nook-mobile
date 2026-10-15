@@ -32,6 +32,7 @@ import 'package:nook/features/guest_saves/presentation/widgets/guest_saves_sync.
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:nook/features/search/data/search_origin_store.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
 import 'package:nook/core/presentation/widgets/default_system_ui.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/injection_container.dart';
@@ -106,6 +107,9 @@ void main() async {
   }
 
   await initDependencies();
+  // Sets notifications up without asking for anything; the ask comes after
+  // a Directions tap or a save.
+  unawaited(sl<VisitReminderService>().start(statuses: sl<CafeStatusCubit>()));
   // The session replay root: a frame is only captured inside it.
   runApp(
     kAnalyticsEnabled ? const PostHogWidget(child: MyApp()) : const MyApp(),
@@ -135,6 +139,37 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   GoRouter? _router;
+
+  final VisitReminderService _reminders = sl<VisitReminderService>();
+
+  @override
+  void initState() {
+    super.initState();
+    _reminders.openRequests.addListener(_openFromReminder);
+    // A cold start from the notification set it before this listened.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openFromReminder());
+  }
+
+  @override
+  void dispose() {
+    _reminders.openRequests.removeListener(_openFromReminder);
+    super.dispose();
+  }
+
+  /// "How was [cafe]?" was tapped: open that cafe, and with "Rate it" go
+  /// straight to marking it Been.
+  void _openFromReminder() {
+    final request = _reminders.openRequests.value;
+    final router = _router;
+    if (request == null || router == null) return;
+    _reminders.openRequests.value = null;
+    router.push(
+      Uri(
+        path: '/cafe/${request.cafeId}',
+        queryParameters: request.rate ? const {'rate': '1'} : null,
+      ).toString(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

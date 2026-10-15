@@ -30,6 +30,7 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/widgets/directions_save_nudge.dart';
+import 'package:nook/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/injection_container.dart';
@@ -75,9 +76,17 @@ double scrollOffsetUnderBar({
 }) => (reveal - bar + 8).clamp(min, max);
 
 class CafeDetailsPage extends StatefulWidget {
-  const CafeDetailsPage({super.key, required this.cafeId});
+  const CafeDetailsPage({
+    super.key,
+    required this.cafeId,
+    this.rateOnOpen = false,
+  });
 
   final String cafeId;
+
+  /// Opened from the visit reminder's "Rate it": mark the cafe Been once it
+  /// has loaded (signed in, that leads into rating it).
+  final bool rateOnOpen;
 
   @override
   State<CafeDetailsPage> createState() => _CafeDetailsPageState();
@@ -128,8 +137,18 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   /// The loaded cafe, kept for the directions nudge.
   CafeSnapshot? _snapshot;
 
-  /// "Save to Want to Try?" after directions to this cafe, if it isn't saved.
+  /// "Save to Want to try?" after directions to this cafe, if it isn't saved.
   late final DirectionsSaveNudge _directionsNudge;
+
+  /// [CafeDetailsPage.rateOnOpen], used once: a reload of the cafe must not
+  /// mark it again.
+  late bool _rateRequested = widget.rateOnOpen;
+
+  bool _takeRateRequest() {
+    final requested = _rateRequested;
+    _rateRequested = false;
+    return requested;
+  }
 
   @override
   void initState() {
@@ -139,6 +158,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       host: this,
       cafe: () => _snapshot,
       toastOffset: _toastOffset,
+      // The notification ask, when it is due, comes first; one ask at a time.
+      beforeNudge: () =>
+          VisitReminderPrompts.afterDirections(context, widget.cafeId),
     );
     _pendingAddCup =
         Supabase.instance.client.auth.currentSession != null &&
@@ -391,7 +413,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
         // Imported from public sources and unchecked: say so under the name.
         CafeUnverifiedNote(cafeId: widget.cafeId, isClaimed: details.isClaimed),
         const SizedBox(height: 16),
-        CafeStatusPills(cafe: cafe, toastOffset: _toastOffset),
+        CafeStatusPills(
+          cafe: cafe,
+          toastOffset: _toastOffset,
+          takeRateRequest: _takeRateRequest,
+        ),
         // Your own history with the cafe, right under the actions that
         // create it. Renders nothing unless it's a Been.
         CafeYourVisitBlock(

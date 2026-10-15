@@ -43,7 +43,10 @@ Future<void> openKeepSavesSignIn(BuildContext context, String surface) =>
 /// A guest tapped Been or Want to Try on [cafe]: kept on this phone, with
 /// the same toggle rule as the signed-in pills (tapping the current status
 /// clears it). Been skips the ranking flow, which needs an account.
-Future<void> toggleGuestStatus(
+///
+/// Returns the status it set and whether the one-time sign-in prompt was
+/// the confirmation, or null when nothing could be saved.
+Future<({CafeStatus next, bool askedToSignIn})?> toggleGuestStatus(
   BuildContext context, {
   required CafeSnapshot cafe,
   required CafeStatus tapped,
@@ -56,14 +59,14 @@ Future<void> toggleGuestStatus(
   if (next != CafeStatus.none) HapticFeedback.lightImpact();
 
   final outcome = await saves.set(cafe, next);
-  if (!context.mounted) return;
+  if (!context.mounted) return null;
   if (outcome == null) {
     showPrimaryToast(
       context,
       "Couldn't save. Please try again.",
       bottomOffset: bottomOffset,
     );
-    return;
+    return null;
   }
 
   if (next == CafeStatus.none) {
@@ -77,35 +80,38 @@ Future<void> toggleGuestStatus(
       onAction: () => unawaited(saves.set(cafe, current)),
       bottomOffset: bottomOffset,
     );
-    return;
+    return (next: next, askedToSignIn: false);
   }
 
-  await _confirmGuestSave(
+  final asked = await _confirmGuestSave(
     context,
     saves: saves,
     status: next,
     bottomOffset: bottomOffset,
   );
+  return (next: next, askedToSignIn: asked);
 }
 
 /// The toast after a guest's save: once per phone, the soft sign-in prompt;
-/// afterwards the same words a signed-in save gets.
-Future<void> _confirmGuestSave(
+/// afterwards the same words a signed-in save gets. True when it was the
+/// sign-in prompt.
+Future<bool> _confirmGuestSave(
   BuildContext context, {
   required GuestSavesCubit saves,
   required CafeStatus status,
   required double bottomOffset,
 }) async {
   final prompt = await saves.claimKeepSavesPrompt();
-  if (!context.mounted) return;
+  if (!context.mounted) return false;
   if (prompt) {
     showKeepSavesPrompt(context, bottomOffset: bottomOffset);
-    return;
+    return true;
   }
   showPrimaryToast(context, switch (status) {
     CafeStatus.been => 'Added to Been',
     _ => 'Saved for your next coffee run',
   }, bottomOffset: bottomOffset);
+  return false;
 }
 
 /// "Saved on this phone. Sign in to keep it everywhere." A toast with a

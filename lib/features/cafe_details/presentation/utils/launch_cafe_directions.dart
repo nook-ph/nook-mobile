@@ -1,11 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/guest_saves/presentation/widgets/directions_save_nudge.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
 import 'package:nook/injection_container.dart';
 
 String _mapAppMetadata(TargetPlatform platform) {
@@ -115,6 +119,21 @@ Future<void> launchCafeDirections(
       },
     ),
   );
+  // A likely visit: "How was [cafe]?" about 90 minutes from now, if
+  // notifications are on. Recorded before the nudge below, which may offer
+  // to turn them on.
+  if (sl.isRegistered<VisitReminderService>()) {
+    final status = context.mounted
+        ? context.read<CafeStatusCubit?>()?.state.statusFor(cafeId)
+        : null;
+    unawaited(
+      sl<VisitReminderService>().onDirections(
+        cafeId: cafeId,
+        cafeName: details.name,
+        status: status ?? CafeStatus.none,
+      ),
+    );
+  }
   // The cafe page may offer to save it once the person is back.
   DirectionsLaunches.notify(cafeId);
 }
