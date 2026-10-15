@@ -19,6 +19,7 @@ import 'package:nook/features/home_page/presentation/widgets/home_card_section.d
 import 'package:nook/features/home_page/presentation/widgets/home_featured_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
+import 'package:nook/features/home_page/presentation/widgets/your_places_rail.dart';
 import 'package:nook/injection_container.dart';
 
 class HomePage extends StatelessWidget {
@@ -299,6 +300,8 @@ class _HomeContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // The person's own cafes first; nothing (and no gap) when empty.
+        const YourPlacesRail(),
         for (var i = 0; i < sections.length; i++) ...[
           if (i > 0) const SizedBox(height: 28),
           sections[i],
