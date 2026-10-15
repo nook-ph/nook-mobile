@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
@@ -75,6 +76,13 @@ const _legacyTitles = [
   'Crowd favorites',
   'Highest rated',
 ];
+
+/// Lets the "Announcement hidden" toast run out so no timer outlives the
+/// test.
+Future<void> settleToast(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 6));
+  await tester.pumpAndSettle();
+}
 
 void main() {
   late GuestSavesCubit saves;
@@ -235,11 +243,13 @@ void main() {
       );
       expect(titles(tester), [
         'Fresh on Nook',
+        // Pinned into the first three (Your places, empty here, is the
+        // other pinned slot).
+        'Near you',
         'Editor picks',
         'Rainy-day cafes',
         // Missing builtins in default order; Laptop-friendly hidden, no
         // purpose boost (respect_purpose false).
-        'Near you',
         'Specialty coffee near you',
         'Local beans',
         'Crowd favorites',
@@ -247,6 +257,43 @@ void main() {
       ]);
       expect(find.text('Cafe p0'), findsOneWidget);
       expect(find.text('Cafe f0'), findsNothing);
+    });
+
+    testWidgets('pin_top false keeps Near you where the document puts it', (
+      tester,
+    ) async {
+      final raw = {
+        'version': 'v8',
+        'document': {
+          'schema': 1,
+          'respect_purpose': false,
+          'pin_top': false,
+          'sections': [
+            {'id': 'newest', 'type': 'builtin'},
+            {'id': 'featured', 'type': 'builtin'},
+            {'id': 'trending', 'type': 'builtin'},
+            {'id': 'nearby', 'type': 'builtin'},
+          ],
+        },
+      };
+      await pump(tester, _state(layout: HomeLayout.fromRpc(raw)));
+      expect(titles(tester).take(4), [
+        'Fresh on Nook',
+        'House picks',
+        'Crowd favorites',
+        'Near you',
+      ]);
+    });
+
+    testWidgets('custom shelves open their own page from See all', (
+      tester,
+    ) async {
+      await pump(tester, _state(layout: layout, shelves: shelves));
+      final section = tester.widget<HomeCafeSection>(
+        find.widgetWithText(HomeCafeSection, 'Rainy-day cafes'),
+      );
+      expect(section.seeAllLocation, '/shelf/custom%3Arain');
+      expect(find.bySemanticsLabel('Rainy-day cafes, see all'), findsOneWidget);
     });
 
     testWidgets('a scheduled shelf shows inside its window', (tester) async {
@@ -278,6 +325,7 @@ void main() {
       expect(analytics.propertiesOf(HomeBannerEvents.shown), {
         'layout_version': 'v7',
         'link_type': 'nook',
+        'style': 'card',
       });
       expect(
         analytics.propertiesOf(HomeRailEvents.impression)!['layout_version'],
@@ -285,7 +333,10 @@ void main() {
       );
 
       await tester.tap(find.bySemanticsLabel('Close announcement'));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      // Collapses over 200ms rather than jumping.
+      expect(find.byType(AnimatedSize), findsOneWidget);
+      await settleToast(tester);
       expect(find.text('Cebu Coffee Week'), findsNothing);
       expect(analytics.names, contains(HomeBannerEvents.dismissed));
       expect(await HomeBannerDismissStore().read(), {'v7|Cebu Coffee Week'});
@@ -297,7 +348,106 @@ void main() {
     });
   });
 
+  group('banner undo and strip', () {
+    final layout = HomeLayout.fromRpc({
+      'version': 'v9',
+      'document': {
+        'schema': 1,
+        'banner': {
+          'title': 'Cebu Coffee Week',
+          'cta_label': 'See the cafes',
+          'link': 'nook://shelf/custom:week',
+        },
+        'sections': <Object>[],
+      },
+    })!;
+
+    testWidgets('Undo on the toast brings the banner back', (tester) async {
+      final analytics = RecordingAnalytics.install(addTearDown);
+      await pump(tester, _state(layout: layout));
+      await tester.tap(find.bySemanticsLabel('Close announcement'));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.text('Announcement hidden'), findsOneWidget);
+      await tester.tap(find.text('Undo'));
+      await settleToast(tester);
+      expect(find.text('Cebu Coffee Week'), findsOneWidget);
+      expect(analytics.names, contains(HomeBannerEvents.restored));
+      expect(await HomeBannerDismissStore().read(), isEmpty);
+    });
+
+    testWidgets('an opened banner comes back as a one-line strip', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.homeBannerTapped': ['v9|Cebu Coffee Week'],
+      });
+      await pump(tester, _state(layout: layout));
+      expect(find.byType(HomeBannerStrip), findsOneWidget);
+      expect(find.byType(HomeBannerCard), findsNothing);
+      expect(find.text('See the cafes'), findsNothing);
+      expect(find.bySemanticsLabel('Close announcement'), findsOneWidget);
+    });
+  });
+
   group('HomeBannerCard', () {
+    Future<void> pumpCard(WidgetTester tester, double scale) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TAppTheme.lightTheme,
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(360, 1600),
+              textScaler: TextScaler.linear(scale),
+            ),
+            child: Scaffold(
+              body: Padding(
+                padding: const EdgeInsets.all(20),
+                child: HomeBannerCard(
+                  banner: HomeBanner(
+                    title: 'Cebu Coffee Week is on',
+                    body: 'Five days of cupping sessions.',
+                    ctaLabel: 'See crowd favorites',
+                    imageUrl: 'https://example.com/x.jpg',
+                    link: Uri.parse('nook://shelf/custom:week'),
+                  ),
+                  onTap: () {},
+                  onDismiss: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('from text x1.6 the image sits above the copy', (tester) async {
+      await pumpCard(tester, 1.0);
+      expect(find.byType(AspectRatio), findsNothing);
+      await pumpCard(tester, 1.6);
+      expect(find.byType(AspectRatio), findsOneWidget);
+      final image = tester.getRect(find.byType(AspectRatio));
+      final title = tester.getRect(find.text('Cebu Coffee Week is on'));
+      expect(image.bottom, lessThanOrEqualTo(title.top));
+    });
+
+    testWidgets('at text x2 the button label is not ellipsized', (
+      tester,
+    ) async {
+      await pumpCard(tester, 2.0);
+      final label = tester.renderObject<RenderParagraph>(
+        find.text('See crowd favorites'),
+      );
+      expect(label.didExceedMaxLines, isFalse);
+      final close = tester.getSize(find.bySemanticsLabel('Close announcement'));
+      expect(close, const Size(48, 48));
+    });
+
     for (final scale in [1.0, 2.0]) {
       for (final image in [false, true]) {
         testWidgets('fits a 360pt phone, image $image, text x$scale', (
