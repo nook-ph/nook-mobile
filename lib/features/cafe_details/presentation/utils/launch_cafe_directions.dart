@@ -5,6 +5,7 @@ import 'package:nook/core/analytics/analytics_service.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
+import 'package:nook/features/guest_saves/presentation/widgets/directions_save_nudge.dart';
 import 'package:nook/injection_container.dart';
 
 String _mapAppMetadata(TargetPlatform platform) {
@@ -114,4 +115,6 @@ Future<void> launchCafeDirections(
       },
     ),
   );
+  // The cafe page may offer to save it once the person is back.
+  DirectionsLaunches.notify(cafeId);
 }
