@@ -32,6 +32,13 @@ abstract final class SavesEvents {
 
   /// That prompt's Sign in was tapped. Properties: `surface`.
   static const keepSavesPromptTapped = 'keep_saves_prompt_tapped';
+
+  /// The "1 been · 2 to try" pill was tapped to open Want to try.
+  /// Properties: `surface` (`home`, `saved_tab`).
+  static const placesProgressTapped = 'places_progress_tapped';
+
+  /// A guest marked a Want to try cafe Been from its row on the Saved tab.
+  static const beenFromRow = 'been_from_want_to_try_row';
 }
 
 /// Values of the `surface` property on the keep-saves prompt events.

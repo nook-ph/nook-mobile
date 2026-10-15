@@ -42,6 +42,7 @@ void main() {
 
     expect(find.text(GuestSavedPage.emptyTitle), findsOneWidget);
     expect(find.text(GuestSavedPage.keepTitle), findsNothing);
+    expect(find.textContaining('Been to'), findsNothing);
     expect(analytics.names, isNot(contains(SavesEvents.keepSavesPromptShown)));
 
     await tester.tap(find.text('Find a cafe'));
@@ -68,9 +69,12 @@ void main() {
     expect(find.text(GuestSavedPage.emptyTitle), findsNothing);
     expect(find.text(GuestSavedPage.keepTitle), findsOneWidget);
     expect(find.text('Want to try'), findsOneWidget);
-    expect(find.text('Been'), findsOneWidget);
+    // The Been section title, and the Been button on the Want to try row.
+    expect(find.text('Been'), findsNWidgets(2));
+    expect(find.byType(MarkBeenButton), findsOneWidget);
     expect(find.text('Kape Uno'), findsOneWidget);
     expect(find.text('Brew Dos'), findsOneWidget);
+    expect(find.text('1 been · 1 to try'), findsOneWidget);
     // Shown once, however often the list rebuilds.
     expect(
       analytics.names.where((n) => n == SavesEvents.keepSavesPromptShown),
@@ -108,5 +112,83 @@ void main() {
         {'trigger': 'keep_saves_saved_tab'},
       ],
     ]);
+  });
+
+  testWidgets('progress follows a Want to Try marked Been', (tester) async {
+    await tester.runAsync(() async {
+      await saves.set(
+        const CafeSnapshot(id: 'a', name: 'Kape Uno'),
+        CafeStatus.wantToTry,
+      );
+      await saves.set(
+        const CafeSnapshot(id: 'b', name: 'Brew Dos'),
+        CafeStatus.wantToTry,
+      );
+    });
+    await pump(tester);
+    await tester.pump();
+    expect(find.text('2 to try'), findsOneWidget);
+
+    await tester.runAsync(
+      () => saves.set(
+        const CafeSnapshot(id: 'a', name: 'Kape Uno'),
+        CafeStatus.been,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('1 been · 1 to try'), findsOneWidget);
+
+    await tester.runAsync(
+      () => saves.set(
+        const CafeSnapshot(id: 'b', name: 'Brew Dos'),
+        CafeStatus.been,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('All 2 been'), findsOneWidget);
+  });
+
+  testWidgets('a Want to try row marks Been in one tap, with Undo', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      await saves.set(
+        const CafeSnapshot(id: 'a', name: 'Kape Uno'),
+        CafeStatus.wantToTry,
+      );
+      await saves.set(
+        const CafeSnapshot(id: 'b', name: 'Brew Dos'),
+        CafeStatus.wantToTry,
+      );
+    });
+    await pump(tester);
+    await tester.pump();
+    expect(find.byType(MarkBeenButton), findsNWidgets(2));
+    expect(
+      tester.getSize(find.byType(MarkBeenButton).first).height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(find.bySemanticsLabel('Mark Kape Uno as Been'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.bySemanticsLabel('Mark Kape Uno as Been'));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    });
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    expect(saves.state.statusFor('a'), CafeStatus.been);
+    expect(find.text('1 been · 1 to try'), findsOneWidget);
+    expect(find.text('Added to Been · 1 left to try'), findsOneWidget);
+    expect(analytics.names, contains(SavesEvents.beenFromRow));
+
+    await tester.tap(find.text('Undo'));
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 50)),
+    );
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+    expect(saves.state.statusFor('a'), CafeStatus.wantToTry);
+    expect(find.text('2 to try'), findsOneWidget);
   });
 }

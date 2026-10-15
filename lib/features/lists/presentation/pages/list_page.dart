@@ -1,9 +1,13 @@
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/analytics/saves_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/cafe_list_display_title.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
+import 'package:nook/core/cafe/domain/places_progress.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
@@ -19,6 +23,7 @@ import 'package:nook/features/lists/presentation/utils/lists_format.dart';
 import 'package:nook/features/lists/presentation/widgets/list_form_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
 import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The Saved tab (Figma "Lists — overview"): Want to try and Been as cards,
@@ -206,6 +211,10 @@ class ListsOverview extends StatelessWidget {
         return _recencyOf(b).compareTo(_recencyOf(a));
       });
 
+    final wantToTry = systemLists
+        .where((l) => l.listType == CafeStatus.wantToTry.wire)
+        .firstOrNull;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         ListsTokens.gutter,
@@ -214,7 +223,19 @@ class ListsOverview extends StatelessWidget {
         40,
       ),
       children: [
-        Text('Your lists', style: listsText(24, weight: FontWeight.w600)),
+        ListsTitleRow(
+          title: 'Your lists',
+          progress: PlacesProgress.fromLists(lists),
+          onProgressTap: wantToTry == null
+              ? null
+              : () {
+                  logAppEvent(
+                    SavesEvents.placesProgressTapped,
+                    properties: {'surface': 'saved_tab'},
+                  );
+                  onOpenList(wantToTry);
+                },
+        ),
         const SizedBox(height: 20),
         for (var i = 0; i < systemLists.length; i++) ...[
           if (i > 0) const SizedBox(height: 10),

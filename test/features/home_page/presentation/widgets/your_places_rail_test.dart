@@ -112,6 +112,31 @@ void main() {
       expect(find.byType(HomeCafeCard), findsNothing);
     });
 
+    testWidgets('shows Been progress while something is on Want to Try', (
+      tester,
+    ) async {
+      await tester.runAsync(() async {
+        await saves.set(_snap('w'), CafeStatus.wantToTry);
+        await saves.set(_snap('b'), CafeStatus.been);
+        await recent.record(_snap('r'));
+      });
+      await pump(tester);
+      await tester.pump();
+      expect(find.text('1 been · 1 to try'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('1 cafe been, 1 to try, open Want to try'),
+        findsOneWidget,
+      );
+
+      // Nothing left to try: the row still shows recent cafes, without a
+      // count that has no goal left.
+      await tester.runAsync(() => saves.set(_snap('w'), CafeStatus.been));
+      await tester.pump();
+      expect(find.text(YourPlacesRail.title), findsOneWidget);
+      expect(find.textContaining('to try'), findsNothing);
+      expect(find.textContaining('been'), findsNothing);
+    });
+
     testWidgets('shows Want to Try before recently viewed', (tester) async {
       await tester.runAsync(() async {
         await recent.record(_snap('r'));

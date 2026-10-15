@@ -1,3 +1,6 @@
+import 'package:nook/core/utils/toast_helper.dart';
+import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +8,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/cafe/domain/places_progress.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
@@ -13,6 +17,7 @@ import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
 
 /// The Saved tab for someone without an account: the Want to Try and Been
 /// they kept on this phone, and a card (not a wall) offering to keep them
@@ -40,6 +45,62 @@ class GuestSavedPage extends StatefulWidget {
 class _GuestSavedPageState extends State<GuestSavedPage> {
   static const _surface = {'surface': KeepSavesSurface.savedTab};
   bool _loggedPrompt = false;
+
+  /// The Want to try section, for the progress pill to bring into view.
+  final _wantToTryKey = GlobalKey();
+
+  void _showWantToTry() {
+    logAppEvent(
+      SavesEvents.placesProgressTapped,
+      properties: {'surface': 'saved_tab'},
+    );
+    final target = _wantToTryKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
+
+  /// One tap from a Want to try row to Been, with Undo: the visit is
+  /// logged where the list of places to go already is.
+  Future<void> _markBeen(CafeSnapshot cafe) async {
+    final saves = context.read<GuestSavesCubit>();
+    HapticFeedback.lightImpact();
+    final outcome = await saves.set(cafe, CafeStatus.been);
+    if (!mounted) return;
+    if (outcome == null) {
+      showPrimaryToast(context, "Couldn't save. Please try again.");
+      return;
+    }
+    logAppEvent(SavesEvents.beenFromRow);
+    final left = saves.state.withStatus(CafeStatus.wantToTry).length;
+    showPrimaryToastWithAction(
+      context,
+      left == 0
+          ? 'Added to Been · nothing left to try'
+          : 'Added to Been · $left left to try',
+      actionLabel: 'Undo',
+      // The cubit is app-wide, so Undo works after leaving the tab.
+      onAction: () => unawaited(saves.set(cafe, CafeStatus.wantToTry)),
+      bottomOffset: _barHeight(),
+    );
+  }
+
+  /// What sits under this page's list (the tab bar), measured, so the
+  /// toast lands above it rather than on its labels.
+  double _barHeight() {
+    final box = _listKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return 0;
+    final bottom = box.localToGlobal(Offset(0, box.size.height)).dy;
+    final screen = MediaQuery.sizeOf(context).height;
+    return (screen - bottom).clamp(0, screen / 3).toDouble();
+  }
+
+  final _listKey = GlobalKey();
 
   @override
   void initState() {
@@ -72,6 +133,7 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
             if (!state.isEmpty) _logPromptShown();
 
             return ListView(
+              key: _listKey,
               padding: const EdgeInsets.fromLTRB(
                 ListsTokens.gutter,
                 8,
@@ -79,9 +141,12 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
                 40,
               ),
               children: [
-                Text(
-                  GuestSavedPage.title,
-                  style: listsText(24, weight: FontWeight.w600),
+                ListsTitleRow(
+                  title: GuestSavedPage.title,
+                  progress: PlacesProgress.fromStatuses(
+                    state.saves.map((s) => s.status),
+                  ),
+                  onProgressTap: _showWantToTry,
                 ),
                 const SizedBox(height: 20),
                 if (state.isEmpty)
@@ -91,9 +156,11 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
                   if (wantToTry.isNotEmpty) ...[
                     const SizedBox(height: 24),
                     _Section(
+                      key: _wantToTryKey,
                       title: 'Want to try',
                       icon: LucideIcons.bookmark,
                       saves: wantToTry,
+                      onMarkBeen: _markBeen,
                     ),
                   ],
                   if (been.isNotEmpty) ...[
@@ -244,14 +311,19 @@ class _PillButton extends StatelessWidget {
 
 class _Section extends StatelessWidget {
   const _Section({
+    super.key,
     required this.title,
     required this.icon,
     required this.saves,
+    this.onMarkBeen,
   });
 
   final String title;
   final IconData icon;
   final List<GuestSave> saves;
+
+  /// Want to try rows get a Been button.
+  final ValueChanged<CafeSnapshot>? onMarkBeen;
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +349,12 @@ class _Section extends StatelessWidget {
             const ListsDivider(),
             const SizedBox(height: 6),
           ],
-          _SavedCafeRow(cafe: saves[i].cafe),
+          _SavedCafeRow(
+            cafe: saves[i].cafe,
+            onMarkBeen: onMarkBeen == null
+                ? null
+                : () => onMarkBeen!(saves[i].cafe),
+          ),
         ],
       ],
     );
@@ -285,9 +362,12 @@ class _Section extends StatelessWidget {
 }
 
 class _SavedCafeRow extends StatelessWidget {
-  const _SavedCafeRow({required this.cafe});
+  const _SavedCafeRow({required this.cafe, this.onMarkBeen});
 
   final CafeSnapshot cafe;
+
+  /// Shows a Been button at the row's end in place of the chevron.
+  final VoidCallback? onMarkBeen;
 
   @override
   Widget build(BuildContext context) {
@@ -329,12 +409,74 @@ class _SavedCafeRow extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              LucideIcons.chevronRight,
-              size: 18,
-              color: ListsTokens.muted,
-            ),
+            if (onMarkBeen != null)
+              MarkBeenButton(cafeName: cafe.name, onTap: onMarkBeen!)
+            else
+              const Icon(
+                LucideIcons.chevronRight,
+                size: 18,
+                color: ListsTokens.muted,
+              ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Been" at the end of a Want to try row: an outlined pill with a check,
+/// in a 48dp target, so a visit can be logged without opening the cafe.
+class MarkBeenButton extends StatelessWidget {
+  const MarkBeenButton({
+    super.key,
+    required this.cafeName,
+    required this.onTap,
+  });
+
+  final String cafeName;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      button: true,
+      label: 'Mark $cafeName as Been',
+      excludeSemantics: true,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(100),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+          child: Align(
+            widthFactor: 1,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(10, 5, 12, 5),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: ListsTokens.brand),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    LucideIcons.check,
+                    size: 14,
+                    color: ListsTokens.brand,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Been',
+                    style: listsText(
+                      12,
+                      weight: FontWeight.w500,
+                      color: ListsTokens.brand,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

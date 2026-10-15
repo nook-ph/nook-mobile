@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
@@ -122,6 +123,35 @@ void main() {
 
       await tester.tap(find.text('New list'));
       expect(created, 1);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('no places saved: no progress beside the title', (
+      tester,
+    ) async {
+      await pump(tester, system);
+      expect(find.byType(PlacesProgressPill), findsNothing);
+    });
+
+    testWidgets('progress counts Been against Been plus Want to Try', (
+      tester,
+    ) async {
+      await pump(tester, [
+        cafeList(id: 'been', name: 'Been', listType: 'been', cafeCount: 3),
+        cafeList(
+          id: 'want',
+          name: 'Want to Try',
+          listType: 'want_to_try',
+          cafeCount: 5,
+        ),
+        // Custom lists are not counted.
+        cafeList(id: 'c', name: 'Matcha', cafeCount: 9),
+      ]);
+      expect(find.text('3 been · 5 to try'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('3 cafes been, 5 to try, open Want to try'),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     });
 
