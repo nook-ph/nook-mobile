@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/analytics/auth_events.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/features/auth/presentation/auth_step_tracker.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -34,8 +36,23 @@ class _EmailConfirmationPendingScreenState
   /// pending, so leaving waits for the bloc to drop that state.
   String? _leavingWithEmail;
 
+  late final AuthStepTracker _stepTracker;
+
+  @override
+  void initState() {
+    super.initState();
+    final bloc = context.read<AuthBloc>();
+    _stepTracker = AuthStepTracker(
+      step: AuthStep.otp,
+      currentState: () => bloc.state,
+      method: () => bloc.signInMethod,
+      reportBackground: false,
+    );
+  }
+
   @override
   void dispose() {
+    _stepTracker.dispose();
     _cooldownTimer?.cancel();
     _codeController.dispose();
     super.dispose();

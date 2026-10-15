@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/analytics/auth_events.dart';
 import 'package:nook/core/auth/auth_return.dart';
+import 'package:nook/features/auth/presentation/auth_step_tracker.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 
@@ -26,10 +28,17 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
   /// A wrong password sits under the field instead of in a toast (B7).
   String? _passwordError;
   String _lastText = '';
+  late final AuthStepTracker _stepTracker;
 
   @override
   void initState() {
     super.initState();
+    final bloc = context.read<AuthBloc>();
+    _stepTracker = AuthStepTracker(
+      step: AuthStep.password,
+      currentState: () => bloc.state,
+      method: () => bloc.signInMethod,
+    );
     _passwordController.addListener(() {
       // Selection moves notify too; only an edit answers the error.
       final text = _passwordController.text;
@@ -41,6 +50,7 @@ class _LoginPasswordScreenState extends State<LoginPasswordScreen> {
 
   @override
   void dispose() {
+    _stepTracker.dispose();
     _passwordController.dispose();
     super.dispose();
   }
