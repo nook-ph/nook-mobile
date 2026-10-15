@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
@@ -71,6 +72,23 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     }
   }
 
+  /// Debug builds only: `--dart-define=NOOK_PREVIEW_MERGE_TOAST=all` (or
+  /// `partial`) shows the merge toast a few seconds after launch, to look at
+  /// it without signing in to a real account.
+  void _previewMergeToast() {
+    if (!kDebugMode) return;
+    const preview = String.fromEnvironment('NOOK_PREVIEW_MERGE_TOAST');
+    if (preview.isEmpty) return;
+    Future<void>.delayed(const Duration(seconds: 6), () {
+      if (!mounted) return;
+      _confirm(
+        preview == 'partial'
+            ? const GuestMergeResult(added: 2, moved: 2, failed: 1)
+            : const GuestMergeResult(added: 3, moved: 3, failed: 0),
+      );
+    });
+  }
+
   void _recordSession() {
     if (!sl.isRegistered<EngagementScore>()) return;
     unawaited(sl<EngagementScore>().recordSession());
@@ -84,6 +102,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
       onShow: _onShow,
     );
     _recordSession();
+    _previewMergeToast();
     unawaited(context.read<RecentlyViewedCubit>().load());
     final saves = context.read<GuestSavesCubit>();
     unawaited(
