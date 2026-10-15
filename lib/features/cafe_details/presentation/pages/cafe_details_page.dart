@@ -23,6 +23,7 @@ import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
+import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
@@ -161,6 +162,12 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       AnalyticsService.viewDetails,
       metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
     );
+    // A cafe has been seen: Home may now offer "See cafes near you".
+    if (sl.isRegistered<HomeLocationPromptStore>()) {
+      unawaited(
+        sl<HomeLocationPromptStore>().markCafeViewed().catchError((_) {}),
+      );
+    }
   }
 
   /// Home's "Your places" row leads with the cafes opened lately.

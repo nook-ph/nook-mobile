@@ -14,7 +14,9 @@ import 'package:nook/features/search/data/supabase_saved_places_repository.dart'
 import 'package:nook/features/search/domain/repositories/i_place_search_repository.dart';
 import 'package:nook/features/search/domain/repositories/i_saved_places_repository.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
+import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
+import 'package:nook/core/preferences/onboarding_purpose_store.dart';
 import 'package:nook/core/preferences/review_draft_store.dart';
 import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -95,6 +97,7 @@ import 'package:nook/features/crawls/domain/use_cases/enable_crawl_link_usecase.
 import 'package:nook/features/crawls/domain/use_cases/update_crawl_title_usecase.dart';
 import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
+import 'package:nook/features/onboarding/domain/get_purpose_suggestions_usecase.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/data/profile_remote_data_source.dart';
 import 'package:nook/features/profile/data/profile_repository_impl.dart';
@@ -133,6 +136,12 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<LastSavedListStore>(() => LastSavedListStore());
   sl.registerLazySingleton<LocationPromptStore>(() => LocationPromptStore());
+  sl.registerLazySingleton<HomeLocationPromptStore>(
+    () => HomeLocationPromptStore(),
+  );
+  sl.registerLazySingleton<OnboardingPurposeStore>(
+    () => OnboardingPurposeStore(),
+  );
   sl.registerLazySingleton<ReviewDraftStore>(() => ReviewDraftStore());
   sl.registerLazySingleton<TermsAcceptanceStore>(() => TermsAcceptanceStore());
   sl.registerLazySingleton<FakeStampStore>(() => FakeStampStore());
@@ -302,6 +311,9 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<GetCafesUseCase>(
     () => GetCafesUseCase(sl<ICafeRepository>()),
   );
+  sl.registerLazySingleton<GetPurposeSuggestionsUseCase>(
+    () => GetPurposeSuggestionsUseCase(sl<ICafeRepository>()),
+  );
   sl.registerLazySingleton<GetSimilarCafesUseCase>(
     () => GetSimilarCafesUseCase(sl<ICafeRepository>()),
   );
@@ -456,7 +468,10 @@ Future<void> initDependencies() async {
     ),
   );
   sl.registerFactory<HomeBloc>(
-    () => HomeBloc(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
+    () => HomeBloc(
+      getHomeFeedUseCase: sl<GetHomeFeedUseCase>(),
+      readPurpose: sl<OnboardingPurposeStore>().read,
+    ),
   );
   sl.registerFactory<CafeDetailsBloc>(
     () => CafeDetailsBloc(getCafeDetailsUseCase: sl<GetCafeDetailsUseCase>()),
