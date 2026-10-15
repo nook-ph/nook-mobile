@@ -125,6 +125,35 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('no places saved: no progress beside the title', (
+      tester,
+    ) async {
+      await pump(tester, system);
+      expect(find.textContaining('Been to'), findsNothing);
+    });
+
+    testWidgets('progress counts Been against Been plus Want to Try', (
+      tester,
+    ) async {
+      await pump(tester, [
+        cafeList(id: 'been', name: 'Been', listType: 'been', cafeCount: 3),
+        cafeList(
+          id: 'want',
+          name: 'Want to Try',
+          listType: 'want_to_try',
+          cafeCount: 5,
+        ),
+        // Custom lists are not counted.
+        cafeList(id: 'c', name: 'Matcha', cafeCount: 9),
+      ]);
+      expect(find.text('Been to 3 of 8'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('Been to 3 of your 8 places'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('custom lists are rows, default first, with their counts', (
       tester,
     ) async {

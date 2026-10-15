@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/cafe/domain/places_progress.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
@@ -13,6 +14,7 @@ import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
 
 /// The Saved tab for someone without an account: the Want to Try and Been
 /// they kept on this phone, and a card (not a wall) offering to keep them
@@ -79,9 +81,11 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
                 40,
               ),
               children: [
-                Text(
-                  GuestSavedPage.title,
-                  style: listsText(24, weight: FontWeight.w600),
+                ListsTitleRow(
+                  title: GuestSavedPage.title,
+                  progress: PlacesProgress.fromStatuses(
+                    state.saves.map((s) => s.status),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 if (state.isEmpty)

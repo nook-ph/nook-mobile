@@ -42,6 +42,7 @@ void main() {
 
     expect(find.text(GuestSavedPage.emptyTitle), findsOneWidget);
     expect(find.text(GuestSavedPage.keepTitle), findsNothing);
+    expect(find.textContaining('Been to'), findsNothing);
     expect(analytics.names, isNot(contains(SavesEvents.keepSavesPromptShown)));
 
     await tester.tap(find.text('Find a cafe'));
@@ -71,6 +72,7 @@ void main() {
     expect(find.text('Been'), findsOneWidget);
     expect(find.text('Kape Uno'), findsOneWidget);
     expect(find.text('Brew Dos'), findsOneWidget);
+    expect(find.text('Been to 1 of 2'), findsOneWidget);
     // Shown once, however often the list rebuilds.
     expect(
       analytics.names.where((n) => n == SavesEvents.keepSavesPromptShown),
@@ -108,5 +110,39 @@ void main() {
         {'trigger': 'keep_saves_saved_tab'},
       ],
     ]);
+  });
+
+  testWidgets('progress follows a Want to Try marked Been', (tester) async {
+    await tester.runAsync(() async {
+      await saves.set(
+        const CafeSnapshot(id: 'a', name: 'Kape Uno'),
+        CafeStatus.wantToTry,
+      );
+      await saves.set(
+        const CafeSnapshot(id: 'b', name: 'Brew Dos'),
+        CafeStatus.wantToTry,
+      );
+    });
+    await pump(tester);
+    await tester.pump();
+    expect(find.text('Been to 0 of 2'), findsOneWidget);
+
+    await tester.runAsync(
+      () => saves.set(
+        const CafeSnapshot(id: 'a', name: 'Kape Uno'),
+        CafeStatus.been,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Been to 1 of 2'), findsOneWidget);
+
+    await tester.runAsync(
+      () => saves.set(
+        const CafeSnapshot(id: 'b', name: 'Brew Dos'),
+        CafeStatus.been,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Been to all 2'), findsOneWidget);
   });
 }

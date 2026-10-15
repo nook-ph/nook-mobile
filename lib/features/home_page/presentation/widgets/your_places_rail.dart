@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/cafe/domain/places_progress.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
 import 'package:nook/core/widgets/prototype_height.dart';
@@ -18,6 +19,7 @@ import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart
 import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
+import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
 import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
@@ -134,19 +136,33 @@ class _YourPlacesRailState extends State<YourPlacesRail> {
                       wantToTry: wantToTry,
                       recent: [for (final r in recent) r.cafe.toSummary()],
                     ),
+                    progress: _signedIn
+                        ? PlacesProgress.fromLists(
+                            _maybeListsBloc()?.userLists ?? const [],
+                          )
+                        : PlacesProgress.fromStatuses(
+                            guest.saves.map((s) => s.status),
+                          ),
                   );
                 },
               ),
         );
 
     final account = _account;
+    final listsBloc = _maybeListsBloc();
     // A fresh row on every account change: handing BlocBuilder the same
     // widget instance would skip the rebuild.
     final content = account == null
         ? row(const [])
         : BlocBuilder<AccountWantToTryCubit, List<CafeSummary>>(
             bloc: account,
-            builder: (_, cafes) => row(cafes),
+            builder: (_, cafes) => listsBloc == null
+                ? row(cafes)
+                // The progress counts come from the lists; follow them.
+                : BlocBuilder<ListsBloc, ListsState>(
+                    bloc: listsBloc,
+                    builder: (_, _) => row(cafes),
+                  ),
           );
 
     final listeners = <BlocListener>[
@@ -163,7 +179,7 @@ class _YourPlacesRailState extends State<YourPlacesRail> {
         },
       ),
     ];
-    if (_maybeListsBloc() != null) {
+    if (listsBloc != null) {
       // A status set anywhere reloads the lists; the row follows.
       listeners.add(
         BlocListener<ListsBloc, ListsState>(
@@ -182,9 +198,14 @@ class _YourPlacesRailState extends State<YourPlacesRail> {
 /// the gap Home puts between shelves under it. Nothing when [cafes] is empty.
 /// Logs `home_rail_impression` and `home_rail_card_tapped` as `your_places`.
 class YourPlacesRow extends StatelessWidget {
-  const YourPlacesRow({super.key, required this.cafes});
+  const YourPlacesRow({super.key, required this.cafes, this.progress});
 
   final List<CafeSummary> cafes;
+
+  /// "Been to 3 of 8" beside the title. Shown only while something is
+  /// still on Want to Try: the rail leads with those, and with none left
+  /// the count has no goal to point at.
+  final PlacesProgress? progress;
 
   static const _prototypeCafe = CafeSummary(
     id: '',
@@ -197,6 +218,7 @@ class YourPlacesRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (cafes.isEmpty) return const SizedBox.shrink();
+    final showProgress = (progress?.wantToTry ?? 0) > 0;
     final imageHeight = ResponsiveCardSizes.cafeImageHeight(context);
     final cardWidth = ResponsiveCardSizes.cafeCardWidth(context);
     final row = Padding(
@@ -204,7 +226,12 @@ class YourPlacesRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeSectionTitle(YourPlacesRail.title),
+          HomeSectionTitle(
+            YourPlacesRail.title,
+            trailing: showProgress
+                ? PlacesProgressPill(progress: progress!)
+                : null,
+          ),
           const SizedBox(height: 12),
           PrototypeHeight(
             prototype: HomeCafeCard(

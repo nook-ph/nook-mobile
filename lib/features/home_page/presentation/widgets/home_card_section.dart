@@ -121,7 +121,13 @@ class HomeCafeSection extends StatelessWidget {
 }
 
 class HomeSectionTitle extends StatelessWidget {
-  const HomeSectionTitle(this.text, {super.key, this.subtitle, this.onSeeAll});
+  const HomeSectionTitle(
+    this.text, {
+    super.key,
+    this.subtitle,
+    this.onSeeAll,
+    this.trailing,
+  });
 
   final String text;
 
@@ -133,6 +139,10 @@ class HomeSectionTitle extends StatelessWidget {
   /// ending in "See all" (docs/ux/find-a-cafe.md, finding 4: shelves were a
   /// dead end after a few cards).
   final VoidCallback? onSeeAll;
+
+  /// Read-only content at the row's end (Your places' progress pill). Not
+  /// shown with [onSeeAll], which owns that end.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +178,15 @@ class HomeSectionTitle extends StatelessWidget {
         horizontal: ResponsiveCardSizes.homeGutter,
       ),
       child: seeAll == null
-          ? title
+          ? (trailing == null
+                ? title
+                : Row(
+                    children: [
+                      Expanded(child: title),
+                      const SizedBox(width: 12),
+                      trailing!,
+                    ],
+                  ))
           : AdaptiveTap(
               onTap: seeAll,
               child: Semantics(
