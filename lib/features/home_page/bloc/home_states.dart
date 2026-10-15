@@ -1,4 +1,5 @@
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/preferences/onboarding_purpose_store.dart';
 
 abstract class HomeState {}
 
@@ -46,6 +47,10 @@ class HomeLoadedState extends HomeState {
   /// it. Null on every other emission, so it is reported once.
   final Object? refreshError;
 
+  /// What the user said they are looking for at onboarding; its shelf
+  /// leads the feed. Null for anyone who never answered.
+  final OnboardingPurpose? purpose;
+
   HomeLoadedState({
     required this.featuredCafes,
     this.nearbyCafes = const [],
@@ -61,6 +66,7 @@ class HomeLoadedState extends HomeState {
     this.allEmpty = false,
     this.newCafeIds,
     this.refreshError,
+    this.purpose,
   });
 
   /// Every cafe on the feed, for the one batched status lookup.
@@ -96,6 +102,7 @@ class HomeLoadedState extends HomeState {
     bool? allEmpty,
     Set<String>? newCafeIds,
     Object? refreshError,
+    OnboardingPurpose? purpose,
   }) {
     return HomeLoadedState(
       featuredCafes: featuredCafes ?? this.featuredCafes,
@@ -113,6 +120,7 @@ class HomeLoadedState extends HomeState {
       allEmpty: allEmpty ?? this.allEmpty,
       newCafeIds: newCafeIds ?? this.newCafeIds,
       refreshError: refreshError,
+      purpose: purpose ?? this.purpose,
     );
   }
 }

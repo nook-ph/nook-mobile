@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/cafe_data_revision.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/preferences/onboarding_purpose_store.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
@@ -36,7 +37,11 @@ List<CafeSummary> localBeans(List<CafeSummary> cafes) =>
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetHomeFeedUseCase getHomeFeedUseCase;
 
-  HomeBloc({required this.getHomeFeedUseCase}) : super(HomeInitialState()) {
+  /// Reads the onboarding purpose, whose shelf leads the feed.
+  final Future<OnboardingPurpose?> Function()? readPurpose;
+
+  HomeBloc({required this.getHomeFeedUseCase, this.readPurpose})
+    : super(HomeInitialState()) {
     on<LoadHomeDataEvent>(_onLoadHomeData);
     on<HomeDismissLocationBannerEvent>(_onDismissLocationBanner);
     CafeDataRevision.reviews.addListener(_onReviewsChanged);
@@ -64,6 +69,8 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     if (!(event.refresh && state is HomeLoadedState)) {
       emit(HomeLoadingState());
     }
+
+    final purpose = await _readPurpose();
 
     try {
       // Cafes already announced in this load, so the page asks for each
@@ -122,6 +129,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
               current is HomeLoadedState &&
               current.locationBannerDismissed,
           allEmpty: allEmpty,
+          purpose: purpose,
         );
         emit(loaded.copyWith(newCafeIds: loaded.cafeIds.difference(announced)));
         announced = loaded.cafeIds;
@@ -136,6 +144,14 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         return;
       }
       emit(HomeError(e));
+    }
+  }
+
+  Future<OnboardingPurpose?> _readPurpose() async {
+    try {
+      return await readPurpose?.call();
+    } catch (_) {
+      return null;
     }
   }
 

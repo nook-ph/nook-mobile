@@ -15,6 +15,7 @@ import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
+import 'package:nook/features/home_page/domain/home_rail_order.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_card_section.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_featured_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
@@ -257,44 +258,71 @@ class _HomeContent extends StatelessWidget {
       return shelf;
     }
 
-    final nearby = fresh(state.nearbyCafes);
-    final featured = fresh(state.featuredCafes);
-    final specialty = fresh(state.specialtyNearbyCafes);
-    final beans = fresh(state.localBeansCafes);
-    final newest = fresh(state.newestCafes);
-    final laptop = fresh(state.laptopFriendlyCafes);
-    final trending = fresh(state.trendingCafes);
-    final topRated = fresh(state.topRatedCafes);
+    final shelves = <HomeRail, List<CafeSummary>>{
+      HomeRail.nearby: state.nearbyCafes,
+      HomeRail.featured: state.featuredCafes,
+      HomeRail.specialty: state.specialtyNearbyCafes,
+      HomeRail.localBeans: state.localBeansCafes,
+      HomeRail.newest: state.newestCafes,
+      HomeRail.laptopFriendly: state.laptopFriendlyCafes,
+      HomeRail.trending: state.trendingCafes,
+      HomeRail.topRated: state.topRatedCafes,
+    };
+    // The shelf for the onboarding purpose leads, and so also gets first
+    // pick of the cafes for its opening cards.
+    final order = orderHomeRails(
+      state.purpose,
+      available: {
+        for (final e in shelves.entries)
+          if (e.value.isNotEmpty) e.key,
+      },
+    );
 
     // Sections with no cafes are left out, so the gap goes between the ones
     // that remain rather than around blank space. Titles only, no
     // subtitles: the home page reads cleaner without a second line.
-    final sections = <Widget>[
-      if (nearby.isNotEmpty)
-        HomeCafeSection(title: 'Near you', cafes: nearby, sort: 'nearby'),
-      if (featured.isNotEmpty) _FeaturedSection(cafes: featured),
-      if (specialty.isNotEmpty)
-        HomeCafeSection(title: 'Specialty coffee near you', cafes: specialty),
-      // Hidden by the bloc until three cafes have the Philippine Beans tag.
-      if (beans.isNotEmpty) HomeCafeSection(title: 'Local beans', cafes: beans),
-      if (newest.isNotEmpty)
-        HomeCafeSection(title: 'Fresh on Nook', cafes: newest, sort: 'newest'),
-      if (laptop.isNotEmpty)
-        HomeCafeSection(title: 'Laptop-friendly', cafes: laptop),
-      // Hidden by the bloc until enough cafes have enough reviews.
-      if (trending.isNotEmpty)
-        HomeCafeSection(
+    final sections = <Widget>[];
+    for (final rail in order) {
+      final cafes = fresh(shelves[rail]!);
+      if (cafes.isEmpty) continue;
+      sections.add(switch (rail) {
+        HomeRail.nearby => HomeCafeSection(
+          title: 'Near you',
+          cafes: cafes,
+          sort: 'nearby',
+        ),
+        HomeRail.featured => _FeaturedSection(cafes: cafes),
+        HomeRail.specialty => HomeCafeSection(
+          title: 'Specialty coffee near you',
+          cafes: cafes,
+        ),
+        // Hidden by the bloc until three cafes have the Philippine Beans tag.
+        HomeRail.localBeans => HomeCafeSection(
+          title: 'Local beans',
+          cafes: cafes,
+        ),
+        HomeRail.newest => HomeCafeSection(
+          title: 'Fresh on Nook',
+          cafes: cafes,
+          sort: 'newest',
+        ),
+        HomeRail.laptopFriendly => HomeCafeSection(
+          title: 'Laptop-friendly',
+          cafes: cafes,
+        ),
+        // Hidden by the bloc until enough cafes have enough reviews.
+        HomeRail.trending => HomeCafeSection(
           title: 'Crowd favorites',
-          cafes: trending,
+          cafes: cafes,
           sort: 'trending',
         ),
-      if (topRated.isNotEmpty)
-        HomeCafeSection(
+        HomeRail.topRated => HomeCafeSection(
           title: 'Highest rated',
-          cafes: topRated,
+          cafes: cafes,
           sort: 'top_rated',
         ),
-    ];
+      });
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

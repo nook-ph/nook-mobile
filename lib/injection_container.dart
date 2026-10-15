@@ -463,7 +463,10 @@ Future<void> initDependencies() async {
     ),
   );
   sl.registerFactory<HomeBloc>(
-    () => HomeBloc(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
+    () => HomeBloc(
+      getHomeFeedUseCase: sl<GetHomeFeedUseCase>(),
+      readPurpose: sl<OnboardingPurposeStore>().read,
+    ),
   );
   sl.registerFactory<CafeDetailsBloc>(
     () => CafeDetailsBloc(getCafeDetailsUseCase: sl<GetCafeDetailsUseCase>()),
