@@ -29,14 +29,20 @@ void showPrimaryToast(
   );
 }
 
-/// Primary toast with a trailing action (e.g. "Added to Been · Add a note").
-/// Tapping the action dismisses the toast first.
+/// Primary toast with a trailing action (e.g. "Added to Been · Add a note"),
+/// and optionally a second one before it ("Undo" · "View"). Tapping an
+/// action dismisses the toast first.
+///
+/// [duration] null keeps the toast until it is acted on, closed (a close
+/// button is then shown) or replaced: see [toastDurationFor].
 void showPrimaryToastWithAction(
   BuildContext context,
   String message, {
   required String actionLabel,
   required VoidCallback onAction,
-  Duration duration = const Duration(seconds: 5),
+  String? secondaryActionLabel,
+  VoidCallback? onSecondaryAction,
+  Duration? duration = const Duration(seconds: 5),
   double bottomOffset = 0,
 }) {
   _showToastBar(
@@ -44,10 +50,18 @@ void showPrimaryToastWithAction(
     message,
     actionLabel: actionLabel,
     onAction: onAction,
+    secondaryActionLabel: secondaryActionLabel,
+    onSecondaryAction: onSecondaryAction,
     duration: duration,
     bottomOffset: bottomOffset,
   );
 }
+
+/// [duration], or null (no timeout) when a screen reader or switch access
+/// is on: a toast with an action must not vanish before it can be reached
+/// (WCAG 2.2.1).
+Duration? toastDurationFor(BuildContext context, Duration duration) =>
+    MediaQuery.maybeAccessibleNavigationOf(context) ?? false ? null : duration;
 
 /// Removes whatever toast is showing. Call before opening a sheet or leaving
 /// a page, so a toast about the previous step does not sit on top of the next.
@@ -64,7 +78,9 @@ void _showToastBar(
   String message, {
   String? actionLabel,
   VoidCallback? onAction,
-  required Duration duration,
+  String? secondaryActionLabel,
+  VoidCallback? onSecondaryAction,
+  required Duration? duration,
   required double bottomOffset,
 }) {
   dismissToasts();
@@ -79,6 +95,7 @@ void _showToastBar(
 
   toastification.showCustom(
     context: context,
+    overlayState: _overlayFor(context),
     alignment: Alignment.bottomCenter,
     autoCloseDuration: duration,
     animationDuration: const Duration(milliseconds: 200),
@@ -92,10 +109,36 @@ void _showToastBar(
       final bottomMargin = bottomOffset > 0
           ? (bottomOffset - inset).clamp(0.0, double.infinity)
           : 4.0;
+      final hasAction = actionLabel != null;
+      final persistent = duration == null;
+      Widget action(String label, VoidCallback? onTap) => AdaptiveTextButton(
+        onPressed: () {
+          toastification.dismiss(holder);
+          onTap?.call();
+        },
+        style: TextButton.styleFrom(
+          foregroundColor: _toastAction,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          // 48: the touch floor, also for the toast's own actions.
+          minimumSize: const Size(48, 48),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Text(
+          label,
+          style: style?.copyWith(
+            color: _toastAction,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      );
       return Container(
         width: double.infinity,
         margin: EdgeInsets.fromLTRB(20, 16, 20, bottomMargin),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        // With actions the 48 targets set the height; the padding shrinks
+        // so the bar stays about as tall as a plain one.
+        padding: hasAction || persistent
+            ? const EdgeInsets.fromLTRB(16, 4, 4, 4)
+            : const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         decoration: BoxDecoration(
           color: _toastInk,
           borderRadius: BorderRadius.circular(14),
@@ -103,42 +146,61 @@ void _showToastBar(
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                message,
-                // Two lines, so a long message keeps the part that says what
-                // was lost ("Rank deleted.") instead of truncating it.
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: style,
-              ),
-            ),
-            if (actionLabel != null) ...[
-              const SizedBox(width: 12),
-              AdaptiveTextButton(
-                onPressed: () {
-                  toastification.dismiss(holder);
-                  onAction?.call();
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: _toastAction,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  minimumSize: const Size(0, 24),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  vertical: hasAction || persistent ? 9 : 0,
                 ),
                 child: Text(
-                  actionLabel,
-                  style: style?.copyWith(
-                    color: _toastAction,
-                    fontWeight: FontWeight.w600,
+                  message,
+                  // Two lines, so a long message keeps the part that says
+                  // what was lost ("Rank deleted.") instead of truncating it.
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: style,
+                ),
+              ),
+            ),
+            if (secondaryActionLabel != null) ...[
+              const SizedBox(width: 4),
+              action(secondaryActionLabel, onSecondaryAction),
+            ],
+            if (hasAction) ...[
+              SizedBox(width: secondaryActionLabel != null ? 0 : 4),
+              action(actionLabel, onAction),
+            ],
+            // A toast that does not time out can always be closed.
+            if (persistent)
+              Semantics(
+                button: true,
+                label: 'Close',
+                excludeSemantics: true,
+                // The toast overlay has no Material, so no ink here.
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => toastification.dismiss(holder),
+                  child: const SizedBox.square(
+                    dimension: 48,
+                    child: Icon(Icons.close, size: 18, color: _toastText),
                   ),
                 ),
               ),
-            ],
           ],
         ),
       );
     },
   );
+}
+
+/// The overlay a toast goes on. A context above the app's navigator (the
+/// navigator's own, as app-wide listeners hold) has no overlay over it, so
+/// its navigator's overlay is used.
+OverlayState? _overlayFor(BuildContext context) {
+  final above = context.findAncestorStateOfType<OverlayState>();
+  if (above != null) return above;
+  if (context is StatefulElement && context.state is NavigatorState) {
+    return (context.state as NavigatorState).overlay;
+  }
+  return null;
 }
 
 /// "Saved to Favorites · Change", shown when the bookmark on a cafe page
