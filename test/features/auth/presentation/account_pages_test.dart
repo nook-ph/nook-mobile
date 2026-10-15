@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +42,24 @@ void main() {
       expect(suggestUsername('Maria Cruz'), 'maria_cruz');
       expect(suggestUsername('  José  P. Rizal '), 'jos_p_rizal');
       expect(suggestUsername('A' * 30).length, 20);
+    });
+
+    test('usernameSuggestions leads with the name, then numbered ones', () {
+      final out = usernameSuggestions('Maria Cruz', random: Random(1));
+      expect(out.first, 'maria_cruz');
+      expect(out, hasLength(4));
+      expect(out.toSet(), hasLength(4));
+      for (final name in out.skip(1)) {
+        expect(name, matches(RegExp(r'^maria_cruz\d{2,4}$')));
+        expect(validateUsername(name), isNull);
+      }
+      // A long name still leaves room for the digits.
+      for (final name in usernameSuggestions('A' * 30, random: Random(2))) {
+        expect(name.length, lessThanOrEqualTo(20));
+        expect(validateUsername(name), isNull);
+      }
+      expect(usernameSuggestions(null, random: Random(3)), isEmpty);
+      expect(usernameSuggestions('  ', random: Random(3)), isEmpty);
     });
 
     test('validateUsername reports the first broken rule', () {
@@ -117,11 +136,47 @@ void main() {
       tester,
     ) async {
       await pumpUsername(tester, check: (_) async => false);
+      await tester.enterText(find.byType(TextField), 'maria');
       await tester.pump(const Duration(milliseconds: 700));
       await tester.pump();
 
-      expect(find.text('@maria_cruz is already taken.'), findsOneWidget);
+      expect(find.text('@maria is already taken.'), findsOneWidget);
       expect(_opacityOf(tester, 'Confirm username'), 0.4);
+    });
+
+    testWidgets('a taken suggestion moves on to a numbered one', (
+      tester,
+    ) async {
+      final checked = <String>[];
+      await pumpUsername(
+        tester,
+        check: (name) async {
+          checked.add(name);
+          return name != 'maria_cruz';
+        },
+      );
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 700));
+      }
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      final shown = field.controller!.text;
+      expect(checked.first, 'maria_cruz');
+      expect(shown, startsWith('maria_cruz'));
+      expect(shown, isNot('maria_cruz'));
+      expect(find.text('@$shown is available!'), findsOneWidget);
+      expect(_opacityOf(tester, 'Confirm username'), 1);
+    });
+
+    testWidgets('something typed is not replaced when taken', (tester) async {
+      await pumpUsername(tester, check: (_) async => false);
+      await tester.enterText(find.byType(TextField), 'kape_lover');
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 700));
+      }
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller!.text, 'kape_lover');
+      expect(find.text('@kape_lover is already taken.'), findsOneWidget);
     });
 
     testWidgets('a format error replaces the helper, no pill (C15)', (
