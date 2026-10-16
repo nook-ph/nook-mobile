@@ -112,6 +112,9 @@ class _SuggestionCard extends StatelessWidget {
       button: true,
       label: cafe.name,
       excludeSemantics: true,
+      // The tap goes on this node: excluding the child's semantics drops
+      // its tap action, and TalkBack or Switch Access could not choose.
+      onTap: onTap,
       child: AdaptiveTap(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
