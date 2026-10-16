@@ -183,12 +183,15 @@ void main() {
 
     await cubit.load();
     expect(cubit.state.loaded, isTrue);
+    // Loaded but unknown: the home-screen widget must not read it as empty.
+    expect(cubit.readFailed, isTrue);
     expect(await cubit.set(_a, CafeStatus.wantToTry), isNull);
     await cubit.removeAll({'a'});
     expect(failing.writes, 0);
 
     failing.fail = false;
     expect(await cubit.set(_a, CafeStatus.wantToTry), isNotNull);
+    expect(cubit.readFailed, isFalse);
     expect(failing.writes, 1);
     await cubit.close();
   });

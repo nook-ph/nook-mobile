@@ -75,6 +75,7 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
   bool _accountLoaded = false;
   Timer? _timer;
   String? _lastJson;
+  bool _checkingInstalled = false;
 
   bool get _enabled => widget.platform.isSupported;
 
@@ -169,8 +170,11 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
       if (account == null || !_accountLoaded) return null;
       return account.state;
     }
-    final guest = context.read<GuestSavesCubit>().state;
-    if (!guest.loaded) return null;
+    final cubit = context.read<GuestSavesCubit>();
+    final guest = cubit.state;
+    // A failed read means the saves are unknown, not none: keep what the
+    // widget shows rather than wipe it to the empty state.
+    if (!guest.loaded || cubit.readFailed) return null;
     return [
       for (final s in guest.withStatus(CafeStatus.wantToTry))
         s.cafe.toSummary(),
@@ -217,6 +221,10 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
   /// Logs `widget_installed_count_changed` when the number of widgets on
   /// the home screen differs from the last look.
   Future<void> _checkInstalled() async {
+    // Start-up and the first resume both ask; two runs at once would read
+    // the same previous count and log the change twice.
+    if (_checkingInstalled) return;
+    _checkingInstalled = true;
     try {
       final count = await widget.platform.installedCount();
       if (count == null) return;
@@ -241,6 +249,8 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
       );
     } catch (e) {
       debugPrint('[SavedCafesWidget] installed count failed: $e');
+    } finally {
+      _checkingInstalled = false;
     }
   }
 
