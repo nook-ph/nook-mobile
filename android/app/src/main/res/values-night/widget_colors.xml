@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark launcher: no dark tokens exist in the app yet, so these are derived
+     from the light ones (ink and brand tints), not taken from a design file. -->
+<resources>
+    <color name="widget_surface">#18201B</color>
+    <color name="widget_ink">#EEEEEE</color>
+    <color name="widget_muted">#A9A8A6</color>
+    <color name="widget_brand">#A3B18A</color>
+    <color name="widget_on_brand">#0A0F0D</color>
+    <color name="widget_divider">#2C352F</color>
+    <color name="widget_open">#4CC27A</color>
+    <color name="widget_soon">#E0AB38</color>
+    <color name="widget_closed">#6B6A69</color>
+</resources>

@@ -86,3 +86,8 @@ if (!hasKeystore && !allowUnsignedRelease) {
 flutter {
     source = "../.."
 }
+dependencies {
+    // NotificationManagerCompat and ContextCompat in MainActivity and the
+    // home-screen widget provider.
+    implementation("androidx.core:core-ktx:1.13.1")
+}

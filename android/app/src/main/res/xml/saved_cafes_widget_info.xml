@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4x2 by default (three cafes); resizes down to 2x2 (one cafe).
+     updatePeriodMillis is the 2-hour safety net; the exact turnovers (a cafe
+     opening or closing, midnight) are scheduled from the app with
+     HomeWidget.scheduleWidgetUpdates. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="7200000"
+    android:initialLayout="@layout/saved_cafes_widget_medium"
+    android:previewLayout="@layout/saved_cafes_widget_preview"
+    android:description="@string/saved_cafes_widget_description"
+    android:widgetCategory="home_screen" />
