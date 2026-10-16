@@ -223,12 +223,13 @@ class HomeSectionTitle extends StatelessWidget {
                 button: true,
                 label: sub == null ? '$text, see all' : '$text, $sub, see all',
                 excludeSemantics: true,
-                // 8 above and below brings the row to a 40pt tap target.
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+                // At least 48 tall: the touch floor, with a subtitle or not.
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
                   child: Row(
                     children: [
                       Expanded(child: title),
+                      const SizedBox(width: 12),
                       Text(
                         'See all',
                         style: context.textTheme.bodySmall?.copyWith(

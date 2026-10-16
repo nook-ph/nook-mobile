@@ -175,7 +175,9 @@ PostHogEvent addScreenSize(PostHogEvent event) {
   if (view == null || view.devicePixelRatio == 0) return event;
   final size = view.physicalSize / view.devicePixelRatio;
   if (size.isEmpty) return event;
-  final properties = event.properties ?? <String, Object>{};
+  // A copy: the caller's map may be const (putIfAbsent would throw, and the
+  // SDK drops an event whose beforeSend throws) or reused for other events.
+  final properties = <String, Object>{...?event.properties};
   properties.putIfAbsent(r'$screen_width', () => size.width.roundToDouble());
   properties.putIfAbsent(r'$screen_height', () => size.height.roundToDouble());
   event.properties = properties;

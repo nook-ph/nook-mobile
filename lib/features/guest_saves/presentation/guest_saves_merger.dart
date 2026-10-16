@@ -36,37 +36,49 @@ class GuestSavesMerger {
     try {
       await saves.load();
       final left = {for (final s in saves.state.saves) s.cafeId};
-      await saves.removeAll(left);
+      await saves.removeAll(left, unreadable: true);
     } catch (e, st) {
       debugPrint('[GuestSavesMerger] discard failed: $e\n$st');
     }
   }
 
-  /// The number of saves added to the account. Never throws.
-  Future<int> merge() async {
-    if (_running) return 0;
+  /// What reached the account. Never throws: a merge that broke part way
+  /// reports everything it did not finish as failed.
+  Future<GuestMergeResult> merge() async {
+    if (_running) return GuestMergeResult.none;
     _running = true;
+    var tried = 0;
     try {
-      return await _merge();
+      return await _merge(onTried: (count) => tried = count);
     } catch (e, st) {
       debugPrint('[GuestSavesMerger] merge failed: $e\n$st');
-      return 0;
+      return GuestMergeResult(added: 0, moved: 0, failed: tried);
     } finally {
       _running = false;
     }
   }
 
-  Future<int> _merge() async {
+  Future<GuestMergeResult> _merge({required void Function(int) onTried}) async {
     await saves.load();
     // Signed in: the guest overlay must not stand in for the account's own
     // statuses, or every save would look "already there".
     statuses.showLocal(const {});
     final pending = saves.state.saves;
-    if (pending.isEmpty) return 0;
+    if (pending.isEmpty) return GuestMergeResult.none;
     _attempted = true;
+    onTried(pending.length);
 
     final ids = [for (final s in pending) s.cafeId];
-    await statuses.loadFor(ids);
+    // Only this read counts: cafes "known" from reads made before sign-in
+    // (as a guest, which the server answers with nothing) are not the
+    // account's statuses, and writing over a Been deletes its rank and note.
+    if (!await statuses.loadFor(ids)) {
+      logAppEvent(
+        SavesEvents.guestSavesMerged,
+        properties: {'count': 0, 'moved': 0, 'failed': pending.length},
+      );
+      return GuestMergeResult(added: 0, moved: 0, failed: pending.length);
+    }
 
     var merged = 0;
     final done = <String>{};
@@ -86,9 +98,39 @@ class GuestSavesMerger {
     }
 
     await saves.removeAll(done);
-    if (merged > 0) {
-      logAppEvent(SavesEvents.guestSavesMerged, properties: {'count': merged});
+    final failed = pending.length - done.length;
+    if (merged > 0 || failed > 0) {
+      logAppEvent(
+        SavesEvents.guestSavesMerged,
+        properties: {'count': merged, 'moved': done.length, 'failed': failed},
+      );
     }
-    return merged;
+    return GuestMergeResult(added: merged, moved: done.length, failed: failed);
   }
+}
+
+/// The outcome of one [GuestSavesMerger.merge].
+class GuestMergeResult {
+  const GuestMergeResult({
+    required this.added,
+    required this.moved,
+    required this.failed,
+  });
+
+  /// Nothing was on the phone to move.
+  static const none = GuestMergeResult(added: 0, moved: 0, failed: 0);
+
+  /// Saves written to the account (it had no status for them).
+  final int added;
+
+  /// Saves now in the account and gone from the phone: [added], plus the
+  /// ones the account already had (the account's status wins).
+  final int moved;
+
+  /// Saves that could not be read or written; they stay on the phone.
+  final int failed;
+
+  int get total => moved + failed;
+
+  bool get isEmpty => total == 0;
 }

@@ -6,6 +6,7 @@ import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
@@ -25,9 +26,14 @@ abstract final class DirectionsLaunches {
 }
 
 /// After directions to a cafe that is not saved, offers "Save to Want to
-/// Try?" with one tap, when the person comes back from the maps app. Asked
+/// try?" with one tap, when the person comes back from the maps app. Asked
 /// at most once per cafe per app session, and never for a cafe that already
 /// has a status (or whose status could not be read).
+///
+/// One ask at each end of a trip: the visit reminder's ask owns the
+/// Directions tap (it shows before Maps opens), this nudge owns the return,
+/// and only when the cafe is still unsaved. It never lands on a sheet, and
+/// a save from it does not also trigger the sign-up ask.
 ///
 /// Owned by the cafe page's [State] (made in `initState`, disposed with it)
 /// rather than wrapped around its tree; toasts go through that state's
@@ -58,7 +64,7 @@ class DirectionsSaveNudge {
   /// Defaults to the Supabase session; tests pass their own.
   final bool Function()? _isSignedIn;
 
-  static const message = 'Save to Want to Try?';
+  static const message = 'Save to Want to try?';
   static const actionLabel = 'Save';
 
   /// When no trip to another app is seen (a split screen, a maps app that
@@ -68,10 +74,22 @@ class DirectionsSaveNudge {
   /// After coming back, so the toast does not land mid-transition.
   static const settleDelay = Duration(milliseconds: 600);
 
+  /// How long the toast stays; with a screen reader on it stays until
+  /// closed ([toastDurationFor]).
+  static const duration = Duration(seconds: 10);
+
   static final Set<String> _nudged = {};
 
+  /// Cafes whose nudge was offered on an open page and not taken: their
+  /// Want to try pill stays tinted for the rest of the visit, so the offer
+  /// is still where the person looks once the toast has gone.
+  static final ValueNotifier<Set<String>> offered = ValueNotifier(const {});
+
   @visibleForTesting
-  static void resetForTest() => _nudged.clear();
+  static void resetForTest() {
+    _nudged.clear();
+    offered.value = const {};
+  }
 
   StreamSubscription<String>? _launches;
   AppLifecycleListener? _lifecycle;
@@ -84,7 +102,15 @@ class DirectionsSaveNudge {
   void _awaitReturn() {
     if (_nudged.contains(cafeId)) return;
     _stopWaiting();
-    var wentAway = false;
+    // The maps app may already be in front by the time the launch is
+    // reported: the listener below would then never see the trip, and the
+    // fallback would show the nudge (and use it up) in the background.
+    bool away() {
+      final state = WidgetsBinding.instance.lifecycleState;
+      return state != null && state != AppLifecycleState.resumed;
+    }
+
+    var wentAway = away();
     _lifecycle = AppLifecycleListener(
       onHide: () => wentAway = true,
       onPause: () => wentAway = true,
@@ -94,7 +120,7 @@ class DirectionsSaveNudge {
       },
     );
     _timer = Timer(fallbackDelay, () {
-      if (wentAway) return;
+      if (wentAway || away()) return;
       _stopWaiting();
       _show();
     });
@@ -119,16 +145,23 @@ class DirectionsSaveNudge {
     // as if Nook forgot the visit.
     if (signedIn && !statuses.isKnown(cafeId)) return;
     if (statuses.statusFor(cafeId) != CafeStatus.none) return;
+    // Never over a sheet (the reminder ask's, the sign-up ask's): one ask
+    // at a time. The pill tint below still offers it.
+    final onTop = ModalRoute.of(context)?.isCurrent ?? true;
 
     _nudged.add(cafeId);
+    offered.value = {...offered.value, cafeId};
+    if (!onTop) return;
     final props = {'cafe_id': cafeId};
     logAppEvent(SavesEvents.directionsSaveNudgeShown, properties: props);
+    // The trip's offer: no score sheet after it this session (review N5).
+    SessionAskBudget.instance.blockScoreAsks(SessionAskKind.directionsNudge);
     final offset = toastOffset();
     showPrimaryToastWithAction(
       context,
       message,
       actionLabel: actionLabel,
-      duration: const Duration(seconds: 6),
+      duration: toastDurationFor(context, duration),
       onAction: () {
         logAppEvent(SavesEvents.directionsSaveNudgeTapped, properties: props);
         if (!_host.mounted) return;
@@ -138,6 +171,7 @@ class DirectionsSaveNudge {
             cafe: snapshot,
             signedIn: _signedIn,
             bottomOffset: offset,
+            source: SavesSource.directionsNudge,
           ),
         );
       },
@@ -146,6 +180,9 @@ class DirectionsSaveNudge {
   }
 
   void dispose() {
+    if (offered.value.contains(cafeId)) {
+      offered.value = {...offered.value}..remove(cafeId);
+    }
     _launches?.cancel();
     _launches = null;
     _stopWaiting();

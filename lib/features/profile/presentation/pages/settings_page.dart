@@ -4,10 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/notification_events.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/profile/presentation/pages/blocked_users_page.dart';
 import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/presentation/widgets/delete_account_sheet.dart';
@@ -15,6 +18,10 @@ import 'package:nook/features/profile/presentation/widgets/profile_sheet.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
+import 'package:nook/features/visit_reminders/domain/visit_reminder_rules.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
+import 'package:nook/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart';
+import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:nook/core/analytics/screen_tracking.dart';
@@ -56,15 +63,34 @@ SettingsLocationStatus settingsLocationStatusFor(
   return SettingsLocationStatus.unknown;
 }
 
-/// Settings, in groups: Permissions, Account, Legal, then Log out and
-/// Delete account on their own.
+/// Settings, in groups: Permissions, Notifications, Privacy, Account, Legal,
+/// then Log out and Delete account on their own. A guest (opened from the
+/// Saved tab: a guest has no Profile tab) sees only what works without an
+/// account: Permissions, Notifications and Legal.
 class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
     this.currentUser,
     this.readLocationStatus,
     this.requestLocation,
+    this.reminders,
   });
+
+  /// Visit reminders. Defaults to the app's service; the row is left out
+  /// where none is registered (tests of other rows).
+  final VisitReminderService? reminders;
+
+  static const visitRemindersLabel = 'Visit reminders';
+  static const visitRemindersDetail =
+      'After you get directions, one reminder to mark the cafe Been, '
+      // No-break spaces: "PM." never wraps onto a line of its own.
+      'between 9\u00A0AM and 9\u00A0PM.';
+  static const visitRemindersBlocked =
+      "Notifications for Nook are off in your phone's settings.";
+  static const visitRemindersMuted =
+      "Visit reminders are muted in your phone's settings.";
+  static const notificationsGroup = 'Notifications';
+  static const openSettingsLabel = 'Open settings';
 
   /// Who is signed in. Defaults to the Supabase session.
   final ValueGetter<supabase.User?>? currentUser;
@@ -83,6 +109,18 @@ class _SettingsPageState extends State<SettingsPage>
     with WidgetsBindingObserver {
   SettingsLocationStatus _locationStatus = SettingsLocationStatus.unknown;
 
+  /// Null until read: the switch waits, disabled.
+  NotificationPermission? _notificationPermission;
+  bool _remindersMuted = false;
+  bool _remindersEnabled = true;
+  bool _remindersBusy = false;
+
+  VisitReminderService? get _reminders =>
+      widget.reminders ??
+      (sl.isRegistered<VisitReminderService>()
+          ? sl<VisitReminderService>()
+          : null);
+
   /// While the delete sheet is open it shows its own errors, under the
   /// field, so the page keeps its toast to itself.
   bool _deleteSheetOpen = false;
@@ -92,10 +130,80 @@ class _SettingsPageState extends State<SettingsPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _refreshLocationStatus();
+    _refreshReminders();
+    // Cups privacy is an account setting; a guest has none to load.
+    if (_user == null) return;
     final visibility = context.read<ProfileVisibilityCubit>();
     if (visibility.state.status != ProfileVisibilityStatus.loaded) {
       visibility.load();
     }
+  }
+
+  /// Reads the OS permission and the switch. Also on resume: the person may
+  /// have just changed it in the phone's settings.
+  Future<void> _refreshReminders() async {
+    final reminders = _reminders;
+    if (reminders == null) return;
+    final NotificationPermission permission;
+    final bool muted;
+    final bool enabled;
+    try {
+      permission = await reminders.permission();
+      muted = await reminders.channelMuted();
+      enabled = await reminders.remindersEnabled();
+    } catch (e) {
+      // Left as it was; the next resume reads it again.
+      debugPrint('[Settings] reminders refresh failed: $e');
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _notificationPermission = permission;
+      _remindersMuted = muted;
+      _remindersEnabled = enabled;
+    });
+  }
+
+  Future<void> _setReminders(bool value) async {
+    final reminders = _reminders;
+    final permission = _notificationPermission;
+    if (reminders == null || permission == null || _remindersBusy) return;
+    setState(() => _remindersBusy = true);
+    try {
+      if (value && permission != NotificationPermission.granted) {
+        // Turning it on here is the ask itself: straight to the system
+        // dialog, no pre-prompt.
+        final granted = await reminders.requestPermission(
+          trigger: NotificationPromptTrigger.settings,
+        );
+        if (!granted) {
+          await _refreshReminders();
+          if (mounted) {
+            showPrimaryToast(context, VisitReminderPrompts.deniedMessage);
+          }
+          return;
+        }
+      }
+      await reminders.setEnabled(value);
+      logAppEvent(
+        NotificationEvents.visitRemindersToggled,
+        // As it stands after the switch: turning it on here just granted it.
+        properties: {
+          'enabled': value,
+          'permission': value
+              ? NotificationPermission.granted.wire
+              : permission.wire,
+        },
+      );
+      await _refreshReminders();
+    } finally {
+      if (mounted) setState(() => _remindersBusy = false);
+    }
+  }
+
+  Future<void> _openNotificationSettings() async {
+    logAppEvent(NotificationEvents.notificationSettingsOpened);
+    await _reminders?.openSystemSettings();
   }
 
   Future<void> _setHighlights(bool value) async {
@@ -117,6 +225,7 @@ class _SettingsPageState extends State<SettingsPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refreshLocationStatus();
+      _refreshReminders();
     }
   }
 
@@ -199,6 +308,8 @@ class _SettingsPageState extends State<SettingsPage>
     final emailAccount = user == null || isEmailPasswordUser(user);
     final provider = user == null ? null : socialProviderName(user);
     final denied = _locationStatus == SettingsLocationStatus.denied;
+    final signedIn = user != null;
+    final notifications = _notificationPermission;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
@@ -239,75 +350,119 @@ class _SettingsPageState extends State<SettingsPage>
                       ),
                     ],
                   ),
-                  _Group(
-                    title: 'Privacy',
-                    rows: [
-                      BlocBuilder<
-                        ProfileVisibilityCubit,
-                        ProfileVisibilityState
-                      >(
-                        builder: (context, visibility) => _SwitchRow(
-                          icon: LucideIcons.eye,
-                          label: 'Show my cups on my profile',
+                  // What Nook sends, one row per kind; only visit reminders
+                  // so far.
+                  if (_reminders != null)
+                    _Group(
+                      title: SettingsPage.notificationsGroup,
+                      rows: [
+                        _SwitchRow(
+                          icon: LucideIcons.bellRing,
+                          label: SettingsPage.visitRemindersLabel,
                           detail:
-                              visibility.status ==
-                                  ProfileVisibilityStatus.failed
-                              ? 'Could not load this setting. Tap to try '
-                                    'again.'
-                              : 'Also shows how many cafes you have ranked. '
-                                    'Your ranking stays private; reviews '
-                                    'show either way.',
-                          value: visibility.highlightsPublic,
+                              notifications != NotificationPermission.blocked
+                              ? SettingsPage.visitRemindersDetail
+                              : _remindersMuted
+                              ? SettingsPage.visitRemindersMuted
+                              : SettingsPage.visitRemindersBlocked,
+                          value:
+                              notifications == NotificationPermission.granted &&
+                              _remindersEnabled,
+                          // Unknown yet, busy, or blocked: the switch can't
+                          // change anything; blocked offers Open settings.
                           onChanged:
-                              visibility.status ==
-                                  ProfileVisibilityStatus.loaded
-                              ? _setHighlights
-                              : null,
+                              notifications == null ||
+                                  _remindersBusy ||
+                                  notifications ==
+                                      NotificationPermission.blocked
+                              ? null
+                              : _setReminders,
                           onRetry:
-                              visibility.status ==
-                                  ProfileVisibilityStatus.failed
-                              ? () => context
-                                    .read<ProfileVisibilityCubit>()
-                                    .load()
+                              notifications == NotificationPermission.blocked
+                              ? _openNotificationSettings
                               : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  _Group(
-                    title: 'Account',
-                    note: provider == null ? null : 'Signed in with $provider',
-                    rows: [
-                      if (emailAccount) ...[
-                        _SettingsRow(
-                          icon: LucideIcons.mail,
-                          label: 'Change email',
-                          trailing: LucideIcons.chevronRight,
-                          onTap: () =>
-                              context.push('/change-email', extra: user?.email),
-                        ),
-                        _SettingsRow(
-                          icon: LucideIcons.lock,
-                          label: 'Change password',
-                          trailing: LucideIcons.chevronRight,
-                          onTap: () => context.push('/change-password'),
+                          actionLabel:
+                              notifications == NotificationPermission.blocked
+                              ? SettingsPage.openSettingsLabel
+                              : null,
                         ),
                       ],
-                      _SettingsRow(
-                        icon: LucideIcons.ban,
-                        label: 'Blocked users',
-                        trailing: LucideIcons.chevronRight,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(
-                            settings: const RouteSettings(
-                              name: ScreenNames.blockedUsers,
-                            ),
-                            builder: (_) => const BlockedUsersPage(),
+                    ),
+                  if (signedIn)
+                    _Group(
+                      title: 'Privacy',
+                      rows: [
+                        BlocBuilder<
+                          ProfileVisibilityCubit,
+                          ProfileVisibilityState
+                        >(
+                          builder: (context, visibility) => _SwitchRow(
+                            icon: LucideIcons.eye,
+                            label: 'Show my cups on my profile',
+                            detail:
+                                visibility.status ==
+                                    ProfileVisibilityStatus.failed
+                                ? 'Could not load this setting. Tap to try '
+                                      'again.'
+                                : 'Also shows how many cafes you have ranked. '
+                                      'Your ranking stays private; reviews '
+                                      'show either way.',
+                            value: visibility.highlightsPublic,
+                            onChanged:
+                                visibility.status ==
+                                    ProfileVisibilityStatus.loaded
+                                ? _setHighlights
+                                : null,
+                            onRetry:
+                                visibility.status ==
+                                    ProfileVisibilityStatus.failed
+                                ? () => context
+                                      .read<ProfileVisibilityCubit>()
+                                      .load()
+                                : null,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  if (signedIn)
+                    _Group(
+                      title: 'Account',
+                      note: provider == null
+                          ? null
+                          : 'Signed in with $provider',
+                      rows: [
+                        if (emailAccount) ...[
+                          _SettingsRow(
+                            icon: LucideIcons.mail,
+                            label: 'Change email',
+                            trailing: LucideIcons.chevronRight,
+                            onTap: () => context.push(
+                              '/change-email',
+                              extra: user.email,
+                            ),
+                          ),
+                          _SettingsRow(
+                            icon: LucideIcons.lock,
+                            label: 'Change password',
+                            trailing: LucideIcons.chevronRight,
+                            onTap: () => context.push('/change-password'),
+                          ),
+                        ],
+                        _SettingsRow(
+                          icon: LucideIcons.ban,
+                          label: 'Blocked users',
+                          trailing: LucideIcons.chevronRight,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              settings: const RouteSettings(
+                                name: ScreenNames.blockedUsers,
+                              ),
+                              builder: (_) => const BlockedUsersPage(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   _Group(
                     title: 'Legal',
                     rows: [
@@ -326,21 +481,22 @@ class _SettingsPageState extends State<SettingsPage>
                     ],
                   ),
                   // Leaving and deleting sit apart from the settings above.
-                  _Group(
-                    rows: [
-                      _SettingsRow(
-                        icon: LucideIcons.logOut,
-                        label: 'Log out',
-                        onTap: _confirmLogOut,
-                      ),
-                      _SettingsRow(
-                        icon: LucideIcons.trash2,
-                        label: 'Delete account',
-                        destructive: true,
-                        onTap: _deleteAccount,
-                      ),
-                    ],
-                  ),
+                  if (signedIn)
+                    _Group(
+                      rows: [
+                        _SettingsRow(
+                          icon: LucideIcons.logOut,
+                          label: 'Log out',
+                          onTap: _confirmLogOut,
+                        ),
+                        _SettingsRow(
+                          icon: LucideIcons.trash2,
+                          label: 'Delete account',
+                          destructive: true,
+                          onTap: _deleteAccount,
+                        ),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -474,6 +630,7 @@ class _SwitchRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.onRetry,
+    this.actionLabel,
   });
 
   final IconData icon;
@@ -482,6 +639,10 @@ class _SwitchRow extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
   final VoidCallback? onRetry;
+
+  /// A link-style action under the detail ("Open settings") that runs
+  /// [onRetry]; the whole row runs it too.
+  final String? actionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -507,8 +668,23 @@ class _SwitchRow extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       detail,
-                      style: ProfileTokens.text(12, color: ProfileTokens.muted),
+                      // The darker muted (4.6:1 on white); ProfileTokens.muted
+                      // is 3.7:1 and shared, so it is left as it is.
+                      style: ProfileTokens.text(12, color: ListsTokens.muted),
                     ),
+                    if (actionLabel case final action?)
+                      // The row is the target (48+ tall); this names it.
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          action,
+                          style: ProfileTokens.text(
+                            14,
+                            weight: FontWeight.w500,
+                            color: ProfileTokens.brand,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

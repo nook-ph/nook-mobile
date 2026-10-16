@@ -5,6 +5,7 @@ import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
@@ -65,6 +66,8 @@ class CafeGuestSignInSheet extends StatelessWidget {
   }) async {
     final props = <String, Object>{'trigger': trigger ?? triggerFor(action)};
     logAppEvent(SignInPromptEvents.shown, properties: props);
+    // The person asked for this one: no score ask on top this session.
+    SessionAskBudget.instance.blockScoreAsks(SessionAskKind.pullSignIn);
     final choice = await showModalBottomSheet<SignInChoice>(
       context: context,
       isScrollControlled: true,

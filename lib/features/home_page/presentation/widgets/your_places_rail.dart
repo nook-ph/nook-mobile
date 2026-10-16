@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
@@ -14,6 +16,7 @@ import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/account_want_to_try_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_card_section.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_cafe_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
@@ -58,6 +61,10 @@ class YourPlacesRail extends StatefulWidget {
   /// `home_rail_impression` / `home_rail_card_tapped`.
   static const railId = 'your_places';
   static const defaultTitle = 'Your places';
+
+  /// Says why a cafe is here: the rail mixes saves with cafes only looked
+  /// at, and only saves wear a badge (review finding 8).
+  static const subtitle = 'Saved and recently viewed';
 
   /// The shelf title (the Home layout can rename it).
   final String title;
@@ -148,6 +155,13 @@ class _YourPlacesRailState extends State<YourPlacesRail> {
                   return YourPlacesRow(
                     title: widget.title,
                     padding: widget.padding,
+                    onSeeAll: () {
+                      logAppEvent(
+                        HomeEvents.seeAllTapped,
+                        properties: {'sort': YourPlacesRail.railId},
+                      );
+                      openSavedTab();
+                    },
                     cafes: yourPlaces(
                       wantToTry: wantToTry,
                       recent: [for (final r in recent) r.cafe.toSummary()],
@@ -228,6 +242,7 @@ class YourPlacesRow extends StatelessWidget {
     this.padding = leadingPadding,
     this.progress,
     this.onProgressTap,
+    this.onSeeAll,
   });
 
   /// Above the other shelves: the gap Home puts between shelves, under it.
@@ -247,6 +262,9 @@ class YourPlacesRow extends StatelessWidget {
 
   /// The pill opens the Want to try list.
   final VoidCallback? onProgressTap;
+
+  /// "See all": the Saved tab, where the saves in this row live.
+  final VoidCallback? onSeeAll;
 
   static const _prototypeCafe = CafeSummary(
     id: '',
@@ -269,9 +287,13 @@ class YourPlacesRow extends StatelessWidget {
         children: [
           HomeSectionTitle(
             title,
+            subtitle: YourPlacesRail.subtitle,
+            // The title row's end holds one thing: the progress pill while
+            // something is still on Want to try, else "See all".
             trailing: showProgress
                 ? PlacesProgressPill(progress: progress!, onTap: onProgressTap)
                 : null,
+            onSeeAll: showProgress ? null : onSeeAll,
           ),
           const SizedBox(height: 12),
           PrototypeHeight(
@@ -289,7 +311,10 @@ class YourPlacesRow extends StatelessWidget {
               itemCount: cafes.length,
               separatorBuilder: (_, _) =>
                   const SizedBox(width: ResponsiveCardSizes.homeCardGap),
+              // Keyed by cafe: the newest save comes first, so positions
+              // change hands on every save (review #1).
               itemBuilder: (_, index) => HomeCafeCard(
+                key: ValueKey(cafes[index].id),
                 cafe: cafes[index],
                 width: cardWidth,
                 height: imageHeight,

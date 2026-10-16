@@ -261,7 +261,9 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         path: '/cafe/:id',
         builder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
-          return CafeDetailsPage(cafeId: id);
+          // From the visit reminder: "I went".
+          final went = state.uri.queryParameters['went'] == '1';
+          return CafeDetailsPage(cafeId: id, wentOnOpen: went);
         },
       ),
 

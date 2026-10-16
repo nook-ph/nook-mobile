@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
@@ -77,7 +79,7 @@ void main() {
     await saves.set(_cafe('b'), CafeStatus.been);
     analytics.events.clear();
 
-    final merged = await merger.merge();
+    final merged = (await merger.merge()).added;
 
     expect(merged, 2);
     expect(repo.writes, ['a', 'b']);
@@ -85,7 +87,11 @@ void main() {
     expect(saves.state.isEmpty, isTrue);
     expect(await GuestSavesStore().read(), isEmpty);
     expect(analytics.names, [SavesEvents.guestSavesMerged]);
-    expect(analytics.propertiesOf(SavesEvents.guestSavesMerged), {'count': 2});
+    expect(analytics.propertiesOf(SavesEvents.guestSavesMerged), {
+      'count': 2,
+      'moved': 2,
+      'failed': 0,
+    });
   });
 
   test('a cafe the account already has keeps the account status and is '
@@ -94,9 +100,12 @@ void main() {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     await saves.set(_cafe('b'), CafeStatus.wantToTry);
 
-    final merged = await merger.merge();
+    final result = await merger.merge();
 
-    expect(merged, 1);
+    expect(result.added, 1);
+    // Both are in the account now, so both count as moved for the toast.
+    expect(result.moved, 2);
+    expect(result.failed, 0);
     expect(repo.writes, ['b']);
     expect(repo.server['a'], CafeStatus.been);
     expect(saves.state.isEmpty, isTrue);
@@ -106,9 +115,48 @@ void main() {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     statuses.showLocal(saves.state.statusMap);
 
-    expect(await merger.merge(), 1);
+    expect((await merger.merge()).added, 1);
     expect(repo.writes, ['a']);
     expect(statuses.state.local, isEmpty);
+  });
+
+  test('a failed read at sign-in does not trust statuses "known" from a '
+      'guest read, so the account\'s Been is never overwritten', () async {
+    // As a guest, Home read the feed's statuses: the server answers a
+    // signed-out read with nothing, so every cafe is "known" as none.
+    await statuses.loadFor(['a']);
+    expect(statuses.state.isKnown('a'), isTrue);
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    // Signed in to an account that has 'a' as Been; the merge's read fails.
+    repo.server = {'a': CafeStatus.been};
+    repo.failRead = true;
+
+    final result = await merger.merge();
+
+    expect(result.added, 0);
+    expect(result.failed, 1);
+    expect(repo.writes, isEmpty);
+    expect(repo.server['a'], CafeStatus.been);
+    expect(saves.state.statusFor('a'), CafeStatus.wantToTry);
+  });
+
+  test('a signed-out status read caches nothing, so "known: none" never '
+      'outlives the sign-in', () async {
+    var signedIn = false;
+    final guarded = CafeStatusCubit(
+      getCafeStatusesUseCase: GetCafeStatusesUseCase(repo),
+      setCafeStatusUseCase: SetCafeStatusUseCase(repo),
+      hasSession: () => signedIn,
+    );
+    addTearDown(guarded.close);
+    repo.server = {'x': CafeStatus.been};
+
+    expect(await guarded.loadFor(['x']), isFalse);
+    expect(guarded.state.isKnown('x'), isFalse);
+
+    signedIn = true;
+    expect(await guarded.loadFor(['x']), isTrue);
+    expect(guarded.state.statusFor('x'), CafeStatus.been);
   });
 
   test(
@@ -118,10 +166,17 @@ void main() {
       await saves.set(_cafe('a'), CafeStatus.wantToTry);
       analytics.events.clear();
 
-      expect(await merger.merge(), 0);
+      final result = await merger.merge();
+      expect(result.added, 0);
+      expect(result.failed, 1);
       expect(repo.writes, isEmpty);
       expect(saves.state.statusFor('a'), CafeStatus.wantToTry);
-      expect(analytics.events, isEmpty);
+      // Reported, so failed moves can be counted.
+      expect(analytics.propertiesOf(SavesEvents.guestSavesMerged), {
+        'count': 0,
+        'moved': 0,
+        'failed': 1,
+      });
     },
   );
 
@@ -130,17 +185,20 @@ void main() {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     await saves.set(_cafe('b'), CafeStatus.been);
 
-    expect(await merger.merge(), 1);
+    final first = await merger.merge();
+    expect(first.added, 1);
+    expect(first.failed, 1);
+    expect(first.total, 2);
     expect([for (final s in saves.state.saves) s.cafeId], ['b']);
 
     repo.failWriteFor = {};
-    expect(await merger.merge(), 1);
+    expect((await merger.merge()).added, 1);
     expect(saves.state.isEmpty, isTrue);
     expect(repo.server, {'a': CafeStatus.wantToTry, 'b': CafeStatus.been});
   });
 
   test('nothing to merge logs nothing', () async {
-    expect(await merger.merge(), 0);
+    expect((await merger.merge()).isEmpty, isTrue);
     expect(analytics.events, isEmpty);
   });
 
@@ -149,7 +207,7 @@ void main() {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     repo.failRead = true;
 
-    expect(await merger.merge(), 0);
+    expect((await merger.merge()).added, 0);
     expect(saves.state.saves, hasLength(1));
 
     await merger.discardLeftovers();
@@ -157,6 +215,32 @@ void main() {
     expect(saves.state.isEmpty, isTrue);
     expect(await GuestSavesStore().read(), isEmpty);
   });
+
+  test(
+    'the sign-out discard also drops entries this build cannot read',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'guest_saves_v1': jsonEncode([
+          {
+            'cafe': {'id': 'a', 'name': 'Cafe A'},
+            'status': 'want_to_try',
+            'saved_at': '2026-09-01T00:00:00Z',
+          },
+          {
+            'cafe': {'id': 'x'},
+            'status': 'from_a_newer_build',
+          },
+        ]),
+      });
+      repo.failRead = true;
+      expect((await merger.merge()).failed, 1);
+
+      await merger.discardLeftovers();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('guest_saves_v1'), isNull);
+    },
+  );
 
   test('a sign-out with no merge tried keeps the guest\'s saves', () async {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);

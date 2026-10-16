@@ -38,7 +38,8 @@ abstract final class HomeEvents {
   static const searchTapped = 'home_search_tapped';
 
   /// A shelf's "See all". Properties: `sort` (the shelf: `nearby`,
-  /// `newest`, `trending`, `top_rated`).
+  /// `newest`, `trending`, `top_rated`, or `your_places`, whose See all
+  /// opens the Saved tab).
   static const seeAllTapped = 'home_see_all_tapped';
 
   /// A cafe card in a shelf (Home's rows, and "If you like this…" on Cafe
@@ -51,7 +52,9 @@ abstract final class HomeEvents {
 /// `AnalyticsService`).
 abstract final class CafeDetailsEvents {
   /// The bookmark in the header. Properties: `cafe_id`, `result`
-  /// (`guest`, `busy`, `saved`, `failed`, `opened_lists`).
+  /// (`guest_want_to_try`: a guest's on-phone Want to try, since the top
+  /// save stopped being a sign-in wall; `guest`: that older wall; `busy`,
+  /// `saved`, `failed`, `opened_lists`).
   static const saveTapped = 'cafe_save_tapped';
 
   /// Share in the header before the cafe has loaded, which shares nothing.

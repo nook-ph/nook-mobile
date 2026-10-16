@@ -6,7 +6,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/auth_events.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
-import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 
 import '../../../features/auth/fake_auth_bloc.dart';
 
@@ -70,39 +69,39 @@ void main() {
     expect(google.dy, lessThan(email.dy));
   });
 
-  testWidgets('Google waits for the terms box, then signs in in place', (
-    tester,
-  ) async {
-    final bloc = FakeAuthBloc(const AuthUnauthenticated());
-    addTearDown(bloc.close);
-    await tester.pumpWidget(
-      BlocProvider<AuthBloc>.value(value: bloc, child: _app()),
-    );
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'Google first opens the terms, then agrees and signs in in place',
+    (tester) async {
+      final bloc = FakeAuthBloc(const AuthUnauthenticated());
+      addTearDown(bloc.close);
+      await tester.pumpWidget(
+        BlocProvider<AuthBloc>.value(value: bloc, child: _app()),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Continue with Google'));
-    await tester.pumpAndSettle();
-    expect(find.byType(GuestSignInSheet), findsOneWidget);
-    expect(bloc.events, isEmpty);
+      await tester.tap(find.text('Continue with Google'));
+      await tester.pumpAndSettle();
+      expect(find.byType(GuestSignInSheet), findsOneWidget);
+      expect(bloc.events, isEmpty);
+      expect(find.text('Before you continue'), findsOneWidget);
 
-    await tester.tap(find.byType(AuthCheckbox));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue with Google'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Agree and continue with Google'));
+      await tester.pumpAndSettle();
 
-    expect(find.byType(GuestSignInSheet), findsNothing);
-    expect(find.text('login page'), findsNothing);
-    expect(bloc.events, [
-      const AuthSignInWithGoogleEvent(surface: AuthSurface.sheet),
-    ]);
+      expect(find.byType(GuestSignInSheet), findsNothing);
+      expect(find.text('login page'), findsNothing);
+      expect(bloc.events, [
+        const AuthSignInWithGoogleEvent(surface: AuthSurface.sheet),
+      ]);
 
-    // A closed Google sheet leaves the guest where they were.
-    bloc.push(AuthLoading());
-    bloc.push(const AuthUnauthenticated());
-    await tester.pumpAndSettle();
-    expect(find.text('open'), findsOneWidget);
-  });
+      // A closed Google sheet leaves the guest where they were.
+      bloc.push(AuthLoading());
+      bloc.push(const AuthUnauthenticated());
+      await tester.pumpAndSettle();
+      expect(find.text('open'), findsOneWidget);
+    },
+  );
 
   testWidgets('a caller reason replaces the default copy', (tester) async {
     await tester.pumpWidget(
@@ -171,7 +170,7 @@ void main() {
     final notNow = tester.getRect(
       find.ancestor(of: find.text('Not now'), matching: find.byType(Container)),
     );
-    expect(notNow.height, 44);
+    expect(notNow.height, 48);
     expect(notNow.top - primary.bottom, 8);
     expect(sheet.bottom - notNow.bottom, 34);
   });

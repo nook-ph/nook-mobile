@@ -54,4 +54,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Saved to Favorites'), findsNothing);
   });
+
+  testWidgets('an action toast with the default timeout waits under a '
+      'screen reader', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TAppTheme.lightTheme,
+        home: MediaQuery(
+          data: const MediaQueryData(accessibleNavigation: true),
+          child: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showPrimaryToastWithAction(
+                  context,
+                  'Allow location',
+                  actionLabel: 'Settings',
+                  onAction: () {},
+                ),
+                child: const Text('go'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('go'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    await tester.pump(const Duration(seconds: 30));
+    expect(find.text('Allow location'), findsOneWidget);
+    dismissToasts();
+    await tester.pumpAndSettle();
+  });
 }

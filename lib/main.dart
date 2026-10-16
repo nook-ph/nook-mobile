@@ -19,6 +19,7 @@ import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -32,6 +33,7 @@ import 'package:nook/features/guest_saves/presentation/widgets/guest_saves_sync.
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:nook/features/search/data/search_origin_store.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
 import 'package:nook/core/presentation/widgets/default_system_ui.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/injection_container.dart';
@@ -106,6 +108,9 @@ void main() async {
   }
 
   await initDependencies();
+  // Sets notifications up without asking for anything; the ask comes at a
+  // Directions tap.
+  unawaited(sl<VisitReminderService>().start(statuses: sl<CafeStatusCubit>()));
   // The session replay root: a frame is only captured inside it.
   runApp(
     kAnalyticsEnabled ? const PostHogWidget(child: MyApp()) : const MyApp(),
@@ -135,6 +140,38 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   GoRouter? _router;
+
+  final VisitReminderService _reminders = sl<VisitReminderService>();
+
+  @override
+  void initState() {
+    super.initState();
+    _reminders.openRequests.addListener(_openFromReminder);
+    // A cold start from the notification set it before this listened.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openFromReminder());
+  }
+
+  @override
+  void dispose() {
+    _reminders.openRequests.removeListener(_openFromReminder);
+    super.dispose();
+  }
+
+  /// "Did you make it to [cafe]?" was tapped (the body or "I went"): open
+  /// that cafe and mark it Been.
+  void _openFromReminder() {
+    final request = _reminders.openRequests.value;
+    final router = _router;
+    if (request == null || router == null) return;
+    _reminders.openRequests.value = null;
+    CafeDetailsPage.closeIfOnTop(request.cafeId);
+    router.push(
+      Uri(
+        path: '/cafe/${request.cafeId}',
+        queryParameters: const {'went': '1'},
+      ).toString(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +247,8 @@ class _MyAppState extends State<MyApp> {
                 }
               },
               child: GuestSavesSync(
+                toastContext: () =>
+                    _router?.routerDelegate.navigatorKey.currentContext,
                 child: MaterialApp.router(
                   debugShowCheckedModeBanner: false,
                   title: 'Nook',

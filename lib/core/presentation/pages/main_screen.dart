@@ -7,6 +7,7 @@ import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/core/presentation/tab_back.dart';
+import 'package:nook/core/presentation/tab_requests.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/features/home_page/presentation/pages/home_page.dart';
 import 'package:nook/features/guest_saves/presentation/pages/saved_tab.dart';
@@ -114,7 +115,13 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => NavigationBloc(),
-      child: BlocBuilder<NavigationBloc, NavigationState>(
+      child: _TabRequestListener(child: _shell()),
+    );
+  }
+
+  Widget _shell() {
+    return Builder(
+      builder: (context) => BlocBuilder<NavigationBloc, NavigationState>(
         builder: (context, state) {
           _visited.add(state.tabIndex);
           _reportTab(context, state.tabIndex);
@@ -151,4 +158,44 @@ class _MainShellState extends State<MainShell> {
       ),
     );
   }
+}
+
+/// Carries out [TabRequests]: pops back to the shell's route and switches
+/// to the tab asked for. Profile still needs an account.
+class _TabRequestListener extends StatefulWidget {
+  const _TabRequestListener({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_TabRequestListener> createState() => _TabRequestListenerState();
+}
+
+class _TabRequestListenerState extends State<_TabRequestListener> {
+  @override
+  void initState() {
+    super.initState();
+    TabRequests.requests.addListener(_onRequest);
+  }
+
+  @override
+  void dispose() {
+    TabRequests.requests.removeListener(_onRequest);
+    super.dispose();
+  }
+
+  void _onRequest() {
+    final request = TabRequests.requests.value;
+    if (request == null || !mounted) return;
+    final shell = context.findAncestorStateOfType<_MainShellState>();
+    if (request.tab == MainShell.profileTab &&
+        !(shell?.widget.isAuthenticated() ?? false)) {
+      return;
+    }
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    context.read<NavigationBloc>().add(TabChange(tabIndex: request.tab));
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

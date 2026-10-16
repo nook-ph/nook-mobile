@@ -1,11 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
+import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/utils/maps_directions_launcher.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/guest_saves/presentation/widgets/directions_save_nudge.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
+import 'package:nook/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart';
 import 'package:nook/injection_container.dart';
 
 String _mapAppMetadata(TargetPlatform platform) {
@@ -32,6 +39,9 @@ bool _launching = false;
 /// Opens the platform maps app with directions to [cafe] and logs the
 /// `get_directions` funnel event. Shared by the sticky actions bar and the
 /// Location & Contacts section ([source]).
+///
+/// Before Maps opens, the visit reminder is decided: when one would go out
+/// and notifications are not on yet, the ask comes first, naming the time.
 Future<void> launchCafeDirections(
   BuildContext context,
   CafeDetailsResult? cafe, {
@@ -77,10 +87,32 @@ Future<void> launchCafeDirections(
   }
 
   final label = details.name.isNotEmpty ? details.name : details.locationLabel;
-  final watch = Stopwatch()..start();
   _launching = true;
   final bool launched;
+  final Stopwatch watch;
+  DirectionsDecision decision = DirectionsDecision.none;
+  final reminders = sl.isRegistered<VisitReminderService>()
+      ? sl<VisitReminderService>()
+      : null;
   try {
+    if (reminders != null) {
+      final status = context.read<CafeStatusCubit?>()?.state.statusFor(cafeId);
+      decision = await reminders.onDirectionsTap(
+        cafeId: cafeId,
+        cafeName: details.name,
+        status: status ?? CafeStatus.none,
+        operatingHours: details.operatingHours,
+      );
+      if (decision.ask) {
+        if (context.mounted) {
+          await VisitReminderPrompts.atDirections(context, reminders, decision);
+        } else {
+          // No ask was seen: the kept trip must not be scheduled later.
+          await reminders.dropTrip();
+        }
+      }
+    }
+    watch = Stopwatch()..start();
     launched = await MapsDirectionsLauncher.launchDirections(
       lat: lat,
       lng: lng,
@@ -93,6 +125,9 @@ Future<void> launchCafeDirections(
   final handoffMs = watch.elapsedMilliseconds;
 
   if (!launched) {
+    // No trip, so no reminder of our own. (One the person asked for in the
+    // ask is already set and stays.)
+    if (decision.scheduleOnLaunch) unawaited(reminders?.dropTrip());
     failed('launch_failed', handoffMs: handoffMs);
     if (!context.mounted) return;
     showPrimaryToast(context, 'Unable to open map directions.');
@@ -115,6 +150,10 @@ Future<void> launchCafeDirections(
       },
     ),
   );
+  // A likely visit, notifications already on: "Did you make it to …?" at
+  // the time worked out above.
+  if (decision.scheduleOnLaunch) unawaited(reminders?.confirmTrip());
+  recordEngagement(EngagementAction.directions);
   // The cafe page may offer to save it once the person is back.
   DirectionsLaunches.notify(cafeId);
 }

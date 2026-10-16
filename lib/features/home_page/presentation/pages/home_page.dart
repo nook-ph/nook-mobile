@@ -414,7 +414,7 @@ class HomeContent extends StatelessWidget {
         HomeRail.specialty => HomeCafeSection(
           title: title,
           cafes: cafes,
-          rail: 'specialty',
+          rail: 'specialty_coffee_near_you',
           section: defaultTitle,
         ),
         // Hidden by the bloc until three cafes have the Philippine Beans tag.

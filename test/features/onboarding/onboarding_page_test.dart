@@ -144,6 +144,21 @@ void main() {
     expect(finishes, isEmpty);
   });
 
+  testWidgets('a purpose and a suggestion can be chosen through the '
+      'semantics tree (TalkBack, Switch Access)', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpOnboarding(tester);
+    await toPurpose(tester);
+    tester.semantics.tap(find.semantics.byLabel(RegExp('^Specialty coffee')));
+    await tester.pumpAndSettle();
+    expect(await OnboardingPurposeStore().read(), OnboardingPurpose.specialty);
+
+    await tester.ensureVisible(find.text('Bo\'s'));
+    tester.semantics.tap(find.semantics.byLabel('Bo\'s'));
+    expect(opened, ['c2']);
+    semantics.dispose();
+  });
+
   testWidgets('tapping a suggestion opens it and ends onboarding', (
     tester,
   ) async {

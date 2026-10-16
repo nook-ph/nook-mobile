@@ -31,6 +31,21 @@ void main() {
     },
   );
 
+  test('a sign-out during the first read does not bring the views back',
+      () async {
+    final first = RecentlyViewedCubit(store: store);
+    await first.record(_cafe('a'));
+    await first.close();
+
+    final cubit = RecentlyViewedCubit(store: store);
+    final loading = cubit.load();
+    await cubit.clear();
+    await loading;
+
+    expect(cubit.state, isEmpty);
+    await cubit.close();
+  });
+
   test('keeps the last ten, and they survive a restart', () async {
     final cubit = RecentlyViewedCubit(store: store);
     for (var i = 0; i < 12; i++) {

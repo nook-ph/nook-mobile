@@ -47,14 +47,27 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
 
   /// Sets [cafe]'s on-phone status; [CafeStatus.none] removes it. Null when
   /// the phone could not store it (the state is then left as it was).
-  Future<GuestSaveOutcome?> set(CafeSnapshot cafe, CafeStatus status) async {
+  /// [source] is a [SavesSource] value for the `guest_save_created` and
+  /// `guest_save_removed` events.
+  Future<GuestSaveOutcome?> set(
+    CafeSnapshot cafe,
+    CafeStatus status, {
+    String? source,
+  }) async {
     await load();
     // Writing now would replace saves that are there but could not be read.
     if (_readFailed) return null;
     final before = state;
     final previous = before.statusFor(cafe.id);
+    final index = before.saves.indexWhere((s) => s.cafeId == cafe.id);
+    final previousSave = index < 0 ? null : before.saves[index];
     if (previous == status) {
-      return GuestSaveOutcome(previous: previous, firstSave: false);
+      return GuestSaveOutcome(
+        previous: previous,
+        firstSave: false,
+        previousSave: previousSave,
+        previousIndex: index,
+      );
     }
 
     final rest = before.saves.where((s) => s.cafeId != cafe.id);
@@ -71,28 +84,77 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     }
 
     if (status == CafeStatus.none) {
-      return GuestSaveOutcome(previous: previous, firstSave: false);
+      logAppEvent(
+        SavesEvents.guestSaveRemoved,
+        properties: {'source': ?source},
+      );
+      return GuestSaveOutcome(
+        previous: previous,
+        firstSave: false,
+        previousSave: previousSave,
+        previousIndex: index,
+      );
     }
     logAppEvent(
       SavesEvents.guestSaveCreated,
-      properties: {'status': status.wire},
+      properties: {'status': status.wire, 'source': ?source},
     );
     final first = await recordFirstSave(_store, status, guest: true);
-    return GuestSaveOutcome(previous: previous, firstSave: first);
+    return GuestSaveOutcome(
+      previous: previous,
+      firstSave: first,
+      previousSave: previousSave,
+      previousIndex: index,
+    );
   }
 
-  /// Drops the saves for [cafeIds] (they reached the account).
-  Future<void> removeAll(Set<String> cafeIds) async {
-    if (cafeIds.isEmpty) return;
+  /// Undoes the [set] that returned [outcome] for [cafeId]: the save it
+  /// replaced comes back as it was (status, saved time, place in the list),
+  /// or a new save is taken off again. Restoring is not a new save, so it
+  /// logs no `guest_save_created`; taking a new save off logs
+  /// `guest_save_removed` with [SavesSource.undo]. False when the phone
+  /// could not store it.
+  Future<bool> undo(String cafeId, GuestSaveOutcome outcome) async {
+    await load();
+    if (_readFailed) return false;
+    final before = state;
+    final saves = [...before.saves.where((s) => s.cafeId != cafeId)];
+    final restored = outcome.previousSave;
+    if (restored != null) {
+      saves.insert(outcome.previousIndex.clamp(0, saves.length), restored);
+    }
+    if (listEquals(saves, before.saves)) return true;
+    emit(before.copyWith(saves: saves));
+    try {
+      await _store.write(saves);
+    } catch (e) {
+      debugPrint('[GuestSaves] undo write failed: $e');
+      if (!isClosed) emit(before);
+      return false;
+    }
+    if (restored == null) {
+      logAppEvent(
+        SavesEvents.guestSaveRemoved,
+        properties: {'source': SavesSource.undo},
+      );
+    }
+    return true;
+  }
+
+  /// Drops the saves for [cafeIds] (they reached the account). With
+  /// [unreadable], entries this build could not read go too (a sign-out
+  /// discarding what a merge left behind).
+  Future<void> removeAll(Set<String> cafeIds, {bool unreadable = false}) async {
+    if (cafeIds.isEmpty && !unreadable) return;
     await load();
     if (_readFailed) return;
     final saves = state.saves
         .where((s) => !cafeIds.contains(s.cafeId))
         .toList();
-    if (saves.length == state.saves.length) return;
+    if (saves.length == state.saves.length && !unreadable) return;
     emit(state.copyWith(saves: saves));
     try {
-      await _store.write(saves);
+      await _store.write(saves, dropUnreadable: unreadable);
     } catch (e) {
       // Left on disk: the next launch merges them again, which skips cafes
       // the account already has.
@@ -100,11 +162,11 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     }
   }
 
-  /// True once per phone: whether to show "Saved on this phone. Sign in to
-  /// keep it everywhere."
-  Future<bool> claimKeepSavesPrompt() async {
+  /// True once per phone: whether to show "Saved on this phone. Sign in any
+  /// time to keep it."
+  Future<bool> claimFirstSaveLine() async {
     try {
-      return await _store.claimKeepSavesPrompt();
+      return await _store.claimFirstSaveLine();
     } catch (_) {
       return false;
     }
@@ -135,10 +197,22 @@ Future<bool> recordFirstSave(
 }
 
 class GuestSaveOutcome {
-  const GuestSaveOutcome({required this.previous, required this.firstSave});
+  const GuestSaveOutcome({
+    required this.previous,
+    required this.firstSave,
+    this.previousSave,
+    this.previousIndex = -1,
+  });
 
   /// The status the cafe had before, for Undo.
   final CafeStatus previous;
+
+  /// The save this one replaced or removed, as it was, for
+  /// [GuestSavesCubit.undo]; null when the cafe had none.
+  final GuestSave? previousSave;
+
+  /// Where [previousSave] stood in the list (newest first).
+  final int previousIndex;
 
   /// The first save ever made on this phone.
   final bool firstSave;

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
+import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/features/public_profile/domain/entities/public_profile.dart';
 import 'package:nook/features/public_profile/presentation/widgets/people_matches.dart';
 import 'package:go_router/go_router.dart';
@@ -212,6 +214,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
     _focus.unfocus();
     _remember(query);
     _bloc.add(SearchQueryChanged(query));
+    if (query.trim().isNotEmpty) recordEngagement(EngagementAction.search);
   }
 
   void _clearText() {
@@ -260,6 +263,7 @@ class _SearchResultsPageState extends State<SearchResultsPage>
   /// with it rather than cafes whose names look like "wifi".
   void _applySuggestedTag(String tag) {
     logAppEvent('search_tag_suggestion_used', properties: {'tag': tag});
+    recordEngagement(EngagementAction.search);
     _remember(_controller.text);
     _controller.clear();
     _bloc.add(const SearchQueryChanged(''));

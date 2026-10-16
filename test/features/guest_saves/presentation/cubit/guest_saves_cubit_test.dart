@@ -49,6 +49,52 @@ void main() {
     await next.close();
   });
 
+  test('undo after Been puts the Want to try back as it was, in place, '
+      'with no new guest_save_created', () async {
+    final cubit = newCubit();
+    await cubit.set(_a, CafeStatus.wantToTry);
+    clock = clock.add(const Duration(minutes: 1));
+    await cubit.set(_b, CafeStatus.wantToTry);
+    final original = cubit.state.saves.firstWhere((s) => s.cafeId == 'a');
+    clock = clock.add(const Duration(minutes: 1));
+    final outcome = await cubit.set(_a, CafeStatus.been);
+    expect([for (final s in cubit.state.saves) s.cafeId], ['a', 'b']);
+    analytics.events.clear();
+
+    expect(await cubit.undo('a', outcome!), isTrue);
+
+    expect([for (final s in cubit.state.saves) s.cafeId], ['b', 'a']);
+    expect(cubit.state.saves.last, original);
+    expect(analytics.names, isEmpty);
+    expect((await store.read()).last, original);
+    await cubit.close();
+  });
+
+  test('undo of a removal restores the save without logging a creation; '
+      'undo of a new save takes it off', () async {
+    final cubit = newCubit();
+    await cubit.set(_a, CafeStatus.been);
+    final original = cubit.state.saves.single;
+    clock = clock.add(const Duration(minutes: 1));
+    await cubit.set(_b, CafeStatus.wantToTry);
+    final removed = await cubit.set(_a, CafeStatus.none);
+    analytics.events.clear();
+
+    await cubit.undo('a', removed!);
+    expect(cubit.state.saves.last, original);
+    expect(analytics.names, isEmpty);
+
+    final added = await cubit.set(
+      const CafeSnapshot(id: 'c', name: 'Cafe C'),
+      CafeStatus.wantToTry,
+    );
+    analytics.events.clear();
+    await cubit.undo('c', added!);
+    expect(cubit.state.statusFor('c'), CafeStatus.none);
+    expect(analytics.names, [SavesEvents.guestSaveRemoved]);
+    await cubit.close();
+  });
+
   test('changing a status replaces it; none removes the save', () async {
     final cubit = newCubit();
     await cubit.set(_a, CafeStatus.wantToTry);
@@ -90,14 +136,17 @@ void main() {
     await cubit.close();
   });
 
-  test('removing a save logs nothing', () async {
+  test('removing a save logs guest_save_removed with its source', () async {
     final cubit = newCubit();
     await cubit.set(_a, CafeStatus.wantToTry);
     analytics.events.clear();
 
-    await cubit.set(_a, CafeStatus.none);
+    await cubit.set(_a, CafeStatus.none, source: SavesSource.undo);
 
-    expect(analytics.events, isEmpty);
+    expect(analytics.names, [SavesEvents.guestSaveRemoved]);
+    expect(analytics.propertiesOf(SavesEvents.guestSaveRemoved), {
+      'source': 'undo',
+    });
     await cubit.close();
   });
 
@@ -116,9 +165,9 @@ void main() {
   test('the keep-saves prompt is claimed once per phone', () async {
     final cubit = newCubit();
 
-    expect(await cubit.claimKeepSavesPrompt(), isTrue);
-    expect(await cubit.claimKeepSavesPrompt(), isFalse);
-    expect(await newCubit().claimKeepSavesPrompt(), isFalse);
+    expect(await cubit.claimFirstSaveLine(), isTrue);
+    expect(await cubit.claimFirstSaveLine(), isFalse);
+    expect(await newCubit().claimFirstSaveLine(), isFalse);
     await cubit.close();
   });
 
@@ -173,6 +222,17 @@ void main() {
       CafeStatus.been,
     );
     expect([for (final s in await store.read()) s.cafeId], ['c', 'a', 'b']);
+    // The entry this build can't read is still on disk after the write.
+    final prefs = await SharedPreferences.getInstance();
+    final raw = jsonDecode(prefs.getString('guest_saves_v1')!) as List;
+    expect(raw, hasLength(4));
+    expect(raw.last, {'cafe': 'not a map', 'status': 42, 'saved_at': 7});
+    // Even once every readable save is gone.
+    await cubit.removeAll({'a', 'b', 'c'});
+    final left = jsonDecode(prefs.getString('guest_saves_v1')!) as List;
+    expect(left, [
+      {'cafe': 'not a map', 'status': 42, 'saved_at': 7},
+    ]);
     await cubit.close();
   });
 
@@ -205,5 +265,8 @@ class _FailingStore extends GuestSavesStore {
   }
 
   @override
-  Future<void> write(List<GuestSave> saves) async => writes++;
+  Future<void> write(
+    List<GuestSave> saves, {
+    bool dropUnreadable = false,
+  }) async => writes++;
 }

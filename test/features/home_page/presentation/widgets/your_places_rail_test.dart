@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/core/presentation/pages/main_screen.dart';
+import 'package:nook/core/presentation/tab_requests.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
@@ -176,6 +178,57 @@ void main() {
           .widgetList<HomeCafeCard>(find.byType(HomeCafeCard))
           .firstWhere((c) => !c.isSkeleton);
       expect(card.rail, YourPlacesRail.railId);
+    });
+
+    testWidgets('says what is in it, and See all opens Saved (48dp row)', (
+      tester,
+    ) async {
+      await tester.runAsync(() => saves.set(_snap('w'), CafeStatus.wantToTry));
+      TabRequest? asked;
+      void listen() => asked = TabRequests.requests.value;
+      TabRequests.requests.addListener(listen);
+      addTearDown(() => TabRequests.requests.removeListener(listen));
+      await pump(tester);
+      await tester.pump();
+
+      expect(find.text(YourPlacesRail.subtitle), findsOneWidget);
+      final seeAll = find.ancestor(
+        of: find.text('See all'),
+        matching: find.byType(ConstrainedBox),
+      );
+      expect(tester.getSize(seeAll.first).height, greaterThanOrEqualTo(48));
+      await tester.tap(find.text('See all'));
+      expect(asked?.tab, MainShell.savedTab);
+    });
+
+    testWidgets('lays out at 2.0 text', (tester) async {
+      await tester.runAsync(() => saves.set(_snap('w'), CafeStatus.wantToTry));
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(412, 915),
+            textScaler: TextScaler.linear(2),
+          ),
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider.value(value: saves),
+              BlocProvider.value(value: recent),
+              BlocProvider<AuthBloc>.value(value: auth),
+              BlocProvider.value(value: statuses),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: SingleChildScrollView(
+                  child: YourPlacesRail(isSignedIn: () => false),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text(YourPlacesRail.subtitle), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }
