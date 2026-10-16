@@ -63,9 +63,11 @@ class SaverSurveyLocation {
           answer != LocationPermission.whileInUse) {
         return null;
       }
-      final p = await DeviceLocation.instance
-          .ensure(forceRefresh: true)
-          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+      final p =
+          await DeviceLocation.instance
+              .ensure(forceRefresh: true)
+              .timeout(const Duration(seconds: 5), onTimeout: () => null) ??
+          await Geolocator.getLastKnownPosition();
       return p == null ? null : (lat: p.latitude, lng: p.longitude);
     } catch (_) {
       return null;
