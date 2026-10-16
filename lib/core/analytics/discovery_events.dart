@@ -52,7 +52,9 @@ abstract final class HomeEvents {
 /// `AnalyticsService`).
 abstract final class CafeDetailsEvents {
   /// The bookmark in the header. Properties: `cafe_id`, `result`
-  /// (`guest`, `busy`, `saved`, `failed`, `opened_lists`).
+  /// (`guest_want_to_try`: a guest's on-phone Want to try, since the top
+  /// save stopped being a sign-in wall; `guest`: that older wall; `busy`,
+  /// `saved`, `failed`, `opened_lists`).
   static const saveTapped = 'cafe_save_tapped';
 
   /// Share in the header before the cafe has loaded, which shares nothing.
