@@ -542,6 +542,10 @@ class VisitReminderService {
     }
   }
 
+  /// How many times the in-app ask has been shown on this phone.
+  Future<int> prePromptsShownCount() async =>
+      (await _store.readPrePromptsShown()).length;
+
   Future<int> recordPrePromptShown() async {
     await _store.addPrePromptShown(_now());
     return (await _store.readPrePromptsShown()).length;
