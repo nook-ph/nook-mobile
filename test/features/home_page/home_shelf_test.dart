@@ -152,6 +152,22 @@ void main() {
       expect(fetches, 1);
       expect(shelf!.cafes.single.id, 'a');
     });
+
+    test('offline with the shelf not at hand throws (Try again), not '
+        '"not on Nook"', () async {
+      final repository = HomeLayoutRepository(
+        fetch: () async => throw Exception('offline'),
+        cache: HomeLayoutCache(),
+      );
+      expect(
+        GetHomeShelfUseCase(
+          current: CurrentHomeLayout(),
+          repository: repository,
+          loadShelves: load,
+        )('custom:week'),
+        throwsStateError,
+      );
+    });
   });
 
   group('links', () {

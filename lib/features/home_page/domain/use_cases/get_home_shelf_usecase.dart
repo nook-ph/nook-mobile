@@ -35,7 +35,8 @@ class HomeShelf {
 ///   limit, since this is the shelf's "See all".
 /// - Returns null for an id the layout does not have, a built-in shelf
 ///   other than hand-picked House picks, or no layout. Throws when the
-///   cafes fail to load.
+///   cafes fail to load, or when the shelf is not in the layout at hand and
+///   the server cannot be asked.
 class GetHomeShelfUseCase {
   GetHomeShelfUseCase({
     required this.current,
@@ -56,7 +57,10 @@ class GetHomeShelfUseCase {
     var layout = current.layout ?? await repository?.cached();
     if (layout?.sectionById(id) == null && repository != null) {
       final fresh = await repository!.refresh();
-      if (fresh.ok) layout = fresh.layout;
+      // Offline is not "this shelf ended": throw, so the page offers Try
+      // again rather than Go to Home.
+      if (!fresh.ok) throw StateError('Home layout did not load');
+      layout = fresh.layout;
     }
     final section = layout?.sectionById(id);
     if (layout == null || section == null) return null;
