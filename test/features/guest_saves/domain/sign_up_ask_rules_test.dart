@@ -34,21 +34,21 @@ void main() {
   group('shouldAsk', () {
     test('at 20 with saves', () {
       expect(
-        SignUpAskRules.shouldAsk(scored(20), now: now, hasSaves: true),
+        SignUpAskRules.shouldAsk(scored(20), now: now, savesCount: 1),
         isTrue,
       );
     });
 
     test('not under 20', () {
       expect(
-        SignUpAskRules.shouldAsk(scored(19.5), now: now, hasSaves: true),
+        SignUpAskRules.shouldAsk(scored(19.5), now: now, savesCount: 1),
         isFalse,
       );
     });
 
     test('never without saves: the ask is about keeping them', () {
       expect(
-        SignUpAskRules.shouldAsk(scored(40), now: now, hasSaves: false),
+        SignUpAskRules.shouldAsk(scored(40), now: now, savesCount: 0),
         isFalse,
       );
     });
@@ -59,7 +59,7 @@ void main() {
         SignUpAskRules.shouldAsk(
           asked,
           now: now.add(const Duration(days: 6, hours: 23)),
-          hasSaves: true,
+          savesCount: 1,
         ),
         isFalse,
       );
@@ -67,7 +67,7 @@ void main() {
         SignUpAskRules.shouldAsk(
           asked,
           now: now.add(const Duration(days: 7)),
-          hasSaves: true,
+          savesCount: 1,
         ),
         isTrue,
       );
@@ -80,7 +80,7 @@ void main() {
         SignUpAskRules.shouldAsk(
           s,
           now: now.add(const Duration(days: 365)),
-          hasSaves: true,
+          savesCount: 1,
         ),
         isFalse,
       );
@@ -91,7 +91,7 @@ void main() {
         SignUpAskRules.shouldAsk(
           scored(5),
           now: now,
-          hasSaves: true,
+          savesCount: 1,
           threshold: 5,
         ),
         isTrue,
@@ -108,18 +108,140 @@ void main() {
       expect(scored(3).dismissed().score, 0);
     });
 
-    test('a dismissed ask needs 5 more points to come back', () {
+    test('a declined ask comes back only 15 points later', () {
+      // -5 off the score and +10 on the threshold.
       final s = scored(20).asked(now).dismissed();
       final later = now.add(const Duration(days: 8));
-      expect(SignUpAskRules.shouldAsk(s, now: later, hasSaves: true), isFalse);
+      expect(s.score, 15);
+      expect(SignUpAskRules.thresholdFor(s), 30);
+      expect(
+        SignUpAskRules.blockedBy(s, now: later, savesCount: 1),
+        SignUpAskBlock.belowThreshold,
+      );
       expect(
         SignUpAskRules.shouldAsk(
-          s.add(EngagementAction.save),
+          s.add(EngagementAction.search).add(EngagementAction.search),
           now: later,
-          hasSaves: true,
+          savesCount: 1,
+        ),
+        isFalse,
+      );
+      expect(
+        SignUpAskRules.shouldAsk(
+          s
+              .add(EngagementAction.search)
+              .add(EngagementAction.search)
+              .add(EngagementAction.search),
+          now: later,
+          savesCount: 1,
         ),
         isTrue,
       );
+    });
+  });
+
+  group('back-off', () {
+    test('cooldown is 7 days after the first decline, 21 after the second', () {
+      final once = scored(99).asked(now, savesCount: 4).dismissed();
+      expect(SignUpAskRules.cooldownFor(once), const Duration(days: 7));
+      expect(
+        SignUpAskRules.shouldAsk(
+          once,
+          now: now.add(const Duration(days: 7)),
+          savesCount: 4,
+        ),
+        isTrue,
+      );
+
+      final second = now.add(const Duration(days: 7));
+      final twice = once.asked(second, savesCount: 4).dismissed();
+      expect(SignUpAskRules.cooldownFor(twice), const Duration(days: 21));
+      expect(
+        SignUpAskRules.blockedBy(
+          twice,
+          now: second.add(const Duration(days: 20)),
+          savesCount: 8,
+        ),
+        SignUpAskBlock.cooldown,
+      );
+      expect(
+        SignUpAskRules.shouldAsk(
+          twice,
+          now: second.add(const Duration(days: 21)),
+          savesCount: 8,
+        ),
+        isTrue,
+      );
+    });
+
+    test('the threshold rises 10 per decline', () {
+      var s = const EngagementState();
+      expect(SignUpAskRules.thresholdFor(s), 20);
+      s = s.dismissed();
+      expect(SignUpAskRules.thresholdFor(s), 30);
+      s = s.dismissed();
+      expect(SignUpAskRules.thresholdFor(s), 40);
+      expect(SignUpAskRules.thresholdFor(s, base: 5), 25);
+    });
+
+    test(
+      'the third ask waits until the saves have doubled since the second',
+      () {
+        final twice = scored(99)
+            .asked(now, savesCount: 3)
+            .dismissed()
+            .asked(now, savesCount: 5)
+            .dismissed();
+        final later = now.add(const Duration(days: 30));
+        expect(
+          SignUpAskRules.blockedBy(twice, now: later, savesCount: 9),
+          SignUpAskBlock.savesNotDoubled,
+        );
+        expect(
+          SignUpAskRules.shouldAsk(twice, now: later, savesCount: 10),
+          isTrue,
+        );
+      },
+    );
+
+    test('"Keep using on this phone" ends score asks', () {
+      final s = scored(99).asked(now).dismissed(stay: true);
+      expect(s.stayOnPhone, isTrue);
+      expect(
+        SignUpAskRules.blockedBy(
+          s,
+          now: now.add(const Duration(days: 365)),
+          savesCount: 50,
+        ),
+        SignUpAskBlock.stayOnPhone,
+      );
+    });
+  });
+
+  group('points once per cafe', () {
+    test('a save earns 5 once; removing it takes them back', () {
+      var s = const EngagementState().saved('a');
+      expect(s.score, 5);
+      s = s.saved('a');
+      expect(s.score, 5);
+      s = s.unsaved('a');
+      expect(s.score, 0);
+      // Save, Undo, save again: still one save's worth.
+      s = s.saved('a').unsaved('a').saved('a');
+      expect(s.score, 5);
+      expect(s.saved('b').score, 10);
+    });
+
+    test('removing a cafe that earned nothing takes nothing', () {
+      expect(scored(12).unsaved('x').score, 12);
+    });
+
+    test('survives a round trip through storage', () {
+      final s = const EngagementState()
+          .saved('a')
+          .asked(now, savesCount: 3)
+          .dismissed(stay: true);
+      expect(EngagementState.fromJson(s.toJson()), s);
     });
   });
 
