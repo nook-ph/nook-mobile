@@ -36,6 +36,15 @@ void main() {
       expect(s.declineKind, 'sdk_disabled');
     });
 
+    test('below SDK 33 a recorded ask does not change the kind', () {
+      // No dialog exists there: the reminder ask is answered at once.
+      for (final d in [denied, NotificationDecline.turnedOff]) {
+        final s = resolve(sdk: 32, enabled: false, decline: d);
+        expect(s, NotificationsState.sdkDisabled);
+        expect(s.declineKind, 'sdk_disabled');
+      }
+    });
+
     test('asked and allowed, or on, is on', () {
       expect(resolve(sdk: 35, enabled: true), NotificationsState.on);
       expect(resolve(sdk: 35, enabled: false).off, isNull);

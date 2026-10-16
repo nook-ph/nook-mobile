@@ -66,13 +66,16 @@ enum NotificationsState {
       return channelMuted;
     }
     if (enabled == true) return on;
+    // Below SDK 33 there is no system dialog: an "ask" there is answered at
+    // once by the OS, so a recorded decline says nothing new. Off is a
+    // Settings choice.
+    if (enabled == false && sdkInt != null && sdkInt < askSdk) {
+      return sdkDisabled;
+    }
     // Allowed later in Settings reads as on above; otherwise a recorded
     // decline stands.
     if (decline == NotificationDecline.deniedAfterAsk) return systemDenied;
     if (decline == NotificationDecline.turnedOff) return settingsOff;
-    if (enabled == false && sdkInt != null && sdkInt < askSdk) {
-      return sdkDisabled;
-    }
     return unknown;
   }
 }
