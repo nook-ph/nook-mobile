@@ -143,11 +143,30 @@ void main() {
     expect(closed, isFalse);
     expect(find.text(SaverSurveyCopy.thanks), findsOneWidget);
     expect(find.text('Brew Szn'), findsOneWidget);
-    expect(find.text('Open until 9 PM'), findsOneWidget);
+    expect(
+      find.textContaining('Open until 9 PM', findRichText: true),
+      findsOneWidget,
+    );
     await tester.tap(find.text('See cafe'));
     await tester.pumpAndSettle();
     expect(result!.action, SaverSurveyActions.seeCafe);
     expect(result!.followUp.cafe, brew);
+  });
+
+  testWidgets('the close button pops null', (tester) async {
+    await open(
+      tester,
+      followUp: (_) =>
+          SaverSurveyFollowUp(SaverSurveyFollowUpKind.share, cafe: brew),
+    );
+    await tester.tap(row('Waiting for a friend'));
+    await tester.pump();
+    await tester.tap(send());
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pumpAndSettle();
+    expect(closed, isTrue);
+    expect(result, isNull);
   });
 
   testWidgets('no hours: says so', (tester) async {
@@ -162,7 +181,10 @@ void main() {
     await tester.pump();
     await tester.tap(send());
     await tester.pumpAndSettle();
-    expect(find.text('No hours listed yet'), findsOneWidget);
+    expect(
+      find.textContaining('No hours listed yet', findRichText: true),
+      findsOneWidget,
+    );
   });
 
   testWidgets('nearest card leads with the distance', (tester) async {
@@ -178,7 +200,10 @@ void main() {
     await tester.pump();
     await tester.tap(send());
     await tester.pumpAndSettle();
-    expect(find.text('1.2 km away · Open until 9 PM'), findsOneWidget);
+    expect(
+      find.textContaining('1.2 km away · Open until 9 PM', findRichText: true),
+      findsOneWidget,
+    );
   });
 
   testWidgets('location card: Use my location swaps to the nearest', (
@@ -201,10 +226,13 @@ void main() {
     await tester.tap(find.text('Use my location'));
     await tester.pumpAndSettle();
     expect(closed, isFalse);
-    expect(find.text('800 m away · Open until 9 PM'), findsOneWidget);
+    expect(
+      find.textContaining('800 m away · Open until 9 PM', findRichText: true),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('share and later cards; close pops null', (tester) async {
+  testWidgets('later card closes with Done; share card shares', (tester) async {
     await open(
       tester,
       followUp: (a) => a.reasons.contains('waiting_for_friend')
@@ -216,10 +244,10 @@ void main() {
     await tester.tap(send());
     await tester.pumpAndSettle();
     expect(find.text("It'll stay in Your places."), findsOneWidget);
-    await tester.tap(find.byTooltip('Close'));
+    expect(find.byTooltip('Close'), findsNothing); // Done is the way out
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
-    expect(closed, isTrue);
-    expect(result, isNull);
+    expect(result!.action, SaverSurveyActions.done);
 
     await open(
       tester,

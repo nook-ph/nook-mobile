@@ -478,12 +478,16 @@ class _FollowUpCard extends StatelessWidget {
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: onClose,
-                tooltip: 'Close',
-                icon: const Icon(Icons.close, size: 24),
-                color: StateStyles.ink,
-              ),
+              // "Done" already closes the later card; one way out is enough.
+              if (action != SaverSurveyActions.done)
+                IconButton(
+                  onPressed: onClose,
+                  tooltip: 'Close',
+                  icon: const Icon(Icons.close, size: 24),
+                  color: StateStyles.ink,
+                )
+              else
+                const SizedBox(height: 48),
             ],
           ),
         ),
@@ -588,31 +592,28 @@ class _CafeRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: StateStyles.text(16, FontWeight.w600, StateStyles.ink),
                 ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    if (dot != null) ...[
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: dot,
-                          shape: BoxShape.circle,
+                // The dot sits on the first line when the fact wraps.
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      if (dot != null) ...[
+                        WidgetSpan(
+                          alignment: PlaceholderAlignment.middle,
+                          child: Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              color: dot,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
+                        const TextSpan(text: ' '),
+                      ],
+                      TextSpan(text: fact),
                     ],
-                    Flexible(
-                      child: Text(
-                        fact,
-                        style: StateStyles.text(
-                          14,
-                          FontWeight.w400,
-                          StateStyles.ink,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
+                  style: StateStyles.text(14, FontWeight.w400, StateStyles.ink),
                 ),
               ],
             ),
