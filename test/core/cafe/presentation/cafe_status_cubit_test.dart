@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
@@ -10,9 +12,22 @@ class _StatusRepository implements ICafeRepository {
   bool failRead = false;
   bool failWrite = false;
 
+  /// When set, reads answer with the server as it was when they began,
+  /// only once this completes (a slow, stale read).
+  Completer<void>? holdRead;
+
   @override
   Future<Map<String, CafeStatus>> getCafeStatuses(List<String> cafeIds) async {
     if (failRead) throw Exception('offline');
+    final hold = holdRead;
+    if (hold != null) {
+      final then = {
+        for (final id in cafeIds)
+          if (server[id] != null) id: server[id]!,
+      };
+      await hold.future;
+      return then;
+    }
     return {
       for (final id in cafeIds)
         if (server[id] != null) id: server[id]!,
@@ -43,6 +58,20 @@ void main() {
   });
 
   tearDown(() => cubit.close());
+
+  test('a slow read that began before a write does not undo it', () async {
+    repo.holdRead = Completer<void>();
+    final read = cubit.loadFor(['a', 'b']);
+    await Future<void>.delayed(Duration.zero);
+    expect(await cubit.set('a', CafeStatus.wantToTry), isTrue);
+    repo.holdRead!.complete();
+    expect(await read, isTrue);
+
+    expect(cubit.state.statusFor('a'), CafeStatus.wantToTry);
+    expect(cubit.state.isKnown('a'), isTrue);
+    // The cafe the read was right about is known as usual.
+    expect(cubit.state.isKnown('b'), isTrue);
+  });
 
   test('a failed read leaves the status unknown, not "none"', () async {
     repo.server = {'a': CafeStatus.been};
