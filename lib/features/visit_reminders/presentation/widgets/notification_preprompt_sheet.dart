@@ -213,17 +213,21 @@ abstract final class VisitReminderPrompts {
       await service.dropTrip();
       return;
     }
-    budget.spend(SessionAskKind.notificationPrePrompt);
     const props = {'trigger': NotificationPromptTrigger.directions};
-    final number = await service.recordPrePromptShown();
+    final number = await service.prePromptsShownCount() + 1;
+    if (!context.mounted || !budget.canShowSheet) {
+      // Gone before it could show: nothing was asked, so nothing is spent
+      // or counted (the session's sheet, the lifetime asks).
+      await service.dropTrip();
+      return;
+    }
+    // From here to the sheet nothing waits, so what is counted is shown.
+    budget.spend(SessionAskKind.notificationPrePrompt);
+    unawaited(service.recordPrePromptShown());
     logAppEvent(
       NotificationEvents.prePromptShown,
       properties: {...props, 'prompt_number': number},
     );
-    if (!context.mounted) {
-      await service.dropTrip();
-      return;
-    }
     dismissToasts();
     final accepted = await NotificationPrePromptSheet.show(
       context,

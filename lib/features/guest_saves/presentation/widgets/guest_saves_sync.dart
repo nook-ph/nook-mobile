@@ -115,7 +115,10 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
       saves.load().then((_) {
         if (!mounted) return;
         if (_signedIn) {
-          _merge();
+          // Only into a finished account: a session can exist mid sign-up
+          // (the username step), and that account may yet be abandoned for
+          // another. Otherwise the AuthAuthenticated listener merges.
+          if (context.read<AuthBloc>().state is AuthAuthenticated) _merge();
         } else {
           _mirror();
         }

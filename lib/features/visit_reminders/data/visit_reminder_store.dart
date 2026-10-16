@@ -21,6 +21,7 @@ class VisitReminderStore {
   static const _tripKey = 'visitReminders.trip';
   static const _missesKey = 'visitReminders.misses';
   static const _installIdKey = 'visitReminders.installId';
+  static const _handledLaunchKey = 'visitReminders.handledLaunch';
 
   /// Events from a notification button tapped while Nook was not running
   /// ("Didn't go"): written by the background isolate, sent by the app the
@@ -168,9 +169,42 @@ class VisitReminderStore {
     );
   }
 
+  /// The notification that last launched the app, once handled. Android
+  /// reports the same launch again when the app is reopened from Recents
+  /// after the process died; this tells a repeat from a new tap.
+  Future<String?> readHandledLaunch() async =>
+      (await _prefs).getString(_handledLaunchKey);
+
+  Future<void> writeHandledLaunch(String? key) async {
+    final prefs = await _prefs;
+    if (key == null) {
+      await prefs.remove(_handledLaunchKey);
+    } else {
+      await prefs.setString(_handledLaunchKey, key);
+    }
+  }
+
   /// A random id for this install, made on first read; only for the
   /// holdout bucket, never sent. [created] is true the first time.
-  Future<({String id, bool created})> installId() async {
+  /// One read (and, on a fresh install, one id) however many callers ask
+  /// at once: the app-open state log and a Directions tap can overlap.
+  Future<({String id, bool created})> installId() {
+    final known = _installId;
+    if (known != null) {
+      return known.then((r) => (id: r.id, created: false));
+    }
+    final first = _readOrCreateInstallId();
+    _installId = first;
+    first.catchError((Object _) {
+      _installId = null;
+      return (id: '', created: false);
+    });
+    return first;
+  }
+
+  Future<({String id, bool created})>? _installId;
+
+  Future<({String id, bool created})> _readOrCreateInstallId() async {
     final prefs = await _prefs;
     final existing = prefs.getString(_installIdKey);
     if (existing != null && existing.isNotEmpty) {

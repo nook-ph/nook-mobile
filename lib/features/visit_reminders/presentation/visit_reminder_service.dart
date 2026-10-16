@@ -101,13 +101,17 @@ class VisitReminderService {
     return result;
   }
 
+  /// When [start] began: trips tapped after it are this run's.
+  DateTime? _startedAt;
+
   Future<void> start({CafeStatusCubit? statuses}) async {
     if (_started) return;
     _started = true;
+    _startedAt = _now();
     try {
       await _notifier.init(onTap: _onTap);
       final launch = await _notifier.launchTap();
-      if (launch != null) _onTap(launch);
+      if (launch != null && await _firstLaunchOf(launch)) _onTap(launch);
     } catch (e) {
       debugPrint('[VisitReminders] init failed: $e');
     }
@@ -130,6 +134,20 @@ class VisitReminderService {
           .listen(_onStatuses);
     }
     _lifecycle = AppLifecycleListener(onResume: () => unawaited(_catchUp()));
+  }
+
+  static String _launchKey(NotificationTap tap) =>
+      '${tap.id}|${tap.payload}|${tap.actionId}';
+
+  /// False for a launch already handled: Android reports the notification
+  /// that launched the app again on a later cold start from Recents, and
+  /// "I went" would then mark the cafe Been again. A new reminder for the
+  /// cafe (same notification id) clears it ([_scheduleNow]).
+  Future<bool> _firstLaunchOf(NotificationTap tap) async {
+    final key = _launchKey(tap);
+    if (await _store.readHandledLaunch() == key) return false;
+    await _store.writeHandledLaunch(key);
+    return true;
   }
 
   void dispose() {
@@ -271,22 +289,27 @@ class VisitReminderService {
   }
 
   /// Marking a cafe Been (or rating it, which marks it Been) before its
-  /// reminder fires makes the reminder pointless.
+  /// reminder fires makes the reminder pointless. Only once the write is
+  /// confirmed: a Been still in flight may yet be rolled back.
   static Set<String> _beenIds(CafeStatusState state) => {
     for (final e in state.local.entries)
       if (e.value == CafeStatus.been) e.key,
     for (final e in state.statuses.entries)
-      if (e.value == CafeStatus.been) e.key,
+      if (e.value == CafeStatus.been && !state.isPending(e.key)) e.key,
   };
 
   Future<void> _onStatuses(CafeStatusState state) =>
       _serial(() => _cancelBeen(state));
 
   Future<void> _cancelBeen(CafeStatusState state) async {
-    final pending = await _store.readPending();
+    // Swept first: one that has already gone out is not cancelled, and its
+    // day still counts for the one-a-day rule.
+    final pending = await _sweep();
     final done = [
       for (final p in pending)
-        if (state.statusFor(p.cafeId) == CafeStatus.been) p,
+        if (state.statusFor(p.cafeId) == CafeStatus.been &&
+            !state.isPending(p.cafeId))
+          p,
     ];
     if (done.isEmpty) return;
     for (final p in done) {
@@ -469,6 +492,10 @@ class VisitReminderService {
     try {
       final trip = await _store.readTrip();
       if (trip == null) return;
+      // Tapped in this run, while [start] was still getting here: its ask
+      // is on screen now and owns it.
+      final started = _startedAt;
+      if (started != null && trip.tappedAt.isAfter(started)) return;
       await _store.writeTrip(null);
       if (!trip.fireAt.isAfter(_now())) return;
       if (await permission() != NotificationPermission.granted) return;
@@ -512,6 +539,11 @@ class VisitReminderService {
         cafeName: trip.cafeName,
         fireAt: trip.fireAt,
       );
+      // A new delivery of this notification id: its launch is a new tap.
+      final handled = await _store.readHandledLaunch();
+      if (handled != null && handled.startsWith('${reminder.id}|')) {
+        await _store.writeHandledLaunch(null);
+      }
       await _notifier.schedule(
         id: reminder.id,
         at: trip.fireAt,
@@ -542,6 +574,10 @@ class VisitReminderService {
       debugPrint('[VisitReminders] schedule failed: $e');
     }
   }
+
+  /// How many times the in-app ask has been shown on this phone.
+  Future<int> prePromptsShownCount() async =>
+      (await _store.readPrePromptsShown()).length;
 
   Future<int> recordPrePromptShown() async {
     await _store.addPrePromptShown(_now());

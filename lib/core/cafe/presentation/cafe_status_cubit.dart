@@ -42,10 +42,22 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
   Future<bool> loadFor(List<String> cafeIds) async {
     if (cafeIds.isEmpty) return true;
     if (!_hasSession()) return false;
+    final startedAt = _writeCount;
+    final pendingAtStart = state.pending;
     try {
       final fetched = await getCafeStatusesUseCase(cafeIds);
       final statuses = Map<String, CafeStatus>.from(state.statuses);
-      for (final id in cafeIds) {
+      // A write that began after this read started (or is still in flight)
+      // is newer than the answer: a slow read must not undo it.
+      bool newer(String id) =>
+          pendingAtStart.contains(id) ||
+          state.pending.contains(id) ||
+          (_writtenAt[id] ?? 0) > startedAt;
+      final read = [
+        for (final id in cafeIds)
+          if (!newer(id)) id,
+      ];
+      for (final id in read) {
         final status = fetched[id] ?? CafeStatus.none;
         if (status == CafeStatus.none) {
           statuses.remove(id);
@@ -54,7 +66,7 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
         }
       }
       emit(
-        state.copyWith(statuses: statuses, known: {...state.known, ...cafeIds}),
+        state.copyWith(statuses: statuses, known: {...state.known, ...read}),
       );
       return true;
     } catch (e, st) {
@@ -64,13 +76,20 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
     }
   }
 
+  /// Writes started so far, and the count when each cafe's last began:
+  /// what [loadFor] uses to tell a stale answer from a fresh one.
+  int _writeCount = 0;
+  final Map<String, int> _writtenAt = {};
+
   /// Optimistically sets [status] for [cafeId]; rolls back on failure.
   /// Returns true on success so callers can toast / refresh lists.
+
   Future<bool> set(String cafeId, CafeStatus status) async {
     if (state.pending.contains(cafeId)) return false;
 
     final previous = state.statusFor(cafeId);
     if (previous == status) return true;
+    _writtenAt[cafeId] = ++_writeCount;
 
     _emitStatus(cafeId, status, pending: true);
     try {

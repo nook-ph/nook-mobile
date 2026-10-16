@@ -15,6 +15,7 @@ import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_control.dart';
 import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
@@ -27,7 +28,7 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/utils/open_been_list.dart';
 import 'package:nook/injection_container.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 /// Been / Want to Try, as two equal pills directly under the cafe's name.
 ///
@@ -382,6 +383,19 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
 
   @override
   Widget build(BuildContext context) {
+    // A sign-in from a sheet can keep this page (opened outside the
+    // router): the account's status for this cafe is then read here, or a
+    // Been the account already has would show as nothing (and hide its
+    // rank and note) until the page is opened again.
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (previous, current) =>
+          current is AuthAuthenticated && previous is! AuthAuthenticated,
+      listener: (_, _) => _loadStatus(),
+      child: _pills(context),
+    );
+  }
+
+  Widget _pills(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: CafeDetailsTokens.gutter),
       child: BlocBuilder<CafeStatusCubit, CafeStatusState>(

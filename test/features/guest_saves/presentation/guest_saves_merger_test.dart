@@ -111,6 +111,21 @@ void main() {
     expect(saves.state.isEmpty, isTrue);
   });
 
+  test("a phone Been moves the account's Want to try on to Been; an "
+      "account Been is never written over", () async {
+    repo.server = {'a': CafeStatus.wantToTry, 'b': CafeStatus.been};
+    await saves.set(_cafe('a'), CafeStatus.been);
+    await saves.set(_cafe('b'), CafeStatus.wantToTry);
+
+    final result = await merger.merge();
+
+    expect(repo.writes, ['a']);
+    expect(repo.server, {'a': CafeStatus.been, 'b': CafeStatus.been});
+    expect(result.added, 1);
+    expect(result.moved, 2);
+    expect(saves.state.isEmpty, isTrue);
+  });
+
   test('the guest overlay does not make saves look already merged', () async {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     statuses.showLocal(saves.state.statusMap);

@@ -181,8 +181,10 @@ class EngagementScore {
     SignUpAskSave? saved,
     Future<SignUpAskAnswer> Function(BuildContext context, SignUpAskCopy copy)?
     showSheet,
+    bool Function()? stillWanted,
   }) async {
-    if (_signedIn) return SignUpAskResult.notShown;
+    // An ask already on screen is not a suppression: nothing to log.
+    if (_signedIn || _asking) return SignUpAskResult.notShown;
     final blocked = await blockedBy(savesCount: savesCount);
     if (blocked != null) {
       _logSuppressed(blocked, trigger);
@@ -191,14 +193,26 @@ class EngagementScore {
     if (!context.mounted || _asking) return SignUpAskResult.notShown;
     _asking = true;
     try {
+      // Checked again after every wait: the page may have gone, another
+      // sheet may have taken the session meanwhile (the Directions ask),
+      // or the caller's moment may have passed (Saved left for a tab).
+      bool canShow() =>
+          context.mounted &&
+          _budget.canShowScoreAsk &&
+          (stillWanted?.call() ?? true);
       // One locked step, so points recorded meanwhile are not written over.
-      final (before, shown) = await _locked(() async {
+      // The session is taken before the write, so nothing can slip in
+      // between; an ask that did not get this far counts nowhere.
+      final asked = await _locked(() async {
         final before = await _store.read();
+        if (!canShow()) return null;
+        _budget.spend(SessionAskKind.signUpAsk);
         final shown = before.asked(_now(), savesCount: savesCount);
         await _save(shown);
         return (before, shown);
       });
-      _budget.spend(SessionAskKind.signUpAsk);
+      if (asked == null) return SignUpAskResult.notShown;
+      final (before, shown) = asked;
       final props = {
         'trigger': trigger,
         'score': before.score,

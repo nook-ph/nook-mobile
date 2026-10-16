@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/notification_events.dart';
@@ -25,9 +27,14 @@ class _FakeNotifier implements LocalNotifier {
   void Function(NotificationTap tap)? onTap;
   NotificationTap? launch;
 
+  /// When set, [init] finishes only once this completes (a slow start).
+  Completer<void>? holdInit;
+
   @override
-  Future<void> init({required void Function(NotificationTap) onTap}) async =>
-      this.onTap = onTap;
+  Future<void> init({required void Function(NotificationTap) onTap}) async {
+    this.onTap = onTap;
+    await holdInit?.future;
+  }
 
   @override
   Future<NotificationTap?> launchTap() async => launch;
@@ -230,8 +237,9 @@ void main() {
     expect(await tester.runAsync(store.readTrip), isNull);
   });
 
-  testWidgets('a page gone before the ask drops the trip and spends nothing',
-      (tester) async {
+  testWidgets('a page gone before the ask drops the trip and spends nothing', (
+    tester,
+  ) async {
     late VisitReminderService service;
     late DirectionsDecision decision;
     await tester.runAsync(() async {
@@ -280,6 +288,22 @@ void main() {
     expect(notifier.scheduled, isEmpty);
     expect(await store.readTrip(), isNull);
   });
+
+  test(
+    'a Directions tap while start is still running keeps its trip',
+    () async {
+      notifier.holdInit = Completer<void>();
+      final service = make();
+      addTearDown(service.dispose);
+      final starting = service.start(statuses: statuses);
+      clock = clock.add(const Duration(seconds: 2));
+      final decision = await tap(service, 'a');
+      expect(decision.ask, isTrue);
+      notifier.holdInit!.complete();
+      await starting;
+      expect((await store.readTrip())?.cafeId, 'a');
+    },
+  );
 
   test('a trip survives the app being killed during the ask', () async {
     final first = await started();
@@ -465,6 +489,42 @@ void main() {
     );
   });
 
+  test('a Been that fails to save does not cancel the reminder', () async {
+    notifier.enabled = true;
+    final service = await started();
+    await directions(service, 'a');
+    expect(notifier.scheduled, contains(visitReminderIdFor('a')));
+    // Offline: the Been shows at once, then rolls back.
+    expect(await statuses.set('a', CafeStatus.been), isFalse);
+    for (var i = 0; i < 5; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(notifier.scheduled, contains(visitReminderIdFor('a')));
+    expect([for (final p in await store.readPending()) p.cafeId], ['a']);
+  });
+
+  test(
+    'marking Been after its reminder went out keeps the day counted',
+    () async {
+      notifier.enabled = true;
+      final service = await started();
+      await directions(service, 'a');
+      // a's reminder has gone out (no resume swept it), then a is marked Been.
+      clock = clock.add(const Duration(hours: 3));
+      statuses.showLocal({'a': CafeStatus.been});
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(
+        analytics.names,
+        isNot(contains(NotificationEvents.postVisitCancelled)),
+      );
+      // A second cafe the same day gets no second reminder.
+      clock = clock.add(const Duration(minutes: 30));
+      expect((await tap(service, 'b')).trip, isNull);
+    },
+  );
+
   test('back-to-back status emissions cancel once, and a reminder '
       'scheduled meanwhile is kept', () async {
     notifier.enabled = true;
@@ -548,6 +608,42 @@ void main() {
       final service = await started();
       expect(service.openRequests.value?.cafeId, 'a');
     });
+
+    test(
+      'a launch reported again (Android Recents) is not a new tap',
+      () async {
+        notifier.launch = NotificationTap(
+          payload: 'a',
+          actionId: VisitReminderActions.went,
+          id: visitReminderIdFor('a'),
+        );
+        final first = await started();
+        expect(first.openRequests.value?.cafeId, 'a');
+        // The process died; Nook is reopened from Recents with the same
+        // launch details.
+        final again = await started();
+        expect(again.openRequests.value, isNull);
+      },
+    );
+
+    test(
+      'a reminder scheduled again makes its next launch a new tap',
+      () async {
+        notifier.enabled = true;
+        notifier.launch = NotificationTap(
+          payload: 'a',
+          actionId: VisitReminderActions.went,
+          id: visitReminderIdFor('a'),
+        );
+        final first = await started();
+        expect(first.openRequests.value?.cafeId, 'a');
+        await tap(first, 'a');
+        await first.confirmTrip();
+        expect(notifier.scheduled, contains(visitReminderIdFor('a')));
+        final next = await started();
+        expect(next.openRequests.value?.cafeId, 'a');
+      },
+    );
 
     test("a background Didn't go is sent on the next start", () async {
       await VisitReminderStore.queueEvent({

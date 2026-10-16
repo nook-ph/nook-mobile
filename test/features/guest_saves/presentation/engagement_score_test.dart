@@ -13,6 +13,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/analytics/recording_analytics.dart';
 
+/// Runs [onRead] before each read: a sheet that takes the session while
+/// the ask is still reading.
+class _HookedStore extends EngagementStore {
+  void Function(int read)? onRead;
+  var _reads = 0;
+
+  @override
+  Future<EngagementState> read() {
+    onRead?.call(++_reads);
+    return super.read();
+  }
+}
+
 void main() {
   late RecordingAnalytics analytics;
   late DateTime clock;
@@ -126,6 +139,52 @@ void main() {
         'score': 20.0,
         'ask_number': 1,
       });
+    });
+  });
+
+  testWidgets('a sheet that takes the session while the ask reads wins, '
+      'and the ask counts nowhere', (tester) async {
+    final store = _HookedStore();
+    score = EngagementScore(
+      store: store,
+      now: () => clock,
+      isSignedIn: () => signedIn,
+      threshold: SignUpAskRules.threshold,
+    );
+    final context = await host(tester);
+    await tester.runAsync(() async {
+      await earn(4);
+      // The Directions ask spends the session between the ask's check and
+      // its locked write.
+      store.onRead = (n) {
+        if (n == 2) budget.spend(SessionAskKind.notificationPrePrompt);
+      };
+      expect(await ask(context), isFalse);
+      store.onRead = null;
+      expect(sheets, 0);
+      expect(budget.spentBy, SessionAskKind.notificationPrePrompt);
+      expect((await score.read()).asks, 0);
+      expect(analytics.names, isNot(contains(SavesEvents.signUpAskShown)));
+    });
+  });
+
+  testWidgets('a moment that passed while reading asks nothing', (
+    tester,
+  ) async {
+    final context = await host(tester);
+    await tester.runAsync(() async {
+      await earn(4);
+      final result = await score.maybeAsk(
+        context,
+        trigger: SignUpAskTrigger.savedOpen,
+        savesCount: 3,
+        showSheet: fakeSheet,
+        stillWanted: () => false,
+      );
+      expect(result, SignUpAskResult.notShown);
+      expect(sheets, 0);
+      expect(budget.canShowSheet, isTrue);
+      expect((await score.read()).asks, 0);
     });
   });
 
