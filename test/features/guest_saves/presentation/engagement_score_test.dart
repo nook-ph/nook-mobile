@@ -337,6 +337,27 @@ void main() {
       });
     });
 
+    testWidgets('a cancelled Google sign-in is not completed by a later '
+        'sign-in from elsewhere', (tester) async {
+      final context = await host(tester);
+      await tester.runAsync(() async {
+        await earn(4);
+        final result = await score.maybeAsk(
+          context,
+          trigger: SignUpAskTrigger.afterSave,
+          savesCount: 1,
+          showSheet: (_, _) async => const SignUpAskAnswer(provider: 'google'),
+        );
+        expect(result, SignUpAskResult.shownStillGuest);
+        sessions.add(null);
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          analytics.names,
+          isNot(contains(SavesEvents.signUpAskCompleted)),
+        );
+      });
+    });
+
     testWidgets('email is not completed until a session starts, and backs '
         'off like a decline meanwhile', (tester) async {
       final context = await host(tester);

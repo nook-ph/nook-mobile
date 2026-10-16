@@ -234,10 +234,12 @@ class EngagementScore {
         return next;
       });
       if (provider != null) {
-        _awaitCompletion(props, provider);
-        // Email goes on to `/login`; a Google or Apple sign-in that did not
-        // finish leaves the person here, where the save is still confirmed.
+        // Email goes on to `/login` and may finish there. A Google or Apple
+        // sign-in that ended without a session was cancelled: a later
+        // sign-in from elsewhere is not this ask's, and the person stays
+        // here, where the save is still confirmed.
         if (provider == SignInChoice.email.name) {
+          _awaitCompletion(props, provider);
           return SignUpAskResult.signInStarted;
         }
         return SignUpAskResult.shownStillGuest;
