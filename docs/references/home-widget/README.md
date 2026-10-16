@@ -7,7 +7,12 @@ widgets or inline widget upsells, so header, empty state and the 2×2 size are d
 from the row anatomy below.
 
 ## Saved cafes widget
-Header (opens Saved), up to 3 Want to try cafes with name and one status line; 2×2 shows 1.
+Header (opens Saved, 48dp), up to 3 Want to try cafes with name and one status line (2 at
+font scale above 1.2, names ellipsize first); 2×2 shows "Saved cafes", the open count and the
+first cafe. Revised 2026-10-16 from `docs/retention/partwise-ux-home-widget.md` (no new
+scout): the small size keeps the headline count and drops rows, as Todoist and Waterllama do
+there ([Todoist](https://refero.design/screens/1780a536-0c1d-4d73-aa47-89c791199dcb),
+[Waterllama](https://refero.design/flows/11534)).
 Built in `android/app/src/main/res/layout/saved_cafes_widget*.xml` and
 `android/app/src/main/kotlin/app/nookph/SavedCafesWidgetProvider.kt`; data from
 `lib/features/home_widget/domain/saved_cafes_widget_data.dart`.
@@ -22,7 +27,9 @@ Built in `android/app/src/main/res/layout/saved_cafes_widget*.xml` and
 
 ## Add-widget promo card
 One-time inline card on the Saved tab: title, one line, "Add widget" + "Not now", a small
-preview of the widget with the user's own cafes. Built in
+preview of the widget with the user's own cafes. Revised 2026-10-16: for guests it sits after
+the first three Want to try rows; buttons share a height and stack at large text; the add is
+confirmed by a toast only once the widget count rose. Built in
 `lib/features/home_widget/presentation/widgets/home_widget_promo_card.dart`.
 
 **Primary: Matter.** Borrow: Pinkllama, Acorns.
