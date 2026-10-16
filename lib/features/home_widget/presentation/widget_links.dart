@@ -89,10 +89,11 @@ abstract final class WidgetLinks {
       logAppEvent(HomeWidgetEvents.tapped, properties: {'target': link.tap});
       _setPending(link, now);
     } else if (fromRouter && _lastTaken && link.location != null) {
-      // On a warm tap the plugin's click reaches Dart before the route, so
-      // the cafe may already be open; this redirect's `/` then replaces the
-      // stack and closes it. Open it again over the new Home (not logged:
-      // it is the same tap).
+      // The plugin's link reached Dart before the route, so the cafe may
+      // already be open; this redirect's `/` then replaces the stack and
+      // closes it. Open it again over the new Home (not logged: it is the
+      // same tap). (MainActivity sends no route for a warm Android tap, so
+      // that `/` cannot tear down a page saving behind a PopScope.)
       _setPending(link, now);
     }
     return '/';

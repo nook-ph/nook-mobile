@@ -40,11 +40,29 @@ class MainActivity : FlutterActivity() {
         // read again as the launch link by the new engine. (A visit-reminder
         // tap is still kept, by flutter_local_notifications' own onNewIntent;
         // the strip in onCreate is what stops it being read twice.)
-        if (intent.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
-            setIntent(intent)
+        if (intent.action != HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
+            super.onNewIntent(intent)
+            return
         }
-        super.onNewIntent(intent)
+        setIntent(intent)
+        // The widget plugin hands the tap to Dart, which closes what is open
+        // except a page saving behind a PopScope. Flutter would also push the
+        // tap's URI as a route, and go_router turns that into a go('/') that
+        // replaces the page stack, sheets on those pages included, mid-save
+        // or not. So no route for a warm widget tap.
+        widgetTapInFlight = true
+        try {
+            super.onNewIntent(intent)
+        } finally {
+            widgetTapInFlight = false
+        }
     }
+
+    /** True while [onNewIntent] forwards a widget tap. */
+    private var widgetTapInFlight = false
+
+    override fun shouldHandleDeeplinking(): Boolean =
+        !widgetTapInFlight && super.shouldHandleDeeplinking()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
