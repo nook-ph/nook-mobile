@@ -86,10 +86,10 @@ go_router's `go('/')` would replace the page stack, a page saving behind a
 PopScope included. If the tab shell is gone (on `/login` after a sign-out)
 the app goes to `/` for it. One tap seen twice within 3 s opens once.
 
-`MainShell` first pops back to the shell. A page that refuses Back while it
-saves is left alone: the tap waits until the page closes itself (up to a
-minute), and is dropped if the page lets go of Back but stays open (a failed
-save keeps its draft).
+`MainShell` first pops back to the shell. When the page on top refuses Back
+(a PopScope while it saves: the cup composer, Edit profile) or is a sheet or
+dialog, the tap only brings Nook forward and is dropped (`widget_tapped`
+with `blocked: true`); the person taps again once they are done.
 
 ## Promo
 
@@ -145,7 +145,7 @@ the budget does not hold the card back (the same as the keep-saves card).
 | `widget_pin_result` | Next resume after the tap | `result` (`added` / `cancelled` / `unknown`), `reason` |
 | `widget_promo_dismissed` | "Not now" | `reason` |
 | `widget_installed_count_changed` | Count differs from the last look | `count`, `previous`, `source` (`promo` within 10 min of a tap, else `launcher`; inferred) when it rose |
-| `widget_tapped` | The widget opened the app | `target` |
+| `widget_tapped` | The widget opened the app | `target`, `blocked` |
 
 ## iOS: not built
 

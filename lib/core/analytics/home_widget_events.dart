@@ -30,7 +30,10 @@ abstract final class HomeWidgetEvents {
 
   /// The widget opened the app. Properties: `target` (`cafe`, a cafe's
   /// row; `header`, the title, which opens Saved; `empty`, the empty
-  /// state's "Find a cafe"; `stale`, the "Open Nook to update" state).
+  /// state's "Find a cafe"; `stale`, the "Open Nook to update" state) and
+  /// `blocked` (true when the app came forward but did not go there: a
+  /// page refusing Back or a sheet was on top, or the tab shell did not
+  /// show within a minute). Sent when the app acts on the tap.
   static const tapped = 'widget_tapped';
 
   /// How many copies of the widget are on the home screen changed since the

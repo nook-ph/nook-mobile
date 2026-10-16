@@ -11,7 +11,8 @@ class WidgetLinkOpener extends StatefulWidget {
     required this.child,
   });
 
-  final ValueChanged<WidgetLink> onLink;
+  /// Opens the link; false when it was dropped instead.
+  final bool Function(WidgetLink link) onLink;
   final Widget child;
 
   @override
@@ -40,7 +41,8 @@ class _WidgetLinkOpenerState extends State<WidgetLinkOpener> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final link = WidgetLinks.take();
-      if (link != null) widget.onLink(link);
+      if (link == null) return;
+      WidgetLinks.logTap(link, blocked: !widget.onLink(link));
     });
   }
 

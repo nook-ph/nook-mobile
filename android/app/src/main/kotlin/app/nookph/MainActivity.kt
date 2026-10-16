@@ -45,8 +45,8 @@ class MainActivity : FlutterActivity() {
             return
         }
         setIntent(intent)
-        // The widget plugin hands the tap to Dart, which closes what is open
-        // except a page saving behind a PopScope. Flutter would also push the
+        // The widget plugin hands the tap to Dart, which drops it when a page
+        // refusing Back (saving behind a PopScope) is on top. Flutter would also push the
         // tap's URI as a route, and go_router turns that into a go('/') that
         // replaces the page stack, sheets on those pages included, mid-save
         // or not. So no route for a warm widget tap.

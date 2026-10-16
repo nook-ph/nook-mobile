@@ -107,111 +107,90 @@ void main() {
     expect(_currentTab(tester), 0);
   });
 
-  testWidgets('a page refusing Back while it saves is not torn down, and '
-      'the cafe waits until it closes itself', (tester) async {
-    RecordingAnalytics.install(addTearDown);
+  testWidgets('a tap over a page refusing Back only brings Nook forward', (
+    tester,
+  ) async {
+    final analytics = RecordingAnalytics.install(addTearDown);
     await tester.pumpWidget(_app());
     final busy = ValueNotifier(true);
     final busyContext = _pushBusyPage(busy);
-    _pushSettings();
     await tester.pumpAndSettle();
 
     WidgetLinks.acceptFromPlatform(Uri.parse('nook://cafe/abc?via=widget'));
     await _frame(tester);
 
-    // Settings above it closes; the busy page stays on top, nothing over it
-    // that its own pop would close instead of itself.
-    expect(find.text('settings page'), findsNothing);
     expect(find.text('saving page'), findsOneWidget);
     expect(find.text('cafe abc'), findsNothing);
-    await tester.pump(const Duration(seconds: 2));
-    expect(find.text('cafe abc'), findsNothing);
+    expect(analytics.flat, [
+      [
+        'widget_tapped',
+        {'target': 'cafe', 'blocked': true},
+      ],
+    ]);
 
-    // The save ends: the page lets go and closes itself.
+    // The save ends and the page closes itself: the dropped tap stays
+    // dropped, the shell is as it was.
     busy.value = false;
     await tester.pump();
     Navigator.of(busyContext()).pop();
     await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
     expect(find.text('saving page'), findsNothing);
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
-
-    expect(find.text('cafe abc'), findsOneWidget);
+    expect(find.text('cafe abc'), findsNothing);
     expect(_currentTab(tester), 0);
-    final navigator = tester.state<NavigatorState>(
-      find.byType(Navigator).first,
-    );
-    navigator.pop();
-    await tester.pumpAndSettle();
-    expect(find.text('home page'), findsOneWidget);
   });
 
-  testWidgets('a header tap over a busy page opens Saved once it closes', (
+  testWidgets('a header tap over a page refusing Back switches no tab', (
     tester,
   ) async {
     RecordingAnalytics.install(addTearDown);
     await tester.pumpWidget(_app());
-    final busy = ValueNotifier(true);
-    final busyContext = _pushBusyPage(busy);
+    _pushBusyPage(ValueNotifier(true));
     await tester.pumpAndSettle();
 
     WidgetLinks.acceptFromPlatform(Uri.parse('nook://saved?via=widget'));
     await _frame(tester);
+
     expect(find.text('saving page'), findsOneWidget);
     expect(_currentTab(tester), 0, reason: 'no tab switch hidden under it');
-
-    // The save ends in the same step that closes the page.
-    busy.value = false;
-    Navigator.of(busyContext()).pop();
-    await tester.pumpAndSettle();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.pumpAndSettle();
-
-    expect(find.text('saving page'), findsNothing);
-    expect(_currentTab(tester), MainShell.savedTab);
   });
 
-  testWidgets('a busy page that lets go but stays open keeps its draft', (
-    tester,
-  ) async {
-    RecordingAnalytics.install(addTearDown);
+  testWidgets('a tap with a sheet open leaves the sheet', (tester) async {
+    final analytics = RecordingAnalytics.install(addTearDown);
     await tester.pumpWidget(_app());
-    final busy = ValueNotifier(true);
-    _pushBusyPage(busy);
+    _pushSettings();
+    await tester.pumpAndSettle();
+    showModalBottomSheet<void>(
+      context: _shellKey.currentContext!,
+      builder: (_) => const Text('a sheet'),
+    );
     await tester.pumpAndSettle();
 
     WidgetLinks.acceptFromPlatform(Uri.parse('nook://cafe/abc?via=widget'));
     await _frame(tester);
 
-    // The save failed: Back works again, the page stays with its error.
-    busy.value = false;
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pumpAndSettle();
-
-    expect(find.text('saving page'), findsOneWidget);
+    expect(find.text('a sheet'), findsOneWidget);
     expect(find.text('cafe abc'), findsNothing);
+    expect(analytics.propertiesOf('widget_tapped'), {
+      'target': 'cafe',
+      'blocked': true,
+    });
   });
 
-  testWidgets('a tap waiting on a busy page is dropped after a minute', (
-    tester,
-  ) async {
-    RecordingAnalytics.install(addTearDown);
+  testWidgets('a tap that opens is logged as not blocked', (tester) async {
+    final analytics = RecordingAnalytics.install(addTearDown);
     await tester.pumpWidget(_app());
-    final busy = ValueNotifier(true);
-    _pushBusyPage(busy);
-    await tester.pumpAndSettle();
 
-    WidgetLinks.acceptFromPlatform(Uri.parse('nook://cafe/abc?via=widget'));
+    WidgetLinks.acceptFromPlatform(Uri.parse('nook://home?via=widget'));
     await _frame(tester);
-    await tester.pump(const Duration(minutes: 1, seconds: 1));
 
-    busy.value = false;
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pumpAndSettle();
-    expect(find.text('saving page'), findsOneWidget);
-    expect(find.text('cafe abc'), findsNothing);
+    expect(analytics.flat, [
+      [
+        'widget_tapped',
+        {'target': 'empty', 'blocked': false},
+      ],
+    ]);
   });
 }
 

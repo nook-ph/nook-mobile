@@ -18,7 +18,9 @@ enum WidgetLinkTarget { cafe, saved, home }
 /// route to `/` (Home, which Back from the cafe then lands on); `MainShell`
 /// opens it from there with [WidgetLinks.take]. That is the cold-start
 /// route; a warm tap comes only from the plugin ([acceptFromPlatform]),
-/// since MainActivity sends no route for it.
+/// since MainActivity sends no route for it (go_router would turn it into
+/// a go('/') that replaces the page stack, a page saving behind a PopScope
+/// included).
 class WidgetLink {
   const WidgetLink._(this.target, this.cafeId, this.tap);
 
@@ -74,10 +76,8 @@ abstract final class WidgetLinks {
   static DateTime Function() clock = DateTime.now;
 
   /// For the router's redirect: `/` when [uri] is a widget link (kept in
-  /// [pending] and logged), else null.
-  static String? accept(Uri uri) => _accept(uri, fromRouter: true);
-
-  static String? _accept(Uri uri, {required bool fromRouter}) {
+  /// [pending]), else null.
+  static String? accept(Uri uri) {
     final link = WidgetLink.parse(uri);
     if (link == null) return null;
     final now = clock();
@@ -88,27 +88,12 @@ abstract final class WidgetLinks {
     _lastKey = key;
     _lastAt = now;
     if (!repeat) {
-      logAppEvent(HomeWidgetEvents.tapped, properties: {'target': link.tap});
-      _setPending(link, now);
-    } else if (fromRouter && _lastTaken && link.location != null) {
-      // The plugin's link reached Dart before the route, so the cafe may
-      // already be open; this redirect's `/` then replaces the stack and
-      // closes it. Open it again over the new Home (not logged: it is the
-      // same tap). (MainActivity sends no route for a warm Android tap, so
-      // that `/` cannot tear down a page saving behind a PopScope.)
-      _setPending(link, now);
+      _pendingAt = now;
+      pending.value = link;
     }
     return '/';
   }
 
-  static void _setPending(WidgetLink link, DateTime now) {
-    _lastTaken = false;
-    _pendingAt = now;
-    pending.value = link;
-  }
-
-  /// Whether the last link has been opened ([take]n).
-  static bool _lastTaken = false;
   static DateTime? _pendingAt;
 
   /// A link not opened within this long is dropped: the shell was not on
@@ -121,20 +106,32 @@ abstract final class WidgetLinks {
   /// and a recreated activity gets the tap as a new intent, so the router
   /// alone misses some taps.
   static void acceptFromPlatform(Uri? uri) {
-    if (uri != null) _accept(uri, fromRouter: false);
+    if (uri != null) accept(uri);
   }
 
   /// The pending link, cleared; null when there is none or it waited too
-  /// long.
+  /// long (logged as a dropped tap).
   static WidgetLink? take() {
     final link = pending.value;
     final at = _pendingAt;
     pending.value = null;
     _pendingAt = null;
     if (link == null) return null;
-    _lastTaken = true;
-    if (at != null && clock().difference(at) > _openWithin) return null;
+    if (at != null && clock().difference(at) > _openWithin) {
+      logTap(link, blocked: true);
+      return null;
+    }
     return link;
+  }
+
+  /// `widget_tapped`, once per tap, when the app has acted on it: opened,
+  /// or dropped ([blocked]) because a page refusing Back or a sheet was on
+  /// top, or the shell did not show in time.
+  static void logTap(WidgetLink link, {required bool blocked}) {
+    logAppEvent(
+      HomeWidgetEvents.tapped,
+      properties: {'target': link.tap, 'blocked': blocked},
+    );
   }
 
   /// Mounted [WidgetLinkOpener]s: the tab shell is built.
@@ -162,7 +159,6 @@ abstract final class WidgetLinks {
     _shellSeen = false;
     _lastKey = null;
     _lastAt = null;
-    _lastTaken = false;
     _pendingAt = null;
     pending.value = null;
     clock = DateTime.now;

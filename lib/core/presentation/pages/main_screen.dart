@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -132,38 +130,37 @@ class _MainShellState extends State<MainShell> {
   }
 
   /// A tap on the home-screen widget: a cafe opens over Home, the header
-  /// opens Saved, the empty state Home.
+  /// opens Saved, the empty state Home. False when the tap is dropped.
   ///
   /// First back to the shell, like [TabRequests]: the router's `/` keeps
   /// its page, so pages pushed over it with Navigator (Settings, a cafe
-  /// from a list) and sheets would stay on top of the tab. A cafe the same
-  /// tap already opened closes too, so it is never stacked twice.
+  /// from a list) would stay on top of the tab. A cafe the same tap
+  /// already opened closes too, so it is never stacked twice.
   ///
-  /// A page that refuses Back (a PopScope while it saves) is not popped:
-  /// that would drop the save half-done. Nothing goes on top of it either,
-  /// since its own `Navigator.pop` when the save ends would close the cafe
-  /// instead of itself and leave it stuck open. The tap waits until the
-  /// page closes itself, up to [_waitForBusyPage]; if it lets go of Back
-  /// but stays open, the tap is dropped.
-  void _openWidgetLink(BuildContext context, WidgetLink link) {
-    _cancelWaitingLink();
-    Route<dynamic>? stoppedAt;
+  /// Unless the page on top refuses Back (a PopScope while it saves, as
+  /// the cup composer and Edit profile do) or is a sheet or dialog: then
+  /// the tap only brings Nook forward, as it is. Popping would throw away
+  /// what is open, and anything put on top would be closed by the page's
+  /// own pop when its save ends.
+  bool _openWidgetLink(BuildContext context, WidgetLink link) {
+    var top = true;
+    var blocked = false;
     Navigator.of(context).popUntil((route) {
-      final stop =
-          route.isFirst || route.popDisposition == RoutePopDisposition.doNotPop;
-      if (stop) stoppedAt = route;
-      return stop;
+      if (route.isFirst) return true;
+      if (route.popDisposition == RoutePopDisposition.doNotPop ||
+          (top && route is PopupRoute)) {
+        blocked = true;
+        return true;
+      }
+      top = false;
+      return false;
     });
-    final busy = stoppedAt;
-    if (busy != null && !busy.isFirst) {
-      _waitForPage(context, link, busy);
-      return;
-    }
+    if (blocked) return false;
     final location = link.location;
     if (location != null) {
       context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
       context.push(location);
-      return;
+      return true;
     }
     context.read<NavigationBloc>().add(
       TabChange(
@@ -172,49 +169,7 @@ class _MainShellState extends State<MainShell> {
             : 0,
       ),
     );
-  }
-
-  /// How long a widget tap waits for a busy page; past it the tap would
-  /// come out of nowhere.
-  static const _waitForBusyPage = Duration(minutes: 1);
-  static const _busyPageCheck = Duration(milliseconds: 250);
-
-  Timer? _waitingLink;
-
-  void _cancelWaitingLink() {
-    _waitingLink?.cancel();
-    _waitingLink = null;
-  }
-
-  /// Checks [busy] until it is gone, then opens [link].
-  void _waitForPage(
-    BuildContext context,
-    WidgetLink link,
-    Route<dynamic> busy,
-  ) {
-    _waitingLink = Timer.periodic(_busyPageCheck, (timer) {
-      if (!mounted ||
-          !context.mounted ||
-          timer.tick * _busyPageCheck.inMilliseconds >
-              _waitForBusyPage.inMilliseconds) {
-        _cancelWaitingLink();
-        return;
-      }
-      if (!busy.isActive) {
-        _openWidgetLink(context, link);
-      } else if (busy.popDisposition != RoutePopDisposition.doNotPop) {
-        // Let go but still open (a failed save keeps its draft and error,
-        // or the page is between two steps): the person is still there.
-        // Popping it now would throw that away, so the tap is dropped.
-        _cancelWaitingLink();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _cancelWaitingLink();
-    super.dispose();
+    return true;
   }
 
   Widget _tabs() {
