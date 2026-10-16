@@ -111,6 +111,7 @@ void _showToastBar(
           : 4.0;
       final hasAction = actionLabel != null;
       final persistent = duration == null;
+      final largeText = MediaQuery.textScalerOf(context).scale(14) / 14 > 1.3;
       Widget action(String label, VoidCallback? onTap) => AdaptiveTextButton(
         onPressed: () {
           toastification.dismiss(holder);
@@ -150,13 +151,20 @@ void _showToastBar(
                 padding: EdgeInsets.symmetric(
                   vertical: hasAction || persistent ? 9 : 0,
                 ),
-                child: Text(
-                  message,
-                  // Two lines, so a long message keeps the part that says
-                  // what was lost ("Rank deleted.") instead of truncating it.
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: style,
+                // Its own node, announced when it appears: merged into the
+                // close button it was read as one "…, Close" label (N1).
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  child: Text(
+                    message,
+                    // Two lines, so a long message keeps the part that says
+                    // what was lost ("Rank deleted.") instead of truncating
+                    // it; three at large text, beside the actions (N8).
+                    maxLines: largeText ? 3 : 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: style,
+                  ),
                 ),
               ),
             ),
@@ -173,6 +181,9 @@ void _showToastBar(
               Semantics(
                 button: true,
                 label: 'Close',
+                // The action lives on this node: excluding the children
+                // also drops the detector's tap (N1).
+                onTap: () => toastification.dismiss(holder),
                 excludeSemantics: true,
                 // The toast overlay has no Material, so no ink here.
                 child: GestureDetector(
