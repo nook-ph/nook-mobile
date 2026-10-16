@@ -318,6 +318,13 @@ Future<void> initDependencies() async {
     () => CrawlRepositoryImpl(sl<CrawlRemoteDataSource>()),
   );
 
+  sl.registerLazySingleton<HomeLayoutRepository>(
+    () => HomeLayoutRepository(
+      fetch: sl<HomeLayoutRemoteSource>().fetchLayout,
+      cache: HomeLayoutCache(),
+    ),
+  );
+
   // 4) Use cases
   sl.registerLazySingleton<GetCafeCardUseCase>(
     () => GetCafeCardUseCase(sl<ICafeRepository>()),
@@ -327,12 +334,6 @@ Future<void> initDependencies() async {
   );
   sl.registerLazySingleton<GetHomeFeedUseCase>(
     () => GetHomeFeedUseCase(sl<ICafeRepository>()),
-  );
-  sl.registerLazySingleton<HomeLayoutRepository>(
-    () => HomeLayoutRepository(
-      fetch: sl<HomeLayoutRemoteSource>().fetchLayout,
-      cache: HomeLayoutCache(),
-    ),
   );
   sl.registerLazySingleton<GetLayoutShelvesUseCase>(
     () => GetLayoutShelvesUseCase(
