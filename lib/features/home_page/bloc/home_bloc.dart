@@ -141,6 +141,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         }
         await layoutReady;
         if (emit.isDone) return;
+        layoutShelves = _keepLoadedShelves(layout, layoutShelves);
 
         // The early step of a refresh has no "Near you" yet. The one on
         // screen stays until its replacement arrives.
@@ -225,6 +226,26 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       }
       emit(HomeError(e));
     }
+  }
+
+  /// [shelves] plus, for the same layout already on screen, the sections
+  /// whose cafes failed to load this time (a section missing from
+  /// [shelves] failed): a failed refresh keeps what it was refreshing.
+  Map<String, List<CafeSummary>> _keepLoadedShelves(
+    HomeLayout? layout,
+    Map<String, List<CafeSummary>> shelves,
+  ) {
+    final current = state;
+    if (layout == null ||
+        current is! HomeLoadedState ||
+        current.layout?.version != layout.version) {
+      return shelves;
+    }
+    final kept = {
+      for (final e in current.layoutShelves.entries)
+        if (!shelves.containsKey(e.key)) e.key: e.value,
+    };
+    return kept.isEmpty ? shelves : {...kept, ...shelves};
   }
 
   Future<Map<String, List<CafeSummary>>> _shelvesFor(HomeLayout? layout) async {

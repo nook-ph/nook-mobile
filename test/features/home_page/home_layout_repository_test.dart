@@ -345,6 +345,49 @@ void main() {
       await bloc.close();
     });
 
+    test('a refresh whose shelf cafes fail keeps the ones on screen', () async {
+      final response = _response(
+        'v1',
+        sections: [
+          {
+            'id': 'custom:p',
+            'type': 'custom',
+            'title': 'Picked',
+            'source': 'picked',
+            'cafe_ids': ['9a2b3c4d-0000-4000-8000-00000000000a'],
+          },
+        ],
+      );
+      var fail = false;
+      final bloc = HomeBloc(
+        getHomeFeedUseCase: _Feed(),
+        layoutRepository: repo(() async => response),
+        getLayoutShelves: GetLayoutShelvesUseCase(
+          repository: _Repo(),
+          cafesByIds: (_) async {
+            if (fail) throw Exception('timeout');
+            return [_cafe('9a2b3c4d-0000-4000-8000-00000000000a')];
+          },
+        ),
+      );
+      final states = <HomeState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(LoadHomeDataEvent());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(
+        states.whereType<HomeLoadedState>().last.layoutShelves['custom:p'],
+        hasLength(1),
+      );
+      fail = true;
+      bloc.add(LoadHomeDataEvent(refresh: true));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final last = states.whereType<HomeLoadedState>().last;
+      expect(last.layout?.version, 'v1');
+      expect(last.layoutShelves['custom:p'], hasLength(1));
+      await sub.cancel();
+      await bloc.close();
+    });
+
     test('debug fixture is used instead of the server', () async {
       var fetched = false;
       final bloc = HomeBloc(
