@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/analytics/auth_events.dart';
@@ -79,6 +79,18 @@ Future<void> continueSignInFromSheet(
           'sign_in_finished',
           properties: {'returned_to_origin': true},
         );
+        // Made again in place, signed in, as the return would have made
+        // it: a page finishes the action the guest tapped (Save, a review)
+        // when it is built.
+        if (route is MaterialPageRoute) {
+          route.navigator?.replace(
+            oldRoute: route,
+            newRoute: MaterialPageRoute<dynamic>(
+              builder: route.builder,
+              settings: route.settings,
+            ),
+          );
+        }
       }
     case AuthNeedsUsername():
       // The router holds the account on /username-setup, which finishes

@@ -18,6 +18,28 @@ const _user = User(
   createdAt: '2026-10-01T00:00:00Z',
 );
 
+/// Counts how often it is built from scratch, as a cafe page that replays
+/// the guest's action in initState.
+class _CafeB extends StatefulWidget {
+  const _CafeB();
+
+  static int made = 0;
+
+  @override
+  State<_CafeB> createState() => _CafeBState();
+}
+
+class _CafeBState extends State<_CafeB> {
+  @override
+  void initState() {
+    super.initState();
+    _CafeB.made++;
+  }
+
+  @override
+  Widget build(BuildContext context) => const Text('cafe B');
+}
+
 void main() {
   setUp(AuthReturn.take);
 
@@ -51,11 +73,10 @@ void main() {
     // "If you like this…" opens cafe B with Navigator.push, outside the
     // router's stack.
     final navigator = router.routerDelegate.navigatorKey.currentState!;
-    navigator.push(
-      MaterialPageRoute<void>(builder: (_) => const Text('cafe B')),
-    );
+    navigator.push(MaterialPageRoute<void>(builder: (_) => const _CafeB()));
     await tester.pumpAndSettle();
     final context = tester.element(find.text('cafe B'));
+    _CafeB.made = 0;
 
     final done = continueSignInFromSheet(context, SignInChoice.google);
     await tester.pump();
@@ -65,6 +86,12 @@ void main() {
 
     expect(find.text('cafe B'), findsOneWidget);
     expect(find.text('cafe A'), findsNothing);
+    // Made again signed in, so it can finish what the guest tapped.
+    expect(_CafeB.made, 1);
+    // Back still leads to cafe A, under it.
+    router.routerDelegate.navigatorKey.currentState!.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('cafe A'), findsOneWidget);
   });
 
   testWidgets('Google from a sheet on a router page comes back to it', (
