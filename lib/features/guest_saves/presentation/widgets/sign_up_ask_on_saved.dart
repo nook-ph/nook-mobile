@@ -82,16 +82,24 @@ class _SignUpAskOnSavedState extends State<SignUpAskOnSaved> {
         _tracker.current != ScreenNames.saved) {
       return;
     }
-    if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
+    // Still this visit of Saved, on top: the reads below wait, and the tab
+    // stays mounted behind another one.
+    bool stillHere() =>
+        mounted &&
+        _tracker.visits.value == visit &&
+        _tracker.current == ScreenNames.saved &&
+        (ModalRoute.of(context)?.isCurrent ?? true);
+    if (!stillHere()) return;
     final saves = context.read<GuestSavesCubit>();
     await saves.load();
-    if (!mounted) return;
+    if (!stillHere()) return;
     final count = saves.state.saves.length;
     if (count < SignUpAskOnSaved.minSaves) return;
     await score.maybeAsk(
       context,
       trigger: SignUpAskTrigger.savedOpen,
       savesCount: count,
+      stillWanted: stillHere,
     );
   }
 
