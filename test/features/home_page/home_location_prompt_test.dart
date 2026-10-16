@@ -81,6 +81,7 @@ void main() {
       required Future<bool> Function(BuildContext) confirm,
       required Future<LocationPermission> Function() request,
       bool offeredBefore = false,
+      Future<LocationPermission> Function()? check,
     }) async {
       SharedPreferences.setMockInitialValues({
         'homeVisitCount': 1,
@@ -95,7 +96,7 @@ void main() {
               store: HomeLocationPromptStore(),
               promptStore: LocationPromptStore(),
               servicesEnabled: () async => true,
-              checkPermission: () async => LocationPermission.denied,
+              checkPermission: check ?? () async => LocationPermission.denied,
               requestPermission: request,
               confirm: confirm,
             ),
@@ -162,6 +163,39 @@ void main() {
       expect(find.text('See cafes near you'), findsNothing);
       expect(await HomeLocationPromptStore().isDismissed(), isTrue);
       expect(await LocationPromptStore().hasRequested(), isFalse);
+    });
+
+    testWidgets('allowed elsewhere since it appeared: a tap asks nothing', (
+      tester,
+    ) async {
+      var permission = LocationPermission.denied;
+      var granted = 0;
+      var confirms = 0;
+      var requests = 0;
+      await pump(
+        tester,
+        onGranted: () => granted++,
+        confirm: (_) async {
+          confirms++;
+          return true;
+        },
+        request: () async {
+          requests++;
+          return LocationPermission.whileInUse;
+        },
+        check: () async => permission,
+      );
+      expect(find.text('See cafes near you'), findsOneWidget);
+      // The saver survey's "Too far" card (or Map) got the permission.
+      permission = LocationPermission.whileInUse;
+
+      await tester.tap(find.text('See cafes near you'));
+      await tester.pumpAndSettle();
+
+      expect(confirms, 0);
+      expect(requests, 0);
+      expect(granted, 1);
+      expect(find.text('See cafes near you'), findsNothing);
     });
 
     testWidgets('the close button dismisses it', (tester) async {

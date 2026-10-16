@@ -112,6 +112,9 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
     // just leaves it there.
     // Behind a prompt that already took the session (the survey), the
     // first offer is not spent: the next launch counts it.
+    // Gone while checking (the feed rebuilt, an error view): never seen,
+    // so the one first offer is not used up.
+    if (!mounted) return;
     final budget = SessionAskBudget.instance;
     final first =
         !budget.anyShown &&
@@ -139,8 +142,40 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
     destructive: false,
   );
 
+  @override
+  void didUpdateWidget(covariant HomeLocationPrompt oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Home rebuilt (a reload): location may have been allowed elsewhere
+    // meanwhile (the saver survey, Map, Settings).
+    if (_visible && !_busy) unawaited(_hideIfGranted());
+  }
+
+  Future<bool> _granted() async {
+    try {
+      final permission =
+          await (widget.checkPermission ?? Geolocator.checkPermission)();
+      return permission == LocationPermission.always ||
+          permission == LocationPermission.whileInUse;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _hideIfGranted() async {
+    if (!await _granted()) return false;
+    if (mounted && _visible) setState(() => _visible = false);
+    return true;
+  }
+
   Future<bool> _ask() async {
     if (_busy) return false;
+    // Allowed elsewhere since the row appeared: no sheet for a permission
+    // already given; Home only needs to reload.
+    if (await _hideIfGranted()) {
+      widget.onGranted();
+      return true;
+    }
+    if (_busy || !mounted) return false;
     _busy = true;
     // Tapped: a sheet the person opened, so no score ask on top this
     // session (as for a sign-in sheet they open), whatever launch this is.
