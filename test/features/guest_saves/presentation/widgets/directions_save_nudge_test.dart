@@ -132,6 +132,31 @@ void main() {
     await settleToasts(tester);
   });
 
+  testWidgets('maps already in front when the launch is reported: no nudge '
+      'in the background, it waits for the return', (tester) async {
+    await pump(tester);
+    final binding = tester.binding;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+
+    DirectionsLaunches.notify(_cafe.id);
+    await tester.pump(DirectionsSaveNudge.fallbackDelay);
+    await tester.pump(const Duration(seconds: 1));
+    expect(
+      analytics.names,
+      isNot(contains(SavesEvents.directionsSaveNudgeShown)),
+    );
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(DirectionsSaveNudge.settleDelay);
+    await showToast(tester);
+    expect(find.text(DirectionsSaveNudge.message), findsOneWidget);
+    await settleToasts(tester);
+  });
+
   testWidgets('a cafe that already has a status is not nudged', (tester) async {
     statuses.showLocal({_cafe.id: CafeStatus.been});
     await pump(tester);

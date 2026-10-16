@@ -102,7 +102,15 @@ class DirectionsSaveNudge {
   void _awaitReturn() {
     if (_nudged.contains(cafeId)) return;
     _stopWaiting();
-    var wentAway = false;
+    // The maps app may already be in front by the time the launch is
+    // reported: the listener below would then never see the trip, and the
+    // fallback would show the nudge (and use it up) in the background.
+    bool away() {
+      final state = WidgetsBinding.instance.lifecycleState;
+      return state != null && state != AppLifecycleState.resumed;
+    }
+
+    var wentAway = away();
     _lifecycle = AppLifecycleListener(
       onHide: () => wentAway = true,
       onPause: () => wentAway = true,
@@ -112,7 +120,7 @@ class DirectionsSaveNudge {
       },
     );
     _timer = Timer(fallbackDelay, () {
-      if (wentAway) return;
+      if (wentAway || away()) return;
       _stopWaiting();
       _show();
     });
