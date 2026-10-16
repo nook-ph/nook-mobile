@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_statuses_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/set_cafe_status_usecase.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// App-wide Been / Want to Try statuses keyed by cafe id, so a status set on
 /// the details page is instantly reflected on any other surface.
@@ -12,17 +13,35 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
   CafeStatusCubit({
     required this.getCafeStatusesUseCase,
     required this.setCafeStatusUseCase,
-  }) : super(const CafeStatusState());
+    bool Function()? hasSession,
+  }) : _hasSession = hasSession ?? _supabaseSession,
+       super(const CafeStatusState());
 
   final GetCafeStatusesUseCase getCafeStatusesUseCase;
   final SetCafeStatusUseCase setCafeStatusUseCase;
+  final bool Function() _hasSession;
+
+  static bool _supabaseSession() {
+    try {
+      return Supabase.instance.client.auth.currentSession != null;
+    } catch (_) {
+      // No Supabase (unit tests): behave as signed in.
+      return true;
+    }
+  }
 
   /// Fetches current statuses for [cafeIds] and merges them into the cache.
   /// Cafes absent from the response are reset to [CafeStatus.none].
   /// Returns whether the read succeeded: a failed one leaves the cache as
   /// it was, including cafes [CafeStatusState.isKnown] from earlier reads.
+  ///
+  /// Without a session nothing is read: the server answers a signed-out
+  /// read with no rows, and caching that as "known: none" would outlive
+  /// the sign-in, so a later write could go over the account's real status
+  /// (leaving Been deletes its rank and note).
   Future<bool> loadFor(List<String> cafeIds) async {
     if (cafeIds.isEmpty) return true;
+    if (!_hasSession()) return false;
     try {
       final fetched = await getCafeStatusesUseCase(cafeIds);
       final statuses = Map<String, CafeStatus>.from(state.statuses);

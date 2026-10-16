@@ -140,6 +140,25 @@ void main() {
     expect(saves.state.statusFor('a'), CafeStatus.wantToTry);
   });
 
+  test('a signed-out status read caches nothing, so "known: none" never '
+      'outlives the sign-in', () async {
+    var signedIn = false;
+    final guarded = CafeStatusCubit(
+      getCafeStatusesUseCase: GetCafeStatusesUseCase(repo),
+      setCafeStatusUseCase: SetCafeStatusUseCase(repo),
+      hasSession: () => signedIn,
+    );
+    addTearDown(guarded.close);
+    repo.server = {'x': CafeStatus.been};
+
+    expect(await guarded.loadFor(['x']), isFalse);
+    expect(guarded.state.isKnown('x'), isFalse);
+
+    signedIn = true;
+    expect(await guarded.loadFor(['x']), isTrue);
+    expect(guarded.state.statusFor('x'), CafeStatus.been);
+  });
+
   test(
     'a failed read writes nothing and keeps the saves for next launch',
     () async {
