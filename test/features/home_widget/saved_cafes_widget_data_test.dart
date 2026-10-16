@@ -200,5 +200,92 @@ void main() {
       expect(json['v'], 1);
       expect((json['frames'] as List).first, containsPair('o', 1));
     });
+    group('turnovers', () {
+      final data = SavedCafesWidgetData.build([
+        WidgetCafe(
+          id: 'a',
+          name: 'A',
+          operatingHours: _every('13:00', '18:00'),
+        ),
+      ], now: wed);
+
+      test('the next redraw is the next opening, closing-soon or closing', () {
+        expect(data.nextUpdateAfter(wed), _manila(14, 13));
+        expect(data.nextUpdateAfter(_manila(14, 12, 59)), _manila(14, 13));
+        // Exactly at a turnover, the one after it.
+        expect(data.nextUpdateAfter(_manila(14, 13)), _manila(14, 17, 30));
+        expect(data.nextUpdateAfter(_manila(14, 17, 45)), _manila(14, 18));
+        expect(data.nextUpdateAfter(_manila(14, 18, 5)), _manila(15, 0));
+      });
+
+      test('after the last frame it is the end of the week, then nothing', () {
+        final lastFrame = data.frames.last.at;
+        expect(data.nextUpdateAfter(lastFrame), data.until);
+        expect(data.nextUpdateAfter(data.until), isNull);
+      });
+
+      test('every update time is in the future of the write and ordered', () {
+        final times = data.updateTimes;
+        for (var i = 0; i < times.length; i++) {
+          expect(times[i].isAfter(wed), isTrue);
+          if (i > 0) expect(times[i].isAfter(times[i - 1]), isTrue);
+        }
+      });
+    });
+
+    group('distances go stale', () {
+      final cafes = [
+        WidgetCafe(
+          id: 'newest',
+          name: 'Newest',
+          operatingHours: _every('08:00', '22:00'),
+          distanceMeters: 5200,
+        ),
+        WidgetCafe(
+          id: 'near',
+          name: 'Near',
+          operatingHours: _every('08:00', '22:00'),
+          distanceMeters: 400,
+        ),
+      ];
+      final data = SavedCafesWidgetData.build(cafes, now: wed);
+      WidgetFrame frameAt(DateTime t) =>
+          data.frames.lastWhere((f) => !f.at.isAfter(t));
+
+      test('within 3 hours of the write: km shown, nearest first', () {
+        final frame = frameAt(wed.add(const Duration(hours: 2, minutes: 59)));
+        expect(frame.rows.map((r) => r.cafeId), ['near', 'newest']);
+        expect(frame.rows.first.line, 'Open until 10 PM · 400\u00A0m');
+      });
+
+      test('from 3 hours on: no km, newest saved first', () {
+        final cutoff = wed.add(SavedCafesWidgetData.distanceFreshFor);
+        expect(data.frames.map((f) => f.at), contains(cutoff));
+        for (final t in [cutoff, _manila(15, 9), _manila(20, 12)]) {
+          final frame = frameAt(t);
+          expect(frame.rows.map((r) => r.cafeId), [
+            'newest',
+            'near',
+          ], reason: '$t');
+          for (final r in frame.rows) {
+            expect(r.line, isNot(contains('m')), reason: r.line);
+          }
+        }
+      });
+
+      test('no distances at all adds no cutoff frame', () {
+        final plain = SavedCafesWidgetData.build([
+          WidgetCafe(
+            id: 'a',
+            name: 'A',
+            operatingHours: _every('08:00', '22:00'),
+          ),
+        ], now: wed);
+        expect(
+          plain.frames.map((f) => f.at),
+          isNot(contains(wed.add(SavedCafesWidgetData.distanceFreshFor))),
+        );
+      });
+    });
   });
 }

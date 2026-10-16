@@ -112,6 +112,12 @@ class SavedCafesWidgetData extends Equatable {
   /// someone with a long list; the widget shows three.
   static const maxCafes = 30;
 
+  /// How long after the write a distance is still worth showing. The
+  /// position is the one the app had when it wrote; a few hours on, the
+  /// person may be across town, so later frames drop the km and order open
+  /// cafes newest saved first instead of nearest first.
+  static const distanceFreshFor = Duration(hours: 3);
+
   final DateTime generatedAt;
   final DateTime until;
 
@@ -127,6 +133,20 @@ class SavedCafesWidgetData extends Equatable {
     until,
   ];
 
+  /// The next moment after [now] when the widget must redraw: the next
+  /// frame's start, else [until] (when it turns to "Open Nook"), else null.
+  ///
+  /// `SavedCafesWidgetProvider.nextTurnover` does the same from the JSON
+  /// each time it draws, and arms one alarm for it with a 10-minute window
+  /// (`AlarmManager.setWindow`, no exact-alarm permission), so the widget
+  /// keeps itself on time with or without the app.
+  DateTime? nextUpdateAfter(DateTime now) {
+    for (final t in updateTimes) {
+      if (t.isAfter(now)) return t;
+    }
+    return null;
+  }
+
   /// [cafes] are the Want to try list, newest first.
   factory SavedCafesWidgetData.build(
     List<WidgetCafe> cafes, {
@@ -141,13 +161,22 @@ class SavedCafesWidgetData extends Equatable {
       times.addAll(_transitions(cafe.operatingHours, start, until));
     }
     times.addAll(_manilaMidnights(start, until));
+    final distancesUntil = start.add(distanceFreshFor);
+    if (considered.any((c) => c.distanceMeters != null)) {
+      // A frame where the km come off, even if no cafe changes then.
+      times.add(distancesUntil);
+    }
     final sorted =
         times.where((t) => !t.isBefore(start) && t.isBefore(until)).toList()
           ..sort();
 
     final frames = <WidgetFrame>[];
     for (final t in sorted) {
-      final frame = frameAt(considered, t);
+      final frame = frameAt(
+        considered,
+        t,
+        withDistances: t.isBefore(distancesUntil),
+      );
       if (frames.isNotEmpty && frames.last.sameAs(frame)) continue;
       frames.add(frame);
     }
@@ -170,7 +199,13 @@ class SavedCafesWidgetData extends Equatable {
   /// The rows at [at]: open cafes first (nearest first when distances are
   /// known, else newest saved), then closed ones by how soon they open,
   /// then those whose hours we do not know. [cafes] newest first.
-  static WidgetFrame frameAt(List<WidgetCafe> cafes, DateTime at) {
+  /// Without [withDistances] the km are ignored: no suffix, no nearest
+  /// first.
+  static WidgetFrame frameAt(
+    List<WidgetCafe> cafes,
+    DateTime at, {
+    bool withDistances = true,
+  }) {
     final entries = <_Entry>[];
     for (var i = 0; i < cafes.length; i++) {
       final cafe = cafes[i];
@@ -178,6 +213,7 @@ class SavedCafesWidgetData extends Equatable {
         _Entry(
           index: i,
           cafe: cafe,
+          distance: withDistances ? cafe.distanceMeters : null,
           status: CafeOpenStatus.resolve(cafe.operatingHours, now: at),
         ),
       );
@@ -190,7 +226,7 @@ class SavedCafesWidgetData extends Equatable {
         for (final e in entries.take(maxRows))
           WidgetRow(
             cafeId: e.cafe.id,
-            line: lineFor(e.status, e.cafe.distanceMeters),
+            line: lineFor(e.status, e.distance),
             tone: _tone(e.status.state),
           ),
       ],
@@ -252,8 +288,8 @@ class SavedCafesWidgetData extends Equatable {
     final rank = _rank(a.status).compareTo(_rank(b.status));
     if (rank != 0) return rank;
     if (a.status.isOpen) {
-      final da = a.cafe.distanceMeters;
-      final db = b.cafe.distanceMeters;
+      final da = a.distance;
+      final db = b.distance;
       if (da != null && db != null && da != db) return da.compareTo(db);
       if (da != null && db == null) return -1;
       if (da == null && db != null) return 1;
@@ -278,10 +314,18 @@ class SavedCafesWidgetData extends Equatable {
 }
 
 class _Entry {
-  const _Entry({required this.index, required this.cafe, required this.status});
+  const _Entry({
+    required this.index,
+    required this.cafe,
+    required this.distance,
+    required this.status,
+  });
 
   final int index;
   final WidgetCafe cafe;
+
+  /// The cafe's distance if this frame still uses it.
+  final double? distance;
   final CafeOpenStatus status;
 }
 
