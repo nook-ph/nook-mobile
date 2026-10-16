@@ -22,6 +22,8 @@ Future<bool> showConfirmSheet(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: const Color(0x66000000),
+    // TalkBack reads the scrim by this name ("Scrim" by default).
+    barrierLabel: 'Close',
     builder: (_) => ConfirmSheet(
       title: title,
       message: message,
@@ -95,14 +97,14 @@ class ConfirmSheet extends StatelessWidget {
           ],
           // The copy block's 12 bottom padding + 8 sheet gap.
           const SizedBox(height: 20),
-          _SheetButton(
+          SheetButton(
             label: confirmLabel,
             fill: destructive ? StateStyles.danger : StateStyles.brand,
             color: StateStyles.surface,
             onTap: () => Navigator.of(context).pop(true),
           ),
           const SizedBox(height: 8),
-          _SheetButton(
+          SheetButton(
             label: cancelLabel,
             color: StateStyles.ink,
             onTap: () => Navigator.of(context).pop(false),
@@ -113,38 +115,47 @@ class ConfirmSheet extends StatelessWidget {
   }
 }
 
-/// 48 high full-width pill with a Medium 14 label; no fill means text only.
-class _SheetButton extends StatelessWidget {
-  const _SheetButton({
+/// The project's sheet pill: 48 high (taller only when the text is scaled
+/// up), full width of its slot, a Medium 14 label. [fill] null means text
+/// only; [bordered] adds the 1px hairline for a quiet secondary. A null
+/// [onTap] disables it; pass the disabled colors yourself.
+class SheetButton extends StatelessWidget {
+  const SheetButton({
+    super.key,
     required this.label,
     required this.color,
     required this.onTap,
     this.fill,
+    this.bordered = false,
   });
 
   final String label;
   final Color color;
   final Color? fill;
-  final VoidCallback onTap;
+  final bool bordered;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
+      enabled: onTap != null,
       child: AdaptiveTap(
         onTap: onTap,
         borderRadius: BorderRadius.circular(100),
         child: Container(
-          height: 48,
+          constraints: const BoxConstraints(minHeight: 48),
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             color: fill,
             borderRadius: BorderRadius.circular(100),
+            border: bordered ? Border.all(color: StateStyles.border) : null,
           ),
           child: Text(
             label,
             maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: StateStyles.text(14, FontWeight.w500, color),
           ),
         ),
