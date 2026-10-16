@@ -190,9 +190,13 @@ class EngagementScore {
     if (!context.mounted || _asking) return SignUpAskResult.notShown;
     _asking = true;
     try {
-      final before = await read();
-      final shown = before.asked(_now(), savesCount: savesCount);
-      await _locked(() => _save(shown));
+      // One locked step, so points recorded meanwhile are not written over.
+      final (before, shown) = await _locked(() async {
+        final before = await _store.read();
+        final shown = before.asked(_now(), savesCount: savesCount);
+        await _save(shown);
+        return (before, shown);
+      });
       _budget.spend(SessionAskKind.signUpAsk);
       final props = {
         'trigger': trigger,
