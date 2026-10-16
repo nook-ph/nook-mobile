@@ -2,4 +2,6 @@
 <resources>
     <dimen name="widget_radius">16dp</dimen>
     <dimen name="widget_padding">12dp</dimen>
+    <!-- The 48dp header carries its own top space. -->
+    <dimen name="widget_padding_top">4dp</dimen>
 </resources>

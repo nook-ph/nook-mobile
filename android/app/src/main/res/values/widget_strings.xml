@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="saved_cafes_widget_label">Your saved cafes</string>
-    <string name="saved_cafes_widget_description">Your Want to try cafes that are open now</string>
+    <string name="saved_cafes_widget_description">Your Want to try cafes and when they\'re open</string>
     <string name="saved_cafes_widget_title">Your saved cafes</string>
-    <string name="saved_cafes_widget_title_small">Want to try</string>
+    <string name="saved_cafes_widget_title_short">Saved cafes</string>
     <string name="saved_cafes_widget_empty">Save cafes to see them here</string>
     <string name="saved_cafes_widget_empty_action">Find a cafe</string>
     <string name="saved_cafes_widget_stale">Open Nook to update your cafes</string>

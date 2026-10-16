@@ -14,9 +14,6 @@ abstract class HomeWidgetPlatform {
   /// Redraws every copy of the widget now.
   Future<void> redraw();
 
-  /// Replaces the scheduled redraws with [times].
-  Future<void> schedule(List<DateTime> times);
-
   Future<bool> canPin();
 
   /// Asks the launcher to place the widget (it shows its own dialog).
@@ -56,14 +53,6 @@ class HomeWidgetPluginPlatform implements HomeWidgetPlatform {
   @override
   Future<void> redraw() async {
     await HomeWidget.updateWidget(qualifiedAndroidName: _qualified);
-  }
-
-  @override
-  Future<void> schedule(List<DateTime> times) async {
-    await HomeWidget.scheduleWidgetUpdates(
-      times,
-      qualifiedAndroidName: _qualified,
-    );
   }
 
   @override

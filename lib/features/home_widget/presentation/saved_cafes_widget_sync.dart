@@ -35,8 +35,9 @@ final ValueNotifier<List<WidgetCafe>?> savedCafesWidgetFeed = ValueNotifier(
 /// on sign-in and sign-out, and when a position arrives (for distances; it
 /// never asks for one).
 ///
-/// Each write lays out the coming week ([SavedCafesWidgetData]) and
-/// schedules a redraw for every moment a saved cafe opens or closes, so
+/// Each write lays out the coming week ([SavedCafesWidgetData]) and redraws
+/// the widget, which then arms its own alarm for the next moment a saved
+/// cafe opens or closes (`SavedCafesWidgetProvider.armNextTurnover`), so
 /// "open now" stays true while the app is closed.
 class SavedCafesWidgetSync extends StatefulWidget {
   const SavedCafesWidgetSync({
@@ -205,7 +206,6 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
     try {
       final platform = widget.platform;
       await platform.write(SavedCafesWidgetData.storageKey, json);
-      await platform.schedule(data.isEmpty ? const [] : data.updateTimes);
       await platform.redraw();
     } catch (e) {
       _lastJson = null;

@@ -5,10 +5,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Re-arms the home-screen widget's scheduled turnovers after a reboot
-         (HomeWidgetScheduledUpdateReceiver below). -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-
     <queries>
         <intent>
             <action android:name="android.intent.action.VIEW" />
@@ -88,18 +84,6 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/saved_cafes_widget_info" />
-        </receiver>
-
-        <!-- Fires the widget updates the app schedules for when a saved cafe
-             opens or closes; re-arms them after a reboot or an app update. -->
-        <receiver
-            android:name="es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
-            </intent-filter>
         </receiver>
 
         <!-- post hog -->

@@ -5,7 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
-    android:padding="@dimen/widget_padding">
+    android:paddingStart="@dimen/widget_padding"
+    android:paddingTop="@dimen/widget_padding_top"
+    android:paddingEnd="@dimen/widget_padding"
+    android:paddingBottom="@dimen/widget_padding">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,7 +21,7 @@
             android:layout_height="wrap_content"
             android:background="@drawable/widget_row_background"
             android:gravity="center_vertical"
-            android:minHeight="32dp"
+            android:minHeight="48dp"
             android:orientation="horizontal"
             android:paddingStart="6dp"
             android:paddingEnd="6dp">

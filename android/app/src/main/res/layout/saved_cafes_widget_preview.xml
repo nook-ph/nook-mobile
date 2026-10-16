@@ -5,7 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
-    android:padding="@dimen/widget_padding">
+    android:paddingStart="@dimen/widget_padding"
+    android:paddingTop="@dimen/widget_padding_top"
+    android:paddingEnd="@dimen/widget_padding"
+    android:paddingBottom="@dimen/widget_padding">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -18,7 +21,7 @@
             android:layout_height="wrap_content"
             android:background="@drawable/widget_row_background"
             android:gravity="center_vertical"
-            android:minHeight="32dp"
+            android:minHeight="48dp"
             android:orientation="horizontal"
             android:paddingStart="6dp"
             android:paddingEnd="6dp">
@@ -41,7 +44,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:maxLines="1"
-                android:text="2 open now"
+                android:text="2 open"
                 android:textColor="@color/widget_muted"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -98,7 +101,7 @@
                         android:layout_weight="1"
                         android:ellipsize="end"
                         android:maxLines="1"
-                        android:text="Open until 9 PM · 1.2 km"
+                        android:text="Open until 9 PM"
                         android:textColor="@color/widget_muted"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -148,7 +151,7 @@
                         android:layout_weight="1"
                         android:ellipsize="end"
                         android:maxLines="1"
-                        android:text="Open until 10 PM · 2.4 km"
+                        android:text="Open until 10 PM"
                         android:textColor="@color/widget_muted"
                         android:textSize="12sp" />
                 </LinearLayout>
