@@ -35,8 +35,9 @@ Widget _app() {
   return MaterialApp.router(routerConfig: router);
 }
 
-int _currentTab(WidgetTester tester) =>
-    tester.widget<BottomNav>(find.byType(BottomNav)).currentIndex;
+int _currentTab(WidgetTester tester) => tester
+    .widget<BottomNav>(find.byType(BottomNav, skipOffstage: false))
+    .currentIndex;
 
 /// A page pushed over the shell with Navigator, as Settings is.
 void _pushSettings() {
@@ -106,33 +107,107 @@ void main() {
     expect(_currentTab(tester), 0);
   });
 
-  testWidgets('a page refusing Back while it saves is not torn down', (
-    tester,
-  ) async {
+  testWidgets('a page refusing Back while it saves is not torn down, and '
+      'the cafe waits until it closes itself', (tester) async {
     RecordingAnalytics.install(addTearDown);
     await tester.pumpWidget(_app());
-    Navigator.of(_shellKey.currentContext!).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const PopScope(
-          canPop: false,
-          child: Scaffold(body: Text('saving page')),
-        ),
-      ),
-    );
+    final busy = ValueNotifier(true);
+    final busyContext = _pushBusyPage(busy);
     _pushSettings();
     await tester.pumpAndSettle();
 
     WidgetLinks.acceptFromPlatform(Uri.parse('nook://cafe/abc?via=widget'));
     await _frame(tester);
 
-    // Settings above it closes; the busy page stays, the cafe on top.
+    // Settings above it closes; the busy page stays on top, nothing over it
+    // that its own pop would close instead of itself.
+    expect(find.text('settings page'), findsNothing);
+    expect(find.text('saving page'), findsOneWidget);
+    expect(find.text('cafe abc'), findsNothing);
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('cafe abc'), findsNothing);
+
+    // The save ends: the page lets go and closes itself.
+    busy.value = false;
+    await tester.pump();
+    Navigator.of(busyContext()).pop();
+    await tester.pumpAndSettle();
+    expect(find.text('saving page'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
     expect(find.text('cafe abc'), findsOneWidget);
+    expect(_currentTab(tester), 0);
     final navigator = tester.state<NavigatorState>(
       find.byType(Navigator).first,
     );
     navigator.pop();
     await tester.pumpAndSettle();
-    expect(find.text('saving page'), findsOneWidget);
-    expect(find.text('settings page'), findsNothing);
+    expect(find.text('home page'), findsOneWidget);
   });
+
+  testWidgets('a header tap over a busy page opens Saved once it lets go', (
+    tester,
+  ) async {
+    RecordingAnalytics.install(addTearDown);
+    await tester.pumpWidget(_app());
+    final busy = ValueNotifier(true);
+    _pushBusyPage(busy);
+    await tester.pumpAndSettle();
+
+    WidgetLinks.acceptFromPlatform(Uri.parse('nook://saved?via=widget'));
+    await _frame(tester);
+    expect(find.text('saving page'), findsOneWidget);
+    expect(_currentTab(tester), 0, reason: 'no tab switch hidden under it');
+
+    busy.value = false;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('saving page'), findsNothing);
+    expect(_currentTab(tester), MainShell.savedTab);
+  });
+
+  testWidgets('a tap waiting on a busy page is dropped after a minute', (
+    tester,
+  ) async {
+    RecordingAnalytics.install(addTearDown);
+    await tester.pumpWidget(_app());
+    final busy = ValueNotifier(true);
+    _pushBusyPage(busy);
+    await tester.pumpAndSettle();
+
+    WidgetLinks.acceptFromPlatform(Uri.parse('nook://cafe/abc?via=widget'));
+    await _frame(tester);
+    await tester.pump(const Duration(minutes: 1, seconds: 1));
+
+    busy.value = false;
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('saving page'), findsOneWidget);
+    expect(find.text('cafe abc'), findsNothing);
+  });
+}
+
+/// A page that holds Back while [busy], as Edit profile does while saving.
+/// Returns its context, for the pop it makes when the save ends.
+BuildContext Function() _pushBusyPage(ValueNotifier<bool> busy) {
+  late BuildContext pageContext;
+  Navigator.of(_shellKey.currentContext!).push(
+    MaterialPageRoute<void>(
+      builder: (_) => ValueListenableBuilder<bool>(
+        valueListenable: busy,
+        builder: (context, value, _) {
+          pageContext = context;
+          return PopScope(
+            canPop: !value,
+            child: const Scaffold(body: Text('saving page')),
+          );
+        },
+      ),
+    ),
+  );
+  return () => pageContext;
 }

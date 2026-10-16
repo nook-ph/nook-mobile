@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -135,15 +137,27 @@ class _MainShellState extends State<MainShell> {
   /// First back to the shell, like [TabRequests]: the router's `/` keeps
   /// its page, so pages pushed over it with Navigator (Settings, a cafe
   /// from a list) and sheets would stay on top of the tab. A cafe the same
-  /// tap already opened closes too, so it is never stacked twice. A page
-  /// that refuses Back (a PopScope while it saves) is left open with what
-  /// is under it, and the cafe goes on top of it: popping it would drop the
-  /// save half-done.
+  /// tap already opened closes too, so it is never stacked twice.
+  ///
+  /// A page that refuses Back (a PopScope while it saves) is not popped:
+  /// that would drop the save half-done. Nothing goes on top of it either,
+  /// since its own `Navigator.pop` when the save ends would close the cafe
+  /// instead of itself and leave it stuck open. The tap waits until the
+  /// page lets go (or closes itself), up to [_waitForBusyPage].
   void _openWidgetLink(BuildContext context, WidgetLink link) {
-    Navigator.of(context).popUntil(
-      (route) =>
-          route.isFirst || route.popDisposition == RoutePopDisposition.doNotPop,
-    );
+    _cancelWaitingLink();
+    Route<dynamic>? stoppedAt;
+    Navigator.of(context).popUntil((route) {
+      final stop =
+          route.isFirst || route.popDisposition == RoutePopDisposition.doNotPop;
+      if (stop) stoppedAt = route;
+      return stop;
+    });
+    final busy = stoppedAt;
+    if (busy != null && !busy.isFirst) {
+      _waitForPage(context, link, busy);
+      return;
+    }
     final location = link.location;
     if (location != null) {
       context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
@@ -157,6 +171,48 @@ class _MainShellState extends State<MainShell> {
             : 0,
       ),
     );
+  }
+
+  /// How long a widget tap waits for a busy page; past it the tap would
+  /// come out of nowhere.
+  static const _waitForBusyPage = Duration(minutes: 1);
+  static const _busyPageCheck = Duration(milliseconds: 250);
+
+  Timer? _waitingLink;
+
+  void _cancelWaitingLink() {
+    _waitingLink?.cancel();
+    _waitingLink = null;
+  }
+
+  /// Checks [busy] until it may pop or is gone, then opens [link]. Only
+  /// [busy] is checked, not the stack: a dialog it shows when the save
+  /// fails is not closed while it still holds Back.
+  void _waitForPage(
+    BuildContext context,
+    WidgetLink link,
+    Route<dynamic> busy,
+  ) {
+    _waitingLink = Timer.periodic(_busyPageCheck, (timer) {
+      if (!mounted ||
+          !context.mounted ||
+          timer.tick * _busyPageCheck.inMilliseconds >
+              _waitForBusyPage.inMilliseconds) {
+        _cancelWaitingLink();
+        return;
+      }
+      if (busy.isActive &&
+          busy.popDisposition == RoutePopDisposition.doNotPop) {
+        return;
+      }
+      _openWidgetLink(context, link);
+    });
+  }
+
+  @override
+  void dispose() {
+    _cancelWaitingLink();
+    super.dispose();
   }
 
   Widget _tabs() {
