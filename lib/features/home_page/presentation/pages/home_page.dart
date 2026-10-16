@@ -98,9 +98,14 @@ class HomePage extends StatelessWidget {
                   context.read<CafeStatusCubit>().loadFor(ids.toList());
                 }
 
-                final firstCover = state.featuredCafes.isEmpty
+                // The carousel's first card: hand-picked House picks when
+                // the layout has them.
+                final picks =
+                    state.layoutShelves[HomeBuiltin.featured.id] ?? const [];
+                final featured = picks.isNotEmpty ? picks : state.featuredCafes;
+                final firstCover = featured.isEmpty
                     ? null
-                    : state.featuredCafes.first.coverImage?.trim();
+                    : featured.first.coverImage?.trim();
                 if (firstCover != null && firstCover.isNotEmpty) {
                   final url = firstCover;
                   precacheImage(
@@ -340,13 +345,17 @@ class HomeContent extends StatelessWidget {
     // subtitles: the home page reads cleaner without a second line.
     final children = <Widget>[];
     var hasShelf = false;
+    // Keyed by shelf: a layout or pin that moves a shelf keeps its state
+    // (Your places loads its own cafes) instead of rebuilding it.
+    late HomeSlot current;
     void add(Widget section) {
       if (hasShelf) children.add(const SizedBox(height: 28));
-      children.add(section);
+      children.add(KeyedSubtree(key: ValueKey('$current'), child: section));
       hasShelf = true;
     }
 
     for (final slot in slots) {
+      current = slot;
       final custom = slot.custom;
       if (custom != null) {
         final loaded = state.layoutShelves[custom.id] ?? const [];
@@ -375,6 +384,7 @@ class HomeContent extends StatelessWidget {
         // Your places carries its own gap, so an empty row leaves none.
         children.add(
           YourPlacesRail(
+            key: const ValueKey(YourPlacesRail.railId),
             isSignedIn: isSignedIn,
             title: title,
             padding: hasShelf
