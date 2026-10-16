@@ -110,7 +110,11 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
     // does not stack on it then. After that it is a standing row: counting
     // it every launch would keep the survey away for good from anyone who
     // just leaves it there.
-    final first = await _store.claimFirstOffer().catchError((_) => false);
+    // Behind a prompt that already took the run (the survey), the first
+    // offer is not spent: the next launch counts it.
+    final first =
+        !SessionPrompts.anyShown &&
+        await _store.claimFirstOffer().catchError((_) => false);
     _tracker.countsAsPrompt = first;
     if (first) SessionPrompts.noteShown();
     if (mounted) setState(() => _visible = true);

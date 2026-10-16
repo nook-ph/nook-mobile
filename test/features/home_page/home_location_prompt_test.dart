@@ -212,5 +212,20 @@ void main() {
       await tester.pumpAndSettle();
       expect(SessionPrompts.anyShown, isTrue);
     });
+
+    testWidgets('behind a prompt that took the run, the first offer is kept', (
+      tester,
+    ) async {
+      SessionPrompts.noteShown();
+      await pump(
+        tester,
+        onGranted: () {},
+        confirm: (_) async => false,
+        request: () async => LocationPermission.whileInUse,
+      );
+      expect(find.text('See cafes near you'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('homeLocationPromptOffered'), isNull);
+    });
   });
 }
