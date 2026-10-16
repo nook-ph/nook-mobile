@@ -255,8 +255,11 @@ class _MapPageState extends State<MapPage>
       // The recenter button's path: ask, then centre on the phone and reload,
       // so "Nearby" sorts and the rows measure from the position just
       // granted rather than from the none they started with.
-      await _requestLocationAccessUnguarded(prompt: prompt);
+      final outcome = await _requestLocationAccessUnguarded(prompt: prompt);
       if (!mounted) return;
+      // A refused prompt already got its toast, with Settings: replacing it
+      // would take that way out away.
+      if (outcome.result == 'prompt_denied') return;
       final answer = await Geolocator.checkPermission();
       if (!mounted) return;
       if (answer != LocationPermission.whileInUse &&
@@ -1370,11 +1373,14 @@ class _MapPageState extends State<MapPage>
       result: result,
     );
 
-    // Location Services is the phone-wide switch: no app permission helps
-    // while it is off, so say so first, with the way to turn it on.
-    if (!serviceEnabled) {
+    // Location Services is the phone-wide switch: with the permission
+    // granted, nothing else helps while it is off, so say so with the way
+    // to turn it on. Without the permission the system prompt comes first
+    // (it can be granted with Services off, and the first-visit ask is used
+    // only once).
+    Future<_RecenterOutcome> servicesOff({required bool track}) async {
       if (!mounted) return outcome('services_off');
-      tracker.shown();
+      if (track) tracker.shown();
       final open = await showMapLocationDeniedDialog(
         context,
         title: 'Location Services are off',
@@ -1382,13 +1388,14 @@ class _MapPageState extends State<MapPage>
             'Turn on Location Services in Settings to center the map on you '
             'and sort cafes by distance.',
       );
-      tracker.result('unavailable');
+      if (track) tracker.result('unavailable');
       if (open) await Geolocator.openLocationSettings();
       return outcome(open ? 'services_off_settings' : 'services_off');
     }
 
     if (permission == LocationPermission.whileInUse ||
         permission == LocationPermission.always) {
+      if (!serviceEnabled) return servicesOff(track: true);
       // Permission granted somewhere else (search, a crawl, Settings) never
       // went through the branch below, so the location layer is still off;
       // tracking does nothing without it.
@@ -1417,6 +1424,10 @@ class _MapPageState extends State<MapPage>
     if (updated == LocationPermission.whileInUse ||
         updated == LocationPermission.always) {
       setState(() => _myLocationEnabled = true);
+      // The prompt was the tracked step; this dialog follows it.
+      if (!serviceEnabled && !await Geolocator.isLocationServiceEnabled()) {
+        return servicesOff(track: false);
+      }
       await _enterTrackingMode();
       if (!mounted) return outcome('granted_tracking');
       // The filter in force now, not the one captured when the app
