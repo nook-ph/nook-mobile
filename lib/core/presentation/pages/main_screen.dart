@@ -131,16 +131,17 @@ class _MainShellState extends State<MainShell> {
 
   /// A tap on the home-screen widget: a cafe opens over Home, the header
   /// opens Saved, the empty state Home.
+  ///
+  /// First back to the shell, like [TabRequests]: the router's `/` keeps
+  /// its page, so pages pushed over it with Navigator (Settings, a cafe
+  /// from a list) and sheets would stay on top of the tab. A cafe the same
+  /// tap already opened closes too, so it is never stacked twice.
   void _openWidgetLink(BuildContext context, WidgetLink link) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
     final location = link.location;
     if (location != null) {
       context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
-      // Already on top (the same tap reopened before its stack was
-      // replaced): do not stack the cafe twice.
-      final top = GoRouter.of(
-        context,
-      ).routerDelegate.currentConfiguration.uri.path;
-      if (top != location) context.push(location);
+      context.push(location);
       return;
     }
     context.read<NavigationBloc>().add(
