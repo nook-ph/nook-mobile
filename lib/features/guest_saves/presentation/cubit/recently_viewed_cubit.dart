@@ -19,9 +19,13 @@ class RecentlyViewedCubit extends Cubit<List<RecentlyViewedCafe>> {
 
   Future<void> load() => _loading ??= _load();
 
+  /// Bumped by [clear], so a read that was in flight then is not shown.
+  int _generation = 0;
+
   Future<void> _load() async {
+    final generation = _generation;
     final entries = await _store.read();
-    if (isClosed) return;
+    if (isClosed || generation != _generation) return;
     // A view recorded while the read was in flight stays first.
     final ids = state.map((e) => e.cafe.id).toSet();
     emit(
@@ -51,6 +55,7 @@ class RecentlyViewedCubit extends Cubit<List<RecentlyViewedCafe>> {
 
   /// Sign-out: what one person looked at is not shown to the next.
   Future<void> clear() async {
+    _generation++;
     emit(const []);
     try {
       await _store.write(const []);
