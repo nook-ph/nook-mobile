@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/analytics/auth_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
@@ -43,6 +44,11 @@ Future<void> continueSignInFromSheet(
     return;
   }
 
+  // A page pushed straight on the Navigator (a cafe opened from a card) is
+  // not in the router's stack: going Home and back would pop it and push
+  // whatever the router last knew, a different page. The guest is already
+  // on the right page, so stay there instead.
+  final route = ModalRoute.of(context);
   AuthReturn.rememberCurrent(router);
   bloc.add(
     choice == SignInChoice.apple
@@ -65,7 +71,15 @@ Future<void> continueSignInFromSheet(
 
   switch (outcome) {
     case AuthAuthenticated():
-      finishSignInWith(router);
+      if (route == null || route.settings is Page || !route.isActive) {
+        finishSignInWith(router);
+      } else {
+        AuthReturn.take();
+        logAppEvent(
+          'sign_in_finished',
+          properties: {'returned_to_origin': true},
+        );
+      }
     case AuthNeedsUsername():
       // The router holds the account on /username-setup, which finishes
       // with [finishSignIn] and so returns here.
