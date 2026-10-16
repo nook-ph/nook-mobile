@@ -19,6 +19,7 @@ import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
 import org.json.JSONObject
 import java.util.Date
+import java.util.TimeZone
 
 /**
  * "Your saved cafes": the Want to try cafes that are open now.
@@ -53,7 +54,10 @@ class SavedCafesWidgetProvider : HomeWidgetProvider() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != ACTION_TURNOVER) {
+        // A turnover, or something that moves "now" or drops the alarm:
+        // the clock or zone was changed, or the app was updated. Redraw and
+        // arm again rather than wait up to 30 minutes for updatePeriodMillis.
+        if (intent.action !in REDRAW_ACTIONS) {
             super.onReceive(context, intent)
             return
         }
@@ -84,7 +88,9 @@ class SavedCafesWidgetProvider : HomeWidgetProvider() {
             alarms.cancel(intent)
             return
         }
-        alarms.setWindow(AlarmManager.RTC_WAKEUP, next, TURNOVER_WINDOW_MS, intent)
+        // RTC, not RTC_WAKEUP: no one sees the widget while the screen is
+        // off, and a due alarm is delivered as soon as the phone wakes.
+        alarms.setWindow(AlarmManager.RTC, next, TURNOVER_WINDOW_MS, intent)
     }
 
     private fun alarmManager(context: Context) =
@@ -155,7 +161,10 @@ class SavedCafesWidgetProvider : HomeWidgetProvider() {
         val count = if (content.rows.isEmpty()) {
             ""
         } else {
-            val time = DateFormat.getTimeFormat(context).format(Date(now))
+            // In Manila, like every time on the rows ("Open until 9 PM").
+            val time = DateFormat.getTimeFormat(context)
+                .apply { timeZone = MANILA }
+                .format(Date(now))
             val open = if (content.openCount == 0) "None open" else "${content.openCount} open"
             "$open · $time"
         }
@@ -280,6 +289,13 @@ class SavedCafesWidgetProvider : HomeWidgetProvider() {
 
         private const val ACTION_TURNOVER = "app.nookph.widget.SAVED_CAFES_TURNOVER"
         private const val TURNOVER_REQUEST_CODE = 4101
+        private val REDRAW_ACTIONS = setOf(
+            ACTION_TURNOVER,
+            Intent.ACTION_TIME_CHANGED,
+            Intent.ACTION_TIMEZONE_CHANGED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+        )
+        private val MANILA: TimeZone = TimeZone.getTimeZone("Asia/Manila")
         private const val TURNOVER_WINDOW_MS = 10 * 60 * 1000L
 
         /** Above Android's "Large" font size (1.15); "Largest" is 1.3, and 14+ goes to 2.0. */
