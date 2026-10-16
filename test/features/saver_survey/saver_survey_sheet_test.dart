@@ -35,6 +35,8 @@ void main() {
     SaverSurveyFollowUp? Function(SaverSurveyAnswer)? followUp,
     Future<SaverSurveyFollowUp?> Function()? onUseLocation,
     Future<SaverSurveyFollowUp?>? pending,
+    String cafeName = 'Brew Szn',
+    Object? sendError,
   }) async {
     closed = false;
     result = null;
@@ -54,11 +56,12 @@ void main() {
                   result = await showSaverSurveySheet(
                     context,
                     sheet: SaverSurveySheet(
-                      cafeName: 'Brew Szn',
+                      cafeName: cafeName,
                       days: 9,
                       now: () => now,
                       onSend: (answer) async {
                         sent.add(answer);
+                        if (sendError != null) throw sendError;
                         if (pending != null) return pending;
                         return followUp?.call(answer);
                       },
@@ -327,6 +330,34 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(shownCards, isEmpty);
+    expect(result, isNull);
+  });
+
+  testWidgets('bolds the cafe name, not an earlier match in the line', (
+    tester,
+  ) async {
+    await open(tester, cafeName: 'You');
+    final rich = tester.widget<Text>(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Text &&
+            (w.textSpan?.toPlainText().startsWith('You saved You') ?? false),
+      ),
+    );
+    final spans = (rich.textSpan! as TextSpan).children!.cast<TextSpan>();
+    expect(spans.map((s) => s.text), ['You saved ', 'You', isNotEmpty]);
+    expect(spans[1].style?.fontWeight, FontWeight.w600);
+  });
+
+  testWidgets('a failing Send closes the sheet instead of sticking', (
+    tester,
+  ) async {
+    await open(tester, sendError: StateError('boom'));
+    await tester.tap(row(SaverSurveyCopy.unsureOpen.label));
+    await tester.pump();
+    await tester.tap(send());
+    await tester.pumpAndSettle();
+    expect(closed, isTrue);
     expect(result, isNull);
   });
 }

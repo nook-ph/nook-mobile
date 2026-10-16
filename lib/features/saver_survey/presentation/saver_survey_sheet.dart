@@ -116,7 +116,12 @@ class _SaverSurveySheetState extends State<SaverSurveySheet> {
           if (_picked.contains(r.id)) r.id,
       ],
     );
-    final followUp = await widget.onSend(answer);
+    SaverSurveyFollowUp? followUp;
+    try {
+      followUp = await widget.onSend(answer);
+    } catch (_) {
+      followUp = null; // Closes with the thanks toast, never stuck busy.
+    }
     if (!mounted) return;
     if (followUp == null) {
       Navigator.of(context).pop();
@@ -133,7 +138,12 @@ class _SaverSurveySheetState extends State<SaverSurveySheet> {
     final ask = widget.onUseLocation;
     if (ask == null || _busy) return;
     setState(() => _busy = true);
-    final next = await ask();
+    SaverSurveyFollowUp? next;
+    try {
+      next = await ask();
+    } catch (_) {
+      next = null;
+    }
     if (!mounted) return;
     if (next == null) {
       Navigator.of(context).pop();
@@ -327,7 +337,11 @@ class _Message extends StatelessWidget {
   Widget build(BuildContext context) {
     final base = StateStyles.text(14, FontWeight.w400, StateStyles.ink);
     final name = bold?.trim();
-    final at = (name == null || name.isEmpty) ? -1 : text.indexOf(name);
+    // The name follows "You saved ": a name like "You" must not match there.
+    final from = text.startsWith(SaverSurveyCopy.savedPrefix)
+        ? SaverSurveyCopy.savedPrefix.length
+        : 0;
+    final at = (name == null || name.isEmpty) ? -1 : text.indexOf(name, from);
     if (at < 0) return Text(text, style: base);
     return Text.rich(
       TextSpan(

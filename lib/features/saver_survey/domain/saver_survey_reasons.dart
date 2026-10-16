@@ -54,11 +54,14 @@ abstract final class SaverSurveyCopy {
   /// The line under the title. Names the cafe and how long ago it was saved
   /// ([cafeName] null: "a cafe"); no guilt, and "No rush" makes not going a
   /// fine answer.
+  /// What [message] starts with, before the cafe's name.
+  static const savedPrefix = 'You saved ';
+
   static String message({String? cafeName, required int days}) {
     final name = (cafeName == null || cafeName.trim().isEmpty)
         ? 'a cafe'
         : cafeName.trim();
-    return 'You saved $name ${ago(days)}. '
+    return '$savedPrefix$name ${ago(days)}. '
         "No rush — if something's in the way, pick up to two.";
   }
 
