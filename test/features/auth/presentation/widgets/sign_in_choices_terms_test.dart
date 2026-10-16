@@ -4,7 +4,21 @@ import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// A store whose first read has not answered yet.
+class _SlowStore extends TermsAcceptanceStore {
+  final answer = Completer<bool>();
+  bool marked = false;
+
+  @override
+  Future<bool> hasAccepted(String version) => answer.future;
+
+  @override
+  Future<void> markAccepted(String version) async => marked = true;
+}
 
 void main() {
   late List<SignInChoice> chosen;
@@ -41,6 +55,30 @@ void main() {
     expect(find.text(AuthProviderButton.agreeGoogleLabel), findsOneWidget);
     expect(find.textContaining('Tick the box'), findsNothing);
     expect(await store.hasAccepted(AppConstants.termsVersion), isFalse);
+  });
+
+  testWidgets('taps before the terms store answers agree to nothing', (
+    tester,
+  ) async {
+    final slow = _SlowStore();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: SheetSignInChoices(onChoice: chosen.add, termsStore: slow),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text(AuthProviderButton.googleLabel));
+    await tester.pump();
+    await tester.tap(find.byType(AuthProviderButton).last);
+    await tester.pump();
+
+    expect(chosen, isEmpty);
+    expect(slow.marked, isFalse);
+    slow.answer.complete(false);
+    await tester.pumpAndSettle();
   });
 
   testWidgets('"Agree and continue" agrees and signs in, in one tap', (

@@ -188,6 +188,9 @@ class _SheetSignInChoicesState extends State<SheetSignInChoices> {
   }
 
   void _provider(SignInChoice choice) {
+    // Not known yet whether the terms were accepted: the terms are not on
+    // screen, so a tap must not count as agreeing to them.
+    if (_alreadyAgreed == null) return;
     if (!_agreed && _confirming != choice) {
       setState(() => _confirming = choice);
       return;
