@@ -143,7 +143,8 @@ class _MainShellState extends State<MainShell> {
   /// that would drop the save half-done. Nothing goes on top of it either,
   /// since its own `Navigator.pop` when the save ends would close the cafe
   /// instead of itself and leave it stuck open. The tap waits until the
-  /// page lets go (or closes itself), up to [_waitForBusyPage].
+  /// page closes itself, up to [_waitForBusyPage]; if it lets go of Back
+  /// but stays open, the tap is dropped.
   void _openWidgetLink(BuildContext context, WidgetLink link) {
     _cancelWaitingLink();
     Route<dynamic>? stoppedAt;
@@ -185,9 +186,7 @@ class _MainShellState extends State<MainShell> {
     _waitingLink = null;
   }
 
-  /// Checks [busy] until it may pop or is gone, then opens [link]. Only
-  /// [busy] is checked, not the stack: a dialog it shows when the save
-  /// fails is not closed while it still holds Back.
+  /// Checks [busy] until it is gone, then opens [link].
   void _waitForPage(
     BuildContext context,
     WidgetLink link,
@@ -201,11 +200,14 @@ class _MainShellState extends State<MainShell> {
         _cancelWaitingLink();
         return;
       }
-      if (busy.isActive &&
-          busy.popDisposition == RoutePopDisposition.doNotPop) {
-        return;
+      if (!busy.isActive) {
+        _openWidgetLink(context, link);
+      } else if (busy.popDisposition != RoutePopDisposition.doNotPop) {
+        // Let go but still open (a failed save keeps its draft and error,
+        // or the page is between two steps): the person is still there.
+        // Popping it now would throw that away, so the tap is dropped.
+        _cancelWaitingLink();
       }
-      _openWidgetLink(context, link);
     });
   }
 

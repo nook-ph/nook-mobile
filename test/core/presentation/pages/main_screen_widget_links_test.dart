@@ -146,7 +146,32 @@ void main() {
     expect(find.text('home page'), findsOneWidget);
   });
 
-  testWidgets('a header tap over a busy page opens Saved once it lets go', (
+  testWidgets('a header tap over a busy page opens Saved once it closes', (
+    tester,
+  ) async {
+    RecordingAnalytics.install(addTearDown);
+    await tester.pumpWidget(_app());
+    final busy = ValueNotifier(true);
+    final busyContext = _pushBusyPage(busy);
+    await tester.pumpAndSettle();
+
+    WidgetLinks.acceptFromPlatform(Uri.parse('nook://saved?via=widget'));
+    await _frame(tester);
+    expect(find.text('saving page'), findsOneWidget);
+    expect(_currentTab(tester), 0, reason: 'no tab switch hidden under it');
+
+    // The save ends in the same step that closes the page.
+    busy.value = false;
+    Navigator.of(busyContext()).pop();
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('saving page'), findsNothing);
+    expect(_currentTab(tester), MainShell.savedTab);
+  });
+
+  testWidgets('a busy page that lets go but stays open keeps its draft', (
     tester,
   ) async {
     RecordingAnalytics.install(addTearDown);
@@ -155,18 +180,17 @@ void main() {
     _pushBusyPage(busy);
     await tester.pumpAndSettle();
 
-    WidgetLinks.acceptFromPlatform(Uri.parse('nook://saved?via=widget'));
+    WidgetLinks.acceptFromPlatform(Uri.parse('nook://cafe/abc?via=widget'));
     await _frame(tester);
-    expect(find.text('saving page'), findsOneWidget);
-    expect(_currentTab(tester), 0, reason: 'no tab switch hidden under it');
 
+    // The save failed: Back works again, the page stays with its error.
     busy.value = false;
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
-    expect(find.text('saving page'), findsNothing);
-    expect(_currentTab(tester), MainShell.savedTab);
+    expect(find.text('saving page'), findsOneWidget);
+    expect(find.text('cafe abc'), findsNothing);
   });
 
   testWidgets('a tap waiting on a busy page is dropped after a minute', (
