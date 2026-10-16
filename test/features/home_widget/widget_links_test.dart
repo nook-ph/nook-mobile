@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/home_widget/presentation/widget_links.dart';
 
+import '../../core/analytics/recording_analytics.dart';
+
 void main() {
   tearDown(WidgetLinks.reset);
 
@@ -34,18 +36,55 @@ void main() {
     expect(WidgetLinks.pending.value, isNull);
   });
 
-  test('one tap arriving twice opens once; a later tap opens again', () {
+  test('one tap arriving twice is logged once; a later tap opens again', () {
+    final analytics = RecordingAnalytics.install(addTearDown);
     var now = DateTime.utc(2026, 10, 16, 2);
     WidgetLinks.clock = () => now;
     final uri = Uri.parse('nook://cafe/a?via=widget');
-    WidgetLinks.acceptFromPlatform(uri);
-    expect(WidgetLinks.take(), isNotNull);
+    // Cold start: the router's initial route, then the plugin's launch link.
     WidgetLinks.accept(uri);
+    expect(WidgetLinks.take()?.cafeId, 'a');
+    WidgetLinks.acceptFromPlatform(uri);
     expect(WidgetLinks.pending.value, isNull);
+    expect(analytics.names, ['widget_tapped']);
     now = now.add(const Duration(seconds: 10));
     WidgetLinks.acceptFromPlatform(uri);
     expect(WidgetLinks.take()?.cafeId, 'a');
+    expect(analytics.names, ['widget_tapped', 'widget_tapped']);
     WidgetLinks.acceptFromPlatform(null);
+    expect(WidgetLinks.pending.value, isNull);
+  });
+
+  test('warm tap: the router\'s copy after the cafe opened opens it again '
+      'over the Home its redirect lands on, without a second event', () {
+    final analytics = RecordingAnalytics.install(addTearDown);
+    WidgetLinks.clock = () => DateTime.utc(2026, 10, 16, 2);
+    final uri = Uri.parse('nook://cafe/b?via=widget');
+    WidgetLinks.acceptFromPlatform(uri);
+    expect(WidgetLinks.take()?.cafeId, 'b'); // pushed
+    expect(WidgetLinks.accept(uri), '/'); // replaces the stack
+    expect(WidgetLinks.take()?.cafeId, 'b'); // so push it again
+    expect(analytics.names, ['widget_tapped']);
+  });
+
+  test(
+    'warm tap: the router\'s copy before the cafe opened changes nothing',
+    () {
+      WidgetLinks.clock = () => DateTime.utc(2026, 10, 16, 2);
+      final uri = Uri.parse('nook://cafe/b?via=widget');
+      WidgetLinks.acceptFromPlatform(uri);
+      WidgetLinks.accept(uri);
+      expect(WidgetLinks.take()?.cafeId, 'b');
+      expect(WidgetLinks.pending.value, isNull);
+    },
+  );
+
+  test('a link not opened within a minute is dropped', () {
+    var now = DateTime.utc(2026, 10, 16, 2);
+    WidgetLinks.clock = () => now;
+    WidgetLinks.accept(Uri.parse('nook://cafe/c?via=widget'));
+    now = now.add(const Duration(minutes: 5)); // onboarding first
+    expect(WidgetLinks.take(), isNull);
     expect(WidgetLinks.pending.value, isNull);
   });
 

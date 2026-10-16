@@ -73,7 +73,9 @@ abstract final class WidgetLinks {
 
   /// For the router's redirect: `/` when [uri] is a widget link (kept in
   /// [pending] and logged), else null.
-  static String? accept(Uri uri) {
+  static String? accept(Uri uri) => _accept(uri, fromRouter: true);
+
+  static String? _accept(Uri uri, {required bool fromRouter}) {
     final link = WidgetLink.parse(uri);
     if (link == null) return null;
     final now = clock();
@@ -85,23 +87,50 @@ abstract final class WidgetLinks {
     _lastAt = now;
     if (!repeat) {
       logAppEvent(HomeWidgetEvents.tapped, properties: {'target': link.tap});
-      pending.value = link;
+      _setPending(link, now);
+    } else if (fromRouter && _lastTaken && link.location != null) {
+      // On a warm tap the plugin's click reaches Dart before the route, so
+      // the cafe may already be open; this redirect's `/` then replaces the
+      // stack and closes it. Open it again over the new Home (not logged:
+      // it is the same tap).
+      _setPending(link, now);
     }
     return '/';
   }
+
+  static void _setPending(WidgetLink link, DateTime now) {
+    _lastTaken = false;
+    _pendingAt = now;
+    pending.value = link;
+  }
+
+  /// Whether the last link has been opened ([take]n).
+  static bool _lastTaken = false;
+  static DateTime? _pendingAt;
+
+  /// A link not opened within this long is dropped: the shell was not on
+  /// screen (onboarding, account setup), and opening it later would come
+  /// out of nowhere.
+  static const _openWithin = Duration(minutes: 1);
 
   /// A link from the widget plugin: the intent that started the app, or a
   /// tap while it runs. go_router starts at its initial `/` on a cold start
   /// and a recreated activity gets the tap as a new intent, so the router
   /// alone misses some taps.
   static void acceptFromPlatform(Uri? uri) {
-    if (uri != null) accept(uri);
+    if (uri != null) _accept(uri, fromRouter: false);
   }
 
-  /// The pending link, cleared.
+  /// The pending link, cleared; null when there is none or it waited too
+  /// long.
   static WidgetLink? take() {
     final link = pending.value;
+    final at = _pendingAt;
     pending.value = null;
+    _pendingAt = null;
+    if (link == null) return null;
+    _lastTaken = true;
+    if (at != null && clock().difference(at) > _openWithin) return null;
     return link;
   }
 
@@ -109,6 +138,8 @@ abstract final class WidgetLinks {
   static void reset() {
     _lastKey = null;
     _lastAt = null;
+    _lastTaken = false;
+    _pendingAt = null;
     pending.value = null;
     clock = DateTime.now;
   }
