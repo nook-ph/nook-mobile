@@ -43,13 +43,16 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
     if (cafeIds.isEmpty) return true;
     if (!_hasSession()) return false;
     final startedAt = _writeCount;
+    final pendingAtStart = state.pending;
     try {
       final fetched = await getCafeStatusesUseCase(cafeIds);
       final statuses = Map<String, CafeStatus>.from(state.statuses);
       // A write that began after this read started (or is still in flight)
       // is newer than the answer: a slow read must not undo it.
       bool newer(String id) =>
-          state.pending.contains(id) || (_writtenAt[id] ?? 0) > startedAt;
+          pendingAtStart.contains(id) ||
+          state.pending.contains(id) ||
+          (_writtenAt[id] ?? 0) > startedAt;
       final read = [
         for (final id in cafeIds)
           if (!newer(id)) id,
@@ -73,12 +76,13 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
     }
   }
 
-  /// Optimistically sets [status] for [cafeId]; rolls back on failure.
-  /// Returns true on success so callers can toast / refresh lists.
   /// Writes started so far, and the count when each cafe's last began:
   /// what [loadFor] uses to tell a stale answer from a fresh one.
   int _writeCount = 0;
   final Map<String, int> _writtenAt = {};
+
+  /// Optimistically sets [status] for [cafeId]; rolls back on failure.
+  /// Returns true on success so callers can toast / refresh lists.
 
   Future<bool> set(String cafeId, CafeStatus status) async {
     if (state.pending.contains(cafeId)) return false;

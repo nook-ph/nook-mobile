@@ -34,9 +34,14 @@ class _StatusRepository implements ICafeRepository {
     };
   }
 
+  /// When set, a write lands on the server only once this completes.
+  Completer<void>? holdWrite;
+
   @override
   Future<CafeStatus> setCafeStatus(String cafeId, CafeStatus status) async {
     if (failWrite) throw Exception('offline');
+    final hold = holdWrite;
+    if (hold != null) await hold.future;
     return server[cafeId] = status;
   }
 
@@ -71,6 +76,22 @@ void main() {
     expect(cubit.state.isKnown('a'), isTrue);
     // The cafe the read was right about is known as usual.
     expect(cubit.state.isKnown('b'), isTrue);
+  });
+
+  test('a write already in flight when a slow read starts is not undone by '
+      'it', () async {
+    final write = Completer<void>();
+    repo.holdWrite = write;
+    final setting = cubit.set('a', CafeStatus.been);
+    repo.holdRead = Completer<void>();
+    final read = cubit.loadFor(['a']);
+    await Future<void>.delayed(Duration.zero);
+    write.complete();
+    expect(await setting, isTrue);
+    repo.holdRead!.complete();
+    await read;
+
+    expect(cubit.state.statusFor('a'), CafeStatus.been);
   });
 
   test('a failed read leaves the status unknown, not "none"', () async {
