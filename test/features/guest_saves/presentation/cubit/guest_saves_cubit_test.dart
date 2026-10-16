@@ -90,14 +90,17 @@ void main() {
     await cubit.close();
   });
 
-  test('removing a save logs nothing', () async {
+  test('removing a save logs guest_save_removed with its source', () async {
     final cubit = newCubit();
     await cubit.set(_a, CafeStatus.wantToTry);
     analytics.events.clear();
 
-    await cubit.set(_a, CafeStatus.none);
+    await cubit.set(_a, CafeStatus.none, source: SavesSource.undo);
 
-    expect(analytics.events, isEmpty);
+    expect(analytics.names, [SavesEvents.guestSaveRemoved]);
+    expect(analytics.propertiesOf(SavesEvents.guestSaveRemoved), {
+      'source': 'undo',
+    });
     await cubit.close();
   });
 

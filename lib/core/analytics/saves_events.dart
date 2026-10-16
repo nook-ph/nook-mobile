@@ -35,18 +35,38 @@ abstract final class SavesEvents {
   /// That prompt's Sign in was tapped. Properties: `surface`.
   static const keepSavesPromptTapped = 'keep_saves_prompt_tapped';
 
+  /// A guest's save was removed. Properties: `source` (`undo`, the save
+  /// toast's Undo; `pill`, a tap on the current status; `top_save`, the cafe
+  /// page's top-right bookmark).
+  static const guestSaveRemoved = 'guest_save_removed';
+
+  /// The merge toast's View was tapped. Properties: `count` (cafes moved).
+  static const mergeToastViewTapped = 'merge_toast_view_tapped';
+
   /// The engagement-score ask (the keep-saves sign-in sheet) was shown.
-  /// Properties: `trigger` (`after_save`, `home_return`), `score` (the
+  /// Properties: `trigger` (`after_save`, `saved_open`), `score` (the
   /// guest's score at the ask), `ask_number` (1 to 3).
   static const signUpAskShown = 'signup_ask_shown';
 
   /// That ask was dismissed. Properties: as shown, plus `score_after` (the
-  /// score once the dismissal took its points off).
+  /// score once the dismissal took its points off), `how` (`not_now`,
+  /// `swipe_or_back`, `stay_on_phone`) and `saves_count`.
   static const signUpAskDismissed = 'signup_ask_dismissed';
 
-  /// A sign-in was chosen from that ask. Properties: as shown, plus
-  /// `provider` (`google`, `apple`, `email`).
+  /// A sign-in was chosen from that ask; it may not have finished (see
+  /// [signUpAskCompleted]). Properties: as shown, plus `provider` (`google`,
+  /// `apple`, `email`).
   static const signUpAskAccepted = 'signup_ask_accepted';
+
+  /// A session started from that ask: at once for Google or Apple, or
+  /// within 30 minutes of choosing email. Properties: as accepted.
+  static const signUpAskCompleted = 'signup_ask_completed';
+
+  /// An ask was due at a value moment but held back, once per reason per
+  /// session. Properties: `reason` (`session_budget`, `cooldown`,
+  /// `max_asks`, `below_threshold`, `saves_not_doubled`, `stay_on_phone`),
+  /// `trigger`.
+  static const signUpAskSuppressed = 'signup_ask_suppressed';
 }
 
 /// Values of the `surface` property on the keep-saves prompt events.
@@ -55,6 +75,10 @@ abstract final class KeepSavesSurface {
   /// line has no Sign in now, and the engagement score asks instead.
   static const firstSaveToast = 'first_save_toast';
   static const savedTab = 'saved_tab';
+
+  /// The one-line row that replaces the Saved tab's card after two declined
+  /// asks.
+  static const savedRow = 'saved_row';
 
   /// After "I went" on the visit reminder.
   static const reminder = 'reminder';
@@ -71,4 +95,13 @@ abstract final class SavesSource {
 
   /// The "Save to Want to try?" nudge after directions.
   static const directionsNudge = 'directions_nudge';
+
+  /// A save toast's Undo.
+  static const undo = 'undo';
+
+  /// A tap on the Been / Want to try pill.
+  static const pill = 'pill';
+
+  /// The cafe page's top-right bookmark.
+  static const topSave = 'top_save';
 }

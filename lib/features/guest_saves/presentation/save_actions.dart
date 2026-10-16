@@ -15,7 +15,6 @@ import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
-import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
 import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
@@ -25,9 +24,11 @@ import 'package:nook/injection_container.dart';
 /// Opens the Saved tab from anywhere: a toast's "View", the merge toast.
 void openSavedTab() => TabRequests.open(MainShell.savedTab);
 
-/// The line after a guest's first save: where it went, and that an account
-/// is optional. Not an ask (that comes from the engagement score).
-const firstSaveMessage = 'Saved on this phone. Sign in any time to keep it.';
+/// The line after a guest's first save: where it went, with Undo and View
+/// (View also shows where saves live). Short, so it fits beside both
+/// actions at large text (review N8). Not an ask: that comes from the
+/// engagement score.
+const firstSaveMessage = 'Saved on this phone';
 
 /// After later saves: where it went, with View (Saved) and Undo.
 String savedToMessage(CafeStatus status) =>
@@ -79,7 +80,8 @@ Future<void> markBeenFromReminder(
   await saves.load();
   if (saves.state.statusFor(cafe.id) != CafeStatus.been) {
     HapticFeedback.lightImpact();
-    final outcome = await saves.set(
+    final outcome = await setGuestStatus(
+      saves,
       cafe,
       CafeStatus.been,
       source: SavesSource.reminder,
@@ -87,9 +89,7 @@ Future<void> markBeenFromReminder(
     if (!context.mounted) return;
     if (outcome == null) {
       showPrimaryToast(context, "Couldn't save. Please try again.");
-      return;
     }
-    recordEngagement(EngagementAction.save);
   }
   if (!context.mounted) return;
   dismissToasts();
@@ -119,7 +119,12 @@ Future<void> toggleGuestStatus(
   final next = current == tapped ? CafeStatus.none : tapped;
   if (next != CafeStatus.none) HapticFeedback.lightImpact();
 
-  final outcome = await saves.set(cafe, next, source: source);
+  final outcome = await setGuestStatus(
+    saves,
+    cafe,
+    next,
+    source: next == CafeStatus.none ? source ?? SavesSource.pill : source,
+  );
   if (!context.mounted) return;
   if (outcome == null) {
     showPrimaryToast(
@@ -136,9 +141,13 @@ Future<void> toggleGuestStatus(
       current == CafeStatus.been
           ? 'Removed from Been'
           : 'Removed from Want to try',
-      actionLabel: 'Undo',
+      actionLabel: saveUndoLabel,
       // The cubit is app-wide, so Undo works after leaving the page.
-      onAction: () => unawaited(saves.set(cafe, current)),
+      onAction: () => unawaited(
+        setGuestStatus(saves, cafe, current, source: SavesSource.undo),
+      ),
+      // Undo matters most here: no timeout with a screen reader on (N6).
+      duration: toastDurationFor(context, const Duration(seconds: 5)),
       bottomOffset: bottomOffset,
     );
     return;
@@ -155,10 +164,76 @@ Future<void> toggleGuestStatus(
   );
 }
 
+/// Sets [cafe]'s on-phone status and keeps the engagement score in step: a
+/// new save earns its points once per cafe, and removing or undoing it
+/// takes them back (ux finding 7). Null when the phone could not store it.
+Future<GuestSaveOutcome?> setGuestStatus(
+  GuestSavesCubit saves,
+  CafeSnapshot cafe,
+  CafeStatus status, {
+  String? source,
+}) async {
+  final outcome = await saves.set(cafe, status, source: source);
+  if (outcome == null || !sl.isRegistered<EngagementScore>()) return outcome;
+  final engagement = sl<EngagementScore>();
+  if (status == CafeStatus.none && outcome.previous != CafeStatus.none) {
+    await engagement.recordUnsave(cafe.id);
+  } else if (status != CafeStatus.none && outcome.previous == CafeStatus.none) {
+    await engagement.recordSave(cafe.id);
+  }
+  return outcome;
+}
+
+/// The cafe page's top-right bookmark, for a guest: Want to try on this
+/// phone, the same toggle as the pill. On a Been cafe it does not switch
+/// silently (review N3): it says so and offers the move.
+Future<void> guestTopSave(
+  BuildContext context, {
+  required CafeSnapshot cafe,
+  double bottomOffset = 0,
+}) async {
+  final saves = context.read<GuestSavesCubit>();
+  await saves.load();
+  if (!context.mounted) return;
+  if (saves.state.statusFor(cafe.id) == CafeStatus.been) {
+    showPrimaryToastWithAction(
+      context,
+      alreadyBeenMessage,
+      actionLabel: moveToWantToTryLabel,
+      onAction: () {
+        if (!context.mounted) return;
+        unawaited(
+          toggleGuestStatus(
+            context,
+            cafe: cafe,
+            tapped: CafeStatus.wantToTry,
+            bottomOffset: bottomOffset,
+            source: SavesSource.topSave,
+          ),
+        );
+      },
+      duration: toastDurationFor(context, const Duration(seconds: 5)),
+      bottomOffset: bottomOffset,
+    );
+    return;
+  }
+  await toggleGuestStatus(
+    context,
+    cafe: cafe,
+    tapped: CafeStatus.wantToTry,
+    bottomOffset: bottomOffset,
+    source: SavesSource.topSave,
+  );
+}
+
+const alreadyBeenMessage = 'Already in Been';
+const moveToWantToTryLabel = 'Move to Want to try';
+
 /// After a guest's save: the engagement score's ask when it is due (a save
 /// is a value moment), else a toast saying where the save went. Once per
 /// phone that is the "Saved on this phone" line; after it, "Saved to Want
-/// to try" with View and Undo.
+/// to try". Both have Undo and View. An ask that ends without a sign-in is
+/// followed by the usual toast, so the save is still confirmed (N4).
 Future<void> _confirmGuestSave(
   BuildContext context, {
   required GuestSavesCubit saves,
@@ -171,41 +246,36 @@ Future<void> _confirmGuestSave(
   final engagement = sl.isRegistered<EngagementScore>()
       ? sl<EngagementScore>()
       : null;
-  await engagement?.record(EngagementAction.save);
-  if (!context.mounted) return;
+  var asked = false;
   // One ask per trip: the directions nudge was this trip's, so its save
-  // only confirms. The score asks at the next value moment instead.
+  // only confirms.
   if (engagement != null && source != SavesSource.directionsNudge) {
-    final asked = await engagement.maybeAsk(
+    final result = await engagement.maybeAsk(
       context,
       trigger: SignUpAskTrigger.afterSave,
-      hasSaves: true,
+      savesCount: saves.state.saves.length,
+      saved: SignUpAskSave(cafeName: cafe.name, status: status),
     );
-    if (asked || !context.mounted) return;
+    if (result == SignUpAskResult.signedIn || !context.mounted) return;
+    asked = result.shown;
   }
 
-  void undo() => unawaited(saves.set(cafe, previous));
-  final firstLine = await saves.claimFirstSaveLine();
+  void undo() => unawaited(
+    setGuestStatus(saves, cafe, previous, source: SavesSource.undo),
+  );
+  final firstLine = !asked && await saves.claimFirstSaveLine();
   if (!context.mounted) return;
-  if (firstLine) {
-    showPrimaryToastWithAction(
-      context,
-      firstSaveMessage,
-      actionLabel: saveUndoLabel,
-      onAction: undo,
-      duration: toastDurationFor(context, firstSaveDuration),
-      bottomOffset: bottomOffset,
-    );
-    return;
-  }
   showPrimaryToastWithAction(
     context,
-    savedToMessage(status),
+    firstLine ? firstSaveMessage : savedToMessage(status),
     secondaryActionLabel: saveUndoLabel,
     onSecondaryAction: undo,
     actionLabel: saveViewLabel,
     onAction: openSavedTab,
-    duration: toastDurationFor(context, const Duration(seconds: 5)),
+    duration: toastDurationFor(
+      context,
+      firstLine ? firstSaveDuration : const Duration(seconds: 5),
+    ),
     bottomOffset: bottomOffset,
   );
 }

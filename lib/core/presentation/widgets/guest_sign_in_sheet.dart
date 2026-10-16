@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
@@ -22,6 +24,8 @@ class GuestSignInSheet extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.reason,
+    this.confirmation,
+    this.stayLabel,
   });
 
   /// Drawn at 24 in brand green inside the 56 tinted circle.
@@ -32,6 +36,14 @@ class GuestSignInSheet extends StatelessWidget {
 
   /// One or two lines under the title saying what the account is for.
   final String reason;
+
+  /// A first line confirming what the person just did ("Flavour Coffee
+  /// saved"), with a check, when the sheet opened right after it.
+  final String? confirmation;
+
+  /// A third choice under Not now that also declines, worded as a real
+  /// choice ("Keep using on this phone").
+  final String? stayLabel;
 
   /// The single button the sheet used to have. No longer shown: Google,
   /// Apple and email ([SheetSignInChoices]) took its place.
@@ -59,10 +71,34 @@ class GuestSignInSheet extends StatelessWidget {
     required String title,
     required String reason,
     String trigger = 'other',
+  }) async => (await showDetailed(
+    context,
+    icon: icon,
+    title: title,
+    reason: reason,
+    trigger: trigger,
+  )).choice;
+
+  /// [show], also saying how a dismissal happened. [pushed]: the app opened
+  /// it (the engagement score's ask) rather than the person; a sheet they
+  /// opened themselves stops score asks for the session
+  /// ([SessionAskBudget]).
+  static Future<GuestSignInOutcome> showDetailed(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String reason,
+    String trigger = 'other',
+    String? confirmation,
+    String? stayLabel,
+    bool pushed = false,
   }) async {
     final props = <String, Object>{'trigger': trigger};
     logAppEvent(SignInPromptEvents.shown, properties: props);
-    final choice = await showModalBottomSheet<SignInChoice>(
+    if (!pushed) {
+      SessionAskBudget.instance.blockScoreAsks(SessionAskKind.pullSignIn);
+    }
+    final result = await showModalBottomSheet<Object>(
       context: context,
       isScrollControlled: true,
       backgroundColor: _sheet,
@@ -70,15 +106,24 @@ class GuestSignInSheet extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) =>
-          GuestSignInSheet(icon: icon, title: title, reason: reason),
+      builder: (_) => GuestSignInSheet(
+        icon: icon,
+        title: title,
+        reason: reason,
+        confirmation: confirmation,
+        stayLabel: stayLabel,
+      ),
     );
-    if (choice == null) {
+    if (result is! SignInChoice) {
       logAppEvent(SignInPromptEvents.dismissed, properties: props);
-      return null;
+      return GuestSignInOutcome(
+        dismissedBy: result is GuestSheetDismissal
+            ? result
+            : GuestSheetDismissal.swipeOrBack,
+      );
     }
-    if (context.mounted) await continueSignInFromSheet(context, choice);
-    return choice;
+    if (context.mounted) await continueSignInFromSheet(context, result);
+    return GuestSignInOutcome(choice: result);
   }
 
   @override
@@ -102,7 +147,10 @@ class GuestSignInSheet extends StatelessWidget {
             ),
           ),
           gap,
-          const SizedBox(height: 12),
+          if (confirmation case final line?)
+            _ConfirmationLine(text: line)
+          else
+            const SizedBox(height: 12),
           gap,
           Container(
             width: 56,
@@ -148,9 +196,89 @@ class GuestSignInSheet extends StatelessWidget {
             // 48: the touch floor (review finding 6).
             height: 48,
             textColor: _ink,
-            onTap: () => Navigator.of(context).pop(),
+            onTap: () => Navigator.of(context).pop(GuestSheetDismissal.notNow),
           ),
+          if (stayLabel case final label?)
+            _SheetButton(
+              label: label,
+              height: 48,
+              textColor: _muted,
+              onTap: () =>
+                  Navigator.of(context).pop(GuestSheetDismissal.stayOnPhone),
+            ),
         ],
+      ),
+    );
+  }
+}
+
+/// How a [GuestSignInSheet] ended.
+class GuestSignInOutcome {
+  const GuestSignInOutcome({this.choice, this.dismissedBy});
+
+  /// The sign-in chosen, or null when dismissed.
+  final SignInChoice? choice;
+
+  /// How it was dismissed, when it was.
+  final GuestSheetDismissal? dismissedBy;
+}
+
+/// The ways out of the sheet without signing in. [wire] is the `how`
+/// property of `signup_ask_dismissed`.
+enum GuestSheetDismissal {
+  notNow('not_now'),
+
+  /// A swipe down, a tap above the sheet or system Back: the sheet cannot
+  /// tell these apart.
+  swipeOrBack('swipe_or_back'),
+  stayOnPhone('stay_on_phone');
+
+  const GuestSheetDismissal(this.wire);
+
+  final String wire;
+}
+
+/// "✓ Flavour Coffee saved": the sheet's first line when it opened right
+/// after a save, so the save is confirmed before anything is asked.
+class _ConfirmationLine extends StatelessWidget {
+  const _ConfirmationLine({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      liveRegion: true,
+      label: text,
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              LucideIcons.circleCheck,
+              size: 18,
+              color: GuestSignInSheet._brand,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                text,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: GuestSignInSheet._brand,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -47,7 +47,8 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
 
   /// Sets [cafe]'s on-phone status; [CafeStatus.none] removes it. Null when
   /// the phone could not store it (the state is then left as it was).
-  /// [source] is a [SavesSource] value for the `guest_save_created` event.
+  /// [source] is a [SavesSource] value for the `guest_save_created` and
+  /// `guest_save_removed` events.
   Future<GuestSaveOutcome?> set(
     CafeSnapshot cafe,
     CafeStatus status, {
@@ -76,6 +77,10 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     }
 
     if (status == CafeStatus.none) {
+      logAppEvent(
+        SavesEvents.guestSaveRemoved,
+        properties: {'source': ?source},
+      );
       return GuestSaveOutcome(previous: previous, firstSave: false);
     }
     logAppEvent(
