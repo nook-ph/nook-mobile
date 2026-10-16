@@ -9,8 +9,9 @@ import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.d
 /// through the same [CafeStatusCubit.set] (`set_cafe_status`) the Been / Want
 /// to Try pills use.
 ///
-/// Idempotent and safe to repeat: a cafe the account already has any status
-/// for is left as the account has it (the account wins), and only saves that
+/// Idempotent and safe to repeat: a cafe the account already has a status
+/// for is left as the account has it (the account wins; only a phone Been
+/// moves an account Want to try on to Been), and only saves that
 /// reached the account, or were already there, are dropped from the phone.
 /// Whatever failed stays on the phone for the next launch.
 class GuestSavesMerger {
@@ -87,7 +88,13 @@ class GuestSavesMerger {
       final id = save.cafeId;
       // The read failed: nothing is known, so nothing is written.
       if (!statuses.state.isKnown(id)) continue;
-      if (statuses.state.statusFor(id) != CafeStatus.none) {
+      final account = statuses.state.statusFor(id);
+      // The account wins, except that a visit logged on the phone moves an
+      // account's Want to try on to Been: Want to try has no rank or note
+      // to lose, and dropping the Been would lose the visit.
+      final upgrade =
+          account == CafeStatus.wantToTry && save.status == CafeStatus.been;
+      if (account != CafeStatus.none && !upgrade) {
         done.add(id);
         continue;
       }
