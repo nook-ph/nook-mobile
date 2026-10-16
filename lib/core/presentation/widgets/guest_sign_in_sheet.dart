@@ -133,80 +133,87 @@ class GuestSignInSheet extends StatelessWidget {
     // open it up to 28 around the icon/text block.
     const gap = SizedBox(height: 8);
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 8, 20, math.max(34.0, bottomInset)),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-              color: _grabber,
-              borderRadius: BorderRadius.circular(2),
+    // Scrolls when it outgrows the screen: at 2.0x text the repeat ask,
+    // with its third choice, is taller than the phone.
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 8, 20, math.max(34.0, bottomInset)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: _grabber,
+                borderRadius: BorderRadius.circular(2),
+              ),
             ),
-          ),
-          gap,
-          if (confirmation case final line?)
-            _ConfirmationLine(text: line)
-          else
+            gap,
+            if (confirmation case final line?)
+              _ConfirmationLine(text: line)
+            else
+              const SizedBox(height: 12),
+            gap,
+            Container(
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: _tint,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 24, color: _brand),
+            ),
+            gap,
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: _ink,
+              ),
+            ),
+            gap,
+            Text(
+              reason,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: _muted,
+              ),
+            ),
+            gap,
             const SizedBox(height: 12),
-          gap,
-          Container(
-            width: 56,
-            height: 56,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: _tint,
-              shape: BoxShape.circle,
+            gap,
+            SheetSignInChoices(
+              onChoice: (choice) => Navigator.of(context).pop(choice),
             ),
-            child: Icon(icon, size: 24, color: _brand),
-          ),
-          gap,
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: _ink,
-            ),
-          ),
-          gap,
-          Text(
-            reason,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              color: _muted,
-            ),
-          ),
-          gap,
-          const SizedBox(height: 12),
-          gap,
-          SheetSignInChoices(
-            onChoice: (choice) => Navigator.of(context).pop(choice),
-          ),
-          gap,
-          _SheetButton(
-            label: dismissLabel,
-            // 48: the touch floor (review finding 6).
-            height: 48,
-            textColor: _ink,
-            onTap: () => Navigator.of(context).pop(GuestSheetDismissal.notNow),
-          ),
-          if (stayLabel case final label?)
+            gap,
             _SheetButton(
-              label: label,
+              label: dismissLabel,
+              // 48: the touch floor (review finding 6).
               height: 48,
-              textColor: _muted,
+              textColor: _ink,
               onTap: () =>
-                  Navigator.of(context).pop(GuestSheetDismissal.stayOnPhone),
+                  Navigator.of(context).pop(GuestSheetDismissal.notNow),
             ),
-        ],
+            if (stayLabel case final label?)
+              _SheetButton(
+                label: label,
+                height: 48,
+                // Ink, like Not now: a real choice, and muted text on the
+                // sheet is under 4.5:1.
+                textColor: _ink,
+                onTap: () =>
+                    Navigator.of(context).pop(GuestSheetDismissal.stayOnPhone),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -179,6 +179,9 @@ void _showToastBar(
             // A toast that does not time out can always be closed.
             if (persistent)
               Semantics(
+                // Its own node, so TalkBack's focus is the 48dp button,
+                // not the whole bar.
+                container: true,
                 button: true,
                 label: 'Close',
                 // The action lives on this node: excluding the children
