@@ -54,3 +54,33 @@ The engagement-score ask: icon, title, reason, provider buttons, terms, Not now.
 | ![](ask-promova.png) | [Promova](https://refero.design/screens/6b3754f8-b746-4b84-922e-ab70c7da76c2) | Title says what is kept, one reason line, provider buttons, a plain-text dismiss last |
 | ![](ask-dropbox.png) | [Dropbox](https://refero.design/screens/4a27cf7a-cab3-4323-bc73-14280131095e) | The terms tick sits beside its sentence with both links, before the action |
 | ![](ask-x.png) | [X](https://refero.design/screens/71e09a7e-d2bc-423d-892e-4a9ee8152d42) | Considered, not taken: a passive "By signing up, you agree" line; App Review 1.2 rejections ask for an explicit agreement |
+
+## Keep-saves ask sheet, follow-ups (2026-10-16)
+The sheet now opens with a line confirming the save that triggered it, names the count in the
+title, and on a repeat ask states the stake and offers "Keep using on this phone". Built in
+`lib/core/presentation/widgets/guest_sign_in_sheet.dart` (`_ConfirmationLine`, `stayLabel`) and
+`lib/features/guest_saves/presentation/engagement_score.dart` (`SignUpAskCopy`). No reference
+shows a confirmation line or a count in the title; those are Nook's own (ux finding 1). The
+structure above (Promova primary) stands.
+
+**Primary: Omio.** Borrow: Kitchen Stories. Rejected: Atoms.
+
+| | Product | Taken |
+|---|---|---|
+| ![](ask-omio.png) | [Omio](https://refero.design/screens/91290c5d-e769-4e23-a17e-3e72fef70b27) | Heading, one reason line, the tick, stacked provider buttons: the order kept |
+| ![](ask-kitchen.png) | [Kitchen Stories](https://refero.design/screens/427368d3-312c-4c5f-bb32-18186500479a) | The way out is plain text set apart from the providers; "Keep using on this phone" is a quiet text button under Not now |
+| ![](ask-atoms.png) | [Atoms](https://refero.design/screens/66a77ac8-5469-4883-a1f7-56abf63fd640) | Considered, not taken: a close X in the corner; Not now already sits at the thumb |
+
+## Saved tab, keep-saves row
+After two declined asks the keep-saves card becomes one row below the lists: phone icon, "On
+this phone only", Sign in; the whole row is one button. Built in
+`lib/features/guest_saves/presentation/pages/guest_saved_page.dart` (`_KeepSavesRow`). Refero
+has no direct match; these are proxies.
+
+**Primary: Google Maps.** Borrow: Ten Percent Happier. Rejected: On.
+
+| | Product | Taken |
+|---|---|---|
+| ![](saved-row-maps.png) | [Google Maps](https://refero.design/screens/7d12720e-6049-481a-90e2-9ec0c9bd5666) | After the list's last hairline, one quiet row that reads as a footer, not a list item |
+| ![](saved-row-tenpercent.png) | [Ten Percent Happier](https://refero.design/screens/55358d7d-4c59-4202-9aa9-f6a00cf150e5) | A guest-status line below the lists, label and trailing action in one tap target |
+| ![](saved-row-on.png) | [On](https://refero.design/screens/811fd337-c6f8-42ae-b3dd-b99d611cce97) | Considered, not taken: label and chevron only, nothing says the saves are on this phone |
