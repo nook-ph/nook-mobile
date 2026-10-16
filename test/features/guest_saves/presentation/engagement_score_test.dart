@@ -254,6 +254,37 @@ void main() {
       });
     });
 
+    testWidgets('the saver survey shown: no score ask until a new session', (
+      tester,
+    ) async {
+      final context = await host(tester);
+      await tester.runAsync(() async {
+        await earn(4);
+        expect(budget.claim(SessionAskKind.saverSurvey), isTrue);
+        expect(await ask(context), isFalse);
+        expect(sheets, 0);
+        expect(analytics.propertiesOf(SavesEvents.signUpAskSuppressed), {
+          'reason': 'session_budget',
+          'trigger': SignUpAskTrigger.afterSave,
+        });
+        newSession();
+        expect(await ask(context), isTrue);
+        // And the score ask shown, the survey stays away this session.
+        expect(budget.claim(SessionAskKind.saverSurvey), isFalse);
+      });
+    });
+
+    testWidgets('an inline offer (the Saved card) leaves the score ask be', (
+      tester,
+    ) async {
+      final context = await host(tester);
+      await tester.runAsync(() async {
+        await earn(4);
+        budget.noteShown(SessionAskKind.keepSavesCard);
+        expect(await ask(context), isTrue);
+      });
+    });
+
     testWidgets('the notification pre-prompt spends it for the score ask', (
       tester,
     ) async {

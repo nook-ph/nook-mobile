@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/data/engagement_store.dart';
 import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
@@ -29,6 +30,8 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     analytics = RecordingAnalytics.install(addTearDown);
     saves = GuestSavesCubit(store: GuestSavesStore());
+    SessionAskBudget.instance.resetForTest();
+    addTearDown(SessionAskBudget.instance.resetForTest);
   });
 
   tearDown(() async {
@@ -89,6 +92,8 @@ void main() {
     expect(find.text(saveUndoLabel), findsOneWidget);
     expect(find.text(saveViewLabel), findsOneWidget);
     expect(find.text('Sign in'), findsNothing);
+    // A toast: it spends no ask, and the saver survey may still come.
+    expect(SessionAskBudget.instance.anyShown, isFalse);
     await settle(tester);
 
     await save(tester, _b);

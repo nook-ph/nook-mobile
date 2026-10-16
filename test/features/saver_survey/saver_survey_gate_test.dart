@@ -141,6 +141,36 @@ void main() {
       },
     );
 
+    test('a score ask this session: the survey does not show too', () async {
+      await launch(oldSave).evaluate();
+      clock = clock.add(const Duration(days: 1));
+      SessionAskBudget.instance.resetForTest();
+      final gate = launch(oldSave);
+      expect((await gate.evaluate())!.show, isTrue);
+      // The keep-saves score sheet showed while the saves were read.
+      SessionAskBudget.instance.spend(SessionAskKind.signUpAsk);
+      expect(gate.commit(), isFalse);
+      await gate.doneWritten;
+      expect(await SaverSurveyStore(now: now).isDone(), isFalse);
+    });
+
+    test('the survey shown: no score ask or other sheet this session, '
+        'until the budget renews after the gap', () async {
+      await launch(oldSave).evaluate();
+      clock = clock.add(const Duration(days: 1));
+      SessionAskBudget.instance.resetForTest();
+      final gate = launch(oldSave);
+      expect((await gate.evaluate())!.show, isTrue);
+      expect(gate.commit(), isTrue);
+      final budget = SessionAskBudget.instance;
+      expect(budget.canShowScoreAsk, isFalse);
+      expect(budget.canShowSheet, isFalse);
+
+      budget.newSession(); // back after 30 minutes away (GuestSavesSync)
+      expect(budget.canShowScoreAsk, isTrue);
+      expect(budget.canShowSheet, isTrue);
+    });
+
     test('not-shown is reported once per run', () {
       final gate = launch(oldSave);
       expect(gate.claimNotShownReport(), isTrue);

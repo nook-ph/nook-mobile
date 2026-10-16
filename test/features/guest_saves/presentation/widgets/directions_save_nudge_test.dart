@@ -7,6 +7,7 @@ import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_statuses_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/set_cafe_status_usecase.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
@@ -65,6 +66,8 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     analytics = RecordingAnalytics.install(addTearDown);
     DirectionsSaveNudge.resetForTest();
+    SessionAskBudget.instance.resetForTest();
+    addTearDown(SessionAskBudget.instance.resetForTest);
     saves = GuestSavesCubit(store: GuestSavesStore());
     final repository = _NoRepository();
     statuses = CafeStatusCubit(
@@ -129,6 +132,24 @@ void main() {
       analytics.names,
       isNot(contains(SavesEvents.directionsSaveNudgeShown)),
     );
+    await settleToasts(tester);
+  });
+
+  testWidgets('the nudge is a toast: it spends no sheet, only score asks', (
+    tester,
+  ) async {
+    await pump(tester);
+    DirectionsLaunches.notify(_cafe.id);
+    await tester.pump(DirectionsSaveNudge.fallbackDelay);
+    await showToast(tester);
+    expect(find.text(DirectionsSaveNudge.message), findsOneWidget);
+
+    final budget = SessionAskBudget.instance;
+    expect(budget.canShowSheet, isTrue);
+    expect(budget.spentBy, isNull);
+    expect(budget.canShowScoreAsk, isFalse);
+    // Something was asked: the saver survey does not stack on it.
+    expect(budget.claim(SessionAskKind.saverSurvey), isFalse);
     await settleToasts(tester);
   });
 
