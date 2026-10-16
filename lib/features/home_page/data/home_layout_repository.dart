@@ -80,6 +80,9 @@ typedef HomeLayoutRefresh = ({
   /// Whether [layout] differs from what [HomeLayoutRepository.cached]
   /// returned.
   bool changed,
+
+  /// Why the fetch failed (with [ok] false), for the error copy.
+  Object? error,
 });
 
 /// Cache first, refresh behind it.
@@ -117,15 +120,15 @@ class HomeLayoutRepository {
     final Object? response;
     try {
       response = await _fetch();
-    } catch (_) {
-      return (ok: false, layout: await cached(), changed: false);
+    } catch (e) {
+      return (ok: false, layout: await cached(), changed: false, error: e);
     }
 
     final layout = HomeLayout.fromRpc(response);
     final raw = layout == null ? null : _encode(response);
     _cachedRaw = raw;
     if (raw != before) await _cache.write(raw);
-    return (ok: true, layout: layout, changed: raw != before);
+    return (ok: true, layout: layout, changed: raw != before, error: null);
   }
 
   Future<String?> _readCache() async {

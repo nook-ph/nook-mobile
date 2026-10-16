@@ -614,7 +614,7 @@ void main() {
       await tester.pumpWidget(clock(true));
       final before = builds;
       await tester.pump(const Duration(minutes: 1));
-      expect(builds, before + 1);
+      expect(builds, greaterThan(before));
       await tester.pumpWidget(const SizedBox());
     });
   });

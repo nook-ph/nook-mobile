@@ -499,11 +499,21 @@ class _HomeScheduleClockState extends State<HomeScheduleClock>
     if (oldWidget.hasSchedules != widget.hasSchedules) _syncTimer();
   }
 
+  /// On each minute boundary, where schedule windows start and end (an
+  /// end of HH:MM:59.999 is over at the next minute).
   void _syncTimer() {
     _timer?.cancel();
-    _timer = widget.hasSchedules
-        ? Timer.periodic(const Duration(minutes: 1), (_) => _tick())
-        : null;
+    _timer = null;
+    if (!widget.hasSchedules) return;
+    final now = DateTime.now();
+    final toNextMinute = Duration(
+      seconds: 60 - now.second,
+      milliseconds: -now.millisecond,
+    );
+    _timer = Timer(toNextMinute, () {
+      _tick();
+      _syncTimer();
+    });
   }
 
   void _tick() {

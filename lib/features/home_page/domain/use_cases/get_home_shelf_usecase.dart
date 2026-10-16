@@ -64,7 +64,9 @@ class GetHomeShelfUseCase {
       final fresh = await repository!.refresh();
       // Offline is not "this shelf ended": throw, so the page offers Try
       // again rather than Go to Home.
-      if (!fresh.ok) throw StateError('Home layout did not load');
+      // The fetch's own error, so offline reads as offline.
+      if (!fresh.ok)
+        throw fresh.error ?? StateError('Home layout did not load');
       layout = fresh.layout;
     }
     final section = layout?.sectionById(id);

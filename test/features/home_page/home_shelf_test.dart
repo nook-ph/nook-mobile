@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -176,7 +178,7 @@ void main() {
     test('offline with the shelf not at hand throws (Try again), not '
         '"not on Nook"', () async {
       final repository = HomeLayoutRepository(
-        fetch: () async => throw Exception('offline'),
+        fetch: () async => throw const SocketException('offline'),
         cache: HomeLayoutCache(),
       );
       expect(
@@ -185,7 +187,7 @@ void main() {
           repository: repository,
           loadShelves: load,
         )('custom:week'),
-        throwsStateError,
+        throwsA(isA<SocketException>()),
       );
     });
   });
