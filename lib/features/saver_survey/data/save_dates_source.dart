@@ -75,24 +75,33 @@ class AccountSaveDatesSource implements SaveDatesSource {
               )
             ''')
           .inFilter('list_id', typeById.keys.toList());
-      final wantToTry = <WantToTrySave>[];
-      final been = <DateTime>[];
-      for (final raw in rows as List) {
-        if (raw is! Map) continue;
-        final at = DateTime.tryParse('${raw['added_at']}');
-        if (at == null) continue;
-        switch (typeById[raw['list_id']]) {
-          case 'want_to_try':
-            wantToTry.add(WantToTrySave(at, _cafe(raw['cafe'])));
-          case 'been':
-            been.add(at);
-        }
-      }
-      return SaveDates(wantToTry: wantToTry, been: been);
+      return parseRows(rows as List, typeById);
     } catch (e) {
       debugPrint('[SaverSurvey] account saves read failed: $e');
       return null;
     }
+  }
+
+  /// The `list_cafes` rows as save dates. A Want to Try row whose cafe did
+  /// not come back (unpublished, removed) is left out, as the Saved tab
+  /// leaves it out: the survey never asks about a cafe the user cannot see.
+  @visibleForTesting
+  static SaveDates parseRows(List rows, Map<String, String> typeById) {
+    final wantToTry = <WantToTrySave>[];
+    final been = <DateTime>[];
+    for (final raw in rows) {
+      if (raw is! Map) continue;
+      final at = DateTime.tryParse('${raw['added_at']}');
+      if (at == null) continue;
+      switch (typeById[raw['list_id']]) {
+        case 'want_to_try':
+          final cafe = _cafe(raw['cafe']);
+          if (cafe != null) wantToTry.add(WantToTrySave(at, cafe));
+        case 'been':
+          been.add(at);
+      }
+    }
+    return SaveDates(wantToTry: wantToTry, been: been);
   }
 
   static CafeSnapshot? _cafe(Object? raw) {
