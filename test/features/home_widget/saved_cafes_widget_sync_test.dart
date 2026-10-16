@@ -128,6 +128,16 @@ void main() {
     expect(platform.last!['names'], isEmpty);
   });
 
+  testWidgets('a guest cold start with unreadable saves leaves the widget '
+      'as it is', (tester) async {
+    signedIn = false;
+    await pump(tester, GuestSavesCubit(store: _UnreadableStore()));
+    // AuthBloc's session check on a guest start.
+    auth.push(const AuthUnauthenticated());
+    await settle(tester);
+    expect(platform.writes, isEmpty);
+  });
+
   testWidgets('the [] cleared on sign-out is not taken for the next '
       'account\'s list', (tester) async {
     signedIn = false;

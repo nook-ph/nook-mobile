@@ -77,9 +77,10 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
   String? _lastJson;
   bool _checkingInstalled = false;
 
-  /// Set on sign-out until the next write: if the guest saves are unknown
-  /// then, write an empty widget rather than leave the account's cafes.
-  bool _clearOnUnknown = false;
+  /// The widget's last write (this run) was the signed-in account's cafes.
+  /// Signed out with the guest saves unknown, it is then emptied rather
+  /// than left showing them; a guest's own widget is kept as it is.
+  bool _showsAccount = false;
 
   bool get _enabled => widget.platform.isSupported;
 
@@ -190,10 +191,11 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
   Future<void> _write() async {
     if (!mounted) return;
     var cafes = _wantToTry();
+    final fromAccount = _signedIn;
     if (cafes == null) {
       // Signed out, and the phone's own saves cannot be read: the widget
       // must not keep showing the account's cafes.
-      if (!_clearOnUnknown || _signedIn) return;
+      if (fromAccount || !_showsAccount) return;
       cafes = const [];
     }
     final position = DeviceLocation.instance.position.value;
@@ -217,16 +219,13 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
 
     final data = SavedCafesWidgetData.build(widgetCafes, now: DateTime.now());
     final json = jsonEncode(data.toJson());
-    if (json == _lastJson) {
-      _clearOnUnknown = false;
-      return;
-    }
+    if (json == _lastJson) return;
     _lastJson = json;
     try {
       final platform = widget.platform;
       await platform.write(SavedCafesWidgetData.storageKey, json);
       await platform.redraw();
-      _clearOnUnknown = false;
+      _showsAccount = fromAccount && cafes.isNotEmpty;
     } catch (e) {
       _lastJson = null;
       debugPrint('[SavedCafesWidget] write failed: $e');
@@ -290,9 +289,8 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
               current is AuthLoggedOut ||
               current is AuthUnauthenticated ||
               current is AuthAccountDeleted,
-          listener: (_, state) {
+          listener: (_, _) {
             _accountLoaded = false;
-            if (state is! AuthAuthenticated) _clearOnUnknown = true;
             _loadAccount();
             _queue();
           },
