@@ -79,9 +79,13 @@ class GuestSavesStore {
   }
 
   /// Replaces the saves with [saves]. Entries the last [read] could not
-  /// parse stay, after them.
-  Future<void> write(List<GuestSave> saves) async {
+  /// parse stay, after them, unless [dropUnreadable].
+  Future<void> write(
+    List<GuestSave> saves, {
+    bool dropUnreadable = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
+    if (dropUnreadable) _unparsed = const [];
     if (saves.isEmpty && _unparsed.isEmpty) {
       await prefs.remove(_savesKey);
       return;

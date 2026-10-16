@@ -36,7 +36,7 @@ class GuestSavesMerger {
     try {
       await saves.load();
       final left = {for (final s in saves.state.saves) s.cafeId};
-      await saves.removeAll(left);
+      await saves.removeAll(left, unreadable: true);
     } catch (e, st) {
       debugPrint('[GuestSavesMerger] discard failed: $e\n$st');
     }

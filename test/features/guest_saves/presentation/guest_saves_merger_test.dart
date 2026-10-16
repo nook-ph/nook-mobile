@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
@@ -194,6 +196,32 @@ void main() {
     expect(saves.state.isEmpty, isTrue);
     expect(await GuestSavesStore().read(), isEmpty);
   });
+
+  test(
+    'the sign-out discard also drops entries this build cannot read',
+    () async {
+      SharedPreferences.setMockInitialValues({
+        'guest_saves_v1': jsonEncode([
+          {
+            'cafe': {'id': 'a', 'name': 'Cafe A'},
+            'status': 'want_to_try',
+            'saved_at': '2026-09-01T00:00:00Z',
+          },
+          {
+            'cafe': {'id': 'x'},
+            'status': 'from_a_newer_build',
+          },
+        ]),
+      });
+      repo.failRead = true;
+      expect((await merger.merge()).failed, 1);
+
+      await merger.discardLeftovers();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('guest_saves_v1'), isNull);
+    },
+  );
 
   test('a sign-out with no merge tried keeps the guest\'s saves', () async {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);

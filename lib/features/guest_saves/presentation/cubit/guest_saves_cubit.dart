@@ -141,18 +141,20 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     return true;
   }
 
-  /// Drops the saves for [cafeIds] (they reached the account).
-  Future<void> removeAll(Set<String> cafeIds) async {
-    if (cafeIds.isEmpty) return;
+  /// Drops the saves for [cafeIds] (they reached the account). With
+  /// [unreadable], entries this build could not read go too (a sign-out
+  /// discarding what a merge left behind).
+  Future<void> removeAll(Set<String> cafeIds, {bool unreadable = false}) async {
+    if (cafeIds.isEmpty && !unreadable) return;
     await load();
     if (_readFailed) return;
     final saves = state.saves
         .where((s) => !cafeIds.contains(s.cafeId))
         .toList();
-    if (saves.length == state.saves.length) return;
+    if (saves.length == state.saves.length && !unreadable) return;
     emit(state.copyWith(saves: saves));
     try {
-      await _store.write(saves);
+      await _store.write(saves, dropUnreadable: unreadable);
     } catch (e) {
       // Left on disk: the next launch merges them again, which skips cafes
       // the account already has.

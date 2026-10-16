@@ -265,5 +265,8 @@ class _FailingStore extends GuestSavesStore {
   }
 
   @override
-  Future<void> write(List<GuestSave> saves) async => writes++;
+  Future<void> write(
+    List<GuestSave> saves, {
+    bool dropUnreadable = false,
+  }) async => writes++;
 }
