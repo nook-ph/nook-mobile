@@ -103,8 +103,13 @@ Future<void> launchCafeDirections(
         status: status ?? CafeStatus.none,
         operatingHours: details.operatingHours,
       );
-      if (decision.ask && context.mounted) {
-        await VisitReminderPrompts.atDirections(context, reminders, decision);
+      if (decision.ask) {
+        if (context.mounted) {
+          await VisitReminderPrompts.atDirections(context, reminders, decision);
+        } else {
+          // No ask was seen: the kept trip must not be scheduled later.
+          await reminders.dropTrip();
+        }
       }
     }
     watch = Stopwatch()..start();

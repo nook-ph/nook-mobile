@@ -188,7 +188,12 @@ abstract final class VisitReminderPrompts {
     // One pushed sheet per session, shared with the sign-up ask (ux
     // finding 2). Without the ask there is no permission, so no reminder.
     final budget = SessionAskBudget.instance;
-    if (!budget.canShowSheet || !context.mounted) {
+    if (!context.mounted) {
+      // The page went away: no ask, so no reminder either.
+      await service.dropTrip();
+      return;
+    }
+    if (!budget.canShowSheet) {
       // Without the ask there is no permission, so no reminder: say so,
       // or this Directions tap leaves no trace in the reminder funnel.
       logAppEvent(
@@ -215,7 +220,10 @@ abstract final class VisitReminderPrompts {
       NotificationEvents.prePromptShown,
       properties: {...props, 'prompt_number': number},
     );
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      await service.dropTrip();
+      return;
+    }
     dismissToasts();
     final accepted = await NotificationPrePromptSheet.show(
       context,

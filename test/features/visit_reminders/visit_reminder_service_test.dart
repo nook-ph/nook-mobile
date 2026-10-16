@@ -230,6 +230,29 @@ void main() {
     expect(await tester.runAsync(store.readTrip), isNull);
   });
 
+  testWidgets('a page gone before the ask drops the trip and spends nothing',
+      (tester) async {
+    late VisitReminderService service;
+    late DirectionsDecision decision;
+    await tester.runAsync(() async {
+      service = await started();
+      decision = await tap(service, 'a');
+    });
+    addTearDown(SessionAskBudget.instance.resetForTest);
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    final context = tester.element(find.byType(SizedBox));
+    await tester.pumpWidget(const MaterialApp(home: Text('elsewhere')));
+    analytics.events.clear();
+
+    await tester.runAsync(
+      () => VisitReminderPrompts.atDirections(context, service, decision),
+    );
+
+    expect(SessionAskBudget.instance.canShowSheet, isTrue);
+    expect(analytics.names, isNot(contains(NotificationEvents.prePromptShown)));
+    expect(await tester.runAsync(store.readTrip), isNull);
+  });
+
   test('Remind me, then Allow, schedules at the promised time', () async {
     final service = await started();
     final decision = await tap(service, 'a');
