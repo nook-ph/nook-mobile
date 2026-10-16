@@ -25,7 +25,6 @@ import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
-import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
@@ -648,12 +647,15 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             ),
                             automaticallyImplyLeading: false,
                             leadingWidth: 70,
+                            // The circles keep their 22 edge; their 48 touch
+                            // squares reach 4 past it (review N2).
                             leading: Padding(
-                              padding: const EdgeInsets.only(left: 22.0),
+                              padding: const EdgeInsets.only(left: 18.0),
                               child: Center(
                                 child: AppBarCircleIconButton(
                                   icon: Icons.arrow_back,
                                   iconSize: 18,
+                                  semanticLabel: 'Back',
                                   onTap: () => Navigator.pop(context),
                                 ),
                               ),
@@ -680,7 +682,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                       : '',
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 4),
                               Center(
                                 child: _SavedButton(
                                   cafeId: widget.cafeId,
@@ -691,7 +693,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   toastOffset: _toastOffset,
                                 ),
                               ),
-                              const SizedBox(width: 22),
+                              const SizedBox(width: 18),
                             ],
                             bottom: PreferredSize(
                               preferredSize: const Size.fromHeight(0.5),
@@ -780,24 +782,13 @@ class _TopBarSaveIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
+    return AppBarCircleIconButton(
+      icon: icon,
+      iconSize: 18,
+      iconColor: color,
+      semanticLabel: label,
       selected: selected,
-      label: label,
-      excludeSemantics: true,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.white,
-        ),
-        child: AdaptiveTap(
-          onTap: onTap ?? () {},
-          borderRadius: BorderRadius.circular(20),
-          child: Center(child: Icon(icon, color: color, size: 18)),
-        ),
-      ),
+      onTap: onTap,
     );
   }
 }
@@ -813,6 +804,7 @@ class _ShareButton extends StatelessWidget {
     return AppBarCircleIconButton(
       icon: PhosphorIcons.shareNetwork(),
       iconSize: 18,
+      semanticLabel: 'Share',
       onTap: () {
         // Details are still loading — a share with no name reads broken, and
         // the load takes well under a second.
@@ -941,18 +933,26 @@ class _SavedButtonState extends State<_SavedButton> {
           (previous is AuthAuthenticated) != (current is AuthAuthenticated),
       builder: (context, _) {
         if (Supabase.instance.client.auth.currentSession == null) {
-          return BlocSelector<GuestSavesCubit, GuestSavesState, bool>(
-            selector: (saves) =>
-                saves.statusFor(widget.cafeId) == CafeStatus.wantToTry,
-            builder: (context, saved) => _TopBarSaveIcon(
-              icon: PhosphorIcons.bookmarkSimple(
-                saved ? PhosphorIconsStyle.fill : PhosphorIconsStyle.regular,
-              ),
-              color: saved ? _brand : Colors.black,
-              label: saved ? 'Saved to Want to try' : 'Want to try',
-              selected: saved,
-              onTap: _onGuestTap,
-            ),
+          // Filled for any status, so a Been cafe never looks unsaved
+          // here (review N3).
+          return BlocSelector<GuestSavesCubit, GuestSavesState, CafeStatus>(
+            selector: (saves) => saves.statusFor(widget.cafeId),
+            builder: (context, status) {
+              final saved = status != CafeStatus.none;
+              return _TopBarSaveIcon(
+                icon: PhosphorIcons.bookmarkSimple(
+                  saved ? PhosphorIconsStyle.fill : PhosphorIconsStyle.regular,
+                ),
+                color: saved ? _brand : Colors.black,
+                label: switch (status) {
+                  CafeStatus.been => 'In Been',
+                  CafeStatus.wantToTry => 'Saved to Want to try',
+                  _ => 'Want to try',
+                },
+                selected: saved,
+                onTap: _onGuestTap,
+              );
+            },
           );
         }
         return _TopBarSaveIcon(
@@ -969,7 +969,7 @@ class _SavedButtonState extends State<_SavedButton> {
   static const _brand = Color(0xFF3A5A40);
 
   /// A guest's tap: Want to try on this phone, the same toggle and toasts
-  /// as the pill under the name.
+  /// as the pill under the name; on a Been cafe, an offer to move it.
   Future<void> _onGuestTap() async {
     final cafe = widget.snapshot();
     if (cafe == null) {
@@ -978,12 +978,7 @@ class _SavedButtonState extends State<_SavedButton> {
     }
     _logSave('guest_want_to_try');
     dismissToasts();
-    await toggleGuestStatus(
-      context,
-      cafe: cafe,
-      tapped: CafeStatus.wantToTry,
-      bottomOffset: widget.toastOffset(),
-    );
+    await guestTopSave(context, cafe: cafe, bottomOffset: widget.toastOffset());
   }
 
   Future<void> _loadSavedState() async {
