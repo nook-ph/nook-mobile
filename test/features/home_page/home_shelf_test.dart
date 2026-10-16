@@ -153,6 +153,26 @@ void main() {
       expect(shelf!.cafes.single.id, 'a');
     });
 
+    test('ids that can never be a shelf page are "not on Nook" without '
+        'asking the server, even offline', () async {
+      var fetches = 0;
+      final repository = HomeLayoutRepository(
+        fetch: () async {
+          fetches++;
+          throw Exception('offline');
+        },
+        cache: HomeLayoutCache(),
+      );
+      final use = GetHomeShelfUseCase(
+        current: CurrentHomeLayout(),
+        repository: repository,
+        loadShelves: load,
+      );
+      expect(await use('laptop_friendly'), isNull);
+      expect(await use('your_places'), isNull);
+      expect(fetches, 0);
+    });
+
     test('offline with the shelf not at hand throws (Try again), not '
         '"not on Nook"', () async {
       final repository = HomeLayoutRepository(
@@ -225,6 +245,40 @@ void main() {
       await tester.pumpAndSettle();
       expect(opened, 'custom:week');
       expect(header?.title, 'Coffee Week');
+    });
+
+    testWidgets('a banner link to another page does not hand it the header', (
+      tester,
+    ) async {
+      String? email = 'unset';
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, _) => TextButton(
+              onPressed: () => openHomeLink(
+                context,
+                Uri.parse('nook://signup-details'),
+                extra: const HomeShelfHeader(title: 'Join'),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+          GoRoute(
+            path: '/signup-details',
+            builder: (context, state) {
+              // As app_router does.
+              email = state.extra as String?;
+              return const SizedBox();
+            },
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(email, isNull);
     });
   });
 

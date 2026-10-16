@@ -63,8 +63,10 @@ String? builtinShelfSearch(String sectionId) => switch (sectionId) {
 /// browser. The future completes when the in-app page is closed (or once
 /// the browser is asked).
 ///
-/// [extra] goes to the in-app page (the banner passes a
-/// `HomeShelfHeader` so a shelf it opens carries its title).
+/// [extra] goes to the in-app page only when it is a shelf page (the
+/// banner passes a `HomeShelfHeader` so a shelf it opens carries its
+/// title): other routes read `extra` as their own type and would throw.
+/// A browser that cannot be opened is ignored.
 Future<void> openHomeLink(
   BuildContext context,
   Uri link, {
@@ -73,10 +75,17 @@ Future<void> openHomeLink(
   final location = inAppLocation(link);
   if (location != null) {
     // Completes when that page is closed.
-    await context.push<Object?>(location, extra: extra);
+    await context.push<Object?>(
+      location,
+      extra: location.startsWith('/shelf/') ? extra : null,
+    );
     return;
   }
   if (link.scheme == 'https') {
-    await launchUrl(link, mode: LaunchMode.externalApplication);
+    try {
+      await launchUrl(link, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // No app can open it: nothing to show.
+    }
   }
 }

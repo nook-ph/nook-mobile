@@ -54,6 +54,11 @@ class GetHomeShelfUseCase {
   loadShelves;
 
   Future<HomeShelf?> call(String id) async {
+    // Only custom shelves and House picks can have a page: any other id is
+    // "not on Nook" whatever the server says, so it is not asked.
+    if (!id.startsWith('custom:') && id != HomeBuiltin.featured.id) {
+      return null;
+    }
     var layout = current.layout ?? await repository?.cached();
     if (layout?.sectionById(id) == null && repository != null) {
       final fresh = await repository!.refresh();
