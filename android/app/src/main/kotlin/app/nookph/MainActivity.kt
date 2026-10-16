@@ -13,14 +13,17 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Reopened from Recents, or rebuilt after the process died: the
-        // activity gets back the intent that first launched it. A widget tap
-        // in it was already handled, so drop its link before Flutter and the
-        // widget plugin read it again (it would reopen the cafe and log
-        // another widget_tapped).
+        // activity gets back the intent that first launched it. A widget or
+        // visit-reminder tap in it was already handled, so drop it before
+        // Flutter and the plugins read it again (the widget link would
+        // reopen the cafe and log another widget_tapped; the notification
+        // would count as a launch tap again and re-run "I went").
+        // flutter_local_notifications only checks the history flag, not a
+        // restore.
         val launchedFromHistory =
             (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
         if ((savedInstanceState != null || launchedFromHistory) &&
-            intent.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION
+            intent.action in HANDLED_LAUNCH_ACTIONS
         ) {
             intent = Intent(intent).setAction(Intent.ACTION_MAIN).setData(null)
         }
@@ -31,8 +34,13 @@ class MainActivity : FlutterActivity() {
         // A widget tap that recreates the activity (process gone, task kept)
         // arrives here before Dart is listening. Keeping it as the activity's
         // intent lets the app read it on start
-        // (HomeWidget.initiallyLaunchedFromHomeWidget).
-        setIntent(intent)
+        // (HomeWidget.initiallyLaunchedFromHomeWidget). Only widget taps:
+        // an intent set here survives an in-process relaunch (a config
+        // change), so an OAuth callback, App Link or notification tap kept
+        // this way would be read again as the launch link by the new engine.
+        if (intent.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
+            setIntent(intent)
+        }
         super.onNewIntent(intent)
     }
 
@@ -74,5 +82,15 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    private companion object {
+        /** Launch intents the app acts on once: a widget tap, and a visit
+         *  reminder tap or its "I went" (flutter_local_notifications). */
+        val HANDLED_LAUNCH_ACTIONS = setOf(
+            HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION,
+            "SELECT_NOTIFICATION",
+            "SELECT_FOREGROUND_NOTIFICATION",
+        )
     }
 }
