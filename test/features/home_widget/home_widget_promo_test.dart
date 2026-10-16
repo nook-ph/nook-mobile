@@ -224,6 +224,47 @@ void main() {
     });
   });
 
+  group('buttons', () {
+    Widget card(double scale) => MaterialApp(
+      home: MediaQuery(
+        data: MediaQueryData(
+          size: const Size(400, 900),
+          textScaler: TextScaler.linear(scale),
+        ),
+        child: Scaffold(
+          body: SingleChildScrollView(
+            child: HomeWidgetPromoCard(
+              title: HomeWidgetPromo.savesTitle,
+              body: HomeWidgetPromo.savesBody,
+              preview: SavedCafesWidgetData.frameAt(
+                const [],
+                DateTime.utc(2026),
+              ),
+              names: const {},
+              onAdd: () {},
+              onDismiss: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('side by side, same height, at default text', (tester) async {
+      await tester.pumpWidget(card(1));
+      final add = tester.getRect(find.text(HomeWidgetPromo.addLabel));
+      final dismiss = tester.getRect(find.text(HomeWidgetPromo.dismissLabel));
+      expect(add.center.dy, closeTo(dismiss.center.dy, 0.5));
+      expect(add.left, greaterThan(dismiss.right));
+    });
+
+    testWidgets('stacked, Add widget on top, at large text', (tester) async {
+      await tester.pumpWidget(card(2));
+      final add = tester.getRect(find.text(HomeWidgetPromo.addLabel));
+      final dismiss = tester.getRect(find.text(HomeWidgetPromo.dismissLabel));
+      expect(add.bottom, lessThan(dismiss.top));
+    });
+  });
+
   group('pure parts', () {
     test('pin result from the counts', () {
       expect(WidgetPinResult.of(before: 0, after: 1), WidgetPinResult.added);

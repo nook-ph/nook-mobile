@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The 4x2 at large font scales (SavedCafesWidgetProvider.LARGE_TEXT_SCALE):
+<!-- Rows are 48dp+ and wrap their text; the spaces between them take what is
+     left.
+     The 4x2 at large font scales (SavedCafesWidgetProvider.LARGE_TEXT_SCALE):
      two rows instead of three, so each status line shows whole; names
-     ellipsize first. See SavedCafesWidgetProvider.kt for what each id shows. -->
+     ellipsize first. The count takes the title's place in the header, as on
+     the 2x2 at large text. See SavedCafesWidgetProvider.kt for what each id shows. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -38,17 +41,20 @@
                 android:maxLines="1"
                 android:text="@string/saved_cafes_widget_title_short"
                 android:textColor="@color/widget_brand"
-                android:textSize="13sp" />
+                android:textSize="13sp" 
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/header_count"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
                 android:maxLines="1"
                 android:text=""
-                android:textColor="@color/widget_muted"
-                android:textSize="12sp" />
+                android:fontFamily="sans-serif-medium"
+                android:textColor="@color/widget_brand"
+                android:textSize="13sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -61,8 +67,8 @@
             <LinearLayout
                 android:id="@+id/row_0"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
                 android:background="@drawable/widget_row_background"
                 android:gravity="center_vertical"
                 android:orientation="vertical"
@@ -108,11 +114,15 @@
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <LinearLayout
                 android:id="@+id/row_1"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
                 android:background="@drawable/widget_row_background"
                 android:gravity="center_vertical"
                 android:orientation="vertical"

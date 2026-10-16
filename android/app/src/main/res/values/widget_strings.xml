@@ -3,6 +3,7 @@
     <string name="saved_cafes_widget_label">Your saved cafes</string>
     <string name="saved_cafes_widget_description">Your Want to try cafes and when they\'re open</string>
     <string name="saved_cafes_widget_title">Your saved cafes</string>
+    <!-- Large-text layouts, empty state only (the count takes its place otherwise). -->
     <string name="saved_cafes_widget_title_short">Saved cafes</string>
     <string name="saved_cafes_widget_empty">Save cafes to see them here</string>
     <string name="saved_cafes_widget_empty_action">Find a cafe</string>

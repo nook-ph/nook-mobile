@@ -118,8 +118,15 @@ class SavedCafesWidgetProvider : HomeWidgetProvider() {
         val content = Content.read(data.getString(DATA_KEY, null), now)
         // At large font scales three rows of two lines do not fit a 4x2:
         // two rows, so every status line shows in full (names ellipsize).
+        // Both put the count where the title was.
         val largeText = context.resources.configuration.fontScale >= LARGE_TEXT_SCALE
-        val small = fill(context, R.layout.saved_cafes_widget_small, 1, content, now)
+        val small = fill(
+            context,
+            if (largeText) R.layout.saved_cafes_widget_small_large else R.layout.saved_cafes_widget_small,
+            1,
+            content,
+            now,
+        )
         val medium = if (largeText) {
             fill(context, R.layout.saved_cafes_widget_medium_large, 2, content, now)
         } else {
@@ -154,6 +161,12 @@ class SavedCafesWidgetProvider : HomeWidgetProvider() {
         }
         views.setTextViewText(R.id.header_count, count)
         views.setViewVisibility(R.id.header_count, if (count.isEmpty()) View.GONE else View.VISIBLE)
+        if (layout == R.layout.saved_cafes_widget_small_large ||
+            layout == R.layout.saved_cafes_widget_medium_large
+        ) {
+            // The count stands in for the title; with no count, the title.
+            views.setViewVisibility(R.id.header_title, if (count.isEmpty()) View.VISIBLE else View.GONE)
+        }
 
         if (content.rows.isEmpty()) {
             views.setViewVisibility(R.id.rows, View.GONE)

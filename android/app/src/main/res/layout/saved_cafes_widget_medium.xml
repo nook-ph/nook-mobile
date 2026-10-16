@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Generated shape: see SavedCafesWidgetProvider.kt for what each id shows. -->
+<!-- Rows are 48dp+ and wrap their text; the spaces between them take what is
+     left. If larger text than the layout planned for overflows (before the
+     provider next redraws with the large-text layout), the last row is cut
+     off at the bottom instead of every status line being cut in half.
+     See SavedCafesWidgetProvider.kt for what each id shows. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -59,8 +63,8 @@
             <LinearLayout
                 android:id="@+id/row_0"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
                 android:background="@drawable/widget_row_background"
                 android:gravity="center_vertical"
                 android:orientation="vertical"
@@ -106,11 +110,15 @@
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <LinearLayout
                 android:id="@+id/row_1"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
                 android:background="@drawable/widget_row_background"
                 android:gravity="center_vertical"
                 android:orientation="vertical"
@@ -156,11 +164,15 @@
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
             <LinearLayout
                 android:id="@+id/row_2"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
                 android:background="@drawable/widget_row_background"
                 android:gravity="center_vertical"
                 android:orientation="vertical"
