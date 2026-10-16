@@ -11,6 +11,7 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/features/visit_reminders/domain/visit_reminder_rules.dart';
 import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
 
 /// The in-app ask before the system notification dialog, shown at the
@@ -187,7 +188,23 @@ abstract final class VisitReminderPrompts {
     // One pushed sheet per session, shared with the sign-up ask (ux
     // finding 2). Without the ask there is no permission, so no reminder.
     final budget = SessionAskBudget.instance;
-    if (!budget.canShowSheet) {
+    if (!budget.canShowSheet || !context.mounted) {
+      // Without the ask there is no permission, so no reminder: say so,
+      // or this Directions tap leaves no trace in the reminder funnel.
+      logAppEvent(
+        NotificationEvents.prePromptSkipped,
+        properties: {
+          'cafe_id': trip.cafeId,
+          'reason': PrePromptSkipReason.sessionBudget.wire,
+        },
+      );
+      logAppEvent(
+        NotificationEvents.postVisitSkipped,
+        properties: {
+          'cafe_id': trip.cafeId,
+          'reason': ReminderSkipReason.noPermission.wire,
+        },
+      );
       await service.dropTrip();
       return;
     }

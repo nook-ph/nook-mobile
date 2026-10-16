@@ -314,7 +314,10 @@ enum PrePromptSkipReason {
   cap('cap'),
 
   /// Asked less than [VisitReminderRules.prePromptGap] ago.
-  gap('gap');
+  gap('gap'),
+
+  /// Another sheet already showed this session (`SessionAskBudget`).
+  sessionBudget('session_budget');
 
   const PrePromptSkipReason(this.wire);
 

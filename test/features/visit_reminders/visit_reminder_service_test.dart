@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/notification_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
@@ -5,10 +6,12 @@ import 'package:nook/core/cafe/domain/repositories/i_cafe_repository.dart';
 import 'package:nook/core/cafe/domain/use_cases/get_cafe_statuses_usecase.dart';
 import 'package:nook/core/cafe/domain/use_cases/set_cafe_status_usecase.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/features/visit_reminders/data/local_notifier.dart';
 import 'package:nook/features/visit_reminders/data/visit_reminder_store.dart';
 import 'package:nook/features/visit_reminders/domain/visit_reminder_rules.dart';
 import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
+import 'package:nook/features/visit_reminders/presentation/widgets/notification_preprompt_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/analytics/recording_analytics.dart';
@@ -194,6 +197,37 @@ void main() {
     expect(decision.ask, isTrue);
     expect(decision.trip?.fireAt, clock.add(const Duration(minutes: 90)));
     expect(notifier.scheduled, isEmpty);
+  });
+
+  testWidgets('a spent session budget skips the ask, says why, and drops '
+      'the trip', (tester) async {
+    late VisitReminderService service;
+    late DirectionsDecision decision;
+    await tester.runAsync(() async {
+      service = await started();
+      decision = await tap(service, 'a');
+    });
+    expect(decision.ask, isTrue);
+    SessionAskBudget.instance.spend(SessionAskKind.signUpAsk);
+    addTearDown(SessionAskBudget.instance.resetForTest);
+    await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+    final context = tester.element(find.byType(SizedBox));
+    analytics.events.clear();
+
+    await tester.runAsync(
+      () => VisitReminderPrompts.atDirections(context, service, decision),
+    );
+
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(analytics.propertiesOf(NotificationEvents.prePromptSkipped), {
+      'cafe_id': 'a',
+      'reason': 'session_budget',
+    });
+    expect(
+      analytics.propertiesOf(NotificationEvents.postVisitSkipped)?['reason'],
+      'no_permission',
+    );
+    expect(await tester.runAsync(store.readTrip), isNull);
   });
 
   test('Remind me, then Allow, schedules at the promised time', () async {
