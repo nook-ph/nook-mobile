@@ -11,6 +11,7 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
+import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
 import 'package:nook/features/saver_survey/data/save_dates_source.dart';
 import 'package:nook/features/saver_survey/data/saver_survey_store.dart';
@@ -188,6 +189,9 @@ class _SaverSurveyHostState extends State<SaverSurveyHost> {
           final asked = shown;
           if (asked != null) tapped(asked, SaverSurveyActions.useLocation);
           final position = await location.ask();
+          // Allowed from here: Home reloads so "Near you" shows behind the
+          // sheet, as it does after Home's own ask.
+          if (position != null && mounted) _reloadHome();
           final next = position == null
               ? null
               : SaverSurveyFollowUps.nearest(decision.wantToTry, position);
@@ -221,6 +225,14 @@ class _SaverSurveyHostState extends State<SaverSurveyHost> {
     }
     // Closed with the close button, a swipe, the scrim or Back.
     tapped(last, SaverSurveyActions.close);
+  }
+
+  void _reloadHome() {
+    try {
+      context.read<HomeBloc>().add(LoadHomeDataEvent(refresh: true));
+    } catch (_) {
+      // No Home feed above (tests).
+    }
   }
 
   static void _openCafe(BuildContext context, CafeSnapshot cafe) =>
