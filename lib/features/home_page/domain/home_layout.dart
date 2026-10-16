@@ -320,7 +320,9 @@ class HomeSection {
       // A custom shelf needs a title: it has no default.
       if (title == null) return null;
       return HomeSection(
-        id: id,
+        // Always `custom:<id>`, so a custom shelf never shares an id with a
+        // built-in one (in de-dup, loaded shelves and shelf links).
+        id: id.startsWith('custom:') ? id : 'custom:$id',
         visible: visible,
         title: title,
         cafeIds: source == HomeShelfSource.picked ? cafeIds : const [],

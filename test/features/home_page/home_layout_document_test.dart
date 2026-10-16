@@ -228,6 +228,21 @@ void main() {
       ]);
     });
 
+    test('a custom shelf id is always custom:<id>', () {
+      final layout = _layout([
+        {'id': 'featured', 'type': 'builtin'},
+        {
+          'id': 'featured',
+          'type': 'custom',
+          'title': 'Not House picks',
+          'source': 'picked',
+          'cafe_ids': ['a'],
+        },
+      ]);
+      expect(layout.sections.map((s) => s.id), ['featured', 'custom:featured']);
+      expect(layout.sectionById('custom:featured')!.isCustom, isTrue);
+    });
+
     test('at most 20 sections and 12 custom shelves', () {
       final layout = _layout([
         for (var i = 0; i < 30; i++)
