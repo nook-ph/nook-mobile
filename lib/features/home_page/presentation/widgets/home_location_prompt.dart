@@ -8,6 +8,7 @@ import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 
 /// Whether Home should offer "See cafes near you".
 ///
@@ -104,7 +105,10 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
           widget.servicesEnabled ?? Geolocator.isLocationServiceEnabled,
       checkPermission: widget.checkPermission ?? Geolocator.checkPermission,
     );
-    if (mounted && offer) setState(() => _visible = true);
+    if (!offer) return;
+    // The row is an ask too: the saver survey does not stack on it.
+    SessionPrompts.noteShown();
+    if (mounted) setState(() => _visible = true);
   }
 
   void _dismiss(String result) {

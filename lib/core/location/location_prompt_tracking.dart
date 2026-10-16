@@ -1,6 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 
 /// Where a location prompt was shown, for `location_prompt_shown` and
 /// `location_permission_result`.
@@ -57,6 +58,7 @@ class LocationPromptTracker {
   void shown() {
     if (_shown) return;
     _shown = true;
+    SessionPrompts.noteShown();
     logAppEvent(LocationPromptEvents.shown, properties: {'surface': surface});
   }
 

@@ -17,6 +17,7 @@ import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.d
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 
 /// The copy of the one-time prompt after a guest's first save.
 const keepSavesPromptMessage =
@@ -112,6 +113,7 @@ Future<void> _confirmGuestSave(
 /// Sign in action, never a wall: ignoring it keeps the save.
 void showKeepSavesPrompt(BuildContext context, {double bottomOffset = 0}) {
   const surface = {'surface': KeepSavesSurface.firstSaveToast};
+  SessionPrompts.noteShown();
   logAppEvent(SavesEvents.keepSavesPromptShown, properties: surface);
   showPrimaryToastWithAction(
     context,

@@ -6,6 +6,7 @@ import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 
 /// Tells a guest why an action needs an account instead of dropping them on
 /// the login page. Google and Apple sign in from the sheet; email opens the
@@ -58,6 +59,7 @@ class GuestSignInSheet extends StatelessWidget {
     String trigger = 'other',
   }) async {
     final props = <String, Object>{'trigger': trigger};
+    SessionPrompts.noteShown();
     logAppEvent(SignInPromptEvents.shown, properties: props);
     final choice = await showModalBottomSheet<SignInChoice>(
       context: context,
