@@ -135,8 +135,29 @@ abstract final class WidgetLinks {
     return link;
   }
 
+  /// Mounted [WidgetLinkOpener]s: the tab shell is built.
+  static int _openers = 0;
+  static bool _shellSeen = false;
+
+  static void openerAttached() {
+    _openers++;
+    _shellSeen = true;
+  }
+
+  static void openerDetached() => _openers--;
+
+  /// A link waits and nothing will open it: the shell this run showed is
+  /// gone (signed out to `/login`, say). A warm Android tap sends no route
+  /// (MainActivity), so the app goes back to `/` itself for it. Not before
+  /// the shell first shows: a cold start gets there on its own, through
+  /// onboarding or account setup.
+  static bool get needsShell =>
+      pending.value != null && _openers == 0 && _shellSeen;
+
   @visibleForTesting
   static void reset() {
+    _openers = 0;
+    _shellSeen = false;
     _lastKey = null;
     _lastAt = null;
     _lastTaken = false;

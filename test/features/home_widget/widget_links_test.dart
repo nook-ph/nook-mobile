@@ -99,4 +99,21 @@ void main() {
     WidgetLinks.accept(Uri.parse('nook://home/?via=widget'));
     expect(WidgetLinks.take()?.target, WidgetLinkTarget.home);
   });
+
+  test('a link needs the shell only once it has shown and is gone', () {
+    RecordingAnalytics.install(addTearDown);
+    // Cold start: the shell has not shown yet; the app gets there itself.
+    WidgetLinks.acceptFromPlatform(Uri.parse('nook://cafe/a?via=widget'));
+    expect(WidgetLinks.needsShell, isFalse);
+
+    WidgetLinks.openerAttached();
+    expect(WidgetLinks.needsShell, isFalse, reason: 'the shell opens it');
+
+    // Signed out to /login: the shell is gone.
+    WidgetLinks.openerDetached();
+    expect(WidgetLinks.needsShell, isTrue);
+
+    WidgetLinks.take();
+    expect(WidgetLinks.needsShell, isFalse, reason: 'nothing waits');
+  });
 }

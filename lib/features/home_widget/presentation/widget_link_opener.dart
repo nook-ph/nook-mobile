@@ -22,6 +22,7 @@ class _WidgetLinkOpenerState extends State<WidgetLinkOpener> {
   @override
   void initState() {
     super.initState();
+    WidgetLinks.openerAttached();
     WidgetLinks.pending.addListener(_schedule);
     _schedule();
   }
@@ -29,6 +30,7 @@ class _WidgetLinkOpenerState extends State<WidgetLinkOpener> {
   @override
   void dispose() {
     WidgetLinks.pending.removeListener(_schedule);
+    WidgetLinks.openerDetached();
     super.dispose();
   }
 

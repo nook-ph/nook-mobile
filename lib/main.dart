@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:nook/features/home_widget/presentation/widget_links.dart';
 import 'package:nook/features/home_widget/presentation/saved_cafes_widget_sync.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -148,6 +149,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     _reminders.openRequests.addListener(_openFromReminder);
+    WidgetLinks.pending.addListener(_showShellForWidgetLink);
     // A cold start from the notification set it before this listened.
     WidgetsBinding.instance.addPostFrameCallback((_) => _openFromReminder());
   }
@@ -155,7 +157,18 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     _reminders.openRequests.removeListener(_openFromReminder);
+    WidgetLinks.pending.removeListener(_showShellForWidgetLink);
     super.dispose();
+  }
+
+  /// A widget tap while the tab shell is not built (`/login` after a
+  /// sign-out): back to `/`, where the shell opens it. After the frame, so
+  /// a router redirect that set it has built the shell by then.
+  void _showShellForWidgetLink() {
+    if (WidgetLinks.pending.value == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && WidgetLinks.needsShell) _router?.go('/');
+    });
   }
 
   /// "Did you make it to [cafe]?" was tapped (the body or "I went"): open
