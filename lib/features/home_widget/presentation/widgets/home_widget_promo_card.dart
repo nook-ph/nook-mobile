@@ -7,6 +7,7 @@ import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/home_widget/data/home_widget_platform.dart';
+import 'package:nook/features/home_widget/data/visit_reminder_decline.dart';
 import 'package:nook/features/home_widget/data/widget_promo_store.dart';
 import 'package:nook/features/home_widget/domain/notification_decline.dart';
 import 'package:nook/features/home_widget/domain/saved_cafes_widget_data.dart';
@@ -14,6 +15,8 @@ import 'package:nook/features/home_widget/domain/widget_promo_rules.dart';
 import 'package:nook/features/home_widget/presentation/saved_cafes_widget_sync.dart';
 import 'package:nook/features/home_widget/presentation/widgets/on_screen_detector.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
+import 'package:nook/injection_container.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 
 /// The Saved tab's one-time "Add widget" card. Shown after three Want to
@@ -28,6 +31,7 @@ import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 /// launcher shows its own dialog, and on the next resume the widget count
 /// says whether it was added. Only then is the card retired, with a toast
 /// saying where to look; a Cancel keeps the remaining show.
+
 class HomeWidgetPromo extends StatefulWidget {
   const HomeWidgetPromo({
     super.key,
@@ -36,7 +40,7 @@ class HomeWidgetPromo extends StatefulWidget {
     this.store,
     this.feed,
     this.now,
-    this.declines = const UnknownNotificationDecline(),
+    this.declines,
     this.dwell = const Duration(seconds: 1),
     this.pinSettle = const Duration(milliseconds: 1500),
   });
@@ -50,9 +54,10 @@ class HomeWidgetPromo extends StatefulWidget {
   final ValueListenable<List<WidgetCafe>?>? feed;
   final DateTime Function()? now;
 
-  /// A recorded answer to Nook's own notification ask. Unknown until
-  /// `retention/local-notifications` merges (see [NotificationDeclineSource]).
-  final NotificationDeclineSource declines;
+  /// A recorded answer to Nook's own notification ask; defaults to the
+  /// visit-reminder service's ([VisitReminderDecline]), or unknown without
+  /// it.
+  final NotificationDeclineSource? declines;
 
   /// How long the card must stay on screen to count as seen.
   final Duration dwell;
@@ -102,6 +107,12 @@ class _HomeWidgetPromoState extends State<HomeWidgetPromo>
       widget.feed ?? savedCafesWidgetFeed;
   WidgetPromoStore get _store => widget.store ?? WidgetPromoStore();
   DateTime _now() => (widget.now ?? DateTime.now)();
+
+  NotificationDeclineSource get _declines =>
+      widget.declines ??
+      (sl.isRegistered<VisitReminderService>()
+          ? VisitReminderDecline(sl<VisitReminderService>())
+          : const UnknownNotificationDecline());
 
   String get _reasonWire =>
       HomeWidgetPromo._sessionReason == WidgetPromoReason.noNotifications
@@ -155,7 +166,7 @@ class _HomeWidgetPromoState extends State<HomeWidgetPromo>
       final notifications = NotificationsState.resolve(
         sdkInt: await widget.platform.sdkInt(),
         enabled: await widget.platform.notificationsEnabled(),
-        declinedAfterAsk: await widget.declines.declinedAfterAsk(),
+        decline: await _declines.decline(),
       );
       final canPin = await widget.platform.canPin();
       final installed = await widget.platform.installedCount();

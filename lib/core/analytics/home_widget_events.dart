@@ -12,7 +12,8 @@ abstract final class HomeWidgetEvents {
 
   /// At least half the card was on screen for a second: this is what spends
   /// one of the two shows. Properties: `reason`, `show`, and `decline_kind`
-  /// (`system_denied` / `sdk_disabled`) when reason is `no_notifications`.
+  /// (`system_denied` / `settings_off` / `channel_muted` / `sdk_disabled`)
+  /// when reason is `no_notifications`.
   static const promoViewed = 'widget_promo_viewed';
 
   /// "Add widget" was tapped and the launcher was asked to place it.

@@ -50,8 +50,12 @@ class _FakePlatform implements HomeWidgetPlatform {
 }
 
 class _Declined implements NotificationDeclineSource {
+  _Declined([this.kind = NotificationDecline.deniedAfterAsk]);
+
+  final NotificationDecline kind;
+
   @override
-  Future<bool?> declinedAfterAsk() async => true;
+  Future<NotificationDecline?> decline() async => kind;
 }
 
 final _cafes = ValueNotifier<List<WidgetCafe>?>([
@@ -196,6 +200,22 @@ void main() {
         'show': 1,
         'decline_kind': 'system_denied',
       });
+    });
+
+    testWidgets('notifications on but the reminders channel muted: the '
+        'no-notifications card', (tester) async {
+      analytics = RecordingAnalytics.install(addTearDown);
+      platform.enabled = true;
+      await tester.pumpWidget(
+        page(promo(declines: _Declined(NotificationDecline.channelMuted))),
+      );
+      await tester.pump();
+      expect(find.text(HomeWidgetPromo.noNotificationsTitle), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      expect(
+        analytics.propertiesOf(HomeWidgetEvents.promoViewed)?['decline_kind'],
+        'channel_muted',
+      );
     });
   });
 

@@ -106,16 +106,17 @@ screen."; if not, nothing is said and the remaining show stays. At large
 text the two buttons stack, "Add widget" on top.
 
 **What counts as notifications off** (`domain/notification_decline.dart`):
-only the system "Don't allow" after Nook's own ask, or notifications
-disabled below SDK 33 (where they start on). On SDK 33+ they start off until
-the app asks, so "off and never asked" is unknown and passes
-`notificationsOff: null`; the saves card shows instead. The ask lives on
-`retention/local-notifications`, so this branch reads the decline through
-`NotificationDeclineSource`, whose default (`UnknownNotificationDecline`)
-always says unknown. **On merge:** implement it from the visit-reminder
-service (a system ask answered without a grant) and pass it to
-`HomeWidgetPromo(declines: ...)`. Do not count the pre-prompt's "Just
-directions": the system dialog never showed.
+the system "Don't allow" after Nook's own ask, notifications turned off in
+Settings after being allowed, notifications on with the "Visits and ratings"
+channel muted, or notifications disabled below SDK 33 (where they start on).
+On SDK 33+ they start off until the app asks, so "off and never asked" is
+unknown and passes `notificationsOff: null`; the saves card shows instead.
+The answers come from the visit-reminder service's record of its asks
+(`data/visit_reminder_decline.dart`, `VisitReminderService.notificationAnswers`):
+a system ask that was never granted, a grant that is now off, or the muted
+channel. The pre-prompt's "Just directions" is not a decline: the system
+dialog never showed. `decline_kind` on `widget_promo_viewed` is one of
+`system_denied`, `settings_off`, `channel_muted`, `sdk_disabled`.
 
 ## Events
 

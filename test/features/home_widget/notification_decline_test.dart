@@ -3,12 +3,16 @@ import 'package:nook/features/home_widget/domain/notification_decline.dart';
 import 'package:nook/features/home_widget/domain/widget_promo_rules.dart';
 
 void main() {
-  NotificationsState resolve({int? sdk, bool? enabled, bool? declined}) =>
-      NotificationsState.resolve(
-        sdkInt: sdk,
-        enabled: enabled,
-        declinedAfterAsk: declined,
-      );
+  NotificationsState resolve({
+    int? sdk,
+    bool? enabled,
+    NotificationDecline? decline,
+  }) => NotificationsState.resolve(
+    sdkInt: sdk,
+    enabled: enabled,
+    decline: decline,
+  );
+  const denied = NotificationDecline.deniedAfterAsk;
 
   group('NotificationsState.resolve', () {
     test('never asked on 33+ is unknown, not off', () {
@@ -19,7 +23,7 @@ void main() {
     });
 
     test('"Don\'t allow" after the app\'s own ask is a decline', () {
-      final s = resolve(sdk: 35, enabled: false, declined: true);
+      final s = resolve(sdk: 35, enabled: false, decline: denied);
       expect(s, NotificationsState.systemDenied);
       expect(s.off, isTrue);
       expect(s.declineKind, 'system_denied');
@@ -34,13 +38,35 @@ void main() {
 
     test('asked and allowed, or on, is on', () {
       expect(resolve(sdk: 35, enabled: true), NotificationsState.on);
-      expect(resolve(sdk: 35, enabled: false, declined: false).off, isNull);
+      expect(resolve(sdk: 35, enabled: false).off, isNull);
       // Allowed later in Settings wins over an old decline.
       expect(
-        resolve(sdk: 35, enabled: true, declined: true),
+        resolve(sdk: 35, enabled: true, decline: denied),
         NotificationsState.on,
       );
       expect(resolve(sdk: 30, enabled: true).off, isFalse);
+    });
+
+    test('turned off after allowing is a decline', () {
+      final s = resolve(
+        sdk: 35,
+        enabled: false,
+        decline: NotificationDecline.turnedOff,
+      );
+      expect(s, NotificationsState.settingsOff);
+      expect(s.off, isTrue);
+      expect(s.declineKind, 'settings_off');
+    });
+
+    test('on, with the reminders channel muted, is a decline', () {
+      final s = resolve(
+        sdk: 35,
+        enabled: true,
+        decline: NotificationDecline.channelMuted,
+      );
+      expect(s, NotificationsState.channelMuted);
+      expect(s.off, isTrue);
+      expect(s.declineKind, 'channel_muted');
     });
 
     test('nothing known is unknown', () {
@@ -49,10 +75,7 @@ void main() {
     });
 
     test('the default source says unknown', () async {
-      expect(
-        await const UnknownNotificationDecline().declinedAfterAsk(),
-        isNull,
-      );
+      expect(await const UnknownNotificationDecline().decline(), isNull);
     });
   });
 

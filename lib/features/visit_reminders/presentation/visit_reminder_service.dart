@@ -323,6 +323,26 @@ class VisitReminderService {
   Future<bool> channelMuted() async =>
       await _notifier.areEnabled() && await _notifier.channelMuted();
 
+  /// What this phone says about Nook's notifications, for features that
+  /// treat a real decline differently (the home-screen widget promo):
+  /// whether they are on for the app, whether the reminders channel is muted
+  /// on its own, how many times the system dialog was asked for, and
+  /// whether it was ever granted. Reads only; marks nothing.
+  Future<
+    ({bool appEnabled, bool channelMuted, int systemAsks, bool everGranted})
+  >
+  notificationAnswers() async {
+    final appEnabled = await _notifier.areEnabled();
+    final muted = appEnabled && await _notifier.channelMuted();
+    final asks = await _store.readSystemAsks();
+    return (
+      appEnabled: appEnabled,
+      channelMuted: muted,
+      systemAsks: asks.asks,
+      everGranted: asks.everGranted,
+    );
+  }
+
   Future<bool> remindersEnabled() => _store.readEnabled();
 
   /// A Directions tap on [cafeId], before Maps opens. Works out the real
