@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/saver_survey_events.dart';
@@ -10,6 +12,7 @@ void main() {
   late SaverSurveyResult? result;
   late bool closed;
   late List<SaverSurveyAnswer> sent;
+  late List<SaverSurveyFollowUp> shownCards;
 
   // Open 08:00-21:00 every day; Manila 10:00 on a Friday.
   final hours = {
@@ -31,10 +34,12 @@ void main() {
     WidgetTester tester, {
     SaverSurveyFollowUp? Function(SaverSurveyAnswer)? followUp,
     Future<SaverSurveyFollowUp?> Function()? onUseLocation,
+    Future<SaverSurveyFollowUp?>? pending,
   }) async {
     closed = false;
     result = null;
     sent = [];
+    shownCards = [];
     // A Pixel-class phone, as on the emulator.
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 2.625;
@@ -54,9 +59,11 @@ void main() {
                       now: () => now,
                       onSend: (answer) async {
                         sent.add(answer);
+                        if (pending != null) return pending;
                         return followUp?.call(answer);
                       },
                       onUseLocation: onUseLocation,
+                      onFollowUpShown: shownCards.add,
                     ),
                   );
                   closed = true;
@@ -285,5 +292,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('See cafe'), findsOneWidget);
+  });
+
+  testWidgets('a card is reported shown only while the sheet is open', (
+    tester,
+  ) async {
+    await open(
+      tester,
+      followUp: (_) =>
+          SaverSurveyFollowUp(SaverSurveyFollowUpKind.openState, cafe: brew),
+    );
+    await tester.tap(row(SaverSurveyCopy.unsureOpen.label));
+    await tester.pump();
+    await tester.tap(send());
+    await tester.pumpAndSettle();
+    expect(shownCards.map((c) => c.kind), [SaverSurveyFollowUpKind.openState]);
+  });
+
+  testWidgets('skipping while Send is still working reports no card', (
+    tester,
+  ) async {
+    final pending = Completer<SaverSurveyFollowUp?>();
+    await open(tester, pending: pending.future);
+    await tester.tap(row(SaverSurveyCopy.unsureOpen.label));
+    await tester.pump();
+    await tester.tap(send());
+    await tester.pump();
+    await tester.tap(find.text(SaverSurveyCopy.skipLabel));
+    await tester.pumpAndSettle();
+    expect(closed, isTrue);
+
+    pending.complete(
+      SaverSurveyFollowUp(SaverSurveyFollowUpKind.openState, cafe: brew),
+    );
+    await tester.pumpAndSettle();
+    expect(shownCards, isEmpty);
+    expect(result, isNull);
   });
 }

@@ -64,6 +64,7 @@ class SaverSurveySheet extends StatefulWidget {
     required this.days,
     required this.onSend,
     this.onUseLocation,
+    this.onFollowUpShown,
     this.now,
   });
 
@@ -80,6 +81,10 @@ class SaverSurveySheet extends StatefulWidget {
   /// "Use my location" on the location card: asks, then returns the nearest
   /// card, or null to close.
   final Future<SaverSurveyFollowUp?> Function()? onUseLocation;
+
+  /// A follow-up card is now on screen: called only while the sheet is
+  /// still open, so a card the user closed the sheet before is not counted.
+  final ValueChanged<SaverSurveyFollowUp>? onFollowUpShown;
 
   /// For the open state; defaults to now.
   final DateTime Function()? now;
@@ -121,6 +126,7 @@ class _SaverSurveySheetState extends State<SaverSurveySheet> {
       _busy = false;
       _followUp = followUp;
     });
+    widget.onFollowUpShown?.call(followUp);
   }
 
   Future<void> _useLocation() async {
@@ -137,6 +143,7 @@ class _SaverSurveySheetState extends State<SaverSurveySheet> {
       _busy = false;
       _followUp = next;
     });
+    widget.onFollowUpShown?.call(next);
   }
 
   void _act(SaverSurveyFollowUp followUp, String action) {

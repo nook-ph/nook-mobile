@@ -145,9 +145,9 @@ class _SaverSurveyHostState extends State<SaverSurveyHost> {
     final location = widget.location ?? SaverSurveyLocation();
     var answered = false;
     var askedLocation = false;
+    // The card on screen; set by the sheet only while it is still open.
     SaverSurveyFollowUp? shown;
-    void showFollowUp(SaverSurveyFollowUp? followUp) {
-      if (followUp == null) return;
+    void showFollowUp(SaverSurveyFollowUp followUp) {
       shown = followUp;
       logAppEvent(
         SaverSurveyEvents.followUpShown,
@@ -181,7 +181,6 @@ class _SaverSurveyHostState extends State<SaverSurveyHost> {
             position: position,
             canAskLocation: far && position == null && await location.canAsk(),
           );
-          showFollowUp(followUp);
           return followUp;
         },
         onUseLocation: () async {
@@ -192,9 +191,9 @@ class _SaverSurveyHostState extends State<SaverSurveyHost> {
           final next = position == null
               ? null
               : SaverSurveyFollowUps.nearest(decision.wantToTry, position);
-          showFollowUp(next);
           return next;
         },
+        onFollowUpShown: showFollowUp,
       ),
     );
     if (!mounted) return;
