@@ -288,13 +288,28 @@ class YourPlacesRow extends StatelessWidget {
           HomeSectionTitle(
             title,
             subtitle: YourPlacesRail.subtitle,
-            // The title row's end holds one thing: the progress pill while
-            // something is still on Want to try, else "See all".
-            trailing: showProgress
+            onSeeAll: onSeeAll,
+            // "See all" owns the row's end, so the pill goes under it then.
+            trailing: showProgress && onSeeAll == null
                 ? PlacesProgressPill(progress: progress!, onTap: onProgressTap)
                 : null,
-            onSeeAll: showProgress ? null : onSeeAll,
           ),
+          if (showProgress && onSeeAll != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                ResponsiveCardSizes.homeGutter,
+                4,
+                ResponsiveCardSizes.homeGutter,
+                0,
+              ),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: PlacesProgressPill(
+                  progress: progress!,
+                  onTap: onProgressTap,
+                ),
+              ),
+            ),
           const SizedBox(height: 12),
           PrototypeHeight(
             prototype: HomeCafeCard(
