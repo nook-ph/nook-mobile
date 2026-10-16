@@ -3,7 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/saves_events.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/presentation/bottom_nav.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
@@ -68,6 +73,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     _hiddenAt = null;
     if (hidden != null &&
         DateTime.now().difference(hidden) >= SignUpAskRules.sessionGap) {
+      SessionAskBudget.instance.newSession();
       _recordSession();
     }
   }
@@ -185,16 +191,28 @@ void showMergeToast(
   BuildContext context,
   GuestMergeResult result, {
   required VoidCallback onRetry,
+  double? bottomOffset,
 }) {
   final message = mergeToastMessage(result);
   if (message == null) return;
+  // Above the tab bar when a tab is showing, so it never covers the Saved
+  // tab its own View opens (review N7).
+  final onTab = ScreenNames.tabs.contains(ScreenTracker.instance.current);
+  final offset = bottomOffset ?? (onTab ? BottomNav.height.value : 0.0);
   if (result.failed == 0) {
     showPrimaryToastWithAction(
       context,
       message,
       actionLabel: mergeViewLabel,
-      onAction: openSavedTab,
+      onAction: () {
+        logAppEvent(
+          SavesEvents.mergeToastViewTapped,
+          properties: {'count': result.moved},
+        );
+        openSavedTab();
+      },
       duration: toastDurationFor(context, const Duration(seconds: 6)),
+      bottomOffset: offset,
     );
     return;
   }
@@ -204,6 +222,7 @@ void showMergeToast(
     actionLabel: mergeRetryLabel,
     onAction: onRetry,
     duration: toastDurationFor(context, const Duration(seconds: 8)),
+    bottomOffset: offset,
   );
 }
 

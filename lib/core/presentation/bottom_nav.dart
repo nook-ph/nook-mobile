@@ -32,8 +32,17 @@ class BottomNav extends StatelessWidget {
         ),
       ];
 
+  /// The bar's height as last laid out, safe-area inset included, so
+  /// app-wide toasts (the merge toast) can sit above it; 0 before the first
+  /// layout.
+  static final ValueNotifier<double> height = ValueNotifier(0);
+
   @override
   Widget build(BuildContext context) {
+    return _ReportHeight(child: _bar());
+  }
+
+  Widget _bar() {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -114,5 +123,27 @@ class _Tab extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Writes its child's laid-out height into [BottomNav.height].
+class _ReportHeight extends StatefulWidget {
+  const _ReportHeight({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ReportHeight> createState() => _ReportHeightState();
+}
+
+class _ReportHeightState extends State<_ReportHeight> {
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = context.size;
+      if (size != null) BottomNav.height.value = size.height;
+    });
+    return widget.child;
   }
 }
