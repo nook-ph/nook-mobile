@@ -77,6 +77,10 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
   String? _lastJson;
   bool _checkingInstalled = false;
 
+  /// Set on sign-out until the next write: if the guest saves are unknown
+  /// then, write an empty widget rather than leave the account's cafes.
+  bool _clearOnUnknown = false;
+
   bool get _enabled => widget.platform.isSupported;
 
   bool get _signedIn =>
@@ -95,7 +99,9 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
       final account = AccountWantToTryCubit(repository: repository);
       _account = account;
       _accountSub = account.stream.listen((_) {
-        _accountLoaded = true;
+        // Only a load while signed in counts; clear()'s [] on sign-out
+        // must not pass for the next account's list.
+        if (_signedIn) _accountLoaded = true;
         _queue();
       });
     }
@@ -183,8 +189,13 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
 
   Future<void> _write() async {
     if (!mounted) return;
-    final cafes = _wantToTry();
-    if (cafes == null) return;
+    var cafes = _wantToTry();
+    if (cafes == null) {
+      // Signed out, and the phone's own saves cannot be read: the widget
+      // must not keep showing the account's cafes.
+      if (!_clearOnUnknown || _signedIn) return;
+      cafes = const [];
+    }
     final position = DeviceLocation.instance.position.value;
     final widgetCafes = [
       for (final c in cafes)
@@ -206,12 +217,16 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
 
     final data = SavedCafesWidgetData.build(widgetCafes, now: DateTime.now());
     final json = jsonEncode(data.toJson());
-    if (json == _lastJson) return;
+    if (json == _lastJson) {
+      _clearOnUnknown = false;
+      return;
+    }
     _lastJson = json;
     try {
       final platform = widget.platform;
       await platform.write(SavedCafesWidgetData.storageKey, json);
       await platform.redraw();
+      _clearOnUnknown = false;
     } catch (e) {
       _lastJson = null;
       debugPrint('[SavedCafesWidget] write failed: $e');
@@ -275,8 +290,9 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
               current is AuthLoggedOut ||
               current is AuthUnauthenticated ||
               current is AuthAccountDeleted,
-          listener: (_, _) {
+          listener: (_, state) {
             _accountLoaded = false;
+            if (state is! AuthAuthenticated) _clearOnUnknown = true;
             _loadAccount();
             _queue();
           },
