@@ -201,13 +201,15 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       // The server's layout, once the feed is on screen. Only a change is
       // drawn; a failed fetch keeps the cached layout (or the built-in Home).
       final fresh = await refreshed;
-      final current = state;
       if (fresh != null &&
           fresh.changed &&
           !emit.isDone &&
-          current is HomeLoadedState) {
+          state is HomeLoadedState) {
         final shelves = await _shelvesFor(fresh.layout);
-        if (emit.isDone) return;
+        // Read after the wait: a state emitted meanwhile (the location
+        // banner closed, a refresh's newer lists) must not be undone.
+        final current = state;
+        if (emit.isDone || current is! HomeLoadedState) return;
         final next = fresh.layout == null
             ? current.copyWith(clearLayout: true)
             : current.copyWith(layout: fresh.layout, layoutShelves: shelves);

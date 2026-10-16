@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_query.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
@@ -296,6 +298,49 @@ void main() {
         for (final s in states.whereType<HomeLoadedState>()) s.layout?.version,
       ];
       expect(versions, ['v1', 'v2']);
+      await sub.cancel();
+      await bloc.close();
+    });
+
+    test('the server layout does not undo a state emitted while its '
+        'shelves load', () async {
+      await repo(() async => _response('v1')).refresh();
+      final shelvesGate = Completer<void>();
+      final bloc = HomeBloc(
+        getHomeFeedUseCase: _Feed(),
+        layoutRepository: repo(
+          () async => _response(
+            'v2',
+            sections: [
+              {
+                'id': 'custom:p',
+                'type': 'custom',
+                'title': 'Picked',
+                'source': 'picked',
+                'cafe_ids': ['9a2b3c4d-0000-4000-8000-00000000000a'],
+              },
+            ],
+          ),
+        ),
+        getLayoutShelves: GetLayoutShelvesUseCase(
+          repository: _Repo(),
+          cafesByIds: (_) async {
+            await shelvesGate.future;
+            return const [];
+          },
+        ),
+      );
+      final states = <HomeState>[];
+      final sub = bloc.stream.listen(states.add);
+      bloc.add(LoadHomeDataEvent());
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      bloc.add(HomeDismissLocationBannerEvent());
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      shelvesGate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final last = states.whereType<HomeLoadedState>().last;
+      expect(last.layout?.version, 'v2');
+      expect(last.locationBannerDismissed, isTrue);
       await sub.cancel();
       await bloc.close();
     });
