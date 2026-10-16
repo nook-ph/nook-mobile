@@ -348,9 +348,10 @@ class HomeSection {
     final out = <String>[];
     for (final v in raw) {
       if (out.length >= maxCafeIds) break;
-      if (v is String && v.trim().isNotEmpty && seen.add(v.trim())) {
-        out.add(v.trim());
-      }
+      // Lower case: the RPC answers with Postgres' lower-case uuid text,
+      // and the shelves are put back together by matching ids.
+      final id = v is String ? v.trim().toLowerCase() : '';
+      if (id.isNotEmpty && seen.add(id)) out.add(id);
     }
     return out;
   }

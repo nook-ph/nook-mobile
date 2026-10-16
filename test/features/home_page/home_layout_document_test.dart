@@ -212,6 +212,22 @@ void main() {
       expect(ids, hasLength(30));
     });
 
+    test('cafe ids are lower-cased, so they match the RPC rows', () {
+      final layout = _layout([
+        {
+          'id': 'featured',
+          'type': 'builtin',
+          'cafe_ids': [
+            '9A2B3C4D-0000-4000-8000-00000000000B',
+            '9a2b3c4d-0000-4000-8000-00000000000b',
+          ],
+        },
+      ]);
+      expect(layout.sections.single.cafeIds, [
+        '9a2b3c4d-0000-4000-8000-00000000000b',
+      ]);
+    });
+
     test('at most 20 sections and 12 custom shelves', () {
       final layout = _layout([
         for (var i = 0; i < 30; i++)
