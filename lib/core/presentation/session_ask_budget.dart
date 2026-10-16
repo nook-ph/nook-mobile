@@ -13,7 +13,7 @@ import 'package:flutter/foundation.dart';
 ///   just seen the offer, or just been asked something: no score ask this
 ///   session. Other sheets may still show.
 /// - [noteShown]: an inline offer was on screen (the Saved tab's keep-saves
-///   card, Home's first "See cafes near you" row). It blocks nothing but the
+///   card and Add widget card, Home's first "See cafes near you" row). It blocks nothing but the
 ///   saver survey, which wants to be the only thing asked ([claim]).
 ///
 /// A session is the app's process, renewed by [newSession] when the app
@@ -92,4 +92,5 @@ abstract final class SessionAskKind {
   static const keepSavesCard = 'keep_saves_card';
   static const homeLocationRow = 'home_location_row';
   static const locationPrompt = 'location_prompt';
+  static const widgetPromo = 'widget_promo';
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/home_widget_events.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/features/home_widget/data/home_widget_platform.dart';
 import 'package:nook/features/home_widget/data/widget_promo_store.dart';
 import 'package:nook/features/home_widget/domain/notification_decline.dart';
@@ -73,11 +74,15 @@ void main() {
     platform = _FakePlatform();
   });
 
-  Widget promo({NotificationDeclineSource? declines}) => HomeWidgetPromo(
+  Widget promo({
+    NotificationDeclineSource? declines,
+    SessionAskBudget? budget,
+  }) => HomeWidgetPromo(
     platform: platform,
     store: store,
     feed: _cafes,
     declines: declines ?? const UnknownNotificationDecline(),
+    budget: budget ?? SessionAskBudget(),
     pinSettle: Duration.zero,
   );
 
@@ -401,6 +406,39 @@ void main() {
         ),
         0,
       );
+    });
+  });
+
+  group('session ask budget', () {
+    testWidgets('seen: noted, nothing spent, so the survey does not stack', (
+      tester,
+    ) async {
+      analytics = RecordingAnalytics.install(addTearDown);
+      final budget = SessionAskBudget();
+      await tester.pumpWidget(page(promo(budget: budget), above: 700));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      expect(budget.anyShown, isFalse, reason: 'decided, not seen yet');
+
+      scrollTo(tester, 500);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1100));
+      await tester.pump();
+      expect(budget.anyShown, isTrue);
+      expect(budget.canShowSheet, isTrue);
+      expect(budget.canShowScoreAsk, isTrue);
+      expect(budget.claim(SessionAskKind.saverSurvey), isFalse);
+    });
+
+    testWidgets('after a sheet spent the budget it still shows (inline '
+        'offers are not held back)', (tester) async {
+      analytics = RecordingAnalytics.install(addTearDown);
+      final budget = SessionAskBudget()..spend(SessionAskKind.signUpAsk);
+      await tester.pumpWidget(page(promo(budget: budget)));
+      await tester.pump();
+      expect(find.text(HomeWidgetPromo.savesTitle), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+      expect(budget.spentBy, SessionAskKind.signUpAsk);
     });
   });
 }

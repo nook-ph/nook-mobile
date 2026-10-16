@@ -118,6 +118,12 @@ channel. The pre-prompt's "Just directions" is not a decline: the system
 dialog never showed. `decline_kind` on `widget_promo_viewed` is one of
 `system_denied`, `settings_off`, `channel_muted`, `sdk_disabled`.
 
+**Session ask budget** (`lib/core/presentation/session_ask_budget.dart`):
+the card is an inline offer, so once seen it notes the session
+(`noteShown('widget_promo')`) and spends nothing. The saver survey then does
+not stack on it; other sheets may still show, and a sheet that already spent
+the budget does not hold the card back (the same as the keep-saves card).
+
 ## Events
 
 `lib/core/analytics/home_widget_events.dart`:

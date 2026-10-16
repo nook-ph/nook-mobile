@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:nook/core/analytics/home_widget_events.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/home_widget/data/home_widget_platform.dart';
@@ -31,7 +32,11 @@ import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 /// launcher shows its own dialog, and on the next resume the widget count
 /// says whether it was added. Only then is the card retired, with a toast
 /// saying where to look; a Cancel keeps the remaining show.
-
+///
+/// An inline offer, not a sheet: once seen it is noted in the session's ask
+/// budget ([SessionAskBudget.noteShown]), so the saver survey does not
+/// stack on it, and it spends nothing. Like the other inline offers it is
+/// not held back by a sheet that spent the budget.
 class HomeWidgetPromo extends StatefulWidget {
   const HomeWidgetPromo({
     super.key,
@@ -41,6 +46,7 @@ class HomeWidgetPromo extends StatefulWidget {
     this.feed,
     this.now,
     this.declines,
+    this.budget,
     this.dwell = const Duration(seconds: 1),
     this.pinSettle = const Duration(milliseconds: 1500),
   });
@@ -58,6 +64,9 @@ class HomeWidgetPromo extends StatefulWidget {
   /// visit-reminder service's ([VisitReminderDecline]), or unknown without
   /// it.
   final NotificationDeclineSource? declines;
+
+  /// Defaults to [SessionAskBudget.instance].
+  final SessionAskBudget? budget;
 
   /// How long the card must stay on screen to count as seen.
   final Duration dwell;
@@ -107,6 +116,7 @@ class _HomeWidgetPromoState extends State<HomeWidgetPromo>
       widget.feed ?? savedCafesWidgetFeed;
   WidgetPromoStore get _store => widget.store ?? WidgetPromoStore();
   DateTime _now() => (widget.now ?? DateTime.now)();
+  SessionAskBudget get _budget => widget.budget ?? SessionAskBudget.instance;
 
   NotificationDeclineSource get _declines =>
       widget.declines ??
@@ -202,6 +212,8 @@ class _HomeWidgetPromoState extends State<HomeWidgetPromo>
     final reason = HomeWidgetPromo._sessionReason;
     if (reason == null || HomeWidgetPromo._sessionCounted) return;
     HomeWidgetPromo._sessionCounted = true;
+    // This session's prompt, for the saver survey; spends nothing.
+    _budget.noteShown(SessionAskKind.widgetPromo);
     try {
       final shown = WidgetPromoRules.afterShown(
         await _store.read(),
