@@ -16,7 +16,9 @@ enum WidgetLinkTarget { cafe, saved, home }
 /// read `nook://cafe/<id>` as the path `/<id>`. So the router's redirect
 /// passes these to [WidgetLinks.accept], which keeps the link and sends the
 /// route to `/` (Home, which Back from the cafe then lands on); `MainShell`
-/// opens it from there with [WidgetLinks.take].
+/// opens it from there with [WidgetLinks.take]. That is the cold-start
+/// route; a warm tap comes only from the plugin ([acceptFromPlatform]),
+/// since MainActivity sends no route for it.
 class WidgetLink {
   const WidgetLink._(this.target, this.cafeId, this.tap);
 

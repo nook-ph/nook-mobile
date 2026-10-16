@@ -80,7 +80,16 @@ path, so the router's redirect sends it to `/` and `MainShell` opens it on
 top (Back lands on Home). On a cold start, and when the activity is
 recreated, the link is read from the plugin instead
 (`initiallyLaunchedFromHomeWidget` / `widgetClicked`; `MainActivity`
-keeps the new intent). One tap seen twice within 3 s opens once.
+keeps the new intent). A warm tap (the app on screen or in the background)
+comes only through the plugin: `MainActivity` sends no route for it, since
+go_router's `go('/')` would replace the page stack, a page saving behind a
+PopScope included. If the tab shell is gone (on `/login` after a sign-out)
+the app goes to `/` for it. One tap seen twice within 3 s opens once.
+
+`MainShell` first pops back to the shell. A page that refuses Back while it
+saves is left alone: the tap waits until the page closes itself (up to a
+minute), and is dropped if the page lets go of Back but stays open (a failed
+save keeps its draft).
 
 ## Promo
 
