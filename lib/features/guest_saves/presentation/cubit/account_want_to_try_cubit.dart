@@ -24,8 +24,10 @@ class AccountWantToTryCubit extends Cubit<List<CafeSummary>> {
       final wantToTry = all
           .where((l) => l.listType == 'want_to_try')
           .firstOrNull;
+      // A new list, never the const one clear() emitted: Cubit drops an
+      // identical state, and readers wait for this load to land.
       final cafes = wantToTry == null
-          ? const <CafeSummary>[]
+          ? <CafeSummary>[]
           : await _repository.getListCafes(wantToTry.id);
       if (isClosed || generation != _generation) return;
       emit(cafes);

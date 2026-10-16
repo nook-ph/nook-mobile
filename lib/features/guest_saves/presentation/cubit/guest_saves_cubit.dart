@@ -25,6 +25,9 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
   /// unknown rather than empty, so nothing is written over them.
   bool _readFailed = false;
 
+  /// [_readFailed], for readers that must not show "no saves" either.
+  bool get readFailed => _readFailed;
+
   /// Reads the saves once; later calls wait for the same read. A failed read
   /// is not kept: the next call tries again.
   Future<void> load() => _loading ??= _load();

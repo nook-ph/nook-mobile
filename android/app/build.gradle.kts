@@ -90,4 +90,7 @@ flutter {
 }
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // NotificationManagerCompat and ContextCompat in MainActivity and the
+    // home-screen widget provider.
+    implementation("androidx.core:core-ktx:1.13.1")
 }

@@ -1,3 +1,4 @@
+import 'package:nook/features/home_widget/presentation/widgets/home_widget_promo_card.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
@@ -245,6 +246,7 @@ class ListsOverview extends StatelessWidget {
             onTap: () => onOpenList(systemLists[i]),
           ),
         ],
+        const HomeWidgetPromo(padding: EdgeInsets.only(top: 16)),
         const SizedBox(height: 20),
         const MyCrawlsSection(),
         // The crawls block ends on its own 12 gap.

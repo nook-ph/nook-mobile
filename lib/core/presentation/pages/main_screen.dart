@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/discovery_events.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
@@ -11,6 +12,8 @@ import 'package:nook/core/presentation/tab_requests.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/features/home_page/presentation/pages/home_page.dart';
 import 'package:nook/features/guest_saves/presentation/pages/saved_tab.dart';
+import 'package:nook/features/home_widget/presentation/widget_link_opener.dart';
+import 'package:nook/features/home_widget/presentation/widget_links.dart';
 import 'package:nook/features/map/presentation/pages/map_page.dart';
 import 'package:nook/features/profile/presentation/pages/profile_pagev2.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -115,47 +118,75 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => NavigationBloc(),
-      child: _TabRequestListener(child: _shell()),
+      child: _TabRequestListener(
+        child: Builder(
+          builder: (context) => WidgetLinkOpener(
+            onLink: (link) => _openWidgetLink(context, link),
+            child: _tabs(),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _shell() {
-    return Builder(
-      builder: (context) => BlocBuilder<NavigationBloc, NavigationState>(
-        builder: (context, state) {
-          _visited.add(state.tabIndex);
-          _reportTab(context, state.tabIndex);
-          final pages = widget.pagesBuilder(state.tabIndex);
-          // System Back on Map, Saved or Profile goes to Home first, as in
-          // other tabbed apps; only Back on Home leaves the app. PopScope
-          // only acts while this route is on top, so pushed pages pop
-          // normally.
-          return PopScope(
-            canPop: state.tabIndex == 0,
-            onPopInvokedWithResult: (didPop, _) {
-              if (didPop) return;
-              // The tab may close something of its own first (the Map's
-              // cafe card); the next Back then goes Home.
-              if (TabBack.handle(state.tabIndex)) return;
-              context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
-            },
-            child: Scaffold(
-              backgroundColor: Colors.white,
-              body: IndexedStack(
-                index: state.tabIndex,
-                children: [
-                  for (var i = 0; i < pages.length; i++)
-                    _visited.contains(i) ? pages[i] : const SizedBox.shrink(),
-                ],
-              ),
-              bottomNavigationBar: BottomNav(
-                currentIndex: state.tabIndex,
-                onTap: (index) => _onTabTap(context, index),
-              ),
-            ),
-          );
-        },
+  /// A tap on the home-screen widget: a cafe opens over Home, the header
+  /// opens Saved, the empty state Home.
+  void _openWidgetLink(BuildContext context, WidgetLink link) {
+    final location = link.location;
+    if (location != null) {
+      context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
+      // Already on top (the same tap reopened before its stack was
+      // replaced): do not stack the cafe twice.
+      final top = GoRouter.of(
+        context,
+      ).routerDelegate.currentConfiguration.uri.path;
+      if (top != location) context.push(location);
+      return;
+    }
+    context.read<NavigationBloc>().add(
+      TabChange(
+        tabIndex: link.target == WidgetLinkTarget.saved
+            ? MainShell.savedTab
+            : 0,
       ),
+    );
+  }
+
+  Widget _tabs() {
+    return BlocBuilder<NavigationBloc, NavigationState>(
+      builder: (context, state) {
+        _visited.add(state.tabIndex);
+        _reportTab(context, state.tabIndex);
+        final pages = widget.pagesBuilder(state.tabIndex);
+        // System Back on Map, Saved or Profile goes to Home first, as in
+        // other tabbed apps; only Back on Home leaves the app. PopScope
+        // only acts while this route is on top, so pushed pages pop
+        // normally.
+        return PopScope(
+          canPop: state.tabIndex == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            // The tab may close something of its own first (the Map's
+            // cafe card); the next Back then goes Home.
+            if (TabBack.handle(state.tabIndex)) return;
+            context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
+          },
+          child: Scaffold(
+            backgroundColor: Colors.white,
+            body: IndexedStack(
+              index: state.tabIndex,
+              children: [
+                for (var i = 0; i < pages.length; i++)
+                  _visited.contains(i) ? pages[i] : const SizedBox.shrink(),
+              ],
+            ),
+            bottomNavigationBar: BottomNav(
+              currentIndex: state.tabIndex,
+              onTap: (index) => _onTabTap(context, index),
+            ),
+          ),
+        );
+      },
     );
   }
 }

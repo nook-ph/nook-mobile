@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4x2 by default (three cafes, two at large text); resizes down to 2x2
+     (the open count and one cafe). Turnovers (a cafe opening, closing soon or
+     closing, midnight) are armed by SavedCafesWidgetProvider itself with a
+     10-minute window; updatePeriodMillis (30 min, the platform minimum) is
+     the safety net. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/saved_cafes_widget_medium"
+    android:previewLayout="@layout/saved_cafes_widget_preview"
+    android:description="@string/saved_cafes_widget_description"
+    android:widgetCategory="home_screen" />

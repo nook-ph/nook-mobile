@@ -18,6 +18,7 @@ import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/guest_saves/presentation/widgets/sign_up_ask_on_saved.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
+import 'package:nook/features/home_widget/presentation/widgets/home_widget_promo_card.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
@@ -246,6 +247,11 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
                           icon: LucideIcons.bookmark,
                           saves: wantToTry,
                           onMarkBeen: _markBeen,
+                          // Near the top, after the first few cafes (the
+                          // ones its preview shows), not under a long list.
+                          insert: const HomeWidgetPromo(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ],
                       if (been.isNotEmpty) ...[
@@ -520,11 +526,17 @@ class _Section extends StatelessWidget {
     required this.icon,
     required this.saves,
     this.onMarkBeen,
+    this.insert,
   });
 
   final String title;
   final IconData icon;
   final List<GuestSave> saves;
+
+  /// Placed after the first [insertAfter] rows (or after the last, for a
+  /// shorter list). Takes no room when it builds nothing.
+  final Widget? insert;
+  static const insertAfter = 3;
 
   /// Want to try rows get a Been button.
   final ValueChanged<CafeSnapshot>? onMarkBeen;
@@ -548,6 +560,7 @@ class _Section extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         for (var i = 0; i < saves.length; i++) ...[
+          if (i > 0 && i == insertAfter && insert != null) insert!,
           if (i > 0) ...[
             const SizedBox(height: 6),
             const ListsDivider(),
@@ -560,6 +573,7 @@ class _Section extends StatelessWidget {
                 : () => onMarkBeen!(saves[i].cafe),
           ),
         ],
+        if (saves.length <= insertAfter && insert != null) insert!,
       ],
     );
   }

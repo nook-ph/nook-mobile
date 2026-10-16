@@ -26,6 +26,7 @@ import 'package:nook/features/search/presentation/pages/search_results_page.dart
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/home_page/presentation/home_link.dart';
 import 'package:nook/features/home_page/presentation/pages/home_shelf_page.dart';
+import 'package:nook/features/home_widget/presentation/widget_links.dart';
 import 'package:nook/features/onboarding/presentation/pages/onboarding_page.dart';
 
 GoRouter createAppRouter(AuthBloc authBloc) {
@@ -36,6 +37,11 @@ GoRouter createAppRouter(AuthBloc authBloc) {
     observers: [NookScreenObserver()],
     refreshListenable: GoRouterRefreshStream(authBloc.stream),
     redirect: (context, state) {
+      // A tap on the home-screen widget (`nook://cafe/<id>?via=widget`):
+      // Home first, then MainShell opens it, so Back lands on Home.
+      final widgetLink = WidgetLinks.accept(state.uri);
+      if (widgetLink != null) return widgetLink;
+
       final authState = authBloc.state;
       final location = state.uri.path;
       debugPrint('GoRouter redirect check: location=$location auth=$authState');
