@@ -118,6 +118,26 @@ void main() {
     expect(statuses.state.local, isEmpty);
   });
 
+  test('a failed read at sign-in does not trust statuses "known" from a '
+      'guest read, so the account\'s Been is never overwritten', () async {
+    // As a guest, Home read the feed's statuses: the server answers a
+    // signed-out read with nothing, so every cafe is "known" as none.
+    await statuses.loadFor(['a']);
+    expect(statuses.state.isKnown('a'), isTrue);
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    // Signed in to an account that has 'a' as Been; the merge's read fails.
+    repo.server = {'a': CafeStatus.been};
+    repo.failRead = true;
+
+    final result = await merger.merge();
+
+    expect(result.added, 0);
+    expect(result.failed, 1);
+    expect(repo.writes, isEmpty);
+    expect(repo.server['a'], CafeStatus.been);
+    expect(saves.state.statusFor('a'), CafeStatus.wantToTry);
+  });
+
   test(
     'a failed read writes nothing and keeps the saves for next launch',
     () async {

@@ -69,7 +69,16 @@ class GuestSavesMerger {
     onTried(pending.length);
 
     final ids = [for (final s in pending) s.cafeId];
-    await statuses.loadFor(ids);
+    // Only this read counts: cafes "known" from reads made before sign-in
+    // (as a guest, which the server answers with nothing) are not the
+    // account's statuses, and writing over a Been deletes its rank and note.
+    if (!await statuses.loadFor(ids)) {
+      logAppEvent(
+        SavesEvents.guestSavesMerged,
+        properties: {'count': 0, 'moved': 0, 'failed': pending.length},
+      );
+      return GuestMergeResult(added: 0, moved: 0, failed: pending.length);
+    }
 
     var merged = 0;
     final done = <String>{};

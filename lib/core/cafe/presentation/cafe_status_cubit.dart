@@ -19,8 +19,10 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
 
   /// Fetches current statuses for [cafeIds] and merges them into the cache.
   /// Cafes absent from the response are reset to [CafeStatus.none].
-  Future<void> loadFor(List<String> cafeIds) async {
-    if (cafeIds.isEmpty) return;
+  /// Returns whether the read succeeded: a failed one leaves the cache as
+  /// it was, including cafes [CafeStatusState.isKnown] from earlier reads.
+  Future<bool> loadFor(List<String> cafeIds) async {
+    if (cafeIds.isEmpty) return true;
     try {
       final fetched = await getCafeStatusesUseCase(cafeIds);
       final statuses = Map<String, CafeStatus>.from(state.statuses);
@@ -35,9 +37,11 @@ class CafeStatusCubit extends Cubit<CafeStatusState> {
       emit(
         state.copyWith(statuses: statuses, known: {...state.known, ...cafeIds}),
       );
+      return true;
     } catch (e, st) {
       // Badges silently stay unknown; the write path surfaces its own errors.
       debugPrint('[CafeStatus] loadFor failed: $e\n$st');
+      return false;
     }
   }
 
