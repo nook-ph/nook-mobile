@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:nook/features/guest_saves/presentation/widgets/sign_up_ask_on_home.dart';
 import 'package:nook/core/cache/custom_cache_manager.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
@@ -339,9 +338,6 @@ class _HomeContent extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Back on Home is a moment the engagement score may ask a guest to
-        // keep their saves. Draws nothing.
-        const SignUpAskOnHome(),
         // The person's own cafes first; nothing (and no gap) when empty.
         const YourPlacesRail(),
         for (var i = 0; i < sections.length; i++) ...[
