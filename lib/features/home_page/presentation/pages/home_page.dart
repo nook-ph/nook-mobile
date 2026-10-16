@@ -30,6 +30,7 @@ import 'package:nook/features/home_page/presentation/widgets/home_location_promp
 import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
 import 'package:nook/features/home_page/presentation/widgets/your_places_rail.dart';
+import 'package:nook/features/saver_survey/presentation/saver_survey_host.dart';
 import 'package:nook/injection_container.dart';
 
 class HomePage extends StatelessWidget {
@@ -135,15 +136,20 @@ class HomePage extends StatelessWidget {
                     );
                   }
                 },
-                child: Column(
-                  children: [
-                    const HomeTopBar(),
-                    Expanded(
-                      child: BlocBuilder<HomeBloc, HomeState>(
-                        builder: (context, state) => _feedArea(context, state),
+                // At app open, once the feed is in: the one-time "What's
+                // kept you from going?" for savers who have not been.
+                child: SaverSurveyHost(
+                  child: Column(
+                    children: [
+                      const HomeTopBar(),
+                      Expanded(
+                        child: BlocBuilder<HomeBloc, HomeState>(
+                          builder: (context, state) =>
+                              _feedArea(context, state),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

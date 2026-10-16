@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_location_prompt.dart';
 import 'package:nook/utils/theme/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,6 +18,7 @@ void main() {
     analytics = RecordingAnalytics.install(addTearDown);
     SharedPreferences.setMockInitialValues({});
     resetHomeLocationPromptLog();
+    SessionPrompts.resetForTest();
   });
 
   Future<bool> offer({
@@ -78,8 +80,12 @@ void main() {
       required VoidCallback onGranted,
       required Future<bool> Function(BuildContext) confirm,
       required Future<LocationPermission> Function() request,
+      bool offeredBefore = false,
     }) async {
-      SharedPreferences.setMockInitialValues({'homeVisitCount': 1});
+      SharedPreferences.setMockInitialValues({
+        'homeVisitCount': 1,
+        if (offeredBefore) 'homeLocationPromptOffered': true,
+      });
       await tester.pumpWidget(
         MaterialApp(
           theme: TAppTheme.lightTheme,
@@ -170,6 +176,56 @@ void main() {
 
       expect(find.text('See cafes near you'), findsNothing);
       expect(await HomeLocationPromptStore().isDismissed(), isTrue);
+    });
+    testWidgets('takes the run\'s prompt slot only the first launch it shows', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        onGranted: () {},
+        confirm: (_) async => false,
+        request: () async => LocationPermission.whileInUse,
+      );
+      expect(find.text('See cafes near you'), findsOneWidget);
+      expect(SessionPrompts.anyShown, isTrue);
+    });
+
+    testWidgets('a standing row leaves the slot free until it is tapped', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        onGranted: () {},
+        confirm: (_) async => false,
+        request: () async => LocationPermission.whileInUse,
+        offeredBefore: true,
+      );
+      expect(find.text('See cafes near you'), findsOneWidget);
+      expect(SessionPrompts.anyShown, isFalse);
+      // Still logged as shown for the location funnel.
+      expect(analytics.flat.first, [
+        LocationPromptEvents.shown,
+        {'surface': 'home'},
+      ]);
+
+      await tester.tap(find.text('See cafes near you'));
+      await tester.pumpAndSettle();
+      expect(SessionPrompts.anyShown, isTrue);
+    });
+
+    testWidgets('behind a prompt that took the run, the first offer is kept', (
+      tester,
+    ) async {
+      SessionPrompts.noteShown();
+      await pump(
+        tester,
+        onGranted: () {},
+        confirm: (_) async => false,
+        request: () async => LocationPermission.whileInUse,
+      );
+      expect(find.text('See cafes near you'), findsOneWidget);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool('homeLocationPromptOffered'), isNull);
     });
   });
 }

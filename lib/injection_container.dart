@@ -134,6 +134,9 @@ import 'package:nook/features/map/domain/use_cases/get_cafe_cards_usecase.dart';
 import 'package:nook/features/map/domain/use_cases/get_cafes_for_viewport_usecase.dart';
 import 'package:nook/features/map/domain/use_cases/get_filter_tags_usecase.dart';
 import 'package:nook/features/map/domain/repositories/i_cafe_tags_repository.dart';
+import 'package:nook/features/saver_survey/data/save_dates_source.dart';
+import 'package:nook/features/saver_survey/data/saver_survey_store.dart';
+import 'package:nook/features/saver_survey/presentation/saver_survey_gate.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -568,6 +571,17 @@ Future<void> initDependencies() async {
       notifier: sl<LocalNotifier>(),
       store: sl<VisitReminderStore>(),
       delayOverride: debugVisitReminderDelay(),
+    ),
+  );
+
+  // The one-time saver survey on Home: one gate per app run, so it is
+  // decided at app open and never again mid-task.
+  sl.registerLazySingleton<SaverSurveyGate>(
+    () => SaverSurveyGate(
+      store: SaverSurveyStore(),
+      saves: () => sl<SupabaseClient>().auth.currentSession != null
+          ? AccountSaveDatesSource(client: sl<SupabaseClient>())
+          : GuestSaveDatesSource(sl<GuestSavesCubit>()),
     ),
   );
 

@@ -11,6 +11,7 @@ import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 
 /// Cafe ids whose directions just opened a maps app (see
 /// `launchCafeDirections`). A broadcast, so nothing breaks when no cafe page
@@ -153,6 +154,7 @@ class DirectionsSaveNudge {
     offered.value = {...offered.value, cafeId};
     if (!onTop) return;
     final props = {'cafe_id': cafeId};
+    SessionPrompts.noteShown();
     logAppEvent(SavesEvents.directionsSaveNudgeShown, properties: props);
     // The trip's offer: no score sheet after it this session (review N5).
     SessionAskBudget.instance.blockScoreAsks(SessionAskKind.directionsNudge);

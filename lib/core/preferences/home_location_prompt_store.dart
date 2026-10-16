@@ -8,6 +8,7 @@ class HomeLocationPromptStore {
   static const _visitsKey = 'homeVisitCount';
   static const _cafeViewedKey = 'homeLocationPromptCafeViewed';
   static const _dismissedKey = 'homeLocationPromptDismissed';
+  static const _offeredKey = 'homeLocationPromptOffered';
 
   bool _countedThisLaunch = false;
 
@@ -40,5 +41,15 @@ class HomeLocationPromptStore {
   Future<void> markDismissed() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_dismissedKey, true);
+  }
+
+  /// True the first time the row is offered on this phone. On later
+  /// launches it is a standing row the user has already seen, not a new ask,
+  /// so it does not take the run's one prompt (the saver survey).
+  Future<bool> claimFirstOffer() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_offeredKey) ?? false) return false;
+    await prefs.setBool(_offeredKey, true);
+    return true;
   }
 }

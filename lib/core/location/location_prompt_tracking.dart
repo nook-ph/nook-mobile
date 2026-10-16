@@ -1,6 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 
 /// Where a location prompt was shown, for `location_prompt_shown` and
 /// `location_permission_result`.
@@ -13,6 +14,9 @@ abstract final class LocationPromptSurface {
 
   /// Home's location pre-prompt.
   static const home = 'home';
+
+  /// The saver survey's "Too far from me" follow-up.
+  static const saverSurvey = 'saver_survey';
 }
 
 /// The `result` value for a permission answer: `granted` (always),
@@ -50,6 +54,10 @@ class LocationPromptTracker {
   bool _shown = false;
   bool _answered = false;
 
+  /// Whether [shown] takes the run's prompt slot ([SessionPrompts]). Off
+  /// for a standing offer the user has seen on earlier launches.
+  bool countsAsPrompt = true;
+
   bool get wasShown => _shown;
   bool get answered => _answered;
 
@@ -57,6 +65,7 @@ class LocationPromptTracker {
   void shown() {
     if (_shown) return;
     _shown = true;
+    if (countsAsPrompt) SessionPrompts.noteShown();
     logAppEvent(LocationPromptEvents.shown, properties: {'surface': surface});
   }
 

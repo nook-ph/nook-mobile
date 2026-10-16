@@ -8,6 +8,7 @@ import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 
 /// Whether Home should offer "See cafes near you".
 ///
@@ -104,7 +105,19 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
           widget.servicesEnabled ?? Geolocator.isLocationServiceEnabled,
       checkPermission: widget.checkPermission ?? Geolocator.checkPermission,
     );
-    if (mounted && offer) setState(() => _visible = true);
+    if (!offer) return;
+    // The row is an ask the first launch it appears, and the saver survey
+    // does not stack on it then. After that it is a standing row: counting
+    // it every launch would keep the survey away for good from anyone who
+    // just leaves it there.
+    // Behind a prompt that already took the run (the survey), the first
+    // offer is not spent: the next launch counts it.
+    final first =
+        !SessionPrompts.anyShown &&
+        await _store.claimFirstOffer().catchError((_) => false);
+    _tracker.countsAsPrompt = first;
+    if (first) SessionPrompts.noteShown();
+    if (mounted) setState(() => _visible = true);
   }
 
   void _dismiss(String result) {
@@ -128,6 +141,8 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
   Future<bool> _ask() async {
     if (_busy) return false;
     _busy = true;
+    // Tapped: an ask from here on, whatever launch this is.
+    SessionPrompts.noteShown();
     try {
       final go = await (widget.confirm ?? _confirm)(context);
       if (!mounted) return false;
