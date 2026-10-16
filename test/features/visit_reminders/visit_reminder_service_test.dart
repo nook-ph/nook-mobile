@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/core/analytics/notification_events.dart';
@@ -25,9 +27,14 @@ class _FakeNotifier implements LocalNotifier {
   void Function(NotificationTap tap)? onTap;
   NotificationTap? launch;
 
+  /// When set, [init] finishes only once this completes (a slow start).
+  Completer<void>? holdInit;
+
   @override
-  Future<void> init({required void Function(NotificationTap) onTap}) async =>
-      this.onTap = onTap;
+  Future<void> init({required void Function(NotificationTap) onTap}) async {
+    this.onTap = onTap;
+    await holdInit?.future;
+  }
 
   @override
   Future<NotificationTap?> launchTap() async => launch;
@@ -281,6 +288,22 @@ void main() {
     expect(notifier.scheduled, isEmpty);
     expect(await store.readTrip(), isNull);
   });
+
+  test(
+    'a Directions tap while start is still running keeps its trip',
+    () async {
+      notifier.holdInit = Completer<void>();
+      final service = make();
+      addTearDown(service.dispose);
+      final starting = service.start(statuses: statuses);
+      clock = clock.add(const Duration(seconds: 2));
+      final decision = await tap(service, 'a');
+      expect(decision.ask, isTrue);
+      notifier.holdInit!.complete();
+      await starting;
+      expect((await store.readTrip())?.cafeId, 'a');
+    },
+  );
 
   test('a trip survives the app being killed during the ask', () async {
     final first = await started();

@@ -101,9 +101,13 @@ class VisitReminderService {
     return result;
   }
 
+  /// When [start] began: trips tapped after it are this run's.
+  DateTime? _startedAt;
+
   Future<void> start({CafeStatusCubit? statuses}) async {
     if (_started) return;
     _started = true;
+    _startedAt = _now();
     try {
       await _notifier.init(onTap: _onTap);
       final launch = await _notifier.launchTap();
@@ -468,6 +472,10 @@ class VisitReminderService {
     try {
       final trip = await _store.readTrip();
       if (trip == null) return;
+      // Tapped in this run, while [start] was still getting here: its ask
+      // is on screen now and owns it.
+      final started = _startedAt;
+      if (started != null && trip.tappedAt.isAfter(started)) return;
       await _store.writeTrip(null);
       if (!trip.fireAt.isAfter(_now())) return;
       if (await permission() != NotificationPermission.granted) return;
