@@ -182,7 +182,8 @@ class EngagementScore {
     Future<SignUpAskAnswer> Function(BuildContext context, SignUpAskCopy copy)?
     showSheet,
   }) async {
-    if (_signedIn) return SignUpAskResult.notShown;
+    // An ask already on screen is not a suppression: nothing to log.
+    if (_signedIn || _asking) return SignUpAskResult.notShown;
     final blocked = await blockedBy(savesCount: savesCount);
     if (blocked != null) {
       _logSuppressed(blocked, trigger);
