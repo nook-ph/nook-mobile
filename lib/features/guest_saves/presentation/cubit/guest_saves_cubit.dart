@@ -59,8 +59,15 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     if (_readFailed) return null;
     final before = state;
     final previous = before.statusFor(cafe.id);
+    final index = before.saves.indexWhere((s) => s.cafeId == cafe.id);
+    final previousSave = index < 0 ? null : before.saves[index];
     if (previous == status) {
-      return GuestSaveOutcome(previous: previous, firstSave: false);
+      return GuestSaveOutcome(
+        previous: previous,
+        firstSave: false,
+        previousSave: previousSave,
+        previousIndex: index,
+      );
     }
 
     final rest = before.saves.where((s) => s.cafeId != cafe.id);
@@ -81,14 +88,57 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
         SavesEvents.guestSaveRemoved,
         properties: {'source': ?source},
       );
-      return GuestSaveOutcome(previous: previous, firstSave: false);
+      return GuestSaveOutcome(
+        previous: previous,
+        firstSave: false,
+        previousSave: previousSave,
+        previousIndex: index,
+      );
     }
     logAppEvent(
       SavesEvents.guestSaveCreated,
       properties: {'status': status.wire, 'source': ?source},
     );
     final first = await recordFirstSave(_store, status, guest: true);
-    return GuestSaveOutcome(previous: previous, firstSave: first);
+    return GuestSaveOutcome(
+      previous: previous,
+      firstSave: first,
+      previousSave: previousSave,
+      previousIndex: index,
+    );
+  }
+
+  /// Undoes the [set] that returned [outcome] for [cafeId]: the save it
+  /// replaced comes back as it was (status, saved time, place in the list),
+  /// or a new save is taken off again. Restoring is not a new save, so it
+  /// logs no `guest_save_created`; taking a new save off logs
+  /// `guest_save_removed` with [SavesSource.undo]. False when the phone
+  /// could not store it.
+  Future<bool> undo(String cafeId, GuestSaveOutcome outcome) async {
+    await load();
+    if (_readFailed) return false;
+    final before = state;
+    final saves = [...before.saves.where((s) => s.cafeId != cafeId)];
+    final restored = outcome.previousSave;
+    if (restored != null) {
+      saves.insert(outcome.previousIndex.clamp(0, saves.length), restored);
+    }
+    if (listEquals(saves, before.saves)) return true;
+    emit(before.copyWith(saves: saves));
+    try {
+      await _store.write(saves);
+    } catch (e) {
+      debugPrint('[GuestSaves] undo write failed: $e');
+      if (!isClosed) emit(before);
+      return false;
+    }
+    if (restored == null) {
+      logAppEvent(
+        SavesEvents.guestSaveRemoved,
+        properties: {'source': SavesSource.undo},
+      );
+    }
+    return true;
   }
 
   /// Drops the saves for [cafeIds] (they reached the account).
@@ -145,10 +195,22 @@ Future<bool> recordFirstSave(
 }
 
 class GuestSaveOutcome {
-  const GuestSaveOutcome({required this.previous, required this.firstSave});
+  const GuestSaveOutcome({
+    required this.previous,
+    required this.firstSave,
+    this.previousSave,
+    this.previousIndex = -1,
+  });
 
   /// The status the cafe had before, for Undo.
   final CafeStatus previous;
+
+  /// The save this one replaced or removed, as it was, for
+  /// [GuestSavesCubit.undo]; null when the cafe had none.
+  final GuestSave? previousSave;
+
+  /// Where [previousSave] stood in the list (newest first).
+  final int previousIndex;
 
   /// The first save ever made on this phone.
   final bool firstSave;

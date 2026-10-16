@@ -49,6 +49,52 @@ void main() {
     await next.close();
   });
 
+  test('undo after Been puts the Want to try back as it was, in place, '
+      'with no new guest_save_created', () async {
+    final cubit = newCubit();
+    await cubit.set(_a, CafeStatus.wantToTry);
+    clock = clock.add(const Duration(minutes: 1));
+    await cubit.set(_b, CafeStatus.wantToTry);
+    final original = cubit.state.saves.firstWhere((s) => s.cafeId == 'a');
+    clock = clock.add(const Duration(minutes: 1));
+    final outcome = await cubit.set(_a, CafeStatus.been);
+    expect([for (final s in cubit.state.saves) s.cafeId], ['a', 'b']);
+    analytics.events.clear();
+
+    expect(await cubit.undo('a', outcome!), isTrue);
+
+    expect([for (final s in cubit.state.saves) s.cafeId], ['b', 'a']);
+    expect(cubit.state.saves.last, original);
+    expect(analytics.names, isEmpty);
+    expect((await store.read()).last, original);
+    await cubit.close();
+  });
+
+  test('undo of a removal restores the save without logging a creation; '
+      'undo of a new save takes it off', () async {
+    final cubit = newCubit();
+    await cubit.set(_a, CafeStatus.been);
+    final original = cubit.state.saves.single;
+    clock = clock.add(const Duration(minutes: 1));
+    await cubit.set(_b, CafeStatus.wantToTry);
+    final removed = await cubit.set(_a, CafeStatus.none);
+    analytics.events.clear();
+
+    await cubit.undo('a', removed!);
+    expect(cubit.state.saves.last, original);
+    expect(analytics.names, isEmpty);
+
+    final added = await cubit.set(
+      const CafeSnapshot(id: 'c', name: 'Cafe C'),
+      CafeStatus.wantToTry,
+    );
+    analytics.events.clear();
+    await cubit.undo('c', added!);
+    expect(cubit.state.statusFor('c'), CafeStatus.none);
+    expect(analytics.names, [SavesEvents.guestSaveRemoved]);
+    await cubit.close();
+  });
+
   test('changing a status replaces it; none removes the save', () async {
     final cubit = newCubit();
     await cubit.set(_a, CafeStatus.wantToTry);

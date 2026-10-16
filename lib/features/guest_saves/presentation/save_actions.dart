@@ -143,9 +143,7 @@ Future<void> toggleGuestStatus(
           : 'Removed from Want to try',
       actionLabel: saveUndoLabel,
       // The cubit is app-wide, so Undo works after leaving the page.
-      onAction: () => unawaited(
-        setGuestStatus(saves, cafe, current, source: SavesSource.undo),
-      ),
+      onAction: () => unawaited(undoGuestStatus(saves, cafe, next, outcome)),
       // Undo matters most here: no timeout with a screen reader on (N6).
       duration: toastDurationFor(context, const Duration(seconds: 5)),
       bottomOffset: bottomOffset,
@@ -158,7 +156,7 @@ Future<void> toggleGuestStatus(
     saves: saves,
     cafe: cafe,
     status: next,
-    previous: current,
+    outcome: outcome,
     bottomOffset: bottomOffset,
     source: source,
   );
@@ -182,6 +180,26 @@ Future<GuestSaveOutcome?> setGuestStatus(
     await engagement.recordSave(cafe.id);
   }
   return outcome;
+}
+
+/// Undo on a guest's save toast: puts back what [outcome]'s change to
+/// [changedTo] replaced, keeping the engagement score in step as
+/// [setGuestStatus] does.
+Future<void> undoGuestStatus(
+  GuestSavesCubit saves,
+  CafeSnapshot cafe,
+  CafeStatus changedTo,
+  GuestSaveOutcome outcome,
+) async {
+  if (!await saves.undo(cafe.id, outcome)) return;
+  if (!sl.isRegistered<EngagementScore>()) return;
+  final engagement = sl<EngagementScore>();
+  final restored = outcome.previous;
+  if (restored == CafeStatus.none && changedTo != CafeStatus.none) {
+    await engagement.recordUnsave(cafe.id);
+  } else if (restored != CafeStatus.none && changedTo == CafeStatus.none) {
+    await engagement.recordSave(cafe.id);
+  }
 }
 
 /// The cafe page's top-right bookmark, for a guest: Want to try on this
@@ -239,7 +257,7 @@ Future<void> _confirmGuestSave(
   required GuestSavesCubit saves,
   required CafeSnapshot cafe,
   required CafeStatus status,
-  required CafeStatus previous,
+  required GuestSaveOutcome outcome,
   required double bottomOffset,
   String? source,
 }) async {
@@ -260,9 +278,7 @@ Future<void> _confirmGuestSave(
     asked = result.shown;
   }
 
-  void undo() => unawaited(
-    setGuestStatus(saves, cafe, previous, source: SavesSource.undo),
-  );
+  void undo() => unawaited(undoGuestStatus(saves, cafe, status, outcome));
   final firstLine = !asked && await saves.claimFirstSaveLine();
   if (!context.mounted) return;
   showPrimaryToastWithAction(
