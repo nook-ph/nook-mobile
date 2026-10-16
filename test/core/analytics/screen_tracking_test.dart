@@ -1,9 +1,21 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
 import 'package:nook/core/analytics/screen_tracking.dart';
 
 void main() {
+  testWidgets('screen size is added to a copy, so a const properties map '
+      'does not make the event throw (and be dropped)', (tester) async {
+    const props = {'trigger': 'directions'};
+    final event = addScreenSize(
+      PostHogEvent(event: 'notification_preprompt_accepted', properties: props),
+    );
+    expect(event.properties?['trigger'], 'directions');
+    expect(event.properties, contains(r'$screen_width'));
+    expect(props, hasLength(1));
+  });
+
   String? name(String? routeName, {String root = ScreenNames.home}) =>
       screenNameForRoute(RouteSettings(name: routeName), root: root);
 
