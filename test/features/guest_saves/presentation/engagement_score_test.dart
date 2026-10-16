@@ -343,7 +343,14 @@ void main() {
       await tester.runAsync(() async {
         answer = const SignUpAskAnswer(provider: 'email');
         await earn(4);
-        await ask(context);
+        final result = await score.maybeAsk(
+          context,
+          trigger: SignUpAskTrigger.afterSave,
+          savesCount: 1,
+          showSheet: fakeSheet,
+        );
+        // /login is on top now: the caller shows no save toast over it.
+        expect(result, SignUpAskResult.signInStarted);
         expect(analytics.names, contains(SavesEvents.signUpAskAccepted));
         expect(
           analytics.names,

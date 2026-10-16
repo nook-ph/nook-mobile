@@ -274,7 +274,13 @@ Future<void> _confirmGuestSave(
       savesCount: saves.state.saves.length,
       saved: SignUpAskSave(cafeName: cafe.name, status: status),
     );
-    if (result == SignUpAskResult.signedIn || !context.mounted) return;
+    // Email went on to /login: no save toast over the login screen (its
+    // View would pop it).
+    if (result == SignUpAskResult.signedIn ||
+        result == SignUpAskResult.signInStarted ||
+        !context.mounted) {
+      return;
+    }
     asked = result.shown;
   }
 

@@ -9,6 +9,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 import 'package:nook/features/guest_saves/data/engagement_store.dart';
 import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
 import 'package:nook/injection_container.dart';
@@ -234,6 +235,12 @@ class EngagementScore {
       });
       if (provider != null) {
         _awaitCompletion(props, provider);
+        // Email goes on to `/login`; a Google or Apple sign-in that did not
+        // finish leaves the person here, where the save is still confirmed.
+        if (provider == SignInChoice.email.name) {
+          return SignUpAskResult.signInStarted;
+        }
+        return SignUpAskResult.shownStillGuest;
       } else {
         logAppEvent(
           SavesEvents.signUpAskDismissed,
@@ -373,7 +380,11 @@ enum SignUpAskResult {
   shownStillGuest,
 
   /// Shown, and a session started from it.
-  signedIn;
+  signedIn,
+
+  /// Shown, and a sign-in was chosen that goes on elsewhere (email on
+  /// `/login`): no session yet, and the caller's page is no longer on top.
+  signInStarted;
 
   bool get shown => this != notShown;
 }
