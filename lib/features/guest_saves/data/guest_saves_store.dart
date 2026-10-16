@@ -15,8 +15,13 @@ class GuestSavesStore {
   static const _firstSaveKey = 'saves_first_save_logged';
   static const _keepPromptKey = 'saves_keep_prompt_shown';
 
+  /// Entries the last [read] could not parse (written by another build, or
+  /// damaged), kept as they were so [write] puts them back rather than
+  /// erasing them.
+  List<Object?> _unparsed = const [];
+
   /// The saves on this phone. An entry that cannot be read is skipped, not
-  /// the whole list. A value that is not a JSON list at all is set aside
+  /// the whole list, and kept on disk by later writes. A value that is not a JSON list at all is set aside
   /// under [_unreadableKey] (so the next write cannot destroy it) and reads
   /// as empty.
   ///
@@ -53,28 +58,37 @@ class GuestSavesStore {
     }
 
     final saves = <GuestSave>[];
+    final unparsed = <Object?>[];
     for (final entry in decoded) {
+      GuestSave? save;
       try {
-        final save = GuestSave.fromJson(entry);
-        if (save != null) saves.add(save);
+        save = GuestSave.fromJson(entry);
       } catch (e) {
         // A corrupt entry must not take the Saved tab, or the other saves,
         // down with it.
         debugPrint('[GuestSavesStore] skipped an unreadable save: $e');
       }
+      if (save != null) {
+        saves.add(save);
+      } else {
+        unparsed.add(entry);
+      }
     }
+    _unparsed = unparsed;
     return saves;
   }
 
+  /// Replaces the saves with [saves]. Entries the last [read] could not
+  /// parse stay, after them.
   Future<void> write(List<GuestSave> saves) async {
     final prefs = await SharedPreferences.getInstance();
-    if (saves.isEmpty) {
+    if (saves.isEmpty && _unparsed.isEmpty) {
       await prefs.remove(_savesKey);
       return;
     }
     await prefs.setString(
       _savesKey,
-      jsonEncode([for (final s in saves) s.toJson()]),
+      jsonEncode([for (final s in saves) s.toJson(), ..._unparsed]),
     );
   }
 

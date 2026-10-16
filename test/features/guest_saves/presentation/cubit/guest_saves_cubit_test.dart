@@ -222,6 +222,17 @@ void main() {
       CafeStatus.been,
     );
     expect([for (final s in await store.read()) s.cafeId], ['c', 'a', 'b']);
+    // The entry this build can't read is still on disk after the write.
+    final prefs = await SharedPreferences.getInstance();
+    final raw = jsonDecode(prefs.getString('guest_saves_v1')!) as List;
+    expect(raw, hasLength(4));
+    expect(raw.last, {'cafe': 'not a map', 'status': 42, 'saved_at': 7});
+    // Even once every readable save is gone.
+    await cubit.removeAll({'a', 'b', 'c'});
+    final left = jsonDecode(prefs.getString('guest_saves_v1')!) as List;
+    expect(left, [
+      {'cafe': 'not a map', 'status': 42, 'saved_at': 7},
+    ]);
     await cubit.close();
   });
 
