@@ -14,6 +14,9 @@ abstract final class LocationPromptSurface {
 
   /// Home's location pre-prompt.
   static const home = 'home';
+
+  /// The saver survey's "Too far from me" follow-up.
+  static const saverSurvey = 'saver_survey';
 }
 
 /// The `result` value for a permission answer: `granted` (always),
