@@ -63,8 +63,19 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
     super.initState();
     context.read<GuestSavesCubit>().load();
     _score?.declines.addListener(_onDeclines);
-    unawaited(_score?.read());
+    // The keep-saves card's size (and the surface its event reports) hangs
+    // on the declines, so nothing is drawn or logged until they are read.
+    final read = _score?.read();
+    if (read != null) {
+      unawaited(
+        read.then<void>((_) {}, onError: (_) {}).whenComplete(() {
+          if (mounted) setState(() => _scoreReady = true);
+        }),
+      );
+    }
   }
+
+  late bool _scoreReady = _score == null;
 
   @override
   void dispose() {
@@ -117,7 +128,7 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
         bottom: false,
         child: BlocBuilder<GuestSavesCubit, GuestSavesState>(
           builder: (context, state) {
-            if (!state.loaded) return const SizedBox.shrink();
+            if (!state.loaded || !_scoreReady) return const SizedBox.shrink();
             final wantToTry = state.withStatus(CafeStatus.wantToTry);
             final been = state.withStatus(CafeStatus.been);
             if (!state.isEmpty) _logPromptShown();

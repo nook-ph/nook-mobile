@@ -167,6 +167,10 @@ void main() {
         tester.getTopLeft(find.text(GuestSavedPage.keepRowLabel)).dy,
         greaterThan(tester.getTopLeft(find.text('Kape Uno')).dy),
       );
+      // Logged once the declines were read, so with the row's surface.
+      expect(analytics.propertiesOf(SavesEvents.keepSavesPromptShown), {
+        'surface': KeepSavesSurface.savedRow,
+      });
 
       analytics.events.clear();
       await tester.tap(find.text(GuestSavedPage.keepRowLabel));
