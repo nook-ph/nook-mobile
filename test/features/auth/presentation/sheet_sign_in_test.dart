@@ -6,6 +6,8 @@ import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
+import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show User;
 
 import '../fake_auth_bloc.dart';
@@ -78,7 +80,12 @@ void main() {
     final context = tester.element(find.text('cafe B'));
     _CafeB.made = 0;
 
-    final done = continueSignInFromSheet(context, SignInChoice.google);
+    final done = continueSignInFromSheet(
+      context,
+      SignInChoice.google,
+      beforeSignIn: () =>
+          GuestActionReplay.remember(CafeGuestAction.saveToList, 'B'),
+    );
     await tester.pump();
     bloc.push(const AuthAuthenticated(_user));
     await done;
@@ -86,8 +93,10 @@ void main() {
 
     expect(find.text('cafe B'), findsOneWidget);
     expect(find.text('cafe A'), findsNothing);
-    // Made again signed in, so it can finish what the guest tapped.
-    expect(_CafeB.made, 1);
+    // Not made again (an awaited push would resume early), and the action
+    // it would have finished is dropped, not left to fire later.
+    expect(_CafeB.made, 0);
+    expect(GuestActionReplay.take(CafeGuestAction.saveToList, 'B'), isFalse);
     // Back still leads to cafe A, under it.
     router.routerDelegate.navigatorKey.currentState!.pop();
     await tester.pumpAndSettle();
@@ -110,5 +119,25 @@ void main() {
 
     expect(find.text('cafe A'), findsOneWidget);
     expect(router.state.uri.toString(), '/cafe/A');
+  });
+
+  testWidgets('a cancelled Google sign-in drops the action it would have '
+      'finished', (tester) async {
+    final (router, bloc) = await pump(tester);
+    router.push('/cafe/A');
+    await tester.pumpAndSettle();
+    final context = tester.element(find.text('cafe A'));
+
+    final done = continueSignInFromSheet(
+      context,
+      SignInChoice.google,
+      beforeSignIn: () =>
+          GuestActionReplay.remember(CafeGuestAction.saveToList, 'A'),
+    );
+    await tester.pump();
+    bloc.push(AuthUnauthenticated());
+    await done;
+
+    expect(GuestActionReplay.take(CafeGuestAction.saveToList, 'A'), isFalse);
   });
 }

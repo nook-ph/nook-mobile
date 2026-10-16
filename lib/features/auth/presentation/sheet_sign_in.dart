@@ -1,12 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/core/analytics/auth_events.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 
@@ -79,18 +80,11 @@ Future<void> continueSignInFromSheet(
           'sign_in_finished',
           properties: {'returned_to_origin': true},
         );
-        // Made again in place, signed in, as the return would have made
-        // it: a page finishes the action the guest tapped (Save, a review)
-        // when it is built.
-        if (route is MaterialPageRoute) {
-          route.navigator?.replace(
-            oldRoute: route,
-            newRoute: MaterialPageRoute<dynamic>(
-              builder: route.builder,
-              settings: route.settings,
-            ),
-          );
-        }
+        // The page under the sheet is not built again, so an action it
+        // would have finished on opening (Save, a review) is not replayed:
+        // drop it rather than let it fire on a later visit. The guest taps
+        // it again, signed in.
+        GuestActionReplay.clear();
       }
     case AuthNeedsUsername():
       // The router holds the account on /username-setup, which finishes
@@ -98,10 +92,13 @@ Future<void> continueSignInFromSheet(
       break;
     case AuthError(:final message):
       AuthReturn.take();
+      // Nothing to finish: a later sign-in from elsewhere must not replay it.
+      GuestActionReplay.clear();
       final shown = router.routerDelegate.navigatorKey.currentContext;
       if (shown != null && shown.mounted) showAuthToast(shown, message);
     default:
-      // The provider sheet was closed: nothing to return to.
+      // The provider sheet was closed: nothing to return to or finish.
       AuthReturn.take();
+      GuestActionReplay.clear();
   }
 }
