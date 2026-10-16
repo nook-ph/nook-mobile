@@ -219,14 +219,20 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
 
     final data = SavedCafesWidgetData.build(widgetCafes, now: DateTime.now());
     final json = jsonEncode(data.toJson());
+    // Set before any await, so a write that starts meanwhile (sign-out)
+    // sees it, and also when the payload is unchanged.
+    final wasAccount = _showsAccount;
+    _showsAccount = fromAccount && cafes.isNotEmpty;
     if (json == _lastJson) return;
     _lastJson = json;
     try {
       final platform = widget.platform;
       await platform.write(SavedCafesWidgetData.storageKey, json);
       await platform.redraw();
-      _showsAccount = fromAccount && cafes.isNotEmpty;
     } catch (e) {
+      // It may or may not have been stored: assume the account's cafes
+      // could be showing.
+      _showsAccount = wasAccount || _showsAccount;
       _lastJson = null;
       debugPrint('[SavedCafesWidget] write failed: $e');
     }
