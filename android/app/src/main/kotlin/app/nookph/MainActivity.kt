@@ -36,8 +36,10 @@ class MainActivity : FlutterActivity() {
         // intent lets the app read it on start
         // (HomeWidget.initiallyLaunchedFromHomeWidget). Only widget taps:
         // an intent set here survives an in-process relaunch (a config
-        // change), so an OAuth callback, App Link or notification tap kept
-        // this way would be read again as the launch link by the new engine.
+        // change), so an OAuth callback or App Link kept this way would be
+        // read again as the launch link by the new engine. (A visit-reminder
+        // tap is still kept, by flutter_local_notifications' own onNewIntent;
+        // the strip in onCreate is what stops it being read twice.)
         if (intent.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
             setIntent(intent)
         }
