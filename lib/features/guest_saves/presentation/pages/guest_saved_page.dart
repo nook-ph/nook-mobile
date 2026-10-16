@@ -18,6 +18,7 @@ import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
+import 'package:nook/core/preferences/session_prompts.dart';
 
 /// The Saved tab for someone without an account: the Want to Try and Been
 /// they kept on this phone, and a card (not a wall) offering to keep them
@@ -111,6 +112,7 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
   void _logPromptShown() {
     if (_loggedPrompt) return;
     _loggedPrompt = true;
+    SessionPrompts.noteShown();
     logAppEvent(SavesEvents.keepSavesPromptShown, properties: _surface);
   }
 
