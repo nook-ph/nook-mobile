@@ -54,6 +54,10 @@ class LocationPromptTracker {
   bool _shown = false;
   bool _answered = false;
 
+  /// Whether [shown] takes the run's prompt slot ([SessionPrompts]). Off
+  /// for a standing offer the user has seen on earlier launches.
+  bool countsAsPrompt = true;
+
   bool get wasShown => _shown;
   bool get answered => _answered;
 
@@ -61,7 +65,7 @@ class LocationPromptTracker {
   void shown() {
     if (_shown) return;
     _shown = true;
-    SessionPrompts.noteShown();
+    if (countsAsPrompt) SessionPrompts.noteShown();
     logAppEvent(LocationPromptEvents.shown, properties: {'surface': surface});
   }
 

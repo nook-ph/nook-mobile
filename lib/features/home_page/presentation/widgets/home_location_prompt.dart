@@ -106,8 +106,13 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
       checkPermission: widget.checkPermission ?? Geolocator.checkPermission,
     );
     if (!offer) return;
-    // The row is an ask too: the saver survey does not stack on it.
-    SessionPrompts.noteShown();
+    // The row is an ask the first launch it appears, and the saver survey
+    // does not stack on it then. After that it is a standing row: counting
+    // it every launch would keep the survey away for good from anyone who
+    // just leaves it there.
+    final first = await _store.claimFirstOffer().catchError((_) => false);
+    _tracker.countsAsPrompt = first;
+    if (first) SessionPrompts.noteShown();
     if (mounted) setState(() => _visible = true);
   }
 
@@ -132,6 +137,8 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
   Future<bool> _ask() async {
     if (_busy) return false;
     _busy = true;
+    // Tapped: an ask from here on, whatever launch this is.
+    SessionPrompts.noteShown();
     try {
       final go = await (widget.confirm ?? _confirm)(context);
       if (!mounted) return false;
