@@ -20,12 +20,19 @@ class _FakePlatform implements HomeWidgetPlatform {
   int? sdk = 35;
   int pinRequests = 0;
 
+  /// While set, reading the count waits for it.
+  Completer<void>? gate;
+
   @override
   bool get isSupported => true;
   @override
   Future<bool> canPin() async => true;
   @override
-  Future<int?> installedCount() async => count;
+  Future<int?> installedCount() async {
+    await gate?.future;
+    return count;
+  }
+
   @override
   Future<bool?> notificationsEnabled() async => enabled;
   @override
@@ -139,6 +146,36 @@ void main() {
     });
   });
 
+  testWidgets('the third save during a decision is looked at again', (
+    tester,
+  ) async {
+    analytics = RecordingAnalytics.install(addTearDown);
+    final feed = ValueNotifier<List<WidgetCafe>?>([
+      for (var i = 0; i < 2; i++) WidgetCafe(id: '$i', name: 'Cafe $i'),
+    ]);
+    platform.gate = Completer<void>();
+    await tester.pumpWidget(
+      page(
+        HomeWidgetPromo(
+          platform: platform,
+          store: store,
+          feed: feed,
+          pinSettle: Duration.zero,
+        ),
+      ),
+    );
+    await tester.pump();
+    // The first decision (two saves) is still awaiting the phone.
+    feed.value = [
+      for (var i = 0; i < 3; i++) WidgetCafe(id: '$i', name: 'Cafe $i'),
+    ];
+    platform.gate!.complete();
+    platform.gate = null;
+    await tester.pump();
+    await tester.pump();
+    expect(find.text(HomeWidgetPromo.savesTitle), findsOneWidget);
+  });
+
   group('notifications-off card', () {
     testWidgets('never asked on Android 13+: the saves card', (tester) async {
       analytics = RecordingAnalytics.install(addTearDown);
@@ -194,6 +231,29 @@ void main() {
         'reason': 'saves',
       });
       await tester.pump(const Duration(seconds: 6));
+    });
+
+    testWidgets('a rise long after the tap is not credited to the card', (
+      tester,
+    ) async {
+      analytics = RecordingAnalytics.install(addTearDown);
+      await store.setPendingPin(
+        PendingWidgetPin(
+          at: DateTime.now().subtract(const Duration(hours: 2)),
+          reason: 'saves',
+          countBefore: 0,
+        ),
+      );
+      platform.count = 1;
+      await tester.pumpWidget(page(promo()));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 10));
+      expect((await store.read()).added, isFalse);
+      expect(await store.pendingPin(), isNull);
+      expect(analytics.propertiesOf(HomeWidgetEvents.pinResult), {
+        'result': 'unknown',
+        'reason': 'saves',
+      });
     });
 
     testWidgets('cancelled: not retired, the second show stays', (

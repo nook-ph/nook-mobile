@@ -96,6 +96,7 @@ class HomeWidgetPromo extends StatefulWidget {
 class _HomeWidgetPromoState extends State<HomeWidgetPromo>
     with WidgetsBindingObserver {
   bool _deciding = false;
+  bool _decideAgain = false;
 
   ValueListenable<List<WidgetCafe>?> get _feed =>
       widget.feed ?? savedCafesWidgetFeed;
@@ -141,7 +142,13 @@ class _HomeWidgetPromoState extends State<HomeWidgetPromo>
 
   Future<void> _decide() async {
     final cafes = _feed.value;
-    if (_deciding || cafes == null || !widget.platform.isSupported) return;
+    if (cafes == null || !widget.platform.isSupported) return;
+    if (_deciding) {
+      // The feed changed mid-decision (the third save, say): look again
+      // with it once this one is done.
+      _decideAgain = true;
+      return;
+    }
     _deciding = true;
     try {
       final history = await _store.read();
@@ -172,6 +179,10 @@ class _HomeWidgetPromoState extends State<HomeWidgetPromo>
       debugPrint('[HomeWidgetPromo] decide failed: $e');
     } finally {
       _deciding = false;
+      if (_decideAgain) {
+        _decideAgain = false;
+        if (mounted) _onFeed();
+      }
     }
   }
 
@@ -244,13 +255,16 @@ class _HomeWidgetPromoState extends State<HomeWidgetPromo>
         result = WidgetPinResult.of(before: pending.countBefore, after: after);
       }
       await _store.clearPendingPin();
+      // Long after the tap, a new widget may as well be from the launcher's
+      // picker: not credited to the card.
+      if (!pending.isFresh(_now())) result = WidgetPinResult.unknown;
       logAppEvent(
         HomeWidgetEvents.pinResult,
         properties: {'result': result.name, 'reason': pending.reason},
       );
       if (result != WidgetPinResult.added) return;
       await _store.markAdded();
-      if (mounted && pending.isFresh(_now())) {
+      if (mounted) {
         showPrimaryToast(
           context,
           HomeWidgetPromo.addedMessage,
