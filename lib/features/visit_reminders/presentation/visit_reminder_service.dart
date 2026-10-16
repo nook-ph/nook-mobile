@@ -116,7 +116,18 @@ class VisitReminderService {
     unawaited(_logState());
     final cubit = statuses;
     if (cubit != null) {
-      _statuses = cubit.stream.listen(_onStatuses);
+      // Only when the set of Been cafes changes: badge reads and other
+      // statuses emit often, and each run reads the pending list in the
+      // queue a Directions tap waits on.
+      Set<String>? lastBeen;
+      _statuses = cubit.stream
+          .where((state) {
+            final been = _beenIds(state);
+            if (lastBeen != null && setEquals(been, lastBeen)) return false;
+            lastBeen = been;
+            return been.isNotEmpty;
+          })
+          .listen(_onStatuses);
     }
     _lifecycle = AppLifecycleListener(onResume: () => unawaited(_catchUp()));
   }
@@ -261,6 +272,13 @@ class VisitReminderService {
 
   /// Marking a cafe Been (or rating it, which marks it Been) before its
   /// reminder fires makes the reminder pointless.
+  static Set<String> _beenIds(CafeStatusState state) => {
+    for (final e in state.local.entries)
+      if (e.value == CafeStatus.been) e.key,
+    for (final e in state.statuses.entries)
+      if (e.value == CafeStatus.been) e.key,
+  };
+
   Future<void> _onStatuses(CafeStatusState state) =>
       _serial(() => _cancelBeen(state));
 
