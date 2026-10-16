@@ -6,6 +6,7 @@ import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/saves_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
@@ -145,6 +146,8 @@ class DirectionsSaveNudge {
     if (!onTop) return;
     final props = {'cafe_id': cafeId};
     logAppEvent(SavesEvents.directionsSaveNudgeShown, properties: props);
+    // The trip's offer: no score sheet after it this session (review N5).
+    SessionAskBudget.instance.blockScoreAsks(SessionAskKind.directionsNudge);
     final offset = toastOffset();
     showPrimaryToastWithAction(
       context,

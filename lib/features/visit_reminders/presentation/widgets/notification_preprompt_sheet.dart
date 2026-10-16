@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/notification_events.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
@@ -183,6 +184,14 @@ abstract final class VisitReminderPrompts {
   }) async {
     final trip = decision.trip;
     if (!decision.ask || trip == null) return;
+    // One pushed sheet per session, shared with the sign-up ask (ux
+    // finding 2). Without the ask there is no permission, so no reminder.
+    final budget = SessionAskBudget.instance;
+    if (!budget.canShowSheet) {
+      await service.dropTrip();
+      return;
+    }
+    budget.spend(SessionAskKind.notificationPrePrompt);
     const props = {'trigger': NotificationPromptTrigger.directions};
     final number = await service.recordPrePromptShown();
     logAppEvent(
