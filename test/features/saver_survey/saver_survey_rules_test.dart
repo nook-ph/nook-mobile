@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nook/core/analytics/saver_survey_events.dart';
+import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/saver_survey/domain/saver_survey_reasons.dart';
 import 'package:nook/features/saver_survey/domain/saver_survey_rules.dart';
 
@@ -20,7 +20,9 @@ void main() {
       firstSession: firstSession,
       openDays: openDays,
       promptShownThisSession: prompt,
-      saves: unknownSaves ? null : saves ?? SaveDates(wantToTry: [daysAgo(6)]),
+      saves: unknownSaves
+          ? null
+          : saves ?? SaveDates(wantToTry: [WantToTrySave(daysAgo(6))]),
     ),
     now: now,
   );
@@ -29,7 +31,7 @@ void main() {
     test('shows for an old Want to Try, no recent Been, two open days', () {
       final d = decide(
         saves: SaveDates(
-          wantToTry: [daysAgo(6), daysAgo(1)],
+          wantToTry: [WantToTrySave(daysAgo(6)), WantToTrySave(daysAgo(1))],
           been: [daysAgo(20)],
         ),
       );
@@ -39,11 +41,18 @@ void main() {
     });
 
     test('a save exactly five days old counts', () {
-      expect(decide(saves: SaveDates(wantToTry: [daysAgo(5)])).show, isTrue);
+      expect(
+        decide(saves: SaveDates(wantToTry: [WantToTrySave(daysAgo(5))])).show,
+        isTrue,
+      );
     });
 
     test('only saves newer than five days: not yet', () {
-      final d = decide(saves: SaveDates(wantToTry: [daysAgo(4), daysAgo(0)]));
+      final d = decide(
+        saves: SaveDates(
+          wantToTry: [WantToTrySave(daysAgo(4)), WantToTrySave(daysAgo(0))],
+        ),
+      );
       expect(d.show, isFalse);
       expect(d.reason, 'no_old_save');
     });
@@ -54,14 +63,20 @@ void main() {
 
     test('a Been in the last 14 days: no', () {
       final d = decide(
-        saves: SaveDates(wantToTry: [daysAgo(10)], been: [daysAgo(13)]),
+        saves: SaveDates(
+          wantToTry: [WantToTrySave(daysAgo(10))],
+          been: [daysAgo(13)],
+        ),
       );
       expect(d.reason, 'recent_been');
     });
 
     test('a Been 14 or more days ago does not block', () {
       final d = decide(
-        saves: SaveDates(wantToTry: [daysAgo(10)], been: [daysAgo(14)]),
+        saves: SaveDates(
+          wantToTry: [WantToTrySave(daysAgo(10))],
+          been: [daysAgo(14)],
+        ),
       );
       expect(d.show, isTrue);
     });
@@ -78,8 +93,12 @@ void main() {
       expect(decide(done: true).reason, 'done');
     });
 
-    test('another prompt this session: no', () {
+    test('another prompt this session: no, but only after the saves', () {
       expect(decide(prompt: true).reason, 'session_prompt');
+      expect(
+        decide(prompt: true, saves: const SaveDates()).reason,
+        'no_old_save',
+      );
     });
 
     test('saves that could not be read: no', () {
@@ -88,27 +107,75 @@ void main() {
 
     test('a save dated in the future does not count as old', () {
       final d = decide(
-        saves: SaveDates(wantToTry: [now.add(const Duration(days: 9))]),
+        saves: SaveDates(
+          wantToTry: [WantToTrySave(now.add(const Duration(days: 9)))],
+        ),
       );
       expect(d.show, isFalse);
     });
   });
 
-  group('reasons', () {
-    test('six answers with unique ids, Something else last', () {
-      final ids = SaverSurveyCopy.reasons.map((r) => r.id).toList();
-      expect(ids.toSet().length, ids.length);
-      expect(SaverSurveyCopy.reasons.last, SaverSurveyCopy.other);
-      expect(SaverSurveyCopy.maxPicks, 2);
+  group('the oldest save', () {
+    const brew = CafeSnapshot(id: 'b', name: 'Brew Szn');
+    const julio = CafeSnapshot(id: 'j', name: 'Cafe Julio');
+
+    test('names the oldest old Want to Try and its age', () {
+      final d = decide(
+        saves: SaveDates(
+          wantToTry: [
+            WantToTrySave(daysAgo(6), julio),
+            WantToTrySave(daysAgo(9), brew),
+            WantToTrySave(daysAgo(2), const CafeSnapshot(id: 'n', name: 'New')),
+          ],
+        ),
+      );
+      expect(d.cafe, brew);
+      expect(d.staleDays, 9);
+      expect(d.wantToTry, hasLength(3));
+    });
+
+    test('a known cafe wins over an older date-only save', () {
+      final d = decide(
+        saves: SaveDates(
+          wantToTry: [
+            WantToTrySave(daysAgo(20)),
+            WantToTrySave(daysAgo(7), julio),
+          ],
+        ),
+      );
+      expect(d.cafe, julio);
+      expect(d.staleDays, 7);
+    });
+
+    test('only date-only saves: no cafe, still the oldest age', () {
+      final d = decide(
+        saves: SaveDates(wantToTry: [WantToTrySave(daysAgo(8))]),
+      );
+      expect(d.show, isTrue);
+      expect(d.cafe, isNull);
+      expect(d.staleDays, 8);
     });
   });
 
-  test('length bucket never carries the text', () {
-    expect(saverSurveyLengthBucket(0), 'none');
-    expect(saverSurveyLengthBucket(1), '1_20');
-    expect(saverSurveyLengthBucket(20), '1_20');
-    expect(saverSurveyLengthBucket(21), '21_60');
-    expect(saverSurveyLengthBucket(60), '21_60');
-    expect(saverSurveyLengthBucket(120), '61_120');
+  group('reasons', () {
+    test('seven answers with unique ids, later first, Something else last', () {
+      final ids = SaverSurveyCopy.reasons.map((r) => r.id).toList();
+      expect(ids.toSet().length, ids.length);
+      expect(ids.first, 'saving_for_later');
+      expect(SaverSurveyCopy.reasons.last, SaverSurveyCopy.other);
+      expect(SaverSurveyCopy.maxPicks, 2);
+    });
+
+    test('the message names the cafe and its age', () {
+      expect(
+        SaverSurveyCopy.message(cafeName: 'Brew Szn', days: 9),
+        "You saved Brew Szn 9 days ago. No rush — if something's in the way, "
+        'pick up to two.',
+      );
+      expect(
+        SaverSurveyCopy.message(cafeName: null, days: 1),
+        startsWith('You saved a cafe yesterday.'),
+      );
+    });
   });
 }

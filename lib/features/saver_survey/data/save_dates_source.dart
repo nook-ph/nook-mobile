@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/saver_survey/domain/saver_survey_rules.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -23,7 +24,8 @@ class GuestSaveDatesSource implements SaveDatesSource {
     if (!state.loaded) return null;
     return SaveDates(
       wantToTry: [
-        for (final s in state.withStatus(CafeStatus.wantToTry)) s.savedAt,
+        for (final s in state.withStatus(CafeStatus.wantToTry))
+          WantToTrySave(s.savedAt, s.cafe),
       ],
       been: [for (final s in state.withStatus(CafeStatus.been)) s.savedAt],
     );
@@ -32,7 +34,10 @@ class GuestSaveDatesSource implements SaveDatesSource {
 
 /// A signed-in user's saves: `list_cafes.added_at` on their two system
 /// lists. One read of `list_members` and one of `list_cafes`, the same rows
-/// the Saved tab reads, so nothing new is asked of the server.
+/// the Saved tab reads, so nothing new is asked of the server. The Want to
+/// Try rows bring the cafe's name, photo, hours and coordinates along (the
+/// same embed the list pages use), so the survey can name the cafe and its
+/// follow-up can answer from the phone.
 class AccountSaveDatesSource implements SaveDatesSource {
   AccountSaveDatesSource({SupabaseClient? client}) : _client = client;
 
@@ -62,9 +67,15 @@ class AccountSaveDatesSource implements SaveDatesSource {
       if (typeById.isEmpty) return const SaveDates();
       final rows = await client
           .from('list_cafes')
-          .select('list_id, added_at')
+          .select('''
+              list_id,
+              added_at,
+              cafe:cafes!list_cafes_cafe_id_fkey (
+                id, name, featured_image_url, lat, lng, operating_hours
+              )
+            ''')
           .inFilter('list_id', typeById.keys.toList());
-      final wantToTry = <DateTime>[];
+      final wantToTry = <WantToTrySave>[];
       final been = <DateTime>[];
       for (final raw in rows as List) {
         if (raw is! Map) continue;
@@ -72,7 +83,7 @@ class AccountSaveDatesSource implements SaveDatesSource {
         if (at == null) continue;
         switch (typeById[raw['list_id']]) {
           case 'want_to_try':
-            wantToTry.add(at);
+            wantToTry.add(WantToTrySave(at, _cafe(raw['cafe'])));
           case 'been':
             been.add(at);
         }
@@ -82,5 +93,13 @@ class AccountSaveDatesSource implements SaveDatesSource {
       debugPrint('[SaverSurvey] account saves read failed: $e');
       return null;
     }
+  }
+
+  static CafeSnapshot? _cafe(Object? raw) {
+    if (raw is! Map) return null;
+    return CafeSnapshot.fromJson({
+      ...raw,
+      'cover_image': raw['featured_image_url'],
+    });
   }
 }

@@ -19,3 +19,22 @@ Built in `lib/features/saver_survey/presentation/saver_survey_sheet.dart`.
 
 Not in any reference, designed here: rows dim once two are picked, Send
 disabled until one is, the thanks toast.
+
+## Follow-up card
+After Send, the same sheet swaps to one card picked from the answer: the
+named cafe's open state today, the nearest Want to Try (or the location
+ask), Share, or "It'll stay in Your places."; one action, a close button.
+Built in `lib/features/saver_survey/presentation/saver_survey_sheet.dart`
+(`_FollowUpCard`). Researched 2026-10-16 with partwise.
+
+**Primary: Klarna.** Borrow: Blackbird, Kickstarter. Rejected: Drinkit
+(promo tiles, too busy for one card), Omio (inline banner, not a sheet).
+
+| | Product | Taken |
+|---|---|---|
+| ![](followup-klarna.png) | [Klarna](https://refero.design/screens/48f14fc6-ff41-42f0-91f7-73d45641ce01) | Thank-you sheet anatomy: grabber, left-aligned headline with the close button on its line |
+| ![](followup-blackbird.png) | [Blackbird](https://refero.design/screens/40912fec-7c6a-4e39-a65a-e8183b6f6c84) | Place row: photo left, name, then the open state as the last line (state, dot, time) |
+| ![](followup-kickstarter.png) | [Kickstarter](https://refero.design/screens/0106a48f-e654-4cbb-88db-4ad955321b2a) | One short sentence, then a single full-width Share as the only next step |
+
+Not in any reference, designed here: the location-ask, no-hours and
+"later" states; the distance leading the fact line on the nearest card.

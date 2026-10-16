@@ -4,6 +4,7 @@ import 'package:nook/features/saver_survey/data/save_dates_source.dart';
 import 'package:nook/features/saver_survey/data/saver_survey_store.dart';
 import 'package:nook/features/saver_survey/domain/saver_survey_rules.dart';
 import 'package:nook/features/saver_survey/presentation/saver_survey_gate.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Saves implements SaveDatesSource {
@@ -36,7 +37,9 @@ void main() {
     force: force,
   );
 
-  final oldSave = _Saves(SaveDates(wantToTry: [DateTime(2026, 10, 1)]));
+  final oldSave = _Saves(
+    SaveDates(wantToTry: [WantToTrySave(DateTime(2026, 10, 1))]),
+  );
 
   group('SaverSurveyStore.recordLaunch', () {
     test('first launch is the first session; same day adds no day', () async {
@@ -79,10 +82,14 @@ void main() {
       await launch(oldSave).evaluate();
       clock = clock.add(const Duration(days: 1));
       SessionPrompts.resetForTest();
-      final shown = await launch(oldSave).evaluate();
+      final gate = launch(oldSave);
+      final shown = await gate.evaluate();
       expect(shown!.show, isTrue);
       expect(shown.savesCount, 1);
       expect(shown.daysSinceFirstSave, 10);
+      expect(shown.staleDays, 10);
+      expect(gate.commit(), isTrue);
+      await gate.doneWritten;
 
       clock = clock.add(const Duration(days: 3));
       SessionPrompts.resetForTest();
@@ -91,12 +98,53 @@ void main() {
       expect(later.reason, 'done');
     });
 
-    test('takes the run\'s prompt slot when it shows', () async {
+    test(
+      'deciding spends nothing; commit takes the slot and the flag',
+      () async {
+        await launch(oldSave).evaluate();
+        clock = clock.add(const Duration(days: 1));
+        SessionPrompts.resetForTest();
+        final gate = launch(oldSave);
+        expect((await gate.evaluate())!.show, isTrue);
+        // Decided, not committed (the user left Home): nothing is spent.
+        expect(SessionPrompts.anyShown, isFalse);
+        expect(await SaverSurveyStore(now: now).isDone(), isFalse);
+
+        expect(gate.commit(), isTrue);
+        await gate.doneWritten;
+        expect(SessionPrompts.claim(), isFalse);
+        expect(await SaverSurveyStore(now: now).isDone(), isTrue);
+      },
+    );
+
+    test('a decision not committed shows again next run', () async {
       await launch(oldSave).evaluate();
       clock = clock.add(const Duration(days: 1));
       SessionPrompts.resetForTest();
-      await launch(oldSave).evaluate();
-      expect(SessionPrompts.claim(), isFalse);
+      await launch(oldSave).evaluate(); // never committed
+      SessionPrompts.resetForTest();
+      expect((await launch(oldSave).evaluate())!.show, isTrue);
+    });
+
+    test(
+      'commit fails when another prompt took the slot after deciding',
+      () async {
+        await launch(oldSave).evaluate();
+        clock = clock.add(const Duration(days: 1));
+        SessionPrompts.resetForTest();
+        final gate = launch(oldSave);
+        expect((await gate.evaluate())!.show, isTrue);
+        SessionPrompts.noteShown();
+        expect(gate.commit(), isFalse);
+        await gate.doneWritten;
+        expect(await SaverSurveyStore(now: now).isDone(), isFalse);
+      },
+    );
+
+    test('not-shown is reported once per run', () {
+      final gate = launch(oldSave);
+      expect(gate.claimNotShownReport(), isTrue);
+      expect(gate.claimNotShownReport(), isFalse);
     });
 
     test('another prompt already shown this run: skipped, not done', () async {
@@ -119,7 +167,9 @@ void main() {
     });
 
     test('saves are not read when a cheap rule already says no', () async {
-      final saves = _Saves(SaveDates(wantToTry: [DateTime(2026, 10, 1)]));
+      final saves = _Saves(
+        SaveDates(wantToTry: [WantToTrySave(DateTime(2026, 10, 1))]),
+      );
       await launch(saves).evaluate();
       expect(saves.reads, 0);
     });
