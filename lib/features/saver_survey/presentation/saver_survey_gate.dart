@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
-import 'package:nook/core/preferences/session_prompts.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/features/saver_survey/data/save_dates_source.dart';
 import 'package:nook/features/saver_survey/data/saver_survey_store.dart';
 import 'package:nook/features/saver_survey/domain/saver_survey_rules.dart';
 
-/// Decides, at most once per app run, whether Home opens the saver survey.
-/// Deciding has no side effects; [commit] claims the run's prompt slot and
+/// Decides, at most once per app run (at app open), whether Home opens the saver survey.
+/// Deciding has no side effects; [commit] claims the session's ask ([SessionAskBudget.claim]) and
 /// the once-ever flag, and the host calls it only as the sheet opens, so a
 /// survey that ends up not shown (the user moved on) is not spent.
 class SaverSurveyGate {
@@ -14,7 +14,9 @@ class SaverSurveyGate {
     required SaveDatesSource Function() saves,
     DateTime Function()? now,
     bool? force,
+    SessionAskBudget? budget,
   }) : _store = store,
+       _budget = budget ?? SessionAskBudget.instance,
        _saves = saves,
        _now = now ?? DateTime.now,
        _force = force ?? forced;
@@ -26,6 +28,7 @@ class SaverSurveyGate {
       kDebugMode && const bool.fromEnvironment('NOOK_FORCE_SAVER_SURVEY');
 
   final SaverSurveyStore _store;
+  final SessionAskBudget _budget;
   final SaveDatesSource Function() _saves;
   final DateTime Function() _now;
   final bool _force;
@@ -62,7 +65,7 @@ class SaverSurveyGate {
         done: done,
         firstSession: launch.firstSession,
         openDays: launch.openDays,
-        promptShownThisSession: SessionPrompts.anyShown,
+        promptShownThisSession: _budget.anyShown,
         saves: saves,
       );
       final early = SaverSurveyRules.decide(
@@ -80,12 +83,15 @@ class SaverSurveyGate {
     }
   }
 
-  /// Claims the run's prompt slot and marks the survey done. Call right
+  /// Claims the session's ask and marks the survey done. Call right
   /// before the sheet opens. False when another prompt took the slot since
   /// [evaluate]: then do not show it (and it is not spent). The done flag is
   /// written as the sheet opens, so a crash or a swipe away still counts.
   bool commit() {
-    if (!SessionPrompts.claim() && !_force) return false;
+    if (!_budget.claim(SessionAskKind.saverSurvey)) {
+      if (!_force) return false;
+      _budget.spend(SessionAskKind.saverSurvey);
+    }
     _doneWrite = _store.markDone().catchError((Object e) {
       debugPrint('[SaverSurvey] markDone failed: $e');
     });

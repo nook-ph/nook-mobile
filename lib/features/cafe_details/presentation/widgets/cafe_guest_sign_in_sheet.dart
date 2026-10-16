@@ -10,7 +10,6 @@ import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
 import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
-import 'package:nook/core/preferences/session_prompts.dart';
 
 /// Which guest action opened the sign-in sheet; each gets its own reason.
 enum CafeGuestAction {
@@ -66,7 +65,6 @@ class CafeGuestSignInSheet extends StatelessWidget {
     String? trigger,
   }) async {
     final props = <String, Object>{'trigger': trigger ?? triggerFor(action)};
-    SessionPrompts.noteShown();
     logAppEvent(SignInPromptEvents.shown, properties: props);
     // The person asked for this one: no score ask on top this session.
     SessionAskBudget.instance.blockScoreAsks(SessionAskKind.pullSignIn);

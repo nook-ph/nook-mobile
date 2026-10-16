@@ -24,7 +24,7 @@ import 'package:nook/features/lists/presentation/widgets/places_progress_pill.da
 import 'package:nook/features/profile/presentation/pages/settings_page.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/utils/toast_helper.dart';
-import 'package:nook/core/preferences/session_prompts.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 
 /// The Saved tab for someone without an account: the Want to Try and Been
 /// they kept on this phone, and a card (not a wall) offering to keep them
@@ -157,7 +157,9 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
   void _logPromptShown() {
     if (_loggedPrompt) return;
     _loggedPrompt = true;
-    SessionPrompts.noteShown();
+    // The card counts as this session's prompt (the saver survey does not
+    // stack on it); it spends nothing, so the Saved ask may still show.
+    SessionAskBudget.instance.noteShown(SessionAskKind.keepSavesCard);
     logAppEvent(
       SavesEvents.keepSavesPromptShown,
       properties: {'surface': _surface},

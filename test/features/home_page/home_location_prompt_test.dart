@@ -4,7 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
-import 'package:nook/core/preferences/session_prompts.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_location_prompt.dart';
 import 'package:nook/utils/theme/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,7 +18,7 @@ void main() {
     analytics = RecordingAnalytics.install(addTearDown);
     SharedPreferences.setMockInitialValues({});
     resetHomeLocationPromptLog();
-    SessionPrompts.resetForTest();
+    SessionAskBudget.instance.resetForTest();
   });
 
   Future<bool> offer({
@@ -187,7 +187,7 @@ void main() {
         request: () async => LocationPermission.whileInUse,
       );
       expect(find.text('See cafes near you'), findsOneWidget);
-      expect(SessionPrompts.anyShown, isTrue);
+      expect(SessionAskBudget.instance.anyShown, isTrue);
     });
 
     testWidgets('a standing row leaves the slot free until it is tapped', (
@@ -201,7 +201,7 @@ void main() {
         offeredBefore: true,
       );
       expect(find.text('See cafes near you'), findsOneWidget);
-      expect(SessionPrompts.anyShown, isFalse);
+      expect(SessionAskBudget.instance.anyShown, isFalse);
       // Still logged as shown for the location funnel.
       expect(analytics.flat.first, [
         LocationPromptEvents.shown,
@@ -210,13 +210,13 @@ void main() {
 
       await tester.tap(find.text('See cafes near you'));
       await tester.pumpAndSettle();
-      expect(SessionPrompts.anyShown, isTrue);
+      expect(SessionAskBudget.instance.anyShown, isTrue);
     });
 
     testWidgets('behind a prompt that took the run, the first offer is kept', (
       tester,
     ) async {
-      SessionPrompts.noteShown();
+      SessionAskBudget.instance.noteShown('test');
       await pump(
         tester,
         onGranted: () {},

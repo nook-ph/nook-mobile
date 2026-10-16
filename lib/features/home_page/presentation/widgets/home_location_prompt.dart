@@ -8,7 +8,7 @@ import 'package:nook/core/preferences/location_prompt_store.dart';
 import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:nook/core/widgets/error/location_denied_banner.dart';
 import 'package:nook/injection_container.dart';
-import 'package:nook/core/preferences/session_prompts.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 
 /// Whether Home should offer "See cafes near you".
 ///
@@ -110,13 +110,14 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
     // does not stack on it then. After that it is a standing row: counting
     // it every launch would keep the survey away for good from anyone who
     // just leaves it there.
-    // Behind a prompt that already took the run (the survey), the first
-    // offer is not spent: the next launch counts it.
+    // Behind a prompt that already took the session (the survey), the
+    // first offer is not spent: the next launch counts it.
+    final budget = SessionAskBudget.instance;
     final first =
-        !SessionPrompts.anyShown &&
+        !budget.anyShown &&
         await _store.claimFirstOffer().catchError((_) => false);
     _tracker.countsAsPrompt = first;
-    if (first) SessionPrompts.noteShown();
+    if (first) budget.noteShown(SessionAskKind.homeLocationRow);
     if (mounted) setState(() => _visible = true);
   }
 
@@ -141,8 +142,9 @@ class _HomeLocationPromptState extends State<HomeLocationPrompt> {
   Future<bool> _ask() async {
     if (_busy) return false;
     _busy = true;
-    // Tapped: an ask from here on, whatever launch this is.
-    SessionPrompts.noteShown();
+    // Tapped: a sheet the person opened, so no score ask on top this
+    // session (as for a sign-in sheet they open), whatever launch this is.
+    SessionAskBudget.instance.blockScoreAsks(SessionAskKind.homeLocationAsk);
     try {
       final go = await (widget.confirm ?? _confirm)(context);
       if (!mounted) return false;

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nook/core/preferences/session_prompts.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/features/saver_survey/data/save_dates_source.dart';
 import 'package:nook/features/saver_survey/data/saver_survey_store.dart';
 import 'package:nook/features/saver_survey/domain/saver_survey_rules.dart';
@@ -25,7 +25,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
-    SessionPrompts.resetForTest();
+    SessionAskBudget.instance.resetForTest();
     clock = DateTime(2026, 10, 10, 9);
   });
 
@@ -73,7 +73,7 @@ void main() {
 
     test('a second launch the same day: still only one open day', () async {
       await launch(oldSave).evaluate();
-      SessionPrompts.resetForTest();
+      SessionAskBudget.instance.resetForTest();
       final d = await launch(oldSave).evaluate();
       expect(d!.reason, 'open_days');
     });
@@ -81,7 +81,7 @@ void main() {
     test('second day: shows, then never again (once ever)', () async {
       await launch(oldSave).evaluate();
       clock = clock.add(const Duration(days: 1));
-      SessionPrompts.resetForTest();
+      SessionAskBudget.instance.resetForTest();
       final gate = launch(oldSave);
       final shown = await gate.evaluate();
       expect(shown!.show, isTrue);
@@ -92,7 +92,7 @@ void main() {
       await gate.doneWritten;
 
       clock = clock.add(const Duration(days: 3));
-      SessionPrompts.resetForTest();
+      SessionAskBudget.instance.resetForTest();
       final later = await launch(oldSave).evaluate();
       expect(later!.show, isFalse);
       expect(later.reason, 'done');
@@ -103,16 +103,16 @@ void main() {
       () async {
         await launch(oldSave).evaluate();
         clock = clock.add(const Duration(days: 1));
-        SessionPrompts.resetForTest();
+        SessionAskBudget.instance.resetForTest();
         final gate = launch(oldSave);
         expect((await gate.evaluate())!.show, isTrue);
         // Decided, not committed (the user left Home): nothing is spent.
-        expect(SessionPrompts.anyShown, isFalse);
+        expect(SessionAskBudget.instance.anyShown, isFalse);
         expect(await SaverSurveyStore(now: now).isDone(), isFalse);
 
         expect(gate.commit(), isTrue);
         await gate.doneWritten;
-        expect(SessionPrompts.claim(), isFalse);
+        expect(SessionAskBudget.instance.claim('test'), isFalse);
         expect(await SaverSurveyStore(now: now).isDone(), isTrue);
       },
     );
@@ -120,9 +120,9 @@ void main() {
     test('a decision not committed shows again next run', () async {
       await launch(oldSave).evaluate();
       clock = clock.add(const Duration(days: 1));
-      SessionPrompts.resetForTest();
+      SessionAskBudget.instance.resetForTest();
       await launch(oldSave).evaluate(); // never committed
-      SessionPrompts.resetForTest();
+      SessionAskBudget.instance.resetForTest();
       expect((await launch(oldSave).evaluate())!.show, isTrue);
     });
 
@@ -131,10 +131,10 @@ void main() {
       () async {
         await launch(oldSave).evaluate();
         clock = clock.add(const Duration(days: 1));
-        SessionPrompts.resetForTest();
+        SessionAskBudget.instance.resetForTest();
         final gate = launch(oldSave);
         expect((await gate.evaluate())!.show, isTrue);
-        SessionPrompts.noteShown();
+        SessionAskBudget.instance.noteShown('test');
         expect(gate.commit(), isFalse);
         await gate.doneWritten;
         expect(await SaverSurveyStore(now: now).isDone(), isFalse);
@@ -150,13 +150,13 @@ void main() {
     test('another prompt already shown this run: skipped, not done', () async {
       await launch(oldSave).evaluate();
       clock = clock.add(const Duration(days: 1));
-      SessionPrompts.resetForTest();
-      SessionPrompts.noteShown();
+      SessionAskBudget.instance.resetForTest();
+      SessionAskBudget.instance.noteShown('test');
       expect((await launch(oldSave).evaluate())!.reason, 'session_prompt');
 
       // Next run, nothing else asked: now it shows.
       clock = clock.add(const Duration(days: 1));
-      SessionPrompts.resetForTest();
+      SessionAskBudget.instance.resetForTest();
       expect((await launch(oldSave).evaluate())!.show, isTrue);
     });
 
@@ -177,7 +177,7 @@ void main() {
     test('debug force shows on any run, first session included', () async {
       final d = await launch(oldSave, force: true).evaluate();
       expect(d!.show, isTrue);
-      SessionPrompts.resetForTest();
+      SessionAskBudget.instance.resetForTest();
       expect((await launch(oldSave, force: true).evaluate())!.show, isTrue);
     });
 

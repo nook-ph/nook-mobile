@@ -1,7 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
-import 'package:nook/core/preferences/session_prompts.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 
 /// Where a location prompt was shown, for `location_prompt_shown` and
 /// `location_permission_result`.
@@ -54,8 +54,9 @@ class LocationPromptTracker {
   bool _shown = false;
   bool _answered = false;
 
-  /// Whether [shown] takes the run's prompt slot ([SessionPrompts]). Off
-  /// for a standing offer the user has seen on earlier launches.
+  /// Whether [shown] counts as this session's prompt
+  /// ([SessionAskBudget.noteShown]). Off for a standing offer the user has
+  /// seen on earlier launches.
   bool countsAsPrompt = true;
 
   bool get wasShown => _shown;
@@ -65,7 +66,9 @@ class LocationPromptTracker {
   void shown() {
     if (_shown) return;
     _shown = true;
-    if (countsAsPrompt) SessionPrompts.noteShown();
+    if (countsAsPrompt) {
+      SessionAskBudget.instance.noteShown(SessionAskKind.locationPrompt);
+    }
     logAppEvent(LocationPromptEvents.shown, properties: {'surface': surface});
   }
 
