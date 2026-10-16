@@ -40,16 +40,20 @@ Future<void> continueSignInFromSheet(
 
   beforeSignIn?.call();
   final router = GoRouter.of(context);
+  // A page pushed straight on the Navigator (a cafe opened from a card) is
+  // not in the router's stack: going Home and back would pop it and push
+  // whatever the router last knew, a different page. An in-place sign-in
+  // stays on it instead. The email and username steps leave through the
+  // router and lose it, so what it would have finished on reopening is
+  // dropped rather than left to fire on a later visit.
+  final route = ModalRoute.of(context);
+  final outsideRouter = route != null && route.settings is! Page;
   if (bloc == null) {
+    if (outsideRouter) GuestActionReplay.clear();
     router.push('/login');
     return;
   }
 
-  // A page pushed straight on the Navigator (a cafe opened from a card) is
-  // not in the router's stack: going Home and back would pop it and push
-  // whatever the router last knew, a different page. The guest is already
-  // on the right page, so stay there instead.
-  final route = ModalRoute.of(context);
   AuthReturn.rememberCurrent(router);
   bloc.add(
     choice == SignInChoice.apple
@@ -72,7 +76,7 @@ Future<void> continueSignInFromSheet(
 
   switch (outcome) {
     case AuthAuthenticated():
-      if (route == null || route.settings is Page || !route.isActive) {
+      if (!outsideRouter || !route.isActive) {
         finishSignInWith(router);
       } else {
         AuthReturn.take();
@@ -88,8 +92,9 @@ Future<void> continueSignInFromSheet(
       }
     case AuthNeedsUsername():
       // The router holds the account on /username-setup, which finishes
-      // with [finishSignIn] and so returns here.
-      break;
+      // with [finishSignIn] and so returns here (or, from a page outside
+      // the router, to the router's last page).
+      if (outsideRouter) GuestActionReplay.clear();
     case AuthError(:final message):
       AuthReturn.take();
       // Nothing to finish: a later sign-in from elsewhere must not replay it.

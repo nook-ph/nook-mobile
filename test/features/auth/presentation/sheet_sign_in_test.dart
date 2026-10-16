@@ -140,4 +140,37 @@ void main() {
 
     expect(GuestActionReplay.take(CafeGuestAction.saveToList, 'A'), isFalse);
   });
+
+  testWidgets('email from a page outside the router drops the action, which '
+      'the trip through /login cannot bring back', (tester) async {
+    final bloc = FakeAuthBloc();
+    addTearDown(bloc.close);
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const Text('home')),
+        GoRoute(path: '/login', builder: (_, _) => const Text('login')),
+      ],
+    );
+    await tester.pumpWidget(
+      BlocProvider<AuthBloc>.value(
+        value: bloc,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    router.routerDelegate.navigatorKey.currentState!.push(
+      MaterialPageRoute<void>(builder: (_) => const Text('cafe B')),
+    );
+    await tester.pumpAndSettle();
+
+    await continueSignInFromSheet(
+      tester.element(find.text('cafe B')),
+      SignInChoice.email,
+      beforeSignIn: () =>
+          GuestActionReplay.remember(CafeGuestAction.saveToList, 'B'),
+    );
+
+    expect(GuestActionReplay.take(CafeGuestAction.saveToList, 'B'), isFalse);
+    await tester.pumpAndSettle();
+  });
 }
