@@ -96,20 +96,33 @@ Future<void> launchCafeDirections(
       : null;
   try {
     if (reminders != null) {
-      final status = context.read<CafeStatusCubit?>()?.state.statusFor(cafeId);
-      decision = await reminders.onDirectionsTap(
-        cafeId: cafeId,
-        cafeName: details.name,
-        status: status ?? CafeStatus.none,
-        operatingHours: details.operatingHours,
-      );
-      if (decision.ask) {
-        if (context.mounted) {
-          await VisitReminderPrompts.atDirections(context, reminders, decision);
-        } else {
-          // No ask was seen: the kept trip must not be scheduled later.
-          await reminders.dropTrip();
+      // Best effort: a reminder that cannot be decided or stored never
+      // costs the directions themselves.
+      try {
+        final status = context.read<CafeStatusCubit?>()?.state.statusFor(
+          cafeId,
+        );
+        decision = await reminders.onDirectionsTap(
+          cafeId: cafeId,
+          cafeName: details.name,
+          status: status ?? CafeStatus.none,
+          operatingHours: details.operatingHours,
+        );
+        if (decision.ask) {
+          if (context.mounted) {
+            await VisitReminderPrompts.atDirections(
+              context,
+              reminders,
+              decision,
+            );
+          } else {
+            // No ask was seen: the kept trip must not be scheduled later.
+            await reminders.dropTrip();
+          }
         }
+      } catch (e) {
+        debugPrint('[Directions] visit reminder failed: $e');
+        decision = DirectionsDecision.none;
       }
     }
     watch = Stopwatch()..start();
