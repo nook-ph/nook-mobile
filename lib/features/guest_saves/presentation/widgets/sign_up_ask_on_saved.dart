@@ -92,7 +92,7 @@ class _SignUpAskOnSavedState extends State<SignUpAskOnSaved> {
     if (!stillHere()) return;
     final saves = context.read<GuestSavesCubit>();
     await saves.load();
-    if (!stillHere()) return;
+    if (!mounted || !stillHere()) return;
     final count = saves.state.saves.length;
     if (count < SignUpAskOnSaved.minSaves) return;
     await score.maybeAsk(
