@@ -1,0 +1,108 @@
+import 'package:flutter/foundation.dart';
+import 'package:nook/core/analytics/home_widget_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+
+/// Where a tap on the home-screen widget goes.
+enum WidgetLinkTarget { cafe, saved, home }
+
+/// A link the widget opened the app with:
+///
+/// - `nook://cafe/<id>?via=widget`, a cafe's row → its page;
+/// - `nook://saved?via=widget`, the header → the Saved tab (with
+///   `tap=stale` from the "Open Nook to update" state);
+/// - `nook://home?via=widget`, the empty state's "Find a cafe" → Home.
+///
+/// Android hands the link to Flutter as the route, where go_router would
+/// read `nook://cafe/<id>` as the path `/<id>`. So the router's redirect
+/// passes these to [WidgetLinks.accept], which keeps the link and sends the
+/// route to `/` (Home, which Back from the cafe then lands on); `MainShell`
+/// opens it from there with [WidgetLinks.take].
+class WidgetLink {
+  const WidgetLink._(this.target, this.cafeId, this.tap);
+
+  final WidgetLinkTarget target;
+  final String? cafeId;
+
+  /// The `target` property of `widget_tapped`.
+  final String tap;
+
+  /// The router location to push for a cafe; null for a tab.
+  String? get location => cafeId == null ? null : '/cafe/$cafeId';
+
+  static WidgetLink? parse(Uri uri) {
+    if (uri.scheme != 'nook' || uri.queryParameters['via'] != 'widget') {
+      return null;
+    }
+    switch (uri.host) {
+      case 'cafe':
+        final id = uri.pathSegments.where((s) => s.isNotEmpty).firstOrNull;
+        if (id == null) return null;
+        return WidgetLink._(WidgetLinkTarget.cafe, id, 'cafe');
+      case 'saved':
+        return WidgetLink._(
+          WidgetLinkTarget.saved,
+          null,
+          uri.queryParameters['tap'] == 'stale' ? 'stale' : 'header',
+        );
+      case 'home':
+        return const WidgetLink._(WidgetLinkTarget.home, null, 'empty');
+    }
+    return null;
+  }
+}
+
+abstract final class WidgetLinks {
+  /// The widget link waiting to be opened, if any.
+  static final ValueNotifier<WidgetLink?> pending = ValueNotifier(null);
+
+  /// One tap can arrive twice: as the route Android hands Flutter (the
+  /// router's redirect) and as the widget plugin's launch or click event.
+  /// The same link within this window is the same tap.
+  static const _sameTap = Duration(seconds: 3);
+  static Uri? _lastUri;
+  static DateTime? _lastAt;
+
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
+  /// For the router's redirect: `/` when [uri] is a widget link (kept in
+  /// [pending] and logged), else null.
+  static String? accept(Uri uri) {
+    final link = WidgetLink.parse(uri);
+    if (link == null) return null;
+    final now = clock();
+    final last = _lastAt;
+    final repeat =
+        uri == _lastUri && last != null && now.difference(last) < _sameTap;
+    _lastUri = uri;
+    _lastAt = now;
+    if (!repeat) {
+      logAppEvent(HomeWidgetEvents.tapped, properties: {'target': link.tap});
+      pending.value = link;
+    }
+    return '/';
+  }
+
+  /// A link from the widget plugin: the intent that started the app, or a
+  /// tap while it runs. go_router starts at its initial `/` on a cold start
+  /// and a recreated activity gets the tap as a new intent, so the router
+  /// alone misses some taps.
+  static void acceptFromPlatform(Uri? uri) {
+    if (uri != null) accept(uri);
+  }
+
+  /// The pending link, cleared.
+  static WidgetLink? take() {
+    final link = pending.value;
+    pending.value = null;
+    return link;
+  }
+
+  @visibleForTesting
+  static void reset() {
+    _lastUri = null;
+    _lastAt = null;
+    pending.value = null;
+    clock = DateTime.now;
+  }
+}

@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:nook/features/home_widget/presentation/saved_cafes_widget_sync.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -210,14 +211,16 @@ class _MyAppState extends State<MyApp> {
                 }
               },
               child: GuestSavesSync(
-                child: MaterialApp.router(
-                  debugShowCheckedModeBanner: false,
-                  title: 'Nook',
-                  theme: TAppTheme.lightTheme,
-                  routerConfig: _router,
-                  builder: (context, child) => RageTapDetector(
-                    child: DefaultSystemUi(
-                      child: child ?? const SizedBox.shrink(),
+                child: SavedCafesWidgetSync(
+                  child: MaterialApp.router(
+                    debugShowCheckedModeBanner: false,
+                    title: 'Nook',
+                    theme: TAppTheme.lightTheme,
+                    routerConfig: _router,
+                    builder: (context, child) => RageTapDetector(
+                      child: DefaultSystemUi(
+                        child: child ?? const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 ),
