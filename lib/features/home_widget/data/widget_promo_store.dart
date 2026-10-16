@@ -9,6 +9,10 @@ class WidgetPromoStore {
   static const _noNotifications = 'widget_promo_no_notifications_shown';
   static const _added = 'widget_promo_added';
   static const _installed = 'widget_installed_count_seen';
+  static const _pinAt = 'widget_pin_pending_ms';
+  static const _pinReason = 'widget_pin_pending_reason';
+  static const _pinBefore = 'widget_pin_pending_before';
+  static const _pinRequested = 'widget_pin_requested_ms';
 
   Future<WidgetPromoHistory> read() async {
     final prefs = await SharedPreferences.getInstance();
@@ -37,6 +41,48 @@ class WidgetPromoStore {
   Future<void> markAdded() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_added, true);
+  }
+
+  /// "Add widget" was tapped; resolved on the next resume.
+  Future<void> setPendingPin(PendingWidgetPin pin) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ms = pin.at.millisecondsSinceEpoch;
+    await prefs.setInt(_pinAt, ms);
+    await prefs.setInt(_pinRequested, ms);
+    await prefs.setString(_pinReason, pin.reason);
+    final before = pin.countBefore;
+    if (before == null) {
+      await prefs.remove(_pinBefore);
+    } else {
+      await prefs.setInt(_pinBefore, before);
+    }
+  }
+
+  Future<PendingWidgetPin?> pendingPin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final at = prefs.getInt(_pinAt);
+    if (at == null) return null;
+    return PendingWidgetPin(
+      at: DateTime.fromMillisecondsSinceEpoch(at, isUtc: true),
+      reason: prefs.getString(_pinReason) ?? '',
+      countBefore: prefs.getInt(_pinBefore),
+    );
+  }
+
+  Future<void> clearPendingPin() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_pinAt);
+    await prefs.remove(_pinReason);
+    await prefs.remove(_pinBefore);
+  }
+
+  /// When "Add widget" was last tapped (kept after the pin resolves), for
+  /// telling a promo install from a launcher-picker one.
+  Future<DateTime?> lastPinRequestAt() async {
+    final ms = (await SharedPreferences.getInstance()).getInt(_pinRequested);
+    return ms == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
   }
 
   /// The widget count the app last saw, for logging changes.

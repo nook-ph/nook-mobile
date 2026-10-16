@@ -23,7 +23,8 @@ class WidgetPromoHistory extends Equatable {
   final DateTime? lastShownAt;
   final bool noNotificationsShown;
 
-  /// "Add widget" was tapped once; the card is not offered again.
+  /// A widget was placed from the card (the count rose after "Add
+  /// widget"); the card is not offered again.
   final bool added;
 
   @override
@@ -86,4 +87,65 @@ abstract final class WidgetPromoRules {
         reason == WidgetPromoReason.noNotifications,
     added: history.added,
   );
+}
+
+/// What the launcher did with "Add widget", worked out on the next resume.
+enum WidgetPinResult {
+  /// More widgets than before the tap.
+  added,
+
+  /// The count did not rise: the dialog was cancelled (or dismissed).
+  cancelled,
+
+  /// The count could not be read.
+  unknown;
+
+  /// [before] is the widget count at the tap (null: unknown), [after] the
+  /// count on return (null: unknown).
+  static WidgetPinResult of({required int? before, required int? after}) {
+    if (after == null) return unknown;
+    if (before == null) return after > 0 ? added : unknown;
+    return after > before ? added : cancelled;
+  }
+}
+
+/// "Add widget" was tapped and the launcher's answer is not known yet.
+class PendingWidgetPin extends Equatable {
+  const PendingWidgetPin({
+    required this.at,
+    required this.reason,
+    this.countBefore,
+  });
+
+  final DateTime at;
+
+  /// The `reason` wire value of the card that was tapped.
+  final String reason;
+  final int? countBefore;
+
+  /// Long enough for the launcher dialog; after this a rise is not
+  /// confirmed in the app (the moment has passed).
+  static const confirmWithin = Duration(minutes: 10);
+
+  bool isFresh(DateTime now) => now.difference(at) <= confirmWithin;
+
+  @override
+  List<Object?> get props => [at, reason, countBefore];
+}
+
+/// Where a new widget on the home screen came from: `promo` when "Add
+/// widget" was tapped within [PendingWidgetPin.confirmWithin], else
+/// `launcher` (the widget picker). Inferred; Android does not say.
+abstract final class WidgetInstallSource {
+  static const promo = 'promo';
+  static const launcher = 'launcher';
+
+  static String infer({
+    required DateTime? lastPinRequest,
+    required DateTime now,
+  }) =>
+      lastPinRequest != null &&
+          now.difference(lastPinRequest) <= PendingWidgetPin.confirmWithin
+      ? promo
+      : launcher;
 }

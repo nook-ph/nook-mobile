@@ -162,8 +162,12 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
                       icon: LucideIcons.bookmark,
                       saves: wantToTry,
                       onMarkBeen: _markBeen,
+                      // Near the top, after the first few cafes (the ones
+                      // its preview shows), not under a long list.
+                      insert: const HomeWidgetPromo(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
-                    const HomeWidgetPromo(),
                   ],
                   if (been.isNotEmpty) ...[
                     const SizedBox(height: 24),
@@ -318,11 +322,17 @@ class _Section extends StatelessWidget {
     required this.icon,
     required this.saves,
     this.onMarkBeen,
+    this.insert,
   });
 
   final String title;
   final IconData icon;
   final List<GuestSave> saves;
+
+  /// Placed after the first [insertAfter] rows (or after the last, for a
+  /// shorter list). Takes no room when it builds nothing.
+  final Widget? insert;
+  static const insertAfter = 3;
 
   /// Want to try rows get a Been button.
   final ValueChanged<CafeSnapshot>? onMarkBeen;
@@ -346,6 +356,7 @@ class _Section extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         for (var i = 0; i < saves.length; i++) ...[
+          if (i > 0 && i == insertAfter && insert != null) insert!,
           if (i > 0) ...[
             const SizedBox(height: 6),
             const ListsDivider(),
@@ -358,6 +369,7 @@ class _Section extends StatelessWidget {
                 : () => onMarkBeen!(saves[i].cafe),
           ),
         ],
+        if (saves.length <= insertAfter && insert != null) insert!,
       ],
     );
   }

@@ -17,6 +17,7 @@ import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.d
 import 'package:nook/features/home_widget/data/home_widget_platform.dart';
 import 'package:nook/features/home_widget/data/widget_promo_store.dart';
 import 'package:nook/features/home_widget/domain/saved_cafes_widget_data.dart';
+import 'package:nook/features/home_widget/domain/widget_promo_rules.dart';
 import 'package:nook/features/home_widget/presentation/widget_links.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
@@ -225,9 +226,18 @@ class _SavedCafesWidgetSyncState extends State<SavedCafesWidgetSync>
       await store.setInstalledCount(count);
       // A phone that never had one is not news.
       if (previous == null && count == 0) return;
+      final before = previous ?? 0;
       logAppEvent(
         HomeWidgetEvents.countChanged,
-        properties: {'count': count, 'previous': previous ?? 0},
+        properties: {
+          'count': count,
+          'previous': before,
+          if (count > before)
+            'source': WidgetInstallSource.infer(
+              lastPinRequest: await store.lastPinRequestAt(),
+              now: DateTime.now(),
+            ),
+        },
       );
     } catch (e) {
       debugPrint('[SavedCafesWidget] installed count failed: $e');
