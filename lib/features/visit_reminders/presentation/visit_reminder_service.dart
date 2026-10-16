@@ -88,6 +88,19 @@ class VisitReminderService {
   AppLifecycleListener? _lifecycle;
   bool _started = false;
 
+  /// Runs the read-modify-write steps on the pending list (and the misses)
+  /// one at a time: a status emission, a schedule and the Settings switch
+  /// each read the list, await the OS, then write it back, so overlapping
+  /// runs would drop each other's changes (a reminder the OS still holds,
+  /// missing from the list, can no longer be cancelled).
+  Future<void> _queue = Future.value();
+
+  Future<T> _serial<T>(Future<T> Function() body) {
+    final result = _queue.then((_) => body());
+    _queue = result.then((_) {}, onError: (_) {});
+    return result;
+  }
+
   Future<void> start({CafeStatusCubit? statuses}) async {
     if (_started) return;
     _started = true;
@@ -152,14 +165,14 @@ class VisitReminderService {
   /// Sends what the background isolate queued, counts its "Didn't go", and
   /// forgets reminders that have gone out, noting the day for the
   /// one-a-day rule.
-  Future<void> _catchUp() async {
+  Future<void> _catchUp() => _serial(() async {
     try {
       await _drainQueue();
       await _sweep();
     } catch (e) {
       debugPrint('[VisitReminders] catch-up failed: $e');
     }
-  }
+  });
 
   Future<void> _drainQueue() async {
     for (final event in await _store.takeQueuedEvents()) {
@@ -231,7 +244,7 @@ class VisitReminderService {
     if (tap.actionId == VisitReminderActions.didntGo) {
       // Android routes this button to the background isolate; iOS may
       // bring it here.
-      unawaited(_didntGo(cafeId, _now()));
+      unawaited(_serial(() => _didntGo(cafeId, _now())));
       return;
     }
     // The body and "I went" do the same thing.
@@ -242,13 +255,16 @@ class VisitReminderService {
         'action': tap.actionId == VisitReminderActions.went ? 'went' : 'body',
       },
     );
-    unawaited(_went(cafeId));
+    unawaited(_serial(() => _went(cafeId)));
     openRequests.value = VisitReminderOpen(cafeId: cafeId);
   }
 
   /// Marking a cafe Been (or rating it, which marks it Been) before its
   /// reminder fires makes the reminder pointless.
-  Future<void> _onStatuses(CafeStatusState state) async {
+  Future<void> _onStatuses(CafeStatusState state) =>
+      _serial(() => _cancelBeen(state));
+
+  Future<void> _cancelBeen(CafeStatusState state) async {
     final pending = await _store.readPending();
     final done = [
       for (final p in pending)
@@ -313,6 +329,28 @@ class VisitReminderService {
       properties: {'cafe_id': cafeId, 'reason': reason},
     );
 
+    return _serial(
+      () => _decide(
+        cafeId: cafeId,
+        cafeName: cafeName,
+        status: status,
+        operatingHours: operatingHours,
+        at: at,
+        reminderSkipped: reminderSkipped,
+        askSkipped: askSkipped,
+      ),
+    );
+  }
+
+  Future<DirectionsDecision> _decide({
+    required String cafeId,
+    required String cafeName,
+    required CafeStatus status,
+    required Map<String, dynamic>? operatingHours,
+    required DateTime at,
+    required void Function(ReminderSkipReason) reminderSkipped,
+    required void Function(String) askSkipped,
+  }) async {
     try {
       await _drainQueue();
       await _store.writeTrip(null);
@@ -404,7 +442,9 @@ class VisitReminderService {
     }
   }
 
-  Future<void> _schedule(VisitTrip trip) async {
+  Future<void> _schedule(VisitTrip trip) => _serial(() => _scheduleNow(trip));
+
+  Future<void> _scheduleNow(VisitTrip trip) async {
     try {
       final pending = await _sweep();
       // Re-plan for the replace list (another cafe the same day, this cafe
@@ -502,7 +542,7 @@ class VisitReminderService {
       _notifier.openSettings(channel: await channelMuted());
 
   /// The Settings switch. Off cancels whatever is pending.
-  Future<void> setEnabled(bool value) async {
+  Future<void> setEnabled(bool value) => _serial(() async {
     await _store.writeEnabled(value);
     if (value) return;
     final pending = await _store.readPending();
@@ -514,5 +554,5 @@ class VisitReminderService {
       );
     }
     await _store.writePending(const []);
-  }
+  });
 }

@@ -408,6 +408,34 @@ void main() {
     );
   });
 
+  test('back-to-back status emissions cancel once, and a reminder '
+      'scheduled meanwhile is kept', () async {
+    notifier.enabled = true;
+    final service = await started();
+    // 'a' at 20:00 lands tomorrow at 10:00; 'b' at noon lands today, so
+    // neither replaces the other.
+    clock = DateTime(2026, 10, 16, 20);
+    await directions(service, 'a');
+    clock = DateTime(2026, 10, 16, 12);
+    final decision = await tap(service, 'b');
+    // A set emits twice (pending, then confirmed): both say 'a' is Been.
+    statuses.showLocal({'a': CafeStatus.been});
+    statuses.showLocal({'a': CafeStatus.been, 'z': CafeStatus.wantToTry});
+    final scheduling = service.confirmTrip();
+    expect(decision.scheduleOnLaunch, isTrue);
+    await scheduling;
+    for (var i = 0; i < 10; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    expect(
+      analytics.names.where((n) => n == NotificationEvents.postVisitCancelled),
+      hasLength(1),
+    );
+    expect(notifier.scheduled.keys, [visitReminderIdFor('b')]);
+    expect([for (final p in await store.readPending()) p.cafeId], ['b']);
+  });
+
   test('app open logs the notification state', () async {
     notifier.enabled = true;
     notifier.muted = true;
