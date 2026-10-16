@@ -52,7 +52,9 @@ void showPrimaryToastWithAction(
     onAction: onAction,
     secondaryActionLabel: secondaryActionLabel,
     onSecondaryAction: onSecondaryAction,
-    duration: duration,
+    // Every toast with an action, whatever its caller passed, waits for a
+    // screen-reader user to reach it.
+    duration: duration == null ? null : toastDurationFor(context, duration),
     bottomOffset: bottomOffset,
   );
 }
