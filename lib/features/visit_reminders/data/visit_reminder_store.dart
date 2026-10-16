@@ -186,7 +186,25 @@ class VisitReminderStore {
 
   /// A random id for this install, made on first read; only for the
   /// holdout bucket, never sent. [created] is true the first time.
-  Future<({String id, bool created})> installId() async {
+  /// One read (and, on a fresh install, one id) however many callers ask
+  /// at once: the app-open state log and a Directions tap can overlap.
+  Future<({String id, bool created})> installId() {
+    final known = _installId;
+    if (known != null) {
+      return known.then((r) => (id: r.id, created: false));
+    }
+    final first = _readOrCreateInstallId();
+    _installId = first;
+    first.catchError((Object _) {
+      _installId = null;
+      return (id: '', created: false);
+    });
+    return first;
+  }
+
+  Future<({String id, bool created})>? _installId;
+
+  Future<({String id, bool created})> _readOrCreateInstallId() async {
     final prefs = await _prefs;
     final existing = prefs.getString(_installIdKey);
     if (existing != null && existing.isNotEmpty) {
