@@ -158,6 +158,7 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
     // Acting on that guess would turn "Want to Try" into deleting its rank
     // and note, so ask again and stop if the answer still isn't in.
     if (!cubit.state.isKnown(_cafeId)) {
+      final shown = cubit.state.statusFor(_cafeId);
       await cubit.loadFor([_cafeId]);
       if (!mounted) return;
       if (!cubit.state.isKnown(_cafeId)) {
@@ -168,6 +169,11 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
         );
         return;
       }
+      // The pills showed something else (just signed in, before the
+      // account's status was read): the tap was about a state that wasn't
+      // there. Show the real one rather than toggle it, so tapping Been on
+      // a cafe the account already has as Been never deletes its rank.
+      if (cubit.state.statusFor(_cafeId) != shown) return;
     }
 
     final current = cubit.state.statusFor(_cafeId);
