@@ -466,6 +466,20 @@ void main() {
     );
   });
 
+  test('a Been that fails to save does not cancel the reminder', () async {
+    notifier.enabled = true;
+    final service = await started();
+    await directions(service, 'a');
+    expect(notifier.scheduled, contains(visitReminderIdFor('a')));
+    // Offline: the Been shows at once, then rolls back.
+    expect(await statuses.set('a', CafeStatus.been), isFalse);
+    for (var i = 0; i < 5; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(notifier.scheduled, contains(visitReminderIdFor('a')));
+    expect([for (final p in await store.readPending()) p.cafeId], ['a']);
+  });
+
   test(
     'marking Been after its reminder went out keeps the day counted',
     () async {

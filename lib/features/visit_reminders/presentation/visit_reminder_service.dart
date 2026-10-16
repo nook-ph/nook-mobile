@@ -285,12 +285,13 @@ class VisitReminderService {
   }
 
   /// Marking a cafe Been (or rating it, which marks it Been) before its
-  /// reminder fires makes the reminder pointless.
+  /// reminder fires makes the reminder pointless. Only once the write is
+  /// confirmed: a Been still in flight may yet be rolled back.
   static Set<String> _beenIds(CafeStatusState state) => {
     for (final e in state.local.entries)
       if (e.value == CafeStatus.been) e.key,
     for (final e in state.statuses.entries)
-      if (e.value == CafeStatus.been) e.key,
+      if (e.value == CafeStatus.been && !state.isPending(e.key)) e.key,
   };
 
   Future<void> _onStatuses(CafeStatusState state) =>
@@ -302,7 +303,9 @@ class VisitReminderService {
     final pending = await _sweep();
     final done = [
       for (final p in pending)
-        if (state.statusFor(p.cafeId) == CafeStatus.been) p,
+        if (state.statusFor(p.cafeId) == CafeStatus.been &&
+            !state.isPending(p.cafeId))
+          p,
     ];
     if (done.isEmpty) return;
     for (final p in done) {
