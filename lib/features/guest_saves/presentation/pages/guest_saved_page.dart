@@ -126,67 +126,76 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
       backgroundColor: ListsTokens.surface,
       body: SafeArea(
         bottom: false,
-        child: BlocBuilder<GuestSavesCubit, GuestSavesState>(
-          builder: (context, state) {
-            if (!state.loaded || !_scoreReady) return const SizedBox.shrink();
-            final wantToTry = state.withStatus(CafeStatus.wantToTry);
-            final been = state.withStatus(CafeStatus.been);
-            if (!state.isEmpty) _logPromptShown();
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Opening Saved with 3+ saves may bring the score's ask. Outside
+            // the lazy list: scrolled out and back, it would be made again
+            // and ask again.
+            const SignUpAskOnSaved(),
+            BlocBuilder<GuestSavesCubit, GuestSavesState>(
+              builder: (context, state) {
+                if (!state.loaded || !_scoreReady) {
+                  return const SizedBox.shrink();
+                }
+                final wantToTry = state.withStatus(CafeStatus.wantToTry);
+                final been = state.withStatus(CafeStatus.been);
+                if (!state.isEmpty) _logPromptShown();
 
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(
-                ListsTokens.gutter,
-                8,
-                ListsTokens.gutter,
-                40,
-              ),
-              children: [
-                // Opening Saved with 3+ saves may bring the score's ask.
-                const SignUpAskOnSaved(),
-                Row(
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    ListsTokens.gutter,
+                    8,
+                    ListsTokens.gutter,
+                    40,
+                  ),
                   children: [
-                    Expanded(
-                      child: Text(
-                        GuestSavedPage.title,
-                        style: listsText(24, weight: FontWeight.w600),
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            GuestSavedPage.title,
+                            style: listsText(24, weight: FontWeight.w600),
+                          ),
+                        ),
+                        // A guest has no Profile tab, so Settings (location,
+                        // visit reminders) is reached from here.
+                        _SettingsButton(onTap: _openSettings),
+                      ],
                     ),
-                    // A guest has no Profile tab, so Settings (location,
-                    // visit reminders) is reached from here.
-                    _SettingsButton(onTap: _openSettings),
+                    const SizedBox(height: 20),
+                    if (state.isEmpty)
+                      _EmptySaves(onBrowse: widget.onBrowse)
+                    else ...[
+                      if (!_shrunk) _KeepSavesCard(onSignIn: _signIn),
+                      if (wantToTry.isNotEmpty) ...[
+                        if (!_shrunk) const SizedBox(height: 24),
+                        _Section(
+                          title: 'Want to try',
+                          icon: LucideIcons.bookmark,
+                          saves: wantToTry,
+                        ),
+                      ],
+                      if (been.isNotEmpty) ...[
+                        if (!_shrunk || wantToTry.isNotEmpty)
+                          const SizedBox(height: 24),
+                        _Section(
+                          title: 'Been',
+                          icon: LucideIcons.check,
+                          saves: been,
+                        ),
+                      ],
+                      if (_shrunk) ...[
+                        const SizedBox(height: 16),
+                        const ListsDivider(),
+                        _KeepSavesRow(onSignIn: _signIn),
+                      ],
+                    ],
                   ],
-                ),
-                const SizedBox(height: 20),
-                if (state.isEmpty)
-                  _EmptySaves(onBrowse: widget.onBrowse)
-                else ...[
-                  if (!_shrunk) _KeepSavesCard(onSignIn: _signIn),
-                  if (wantToTry.isNotEmpty) ...[
-                    if (!_shrunk) const SizedBox(height: 24),
-                    _Section(
-                      title: 'Want to try',
-                      icon: LucideIcons.bookmark,
-                      saves: wantToTry,
-                    ),
-                  ],
-                  if (been.isNotEmpty) ...[
-                    if (!_shrunk || wantToTry.isNotEmpty)
-                      const SizedBox(height: 24),
-                    _Section(
-                      title: 'Been',
-                      icon: LucideIcons.check,
-                      saves: been,
-                    ),
-                  ],
-                  if (_shrunk) ...[
-                    const SizedBox(height: 16),
-                    const ListsDivider(),
-                    _KeepSavesRow(onSignIn: _signIn),
-                  ],
-                ],
-              ],
-            );
-          },
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

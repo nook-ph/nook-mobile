@@ -13,6 +13,7 @@ import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/pages/guest_saved_page.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
+import 'package:nook/features/guest_saves/presentation/widgets/sign_up_ask_on_saved.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/analytics/recording_analytics.dart';
@@ -129,6 +130,29 @@ void main() {
     await tester.tap(find.text(GuestSavedPage.keepBody));
     await tester.pumpAndSettle();
     expect(find.text(keepSavesSheetReason), findsOneWidget);
+  });
+
+  testWidgets('the Saved ask is not made again by scrolling the list', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      for (var i = 0; i < 30; i++) {
+        await saves.set(
+          CafeSnapshot(id: 'c$i', name: 'Cafe $i'),
+          CafeStatus.wantToTry,
+        );
+      }
+    });
+    await pump(tester);
+    await tester.pump();
+    final before = tester.state(find.byType(SignUpAskOnSaved));
+
+    await tester.drag(find.byType(ListView), const Offset(0, -6000));
+    await tester.pump();
+    await tester.drag(find.byType(ListView), const Offset(0, 6000));
+    await tester.pump();
+
+    expect(tester.state(find.byType(SignUpAskOnSaved)), same(before));
   });
 
   group('after two declined asks', () {
