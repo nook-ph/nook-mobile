@@ -466,6 +466,28 @@ void main() {
     );
   });
 
+  test(
+    'marking Been after its reminder went out keeps the day counted',
+    () async {
+      notifier.enabled = true;
+      final service = await started();
+      await directions(service, 'a');
+      // a's reminder has gone out (no resume swept it), then a is marked Been.
+      clock = clock.add(const Duration(hours: 3));
+      statuses.showLocal({'a': CafeStatus.been});
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(
+        analytics.names,
+        isNot(contains(NotificationEvents.postVisitCancelled)),
+      );
+      // A second cafe the same day gets no second reminder.
+      clock = clock.add(const Duration(minutes: 30));
+      expect((await tap(service, 'b')).trip, isNull);
+    },
+  );
+
   test('back-to-back status emissions cancel once, and a reminder '
       'scheduled meanwhile is kept', () async {
     notifier.enabled = true;

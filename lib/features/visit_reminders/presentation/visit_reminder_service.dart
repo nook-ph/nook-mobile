@@ -297,7 +297,9 @@ class VisitReminderService {
       _serial(() => _cancelBeen(state));
 
   Future<void> _cancelBeen(CafeStatusState state) async {
-    final pending = await _store.readPending();
+    // Swept first: one that has already gone out is not cancelled, and its
+    // day still counts for the one-a-day rule.
+    final pending = await _sweep();
     final done = [
       for (final p in pending)
         if (state.statusFor(p.cafeId) == CafeStatus.been) p,
