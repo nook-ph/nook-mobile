@@ -166,6 +166,7 @@ void main() {
         CafeStatus.wantToTry,
       );
     });
+    final savedAt = saves.state.saves.last.savedAt;
     await pump(tester);
     await tester.pump();
     expect(find.byType(MarkBeenButton), findsNWidgets(2));
@@ -195,6 +196,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(saves.state.statusFor('a'), CafeStatus.wantToTry);
     expect(find.text('2 to try'), findsOneWidget);
+    // Undo puts the save back as it was: same saved time, same place.
+    expect(saves.state.saves.map((s) => s.cafeId), ['b', 'a']);
+    expect(saves.state.saves.last.savedAt, savedAt);
   });
 
   testWidgets('a tap on the card body signs in too (one button)', (

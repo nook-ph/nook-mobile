@@ -96,8 +96,10 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
           ? 'Added to Been · nothing left to try'
           : 'Added to Been · $left left to try',
       actionLabel: 'Undo',
-      // The cubit is app-wide, so Undo works after leaving the tab.
-      onAction: () => unawaited(saves.set(cafe, CafeStatus.wantToTry)),
+      // The cubit is app-wide, so Undo works after leaving the tab. It puts
+      // the save back as it was (saved time, place in the list): the saver
+      // survey and the list order read that time.
+      onAction: () => unawaited(saves.undo(cafe.id, outcome)),
       bottomOffset: _barHeight(),
     );
   }
