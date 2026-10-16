@@ -21,6 +21,7 @@ class VisitReminderStore {
   static const _tripKey = 'visitReminders.trip';
   static const _missesKey = 'visitReminders.misses';
   static const _installIdKey = 'visitReminders.installId';
+  static const _handledLaunchKey = 'visitReminders.handledLaunch';
 
   /// Events from a notification button tapped while Nook was not running
   /// ("Didn't go"): written by the background isolate, sent by the app the
@@ -166,6 +167,21 @@ class VisitReminderStore {
           },
       }),
     );
+  }
+
+  /// The notification that last launched the app, once handled. Android
+  /// reports the same launch again when the app is reopened from Recents
+  /// after the process died; this tells a repeat from a new tap.
+  Future<String?> readHandledLaunch() async =>
+      (await _prefs).getString(_handledLaunchKey);
+
+  Future<void> writeHandledLaunch(String? key) async {
+    final prefs = await _prefs;
+    if (key == null) {
+      await prefs.remove(_handledLaunchKey);
+    } else {
+      await prefs.setString(_handledLaunchKey, key);
+    }
   }
 
   /// A random id for this install, made on first read; only for the

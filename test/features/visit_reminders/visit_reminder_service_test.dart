@@ -230,8 +230,9 @@ void main() {
     expect(await tester.runAsync(store.readTrip), isNull);
   });
 
-  testWidgets('a page gone before the ask drops the trip and spends nothing',
-      (tester) async {
+  testWidgets('a page gone before the ask drops the trip and spends nothing', (
+    tester,
+  ) async {
     late VisitReminderService service;
     late DirectionsDecision decision;
     await tester.runAsync(() async {
@@ -548,6 +549,42 @@ void main() {
       final service = await started();
       expect(service.openRequests.value?.cafeId, 'a');
     });
+
+    test(
+      'a launch reported again (Android Recents) is not a new tap',
+      () async {
+        notifier.launch = NotificationTap(
+          payload: 'a',
+          actionId: VisitReminderActions.went,
+          id: visitReminderIdFor('a'),
+        );
+        final first = await started();
+        expect(first.openRequests.value?.cafeId, 'a');
+        // The process died; Nook is reopened from Recents with the same
+        // launch details.
+        final again = await started();
+        expect(again.openRequests.value, isNull);
+      },
+    );
+
+    test(
+      'a reminder scheduled again makes its next launch a new tap',
+      () async {
+        notifier.enabled = true;
+        notifier.launch = NotificationTap(
+          payload: 'a',
+          actionId: VisitReminderActions.went,
+          id: visitReminderIdFor('a'),
+        );
+        final first = await started();
+        expect(first.openRequests.value?.cafeId, 'a');
+        await tap(first, 'a');
+        await first.confirmTrip();
+        expect(notifier.scheduled, contains(visitReminderIdFor('a')));
+        final next = await started();
+        expect(next.openRequests.value?.cafeId, 'a');
+      },
+    );
 
     test("a background Didn't go is sent on the next start", () async {
       await VisitReminderStore.queueEvent({

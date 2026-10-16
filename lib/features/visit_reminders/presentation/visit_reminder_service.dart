@@ -107,7 +107,7 @@ class VisitReminderService {
     try {
       await _notifier.init(onTap: _onTap);
       final launch = await _notifier.launchTap();
-      if (launch != null) _onTap(launch);
+      if (launch != null && await _firstLaunchOf(launch)) _onTap(launch);
     } catch (e) {
       debugPrint('[VisitReminders] init failed: $e');
     }
@@ -130,6 +130,20 @@ class VisitReminderService {
           .listen(_onStatuses);
     }
     _lifecycle = AppLifecycleListener(onResume: () => unawaited(_catchUp()));
+  }
+
+  static String _launchKey(NotificationTap tap) =>
+      '${tap.id}|${tap.payload}|${tap.actionId}';
+
+  /// False for a launch already handled: Android reports the notification
+  /// that launched the app again on a later cold start from Recents, and
+  /// "I went" would then mark the cafe Been again. A new reminder for the
+  /// cafe (same notification id) clears it ([_scheduleNow]).
+  Future<bool> _firstLaunchOf(NotificationTap tap) async {
+    final key = _launchKey(tap);
+    if (await _store.readHandledLaunch() == key) return false;
+    await _store.writeHandledLaunch(key);
+    return true;
   }
 
   void dispose() {
@@ -492,6 +506,11 @@ class VisitReminderService {
         cafeName: trip.cafeName,
         fireAt: trip.fireAt,
       );
+      // A new delivery of this notification id: its launch is a new tap.
+      final handled = await _store.readHandledLaunch();
+      if (handled != null && handled.startsWith('${reminder.id}|')) {
+        await _store.writeHandledLaunch(null);
+      }
       await _notifier.schedule(
         id: reminder.id,
         at: trip.fireAt,
