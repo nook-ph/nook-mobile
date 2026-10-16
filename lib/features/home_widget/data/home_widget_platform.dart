@@ -25,6 +25,9 @@ abstract class HomeWidgetPlatform {
   /// Whether Nook may post notifications; null when unknown.
   Future<bool?> notificationsEnabled();
 
+  /// The phone's Android API level; null when unknown or not Android.
+  Future<int?> sdkInt();
+
   /// The widget link that started the app, if it was started from the
   /// widget.
   Future<Uri?> launchLink();
@@ -83,10 +86,15 @@ class HomeWidgetPluginPlatform implements HomeWidgetPlatform {
       isSupported ? HomeWidget.widgetClicked : const Stream.empty();
 
   @override
-  Future<bool?> notificationsEnabled() async {
+  Future<bool?> notificationsEnabled() => _ask<bool>('areEnabled');
+
+  @override
+  Future<int?> sdkInt() => _ask<int>('sdkInt');
+
+  Future<T?> _ask<T>(String method) async {
     if (!isSupported) return null;
     try {
-      return await _notifications.invokeMethod<bool>('areEnabled');
+      return await _notifications.invokeMethod<T>(method);
     } on PlatformException {
       return null;
     } on MissingPluginException {

@@ -1,6 +1,7 @@
 package app.nookph
 
 import android.content.Intent
+import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -18,14 +19,16 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        // Whether this app may post notifications at all, for the
-        // home-screen widget promo aimed at people who keep them off.
+        // Whether this app may post notifications at all, and the API level
+        // (off on SDK < 33 is a choice; on 33+ it is also "never asked"), for
+        // the home-screen widget promo aimed at people who keep them off.
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "app.nookph/notifications")
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "areEnabled" -> result.success(
                         NotificationManagerCompat.from(this).areNotificationsEnabled(),
                     )
+                    "sdkInt" -> result.success(Build.VERSION.SDK_INT)
                     else -> result.notImplemented()
                 }
             }
