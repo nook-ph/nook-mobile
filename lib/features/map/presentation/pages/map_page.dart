@@ -23,6 +23,7 @@ import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
+import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/location/location_prompt_tracking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/filters/coffee_tag_catalog.dart';
@@ -217,7 +218,14 @@ class _MapPageState extends State<MapPage>
     _hasRequestedPermission = true;
 
     final store = sl<LocationPromptStore>();
-    if (await store.hasRequested()) return;
+    if (!await mapMayAskLocation(
+      promptStore: store,
+      homeStore: sl.isRegistered<HomeLocationPromptStore>()
+          ? sl<HomeLocationPromptStore>()
+          : null,
+    )) {
+      return;
+    }
     // The app opens this sheet itself, so it takes the session's one ask.
     // Another sheet already had it: not this visit, and not used up (a
     // later visit asks).
@@ -1535,3 +1543,21 @@ typedef _RecenterOutcome = ({
   bool? serviceEnabled,
   String result,
 });
+
+/// Whether the Map's first visit may ask for location by itself: not when
+/// the system prompt was shown from anywhere ([LocationPromptStore]), and
+/// not when the person turned down Home's "See cafes near you" ("Not now"
+/// or its close): the Map would ask the same question again, often minutes
+/// later in the same session. The recenter button still asks.
+Future<bool> mapMayAskLocation({
+  required LocationPromptStore promptStore,
+  HomeLocationPromptStore? homeStore,
+}) async {
+  if (await promptStore.hasRequested()) return false;
+  try {
+    if (await homeStore?.isDismissed() ?? false) return false;
+  } catch (_) {
+    // Unreadable: ask as before.
+  }
+  return true;
+}
