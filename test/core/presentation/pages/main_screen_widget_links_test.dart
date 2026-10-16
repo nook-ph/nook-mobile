@@ -105,4 +105,34 @@ void main() {
     expect(find.text('settings page'), findsNothing);
     expect(_currentTab(tester), 0);
   });
+
+  testWidgets('a page refusing Back while it saves is not torn down', (
+    tester,
+  ) async {
+    RecordingAnalytics.install(addTearDown);
+    await tester.pumpWidget(_app());
+    Navigator.of(_shellKey.currentContext!).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const PopScope(
+          canPop: false,
+          child: Scaffold(body: Text('saving page')),
+        ),
+      ),
+    );
+    _pushSettings();
+    await tester.pumpAndSettle();
+
+    WidgetLinks.acceptFromPlatform(Uri.parse('nook://cafe/abc?via=widget'));
+    await _frame(tester);
+
+    // Settings above it closes; the busy page stays, the cafe on top.
+    expect(find.text('cafe abc'), findsOneWidget);
+    final navigator = tester.state<NavigatorState>(
+      find.byType(Navigator).first,
+    );
+    navigator.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('saving page'), findsOneWidget);
+    expect(find.text('settings page'), findsNothing);
+  });
 }

@@ -135,9 +135,15 @@ class _MainShellState extends State<MainShell> {
   /// First back to the shell, like [TabRequests]: the router's `/` keeps
   /// its page, so pages pushed over it with Navigator (Settings, a cafe
   /// from a list) and sheets would stay on top of the tab. A cafe the same
-  /// tap already opened closes too, so it is never stacked twice.
+  /// tap already opened closes too, so it is never stacked twice. A page
+  /// that refuses Back (a PopScope while it saves) is left open with what
+  /// is under it, and the cafe goes on top of it: popping it would drop the
+  /// save half-done.
   void _openWidgetLink(BuildContext context, WidgetLink link) {
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    Navigator.of(context).popUntil(
+      (route) =>
+          route.isFirst || route.popDisposition == RoutePopDisposition.doNotPop,
+    );
     final location = link.location;
     if (location != null) {
       context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
