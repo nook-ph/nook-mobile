@@ -144,9 +144,18 @@ class _SettingsPageState extends State<SettingsPage>
   Future<void> _refreshReminders() async {
     final reminders = _reminders;
     if (reminders == null) return;
-    final permission = await reminders.permission();
-    final muted = await reminders.channelMuted();
-    final enabled = await reminders.remindersEnabled();
+    final NotificationPermission permission;
+    final bool muted;
+    final bool enabled;
+    try {
+      permission = await reminders.permission();
+      muted = await reminders.channelMuted();
+      enabled = await reminders.remindersEnabled();
+    } catch (e) {
+      // Left as it was; the next resume reads it again.
+      debugPrint('[Settings] reminders refresh failed: $e');
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _notificationPermission = permission;
@@ -178,7 +187,13 @@ class _SettingsPageState extends State<SettingsPage>
       await reminders.setEnabled(value);
       logAppEvent(
         NotificationEvents.visitRemindersToggled,
-        properties: {'enabled': value, 'permission': permission.wire},
+        // As it stands after the switch: turning it on here just granted it.
+        properties: {
+          'enabled': value,
+          'permission': value
+              ? NotificationPermission.granted.wire
+              : permission.wire,
+        },
       );
       await _refreshReminders();
     } finally {

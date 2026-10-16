@@ -123,6 +123,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(notifier.requests, 1);
     expect(reminderSwitch(tester).value, isTrue);
+    // The permission as it stands after the switch, not before the dialog.
+    expect(analytics.propertiesOf('visit_reminders_toggled'), {
+      'enabled': true,
+      'permission': 'granted',
+    });
   });
 
   testWidgets('blocked: says so and opens the phone settings', (tester) async {
