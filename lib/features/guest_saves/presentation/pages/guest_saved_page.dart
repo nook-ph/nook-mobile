@@ -15,6 +15,7 @@ import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
 import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
 import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
+import 'package:nook/features/home_widget/presentation/widgets/home_widget_promo_card.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/lists/presentation/widgets/places_progress_pill.dart';
@@ -162,6 +163,7 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
                       saves: wantToTry,
                       onMarkBeen: _markBeen,
                     ),
+                    const HomeWidgetPromo(),
                   ],
                   if (been.isNotEmpty) ...[
                     const SizedBox(height: 24),
