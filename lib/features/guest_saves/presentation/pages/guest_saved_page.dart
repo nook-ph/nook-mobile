@@ -250,8 +250,9 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
                           // Near the top, after the first few cafes (the
                           // ones its preview shows), not under a long list.
                           insert: const HomeWidgetPromo(
-                            // Keeps its state when it moves (the list
-                            // crossing three rows after a mark Been).
+                            // Keeps its state when it moves from the end
+                            // into the rows (Want to try growing past
+                            // three while the tab is kept alive).
                             key: ValueKey('widget-promo'),
                             padding: EdgeInsets.symmetric(vertical: 12),
                           ),
