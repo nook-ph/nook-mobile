@@ -89,7 +89,10 @@ abstract final class SaverSurveyFollowUps {
     bool canAskLocation,
   ) {
     if (position == null) {
-      return canAskLocation
+      // The system prompt can be shown once: never spend it on saves that
+      // have no coordinates to measure to.
+      final measurable = saves.any((c) => c.lat != null && c.lng != null);
+      return canAskLocation && measurable
           ? const SaverSurveyFollowUp(SaverSurveyFollowUpKind.locationAsk)
           : null;
     }

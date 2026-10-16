@@ -89,6 +89,19 @@ void main() {
     );
   });
 
+  test('too far: no ask when no save has coordinates to measure to', () {
+    expect(
+      SaverSurveyFollowUps.pick(
+        reasons: const ['too_far', 'saving_for_later'],
+        cafe: noCoords,
+        saves: const [noCoords],
+        position: null,
+        canAskLocation: true,
+      )!.kind,
+      SaverSurveyFollowUpKind.later,
+    );
+  });
+
   test('nearest is null when no save has coordinates', () {
     expect(SaverSurveyFollowUps.nearest(const [noCoords], here), isNull);
   });
