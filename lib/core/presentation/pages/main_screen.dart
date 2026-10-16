@@ -132,7 +132,12 @@ class _MainShellState extends State<MainShell> {
     final location = link.location;
     if (location != null) {
       context.read<NavigationBloc>().add(TabChange(tabIndex: 0));
-      context.push(location);
+      // Already on top (the same tap reopened before its stack was
+      // replaced): do not stack the cafe twice.
+      final top = GoRouter.of(
+        context,
+      ).routerDelegate.currentConfiguration.uri.path;
+      if (top != location) context.push(location);
       return;
     }
     context.read<NavigationBloc>().add(
