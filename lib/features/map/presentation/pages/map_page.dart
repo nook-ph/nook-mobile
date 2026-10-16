@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' show Point;
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/presentation/tab_back.dart';
 import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -217,19 +218,34 @@ class _MapPageState extends State<MapPage>
 
     final store = sl<LocationPromptStore>();
     if (await store.hasRequested()) return;
-    await store.markRequested();
+    // The app opens this sheet itself, so it takes the session's one ask.
+    // Another sheet already had it: not this visit, and not used up (a
+    // later visit asks).
+    final budget = SessionAskBudget.instance;
+    if (!budget.canShowSheet) {
+      _hasRequestedPermission = false;
+      return;
+    }
 
     final prompt = LocationPromptTracker(LocationPromptSurface.map);
     try {
       final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
+        await store.markRequested();
         return;
       }
       if (permission == LocationPermission.deniedForever) {
+        await store.markRequested();
         return;
       }
+      if (!mounted || !budget.canShowSheet) {
+        _hasRequestedPermission = false;
+        return;
+      }
+      await store.markRequested();
       if (!mounted) return;
+      budget.spend(SessionAskKind.mapLocationAsk);
       prompt.shown();
       // Say why before the system asks, and offer the alternative: a
       // cold prompt that was refused left the map on Cebu with nothing
