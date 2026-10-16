@@ -579,6 +579,49 @@ void main() {
       expect(plan(layout), isNot(contains('nearby')));
     });
 
+    test('shelves that draw nothing do not count toward the top three', () {
+      // Crowd favorites has no cafes yet, so on screen Specialty leads and
+      // the pinned two follow it: nothing should move.
+      final layout = _layout([
+        {'id': 'trending', 'type': 'builtin'},
+        {'id': 'specialty', 'type': 'builtin'},
+        {'id': 'your_places', 'type': 'builtin'},
+        {'id': 'nearby', 'type': 'builtin'},
+      ]);
+      final shown = plan(
+        layout,
+        available: _allRails.difference({HomeRail.trending}),
+      ).where((id) => id != 'trending');
+      expect(shown.take(3), ['specialty', 'your_places', 'nearby']);
+    });
+
+    test('an empty custom shelf does not take the remaining top slot', () {
+      final layout = _layout([
+        {
+          'id': 'custom:empty',
+          'type': 'custom',
+          'title': 'Empty',
+          'source': 'picked',
+          'cafe_ids': ['a'],
+        },
+        {'id': 'newest', 'type': 'builtin'},
+        {'id': 'featured', 'type': 'builtin'},
+        {'id': 'your_places', 'type': 'builtin'},
+        {'id': 'nearby', 'type': 'builtin'},
+      ]);
+      final slots = [
+        for (final s in planHomeSlots(
+          layout: layout,
+          purpose: null,
+          available: _allRails,
+          now: now,
+          customShows: (s) => s.custom!.id != 'custom:empty',
+        ))
+          '$s',
+      ].where((id) => id != 'custom:empty');
+      expect(slots.take(4), ['newest', 'your_places', 'nearby', 'featured']);
+    });
+
     test('pin_top false keeps the document order', () {
       final layout = _layout([
         {'id': 'newest', 'type': 'builtin'},

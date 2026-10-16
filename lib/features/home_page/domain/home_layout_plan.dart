@@ -80,6 +80,7 @@ List<HomeSlot> planHomeSlots({
   required OnboardingPurpose? purpose,
   required Set<HomeRail> available,
   required DateTime now,
+  bool Function(HomeSlot slot)? customShows,
 }) {
   if (layout == null || layout.sections.isEmpty) {
     return defaultHomeSlots(purpose, available: available);
@@ -116,7 +117,11 @@ List<HomeSlot> planHomeSlots({
     }
   }
   if (!layout.pinTop) return slots;
-  return pinPersonalShelves(slots, available: available);
+  return pinPersonalShelves(
+    slots,
+    available: available,
+    customShows: customShows,
+  );
 }
 
 /// How many shelves from the top Your places and Near you must sit within.
@@ -135,30 +140,43 @@ const pinnedSlots = 3;
 /// other shelves, kept in the document's order; everything else follows in
 /// its order. A shelf the layout hides is not in [slots] and is not brought
 /// back.
+///
+/// Positions count only shelves that draw: a built-in shelf with no cafes
+/// (not in [available]) or a custom shelf [customShows] rejects takes no
+/// room on screen, so it neither pushes a pinned shelf out of the first
+/// [pinnedSlots] nor takes the admin's remaining top slot.
 List<HomeSlot> pinPersonalShelves(
   List<HomeSlot> slots, {
   required Set<HomeRail> available,
+  bool Function(HomeSlot slot)? customShows,
 }) {
   bool pinned(HomeSlot s) =>
       s.builtin == HomeBuiltin.yourPlaces ||
       (s.builtin == HomeBuiltin.nearby && available.contains(HomeRail.nearby));
+  bool shows(HomeSlot s) {
+    final builtin = s.builtin;
+    if (builtin == null) return customShows?.call(s) ?? true;
+    final rail = railFor(builtin);
+    return rail == null || available.contains(rail);
+  }
 
-  final pins = [
+  final shown = [
     for (final s in slots)
+      if (shows(s)) s,
+  ];
+  final pins = [
+    for (final s in shown)
       if (pinned(s)) s,
   ];
   if (pins.isEmpty) return slots;
-  if (pins.every((p) => slots.indexOf(p) < pinnedSlots)) return slots;
+  if (pins.every((p) => shown.indexOf(p) < pinnedSlots)) return slots;
 
   final lead = pinnedSlots - pins.length;
-  final others = [
-    for (final s in slots)
-      if (!pinned(s)) s,
-  ];
-  final top = {...pins, ...others.take(lead)};
+  final top = {...pins, ...shown.where((s) => !pinned(s)).take(lead)};
   return [
     for (final s in slots)
       if (top.contains(s)) s,
-    for (final s in others.skip(lead)) s,
+    for (final s in slots)
+      if (!top.contains(s)) s,
   ];
 }

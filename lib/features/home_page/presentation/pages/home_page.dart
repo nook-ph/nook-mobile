@@ -328,6 +328,11 @@ class HomeContent extends StatelessWidget {
           if (e.value.isNotEmpty) e.key,
       },
       now: now,
+      // A custom shelf under three cafes is left out below, so it takes no
+      // place in the top three either.
+      customShows: (slot) =>
+          (state.layoutShelves[slot.custom!.id]?.length ?? 0) >=
+          minCustomShelfCafes,
     );
 
     // Sections with no cafes are left out, so the gap goes between the ones
