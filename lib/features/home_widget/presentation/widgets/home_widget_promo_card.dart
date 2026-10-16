@@ -210,10 +210,13 @@ class _HomeWidgetPromoState extends State<HomeWidgetPromo>
   /// The card has been seen: spend the show.
   Future<void> _countShow() async {
     final reason = HomeWidgetPromo._sessionReason;
-    if (reason == null || HomeWidgetPromo._sessionCounted) return;
-    HomeWidgetPromo._sessionCounted = true;
-    // This session's prompt, for the saver survey; spends nothing.
+    if (reason == null) return;
+    // This session's prompt, for the saver survey; spends nothing. Noted on
+    // every sighting, not only the counted one: a new session (the app
+    // back after the gap) empties the budget while the card stays up.
     _budget.noteShown(SessionAskKind.widgetPromo);
+    if (HomeWidgetPromo._sessionCounted) return;
+    HomeWidgetPromo._sessionCounted = true;
     try {
       final shown = WidgetPromoRules.afterShown(
         await _store.read(),
