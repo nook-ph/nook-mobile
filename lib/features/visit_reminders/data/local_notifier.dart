@@ -1,3 +1,5 @@
+import 'dart:ui' show DartPluginRegistrant;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -91,6 +93,9 @@ abstract class LocalNotifier {
 void visitReminderBackgroundTap(NotificationResponse response) async {
   if (response.actionId != VisitReminderActions.didntGo) return;
   try {
+    // A headless isolate: register the Dart side of plugins
+    // (shared_preferences) before using them. Idempotent.
+    DartPluginRegistrant.ensureInitialized();
     await VisitReminderStore.queueEvent({
       'event': 'didnt_go',
       'cafe_id': ?response.payload,
