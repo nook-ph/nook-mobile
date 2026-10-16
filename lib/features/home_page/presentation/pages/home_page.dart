@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -202,7 +204,10 @@ class HomePage extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 12),
-          HomeContent(state: state),
+          HomeScheduleClock(
+            hasSchedules: state.layout?.hasSchedules ?? false,
+            builder: (_) => HomeContent(state: state),
+          ),
           const SizedBox(height: 36),
         ],
       );
@@ -453,10 +458,72 @@ class HomeContent extends StatelessWidget {
         ...children,
       ],
     );
-    return layout == null
-        ? column
-        : HomeLayoutScope(version: layout.version, child: column);
+    // Always there, so a layout arriving (or going) does not move the
+    // shelves in the tree and rebuild them from scratch.
+    return HomeLayoutScope(version: layout?.version, child: column);
   }
+}
+
+/// Rebuilds Home's shelves when schedules may have moved on: on returning
+/// to the app, and each minute while the layout has a schedule. Otherwise a
+/// banner or shelf would stay on (or off) past its window until something
+/// else rebuilt Home.
+class HomeScheduleClock extends StatefulWidget {
+  const HomeScheduleClock({
+    super.key,
+    required this.hasSchedules,
+    required this.builder,
+  });
+
+  final bool hasSchedules;
+  final WidgetBuilder builder;
+
+  @override
+  State<HomeScheduleClock> createState() => _HomeScheduleClockState();
+}
+
+class _HomeScheduleClockState extends State<HomeScheduleClock>
+    with WidgetsBindingObserver {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _syncTimer();
+  }
+
+  @override
+  void didUpdateWidget(HomeScheduleClock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.hasSchedules != widget.hasSchedules) _syncTimer();
+  }
+
+  void _syncTimer() {
+    _timer?.cancel();
+    _timer = widget.hasSchedules
+        ? Timer.periodic(const Duration(minutes: 1), (_) => _tick())
+        : null;
+  }
+
+  void _tick() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _tick();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context);
 }
 
 class _FeaturedSection extends StatelessWidget {

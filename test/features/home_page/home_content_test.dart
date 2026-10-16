@@ -589,4 +589,33 @@ void main() {
       expect(inAppLocation(Uri.parse('https://example.com/x')), isNull);
     });
   });
+
+  group('HomeScheduleClock', () {
+    testWidgets('rebuilds on resume, and each minute only with schedules', (
+      tester,
+    ) async {
+      var builds = 0;
+      Widget clock(bool hasSchedules) => HomeScheduleClock(
+        hasSchedules: hasSchedules,
+        builder: (_) {
+          builds++;
+          return const SizedBox();
+        },
+      );
+      await tester.pumpWidget(clock(false));
+      expect(builds, 1);
+      await tester.pump(const Duration(minutes: 2));
+      expect(builds, 1);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(builds, 2);
+
+      await tester.pumpWidget(clock(true));
+      final before = builds;
+      await tester.pump(const Duration(minutes: 1));
+      expect(builds, before + 1);
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
 }

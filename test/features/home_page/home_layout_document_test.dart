@@ -522,6 +522,39 @@ void main() {
     );
   });
 
+  group('hasSchedules', () {
+    test('only a set window counts', () {
+      expect(
+        _layout([
+          {'id': 'newest', 'type': 'builtin'},
+        ]).hasSchedules,
+        isFalse,
+      );
+      expect(
+        _layout([
+          {
+            'id': 'newest',
+            'type': 'builtin',
+            'schedule': {
+              'hours': {'from': '07:00', 'to': '12:00'},
+            },
+          },
+        ]).hasSchedules,
+        isTrue,
+      );
+      final banner = HomeLayout.fromRpc(
+        _rpc({
+          'sections': const [],
+          'banner': {
+            'title': 'Hi',
+            'schedule': {'ends_at': '2026-10-26T23:59:59.999+08:00'},
+          },
+        }),
+      )!;
+      expect(banner.hasSchedules, isTrue);
+    });
+  });
+
   group('pin_top', () {
     final now = _manila(2026, 10, 16, 12);
     List<String> plan(HomeLayout layout, {Set<HomeRail>? available}) => [

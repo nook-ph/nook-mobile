@@ -53,6 +53,13 @@ class HomeSchedule {
 
   static const always = HomeSchedule();
 
+  /// Nothing set: on at every instant.
+  bool get isAlways =>
+      startsAt == null &&
+      endsAt == null &&
+      days.isEmpty &&
+      (fromMinute == null || fromMinute == toMinute);
+
   /// Null for a missing or unreadable schedule (treated as always on).
   static HomeSchedule? tryParse(Object? json) {
     if (json is! Map) return null;
@@ -385,6 +392,11 @@ class HomeLayout {
   final bool pinTop;
   final HomeBanner? banner;
   final List<HomeSection> sections;
+
+  /// Whether anything in it turns on or off with time.
+  bool get hasSchedules =>
+      !(banner?.schedule.isAlways ?? true) ||
+      sections.any((s) => !s.schedule.isAlways);
 
   /// No sections and no banner: "reset to default", the built-in Home.
   bool get isDefault => sections.isEmpty && banner == null;
