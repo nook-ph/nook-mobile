@@ -59,8 +59,14 @@ abstract final class WidgetLinks {
   /// router's redirect) and as the widget plugin's launch or click event.
   /// The same link within this window is the same tap.
   static const _sameTap = Duration(seconds: 3);
-  static Uri? _lastUri;
+  static String? _lastKey;
   static DateTime? _lastAt;
+
+  /// The tap a link stands for. Not the Uri itself: go_router hands the
+  /// redirect `nook://saved/?via=widget` (an empty path becomes `/`) while
+  /// the plugin sends `nook://saved?via=widget`.
+  static String _key(WidgetLink link) =>
+      '${link.target.name}/${link.cafeId ?? ''}/${link.tap}';
 
   @visibleForTesting
   static DateTime Function() clock = DateTime.now;
@@ -72,9 +78,10 @@ abstract final class WidgetLinks {
     if (link == null) return null;
     final now = clock();
     final last = _lastAt;
+    final key = _key(link);
     final repeat =
-        uri == _lastUri && last != null && now.difference(last) < _sameTap;
-    _lastUri = uri;
+        key == _lastKey && last != null && now.difference(last) < _sameTap;
+    _lastKey = key;
     _lastAt = now;
     if (!repeat) {
       logAppEvent(HomeWidgetEvents.tapped, properties: {'target': link.tap});
@@ -100,7 +107,7 @@ abstract final class WidgetLinks {
 
   @visibleForTesting
   static void reset() {
-    _lastUri = null;
+    _lastKey = null;
     _lastAt = null;
     pending.value = null;
     clock = DateTime.now;

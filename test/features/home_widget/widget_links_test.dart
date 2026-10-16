@@ -48,4 +48,16 @@ void main() {
     WidgetLinks.acceptFromPlatform(null);
     expect(WidgetLinks.pending.value, isNull);
   });
+
+  test('a header tap from the plugin and the router is one tap', () {
+    WidgetLinks.clock = () => DateTime.utc(2026, 10, 16, 2);
+    // The plugin's link, then go_router's normalized one (empty path → /).
+    WidgetLinks.acceptFromPlatform(Uri.parse('nook://saved?via=widget'));
+    expect(WidgetLinks.take()?.target, WidgetLinkTarget.saved);
+    expect(WidgetLinks.accept(Uri.parse('nook://saved/?via=widget')), '/');
+    expect(WidgetLinks.pending.value, isNull);
+    // A different target right after is a new tap.
+    WidgetLinks.accept(Uri.parse('nook://home/?via=widget'));
+    expect(WidgetLinks.take()?.target, WidgetLinkTarget.home);
+  });
 }
