@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -70,9 +71,13 @@ double scrollOffsetUnderBar({
 }) => (reveal - bar + 8).clamp(min, max);
 
 class CafeDetailsPage extends StatefulWidget {
-  const CafeDetailsPage({super.key, required this.cafeId});
+  const CafeDetailsPage({super.key, required this.cafeId, this.preview});
 
   final String cafeId;
+
+  /// The card that was tapped, when there was one: its photo and name stand
+  /// in while the details load, so the page opens on the cafe, not on grey.
+  final CafeSummary? preview;
 
   @override
   State<CafeDetailsPage> createState() => _CafeDetailsPageState();
@@ -499,7 +504,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                 url != state.data.cafeDetails.featuredImageUrl,
                           ),
                         ]
-                      : const <String>[];
+                      : [
+                          if (isLoading &&
+                              (widget.preview?.coverImage ?? '').isNotEmpty)
+                            widget.preview!.coverImage!,
+                        ];
 
                   if (state is CafeDetailsError) {
                     final failure = CafeLoadFailure.from(state.error);
@@ -523,7 +532,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
 
                   final title = state is CafeDetailsLoaded
                       ? state.data.cafeDetails.name
-                      : '';
+                      : widget.preview?.name ?? '';
 
                   return CustomScrollView(
                     controller: _scrollController,
@@ -533,7 +542,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                         child: RepaintBoundary(
                           child: HeroImageSlider(
                             images: heroImages,
-                            isLoading: isLoading,
+                            isLoading: isLoading && heroImages.isEmpty,
                             bottomInset: _sheetLip,
                             placeholderSeed: state is CafeDetailsLoaded
                                 ? state.data.cafeDetails.name
@@ -671,7 +680,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                       SliverToBoxAdapter(
                         child: state is CafeDetailsLoaded
                             ? _buildSections(context, state, menuCardWidth)
-                            : const CafeDetailsSkeleton(),
+                            : CafeDetailsSkeleton(name: widget.preview?.name),
                       ),
                     ],
                   );

@@ -38,7 +38,7 @@ class HomeCafeCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onTap: () {
         if (isSkeleton) return;
-        if (cafe.id.isNotEmpty) context.push('/cafe/${cafe.id}');
+        if (cafe.id.isNotEmpty) context.push('/cafe/${cafe.id}', extra: cafe);
       },
       child: SizedBox(
         width: width,

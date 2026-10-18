@@ -322,6 +322,22 @@ void main() {
       expect(find.bySemanticsLabel('Loading cafe details'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('a known name shows instead of its bone', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          const Scaffold(
+            body: SingleChildScrollView(
+              child: CafeDetailsSkeleton(name: 'Kamp Craft Coffee'),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Kamp Craft Coffee'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('Photo viewer', () {
