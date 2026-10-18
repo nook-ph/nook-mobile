@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -56,6 +57,7 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
 
           final actionErr = state.listActionError;
           if (actionErr != null) {
+            HapticFeedback.errorNotification();
             final info = AppErrorCopy.fromException(actionErr);
             showPrimaryToast(context, '${info.title} · ${info.subtitle}');
             context.read<SaveToListCubit>().acknowledgeListActionError();
@@ -149,10 +151,13 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
           isEnabled:
               !state.isCreating &&
               !state.pendingListIds.contains(state.lists[i].id),
-          onToggle: () => context.read<SaveToListCubit>().toggleList(
-            cafeId: widget.cafeId,
-            listId: state.lists[i].id,
-          ),
+          onToggle: () {
+            HapticFeedback.lightImpact();
+            context.read<SaveToListCubit>().toggleList(
+              cafeId: widget.cafeId,
+              listId: state.lists[i].id,
+            );
+          },
         ),
       ],
     ];

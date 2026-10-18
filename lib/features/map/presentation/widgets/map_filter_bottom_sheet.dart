@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
@@ -83,6 +84,7 @@ class _MapFilterBottomSheetState extends State<MapFilterBottomSheet> {
   }
 
   void _toggle(String label) {
+    HapticFeedback.selectionClick();
     setState(() {
       if (!_selectedTags.remove(label)) _selectedTags.add(label);
     });

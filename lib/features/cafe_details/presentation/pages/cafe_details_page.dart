@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -874,6 +875,7 @@ class _SavedButtonState extends State<_SavedButton> {
     }
 
     // The bookmark fills at once and empties again if the save fails.
+    HapticFeedback.lightImpact();
     _savedStateRequest++;
     setState(() {
       _isSaving = true;
@@ -906,6 +908,7 @@ class _SavedButtonState extends State<_SavedButton> {
     } catch (e, st) {
       debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
       if (!mounted) return;
+      HapticFeedback.errorNotification();
       setState(() => _isSaved = false);
       _showErrorToast(context, e, goLogin: true);
     } finally {
