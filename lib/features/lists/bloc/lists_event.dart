@@ -1,3 +1,5 @@
+import 'dart:async';
+
 abstract class ListsEvent {}
 
 class LoadUserLists extends ListsEvent {}
@@ -7,7 +9,15 @@ class CreateList extends ListsEvent {
   final String? description;
   final bool isPublic;
 
-  CreateList({required this.name, this.description, required this.isPublic});
+  /// Completes once the list is in, or with the error that stopped it.
+  final Completer<void>? done;
+
+  CreateList({
+    required this.name,
+    this.description,
+    required this.isPublic,
+    this.done,
+  });
 }
 
 class RenameList extends ListsEvent {
@@ -49,10 +59,14 @@ class UpdateList extends ListsEvent {
   final String? description;
   final bool isPublic;
 
+  /// Completes once the edit is saved, or with the error that stopped it.
+  final Completer<void>? done;
+
   UpdateList({
     required this.listId,
     required this.name,
     this.description,
     required this.isPublic,
+    this.done,
   });
 }

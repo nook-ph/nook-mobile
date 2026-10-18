@@ -124,7 +124,10 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
   }
 
   Future<void> _onCreateList(CreateList event, Emitter<ListsState> emit) async {
-    if (!_isAuthenticated) return;
+    if (!_isAuthenticated) {
+      event.done?.completeError(const AuthException('Not signed in.'));
+      return;
+    }
 
     try {
       await createListUseCase(
@@ -133,14 +136,20 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
         isPublic: event.isPublic,
       );
       add(LoadUserLists());
+      event.done?.complete();
     } catch (e, st) {
       debugPrint('ListsBloc._onCreateList error: $e\n$st');
+      // The caller that waits says so itself (the form keeps its input).
+      if (event.done case final done?) return done.completeError(e);
       emit(ListsError(e));
     }
   }
 
   Future<void> _onUpdateList(UpdateList event, Emitter<ListsState> emit) async {
-    if (!_isAuthenticated) return;
+    if (!_isAuthenticated) {
+      event.done?.completeError(const AuthException('Not signed in.'));
+      return;
+    }
 
     try {
       await repository.updateList(
@@ -151,8 +160,10 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       );
       unawaited(analytics.logEvent('list_updated'));
       add(LoadUserLists());
+      event.done?.complete();
     } catch (e, st) {
       debugPrint('ListsBloc._onUpdateList error: $e\n$st');
+      if (event.done case final done?) return done.completeError(e);
       emit(ListsError(e));
     }
   }

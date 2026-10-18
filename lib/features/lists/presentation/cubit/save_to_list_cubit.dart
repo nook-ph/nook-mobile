@@ -147,6 +147,8 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     }
   }
 
+  /// Throws when the list couldn't be made or the cafe saved to it, so the
+  /// form asking for it can stay open with what was typed.
   Future<void> createListAndSave({
     required String cafeId,
     required String name,
@@ -184,11 +186,12 @@ class SaveToListCubit extends Cubit<SaveToListState> {
           clearListActionError: true,
         ),
       );
-    } catch (e) {
-      if (isClosed) return;
+    } catch (_) {
       final latest = state;
-      if (latest is! SaveToListLoaded) return;
-      emit(latest.copyWith(isCreating: false, listActionError: e));
+      if (!isClosed && latest is SaveToListLoaded) {
+        emit(latest.copyWith(isCreating: false));
+      }
+      rethrow;
     }
   }
 

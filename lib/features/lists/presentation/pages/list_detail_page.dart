@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
@@ -146,23 +148,31 @@ class _ListDetailPageState extends State<ListDetailPage> {
   }
 
   Future<void> _editList(ListsBloc bloc, CafeList list) async {
-    final input = await showEditListSheet(
+    await showEditListSheet(
       context,
       name: list.name,
       description: list.description,
+      save: (input) async {
+        // "List updated." waits for the reload that brings the new name in.
+        _editing = true;
+        final done = Completer<void>();
+        bloc.add(
+          UpdateList(
+            listId: list.id,
+            name: input.name,
+            description: input.description,
+            isPublic: list.isPublic,
+            done: done,
+          ),
+        );
+        try {
+          await done.future;
+        } catch (_) {
+          _editing = false;
+          rethrow;
+        }
+      },
     );
-    if (input == null || !mounted) return;
-
-    bloc.add(
-      UpdateList(
-        listId: list.id,
-        name: input.name,
-        description: input.description,
-        isPublic: list.isPublic,
-      ),
-    );
-    // "List updated." waits for the reload that proves it.
-    _editing = true;
   }
 
   Future<void> _confirmDelete(ListsBloc bloc, CafeList list) async {

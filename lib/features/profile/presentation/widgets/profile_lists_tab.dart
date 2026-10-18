@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -25,22 +27,23 @@ class ProfileListsTab extends StatefulWidget {
 }
 
 class _ProfileListsTabState extends State<ProfileListsTab> {
-  /// Set between asking for a new list and the bloc reporting it, so the
-  /// "created" toast fires once and only for a create.
-  bool _creating = false;
-
   Future<void> _create(ListsBloc bloc) async {
-    final input = await showCreateListSheet(context);
-    if (input == null || !mounted) return;
-
-    setState(() => _creating = true);
-    bloc.add(
-      CreateList(
-        name: input.name,
-        description: input.description,
-        isPublic: false,
-      ),
+    final input = await showCreateListSheet(
+      context,
+      save: (input) {
+        final done = Completer<void>();
+        bloc.add(
+          CreateList(
+            name: input.name,
+            description: input.description,
+            isPublic: false,
+            done: done,
+          ),
+        );
+        return done.future;
+      },
     );
+    if (input != null && mounted) showPrimaryToast(context, 'List created.');
   }
 
   void _open(CafeList list) {
@@ -59,18 +62,7 @@ class _ProfileListsTabState extends State<ProfileListsTab> {
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<ListsBloc>();
-    return BlocConsumer<ListsBloc, ListsState>(
-      listenWhen: (_, current) =>
-          _creating && (current is ListsLoaded || current is ListsError),
-      listener: (context, state) {
-        setState(() => _creating = false);
-        showPrimaryToast(
-          context,
-          state is ListsLoaded
-              ? 'List created.'
-              : 'Could not create the list. Please try again.',
-        );
-      },
+    return BlocBuilder<ListsBloc, ListsState>(
       builder: (context, state) {
         final lists = state is ListsLoaded ? state.lists : bloc.userLists;
         return ProfileListsView(
@@ -79,7 +71,7 @@ class _ProfileListsTabState extends State<ProfileListsTab> {
           loading:
               (state is ListsLoading || state is ListsInitial) && lists.isEmpty,
           failed: state is ListsError && lists.isEmpty,
-          onCreate: _creating ? null : () => _create(bloc),
+          onCreate: () => _create(bloc),
           onOpen: _open,
           onRetry: () => bloc.add(LoadUserLists()),
         );
