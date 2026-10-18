@@ -46,6 +46,16 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     on<RemoveCafeFromList>(_onRemoveCafeFromList);
   }
 
+  /// Adds and removes run one after another, in the order asked: an Undo
+  /// tapped while its remove is still out must land after it.
+  Future<void> _membershipWrites = Future.value();
+
+  Future<void> _inOrder(Future<void> Function() write) {
+    final run = _membershipWrites.then((_) => write());
+    _membershipWrites = run.catchError((_) {});
+    return run;
+  }
+
   bool get _isAuthenticated =>
       Supabase.instance.client.auth.currentSession != null;
 
@@ -188,7 +198,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     if (!_isAuthenticated) return;
 
     try {
-      await addCafeToListUseCase(event.listId, event.cafeId);
+      await _inOrder(() => addCafeToListUseCase(event.listId, event.cafeId));
       // Always reload: the state may have moved off this list's cafes (an
       // edit leaves ListsLoaded) while its page is still on screen.
       add(LoadListCafes(listId: event.listId));
@@ -205,7 +215,9 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     if (!_isAuthenticated) return;
 
     try {
-      await removeCafeFromListUseCase(event.listId, event.cafeId);
+      await _inOrder(
+        () => removeCafeFromListUseCase(event.listId, event.cafeId),
+      );
       // Always reload: the state may have moved off this list's cafes (an
       // edit leaves ListsLoaded) while its page is still on screen.
       add(LoadListCafes(listId: event.listId));
