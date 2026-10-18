@@ -44,14 +44,18 @@ class ReviewSheetShell extends StatelessWidget {
   /// Defaults to popping the sheet.
   final VoidCallback? onClose;
 
+  /// [enableDrag] false for a sheet that guards its content with a
+  /// [PopScope]: a drag closes the sheet without asking it.
   static Future<T?> show<T>(
     BuildContext context, {
     required WidgetBuilder builder,
+    bool enableDrag = true,
   }) {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      enableDrag: enableDrag,
       backgroundColor: Colors.transparent,
       builder: builder,
     );

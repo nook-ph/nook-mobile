@@ -327,6 +327,7 @@ class ReviewConfirmSheet extends StatelessWidget {
     required this.title,
     required this.message,
     required this.confirmLabel,
+    this.cancelLabel = 'Cancel',
   });
 
   factory ReviewConfirmSheet.blockUser({String? authorName}) {
@@ -362,9 +363,23 @@ class ReviewConfirmSheet extends StatelessWidget {
     );
   }
 
+  /// Closing the composer with something in it. [editing]: changes to a
+  /// posted cup, which stays as it was.
+  factory ReviewConfirmSheet.discardCup({required bool editing}) {
+    return ReviewConfirmSheet(
+      title: editing ? 'Discard your changes?' : 'Discard this cup?',
+      message: editing
+          ? 'Your cup stays as it was posted.'
+          : 'Your photos, note and stars won’t be saved.',
+      confirmLabel: 'Discard',
+      cancelLabel: editing ? 'Keep editing' : 'Keep my cup',
+    );
+  }
+
   final String title;
   final String message;
   final String confirmLabel;
+  final String cancelLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -402,7 +417,7 @@ class ReviewConfirmSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ReviewTextButton(
-            label: 'Cancel',
+            label: cancelLabel,
             onTap: () => Navigator.of(context).pop(false),
           ),
         ],

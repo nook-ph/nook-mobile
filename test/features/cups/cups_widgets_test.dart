@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
@@ -430,6 +431,63 @@ void main() {
       await done(tester);
     });
 
+    testWidgets('closing with a draft asks first; Keep my cup keeps it', (
+      tester,
+    ) async {
+      await open(tester);
+      // Nothing in it yet: Close just closes.
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add your cup'), findsNothing);
+      expect(find.text('Discard this cup?'), findsNothing);
+
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Note (optional)'),
+        'Flat white was great.',
+      );
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('Discard this cup?'), findsOneWidget);
+      await tester.tap(find.text('Keep my cup'));
+      await tester.pumpAndSettle();
+      expect(find.text('Flat white was great.'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add your cup'), findsNothing);
+      expect(cups.posts, isEmpty);
+    });
+
+    testWidgets('offline: the draft stays and says so, then Try again posts', (
+      tester,
+    ) async {
+      await open(tester);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Note (optional)'),
+        'Outlets everywhere.',
+      );
+      await tester.pump();
+      cups.failure = const CupsException(
+        'Could not post your cup.',
+        cause: SocketException('Connection failed'),
+      );
+      await tester.tap(find.text('Post cup'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Your cup is still here'), findsOneWidget);
+      expect(find.text('Outlets everywhere.'), findsOneWidget);
+
+      cups.failure = null;
+      await tester.tap(find.text('Try again'));
+      await tester.pumpAndSettle();
+      expect(cups.posts.single.note, 'Outlets everywhere.');
+      await done(tester);
+    });
+
     testWidgets('legacy backend: a note needs stars for now', (tester) async {
       cups.backend = CupsMode.legacy;
       await open(tester);
@@ -447,7 +505,7 @@ void main() {
       expect(cups.posts, isEmpty);
 
       await tester.tap(find.bySemanticsLabel('5 stars'));
-      await tester.tap(find.text('Try again'));
+      await tester.tap(find.text('Post cup'));
       await tester.pumpAndSettle();
       expect(cups.posts.single.rating, 5);
       await done(tester);

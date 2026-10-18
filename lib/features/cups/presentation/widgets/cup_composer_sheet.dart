@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
@@ -10,6 +11,8 @@ import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/error_info.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
@@ -74,6 +77,8 @@ Future<CupComposerOutcome?> openCupComposer(
   dismissToasts();
   final outcome = await ReviewSheetShell.show<CupComposerOutcome>(
     context,
+    // A drag would close it past the discard check and mid-upload.
+    enableDrag: false,
     builder: (_) => CupComposerSheet(
       cafe: cafe,
       source: source,
@@ -332,6 +337,12 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
   String? _error;
   bool _tried = false;
 
+  /// The last post or save went out and failed (not a form nudge).
+  bool _failed = false;
+
+  /// What the form held when it opened, to tell whether closing loses work.
+  late final Object _opened;
+
   /// Your cups here before this one, newest visit first.
   List<CupCard> _earlier = const [];
 
@@ -356,6 +367,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       _loadEarlier();
     }
     _syncNameField();
+    _opened = _snapshot;
     _note.addListener(_refresh);
     logAppEvent(
       CupEvents.composerOpened,
@@ -402,6 +414,22 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
     _name.dispose();
     _nameFocus.dispose();
     super.dispose();
+  }
+
+  Object get _snapshot =>
+      (_items.length, _removed.length, _note.text.trim(), _rating, _visitedAt);
+
+  /// Closing now would lose something: a new item, a removal, or a changed
+  /// note, stars or day. Kinds and names only live on new items.
+  bool get _dirty => _snapshot != _opened;
+
+  Future<void> _confirmDiscard() async {
+    if (_busy) return;
+    final discard = await ReviewSheetShell.show<bool>(
+      context,
+      builder: (_) => ReviewConfirmSheet.discardCup(editing: _editing != null),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
   }
 
   void _refresh() {
@@ -551,6 +579,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
     if (issue != null) {
       setState(() {
         _tried = true;
+        _failed = false;
         _error = cupDraftMessage(issue);
         // Bring up the first item still missing its kind, chips and all.
         if (issue == CupDraftIssue.needsKind) {
@@ -565,6 +594,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
     }
     setState(() {
       _posting = true;
+      _failed = false;
       _error = null;
       for (final i in _items) {
         i.uploaded = false;
@@ -619,6 +649,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
         },
       );
       if (!mounted) return;
+      unawaited(HapticFeedback.lightImpact());
       Navigator.of(context).pop(
         CupComposerOutcome(
           cup == null ? CupComposerAction.posted : CupComposerAction.updated,
@@ -630,16 +661,35 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       setState(() {
         _posting = false;
         _tried = true;
-        _error = cupErrorMessage(e.code) ?? e.message;
+        _failed = true;
+        _error = cupErrorMessage(e.code) ?? _failureMessage(e);
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _posting = false;
         _tried = true;
-        _error = "Couldn't post your cup. Check your connection and try again.";
+        _failed = true;
+        _error = _offline;
       });
     }
+  }
+
+  static const _offline =
+      "Couldn't reach Nook. Your cup is still here: try again when "
+      "you're back online.";
+
+  /// A lost connection says the draft is safe; a lost session says how to
+  /// get back. Anything else keeps the repository's words.
+  String _failureMessage(CupsException e) {
+    final cause = e.cause;
+    if (cause == null) return e.message;
+    return switch (AppErrorCopy.fromException(cause).type) {
+      ErrorType.offline => _offline,
+      ErrorType.sessionExpired =>
+        "You've been signed out. Sign in again, then post your cup.",
+      _ => e.message,
+    };
   }
 
   Future<void> _delete() async {
@@ -695,10 +745,13 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: !_busy,
+      canPop: !_busy && !_dirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _confirmDiscard();
+      },
       child: ReviewSheetShell(
         title: _editing == null ? 'Add your cup' : 'Edit your cup',
-        onClose: _busy ? () {} : null,
+        onClose: () => Navigator.of(context).maybePop(),
         child: _form(context),
       ),
     );
@@ -849,7 +902,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
         ],
         const SizedBox(height: 16),
         ReviewPrimaryButton(
-          label: error != null && _tried
+          label: error != null && _failed
               ? 'Try again'
               : _editing == null
               ? 'Post cup'
