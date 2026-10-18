@@ -85,6 +85,27 @@ void main() {
     await letToastExpire(tester);
   });
 
+  testWidgets('back with unsaved edits asks before dropping them', (
+    tester,
+  ) async {
+    await pump(tester);
+    await tester.enterText(field('Name'), 'Simon');
+    await tester.pump();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('Discard your changes?'), findsOneWidget);
+    await tester.tap(find.text('Keep editing'));
+    await tester.pumpAndSettle();
+    expect(find.text('Simon'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.text('Edit profile'), findsNothing);
+  });
+
   testWidgets('an account with no name: the field is empty and a save does '
       'not write the placeholder', (tester) async {
     final cubit = await pump(
