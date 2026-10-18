@@ -44,14 +44,18 @@ class ReviewSheetShell extends StatelessWidget {
   /// Defaults to popping the sheet.
   final VoidCallback? onClose;
 
+  /// [enableDrag] false for a form that asks before discarding: a drag
+  /// dismiss pops the route directly and skips its `PopScope`.
   static Future<T?> show<T>(
     BuildContext context, {
     required WidgetBuilder builder,
+    bool enableDrag = true,
   }) {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      enableDrag: enableDrag,
       backgroundColor: Colors.transparent,
       builder: builder,
     );

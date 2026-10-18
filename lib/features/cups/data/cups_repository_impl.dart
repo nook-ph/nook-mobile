@@ -327,6 +327,9 @@ class CupsRepositoryImpl implements ICupsRepository {
     _kindCounts.clear();
     final cleanNote = _clean(note, maxCupNote);
     final cleanItems = _cleanItems(items);
+    // Read alongside the uploads, so a post whose answer never came back
+    // can be told apart from one that never landed.
+    final before = _backend.mode == CupsMode.legacy ? null : _myCupIds(cafeId);
     final uploads = await _uploadItems(cleanItems, cafeId, onPhotoUploaded);
     final payload = _payload(cleanItems, uploads);
     // Set once a row points at the uploaded files: from then on they stay.
@@ -386,6 +389,19 @@ class CupsRepositoryImpl implements ICupsRepository {
         },
       );
     } catch (e) {
+      // No answer is not a no: the cup may be in. Then it is the result,
+      // its files stay, and "Try again" can't post it twice.
+      if (_unanswered(e) && before != null) {
+        final landed = await _landedCup(
+          cafeId,
+          before: await before,
+          rating: rating,
+          note: cleanNote,
+        );
+        if (landed != null) {
+          return CupPostResult(cup: landed, itemsAdded: payload.length);
+        }
+      }
       // Unless a row points at the files, "Try again" uploads them again.
       if (!filesInUse) {
         _deleteFiles([for (final f in uploads.values) f.objectKey]);
@@ -393,6 +409,51 @@ class CupsRepositoryImpl implements ICupsRepository {
       throw _wrap(e, 'Could not post your cup.');
     }
   }
+
+  /// Ids of your cups at [cafeId]; null when the read fails.
+  Future<Set<String>?> _myCupIds(String cafeId) async {
+    try {
+      final page = await _rpcCafeCups(cafeId, sort: CupSort.recent, limit: 1);
+      return {for (final c in page.myCups) c.id};
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Your cup at [cafeId] that is not in [before] and has this post's
+  /// stars and note: the post went in after all. Null if none, or if the
+  /// cups can't be read either.
+  Future<CupCard?> _landedCup(
+    String cafeId, {
+    required Set<String>? before,
+    required int? rating,
+    required String? note,
+  }) async {
+    if (before == null) return null;
+    final List<CupCard> mine;
+    try {
+      mine = (await _rpcCafeCups(
+        cafeId,
+        sort: CupSort.recent,
+        limit: 1,
+      )).myCups;
+    } catch (_) {
+      return null;
+    }
+    return mine
+        .where(
+          (c) =>
+              !before.contains(c.id) &&
+              c.rating == rating &&
+              (c.note?.trim() ?? '') == (note ?? ''),
+        )
+        .firstOrNull;
+  }
+
+  /// The request got no answer from the server (offline, timed out), as
+  /// opposed to the server saying no.
+  static bool _unanswered(Object e) =>
+      e is! PostgrestException && e is! CupsException && e is! AuthException;
 
   @override
   Future<CupPostResult> updateCup(
@@ -624,7 +685,12 @@ class CupsRepositoryImpl implements ICupsRepository {
 
   String _requireMe() {
     final me = _me;
-    if (me == null) throw const CupsException('Sign in to add your cup.');
+    if (me == null) {
+      throw const CupsException(
+        'Sign in to add your cup.',
+        code: 'not_authenticated',
+      );
+    }
     return me;
   }
 
