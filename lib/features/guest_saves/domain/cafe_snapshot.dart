@@ -163,6 +163,7 @@ class GuestSave extends Equatable {
     required this.cafe,
     required this.status,
     required this.savedAt,
+    this.owner,
   });
 
   final CafeSnapshot cafe;
@@ -171,12 +172,22 @@ class GuestSave extends Equatable {
   final CafeStatus status;
   final DateTime savedAt;
 
+  /// The account (user id) a merge was tried for and could not move this
+  /// save to. Null for a save made while signed out that no merge has
+  /// tried yet: that one moves to whoever signs in. One with an owner moves
+  /// on its own only into that account; any other account is asked first.
+  final String? owner;
+
   String get cafeId => cafe.id;
+
+  GuestSave withOwner(String? owner) =>
+      GuestSave(cafe: cafe, status: status, savedAt: savedAt, owner: owner);
 
   Map<String, dynamic> toJson() => {
     'cafe': cafe.toJson(),
     'status': status.wire,
     'saved_at': savedAt.toUtc().toIso8601String(),
+    'owner': ?owner,
   };
 
   static GuestSave? fromJson(Object? json) {
@@ -189,11 +200,17 @@ class GuestSave extends Equatable {
     if (cafe == null || status == CafeStatus.none || savedAt == null) {
       return null;
     }
-    return GuestSave(cafe: cafe, status: status, savedAt: savedAt);
+    final owner = CafeSnapshot._str(json['owner']);
+    return GuestSave(
+      cafe: cafe,
+      status: status,
+      savedAt: savedAt,
+      owner: owner == null || owner.isEmpty ? null : owner,
+    );
   }
 
   @override
-  List<Object?> get props => [cafe, status, savedAt];
+  List<Object?> get props => [cafe, status, savedAt, owner];
 }
 
 /// A cafe whose page was opened on this phone.

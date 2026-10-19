@@ -16,6 +16,16 @@ abstract final class SavesEvents {
   /// including those), `failed` (left on the phone for a retry).
   static const guestSavesMerged = 'guest_saves_merged';
 
+  /// After a sign-in, the phone held saves another account left (a merge
+  /// into it failed), and the person was asked whether to add them to the
+  /// account just signed in (`MergeAskSheet`). Properties: `count`.
+  static const guestSavesMergeAsked = 'guest_saves_merge_asked';
+
+  /// That ask was answered. Properties: `count`, `answer` (`add`,
+  /// `not_now`, or `dismissed` for a swipe, the scrim or Back; the saves
+  /// then stay on the phone).
+  static const guestSavesMergeAnswered = 'guest_saves_merge_answered';
+
   /// The first Want to Try / Been made on this phone, by anyone. Properties:
   /// `status` (`want_to_try` or `been`), `guest` (bool).
   static const firstSave = 'first_save';

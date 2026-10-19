@@ -83,6 +83,11 @@ abstract final class SessionAskKind {
   static const saverSurvey = 'saver_survey';
   static const mapLocationAsk = 'map_location_ask';
 
+  /// The ask after a sign-in about saves another account left on the
+  /// phone. A consequence of the sign-in, so it shows even when the budget
+  /// is spent; it spends it so nothing else is pushed on top.
+  static const mergeAsk = 'guest_saves_merge_ask';
+
   // Opened by the person, or a trip's-end offer (block score asks).
   static const pullSignIn = 'pull_sign_in';
   static const directionsNudge = 'directions_nudge';

@@ -84,3 +84,18 @@ has no direct match; these are proxies.
 | ![](saved-row-maps.png) | [Google Maps](https://refero.design/screens/7d12720e-6049-481a-90e2-9ec0c9bd5666) | After the list's last hairline, one quiet row that reads as a footer, not a list item |
 | ![](saved-row-tenpercent.png) | [Ten Percent Happier](https://refero.design/screens/55358d7d-4c59-4202-9aa9-f6a00cf150e5) | A guest-status line below the lists, label and trailing action in one tap target |
 | ![](saved-row-on.png) | [On](https://refero.design/screens/811fd337-c6f8-42ae-b3dd-b99d611cce97) | Considered, not taken: label and chevron only, nothing says the saves are on this phone |
+
+## Merge ask sheet
+After a sign-in, asks before moving saves another account left on this phone into the account
+just signed in ("Add 3 saves from this phone?" · Add them / Not now). Built in
+`lib/features/guest_saves/presentation/widgets/merge_ask_sheet.dart`, laid out like the
+notification pre-prompt and guest sign-in sheets (grabber, icon in the 56 tinted circle, centred
+title and reason, pill, text action). Researched 2026-10-19 with partwise.
+
+**Primary: World App.** Borrow: Copilot. Rejected: Nike Training Club.
+
+| | Product | Taken |
+|---|---|---|
+| ![](mergeask-world.png) | [World App](https://refero.design/screens/2f94df17-b13e-42e4-b05a-b1da0ffb3cc6) | Icon on top, centred title and reason, full-width primary, borderless "Not now" under it |
+| ![](mergeask-copilot.png) | [Copilot](https://refero.design/screens/0e17ef62-4ee7-4600-a438-e3071c9e2e25) | The sheet hugs its content at the bottom, the screen dimmed above it |
+| ![](mergeask-nike.png) | [Nike Training Club](https://refero.design/screens/8344f748-a83c-4996-97d1-8ad1aafca9bb) | Considered, not taken: full-screen with an outlined second button and a close X, too heavy for a yes/no |

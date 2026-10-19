@@ -8,12 +8,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// JSON list), plus the one-time flags around saving.
 ///
 /// Not scoped to a user: the saves belong to whoever is holding the phone
-/// without an account, and are cleared once they reach an account.
+/// without an account, and are cleared once they reach an account. A save a
+/// merge could not move records that account as its owner
+/// ([GuestSave.owner]), so it is never moved into another account without
+/// asking.
 class GuestSavesStore {
   static const _savesKey = 'guest_saves_v1';
   static const _unreadableKey = 'guest_saves_v1_unreadable';
   static const _firstSaveKey = 'saves_first_save_logged';
   static const _keepPromptKey = 'saves_keep_prompt_shown';
+  static const _mergeAskedForKey = 'guest_saves_merge_asked_for';
 
   /// Entries the last [read] could not parse (written by another build, or
   /// damaged), kept as they were so [write] puts them back rather than
@@ -94,6 +98,24 @@ class GuestSavesStore {
       _savesKey,
       jsonEncode([for (final s in saves) s.toJson(), ..._unparsed]),
     );
+  }
+
+  /// The account last asked whether to add saves another account left on
+  /// this phone, until the session ends. So the ask shows once per sign-in,
+  /// not on every launch of the same session.
+  Future<String?> mergeAskedFor() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_mergeAskedForKey);
+  }
+
+  /// Records that [accountId] was asked; null clears it (the session ended).
+  Future<void> setMergeAskedFor(String? accountId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (accountId == null) {
+      await prefs.remove(_mergeAskedForKey);
+    } else {
+      await prefs.setString(_mergeAskedForKey, accountId);
+    }
   }
 
   /// True the first time it is called on this phone, false after.

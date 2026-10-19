@@ -76,7 +76,17 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     final rest = before.saves.where((s) => s.cafeId != cafe.id);
     final saves = status == CafeStatus.none
         ? rest.toList()
-        : [GuestSave(cafe: cafe, status: status, savedAt: _now()), ...rest];
+        : [
+            // A changed save keeps its owner: it is still the one a merge
+            // left on this phone.
+            GuestSave(
+              cafe: cafe,
+              status: status,
+              savedAt: _now(),
+              owner: previousSave?.owner,
+            ),
+            ...rest,
+          ];
     emit(before.copyWith(saves: saves));
     try {
       await _store.write(saves);
@@ -144,24 +154,49 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     return true;
   }
 
-  /// Drops the saves for [cafeIds] (they reached the account). With
-  /// [unreadable], entries this build could not read go too (a sign-out
-  /// discarding what a merge left behind).
-  Future<void> removeAll(Set<String> cafeIds, {bool unreadable = false}) async {
-    if (cafeIds.isEmpty && !unreadable) return;
+  /// Drops the saves for [cafeIds] (they reached the account), and marks
+  /// the saves in [leftFor] as left by a merge into account [owner], so they
+  /// move on their own only into that account. One write.
+  Future<void> removeAll(
+    Set<String> cafeIds, {
+    Set<String> leftFor = const {},
+    String? owner,
+  }) async {
+    if (cafeIds.isEmpty && (leftFor.isEmpty || owner == null)) return;
     await load();
     if (_readFailed) return;
-    final saves = state.saves
-        .where((s) => !cafeIds.contains(s.cafeId))
-        .toList();
-    if (saves.length == state.saves.length && !unreadable) return;
+    final saves = [
+      for (final s in state.saves)
+        if (!cafeIds.contains(s.cafeId))
+          owner != null && leftFor.contains(s.cafeId) ? s.withOwner(owner) : s,
+    ];
+    if (listEquals(saves, state.saves)) return;
     emit(state.copyWith(saves: saves));
     try {
-      await _store.write(saves, dropUnreadable: unreadable);
+      await _store.write(saves);
     } catch (e) {
       // Left on disk: the next launch merges them again, which skips cafes
       // the account already has.
       debugPrint('[GuestSaves] removeAll write failed: $e');
+    }
+  }
+
+  /// The account last asked whether to add saves another account left
+  /// ([GuestSavesStore.mergeAskedFor]); null when unknown.
+  Future<String?> mergeAskedFor() async {
+    try {
+      return await _store.mergeAskedFor();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Records that [accountId] was asked; null clears it.
+  Future<void> setMergeAskedFor(String? accountId) async {
+    try {
+      await _store.setMergeAskedFor(accountId);
+    } catch (e) {
+      debugPrint('[GuestSaves] merge ask marker write failed: $e');
     }
   }
 
@@ -238,6 +273,13 @@ class GuestSavesState extends Equatable {
     }
     return CafeStatus.none;
   }
+
+  /// Saves a merge into another account than [accountId] left on this
+  /// phone: they are not moved into [accountId] without asking.
+  List<GuestSave> ownedByOthers(String accountId) => [
+    for (final s in saves)
+      if (s.owner != null && s.owner != accountId) s,
+  ];
 
   List<GuestSave> withStatus(CafeStatus status) =>
       saves.where((s) => s.status == status).toList();
