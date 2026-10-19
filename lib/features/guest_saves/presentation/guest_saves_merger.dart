@@ -23,31 +23,55 @@ class GuestSavesMerger {
   final GuestSavesCubit saves;
   final CafeStatusCubit statuses;
 
-  bool _running = false;
+  /// The merge in progress, if any: merges run one after another, so a
+  /// second one (an "Add them" or a Retry) never finds the first still
+  /// running and reports nothing.
+  Future<void> _last = Future<void>.value();
 
   /// What reached account [accountId]. Moves the saves made while signed
   /// out and those a failed merge into [accountId] left; with
   /// [includeOthers], also those another account left (the person said
-  /// "Add them"). Never throws: a merge that broke part way reports
-  /// everything it did not finish as failed.
+  /// "Add them"). Waits for a merge already running to finish first.
+  ///
+  /// [stillFor] is asked before every write: once it says the session is no
+  /// longer [accountId]'s (signed out, or another account signed in), the
+  /// merge writes nothing more, and what it did not get to stays on the
+  /// phone as [accountId]'s.
+  ///
+  /// Never throws: a merge that broke part way reports everything it did
+  /// not finish as failed.
   Future<GuestMergeResult> merge({
     required String accountId,
     bool includeOthers = false,
+    bool Function()? stillFor,
+  }) {
+    final run = _last.then(
+      (_) => _guarded(
+        accountId,
+        includeOthers: includeOthers,
+        stillFor: stillFor ?? () => true,
+      ),
+    );
+    _last = run.then<void>((_) {}, onError: (_) {});
+    return run;
+  }
+
+  Future<GuestMergeResult> _guarded(
+    String accountId, {
+    required bool includeOthers,
+    required bool Function() stillFor,
   }) async {
-    if (_running) return GuestMergeResult.none;
-    _running = true;
     var tried = 0;
     try {
       return await _merge(
         accountId,
         includeOthers: includeOthers,
+        stillFor: stillFor,
         onTried: (count) => tried = count,
       );
     } catch (e, st) {
       debugPrint('[GuestSavesMerger] merge failed: $e\n$st');
       return GuestMergeResult(added: 0, moved: 0, failed: tried);
-    } finally {
-      _running = false;
     }
   }
 
@@ -61,9 +85,11 @@ class GuestSavesMerger {
   Future<GuestMergeResult> _merge(
     String accountId, {
     required bool includeOthers,
+    required bool Function() stillFor,
     required void Function(int) onTried,
   }) async {
     await saves.load();
+    if (!stillFor()) return GuestMergeResult.none;
     // Signed in: the guest overlay must not stand in for the account's own
     // statuses, or every save would look "already there".
     statuses.showLocal(const {});
@@ -79,7 +105,7 @@ class GuestSavesMerger {
     // (as a guest, which the server answers with nothing) are not the
     // account's statuses, and writing over a Been deletes its rank and note.
     if (!await statuses.loadFor(ids)) {
-      await saves.removeAll(const {}, leftFor: ids.toSet(), owner: accountId);
+      await saves.settle(const {}, left: pending.toSet(), owner: accountId);
       logAppEvent(
         SavesEvents.guestSavesMerged,
         properties: {'count': 0, 'moved': 0, 'failed': pending.length},
@@ -88,31 +114,40 @@ class GuestSavesMerger {
     }
 
     var merged = 0;
-    final done = <String>{};
-    // Oldest first, so the account's lists keep the order they were saved in.
-    for (final save in pending.reversed) {
-      final id = save.cafeId;
-      // The read failed: nothing is known, so nothing is written.
-      if (!statuses.state.isKnown(id)) continue;
-      final account = statuses.state.statusFor(id);
-      // The account wins, except that a visit logged on the phone moves an
-      // account's Want to try on to Been: Want to try has no rank or note
-      // to lose, and dropping the Been would lose the visit.
-      final upgrade =
-          account == CafeStatus.wantToTry && save.status == CafeStatus.been;
-      if (account != CafeStatus.none && !upgrade) {
-        done.add(id);
-        continue;
+    final done = <GuestSave>{};
+    try {
+      // Oldest first, so the account's lists keep the order they were saved
+      // in.
+      for (final save in pending.reversed) {
+        // The session is no longer this account's: a write now would land
+        // in whoever is signed in.
+        if (!stillFor()) break;
+        final id = save.cafeId;
+        // The read failed: nothing is known, so nothing is written.
+        if (!statuses.state.isKnown(id)) continue;
+        final account = statuses.state.statusFor(id);
+        // The account wins, except that a visit logged on the phone moves an
+        // account's Want to try on to Been: Want to try has no rank or note
+        // to lose, and dropping the Been would lose the visit.
+        final upgrade =
+            account == CafeStatus.wantToTry && save.status == CafeStatus.been;
+        if (account != CafeStatus.none && !upgrade) {
+          done.add(save);
+          continue;
+        }
+        if (await statuses.set(id, save.status)) {
+          merged++;
+          done.add(save);
+        }
       }
-      if (await statuses.set(id, save.status)) {
-        merged++;
-        done.add(id);
-      }
+    } catch (e, st) {
+      // What it did not finish stays on the phone as this account's.
+      debugPrint('[GuestSavesMerger] merge stopped: $e\n$st');
     }
 
-    await saves.removeAll(
+    await saves.settle(
       done,
-      leftFor: ids.toSet().difference(done),
+      left: pending.toSet().difference(done),
       owner: accountId,
     );
     final failed = pending.length - done.length;
@@ -133,9 +168,9 @@ class GuestSavesMerger {
       await saves.load();
       final owned = {
         for (final s in saves.state.saves)
-          if (s.owner == accountId) s.cafeId,
+          if (s.owner == accountId) s,
       };
-      await saves.removeAll(owned);
+      await saves.settle(owned);
     } catch (e, st) {
       debugPrint('[GuestSavesMerger] drop failed: $e\n$st');
     }
@@ -165,11 +200,13 @@ class GuestMergeResult {
 
   int get total => moved + failed;
 
-  /// This result and [other] as one toast's worth.
-  GuestMergeResult operator +(GuestMergeResult other) => GuestMergeResult(
-    added: added + other.added,
-    moved: moved + other.moved,
-    failed: failed + other.failed,
+  /// This result, then [later]: a merge that tried again everything still
+  /// on the phone (this one's failures included), as one toast's worth.
+  /// What moved adds up; what failed is what [later] could not move.
+  GuestMergeResult followedBy(GuestMergeResult later) => GuestMergeResult(
+    added: added + later.added,
+    moved: moved + later.moved,
+    failed: later.failed,
   );
 
   bool get isEmpty => total == 0;

@@ -356,6 +356,93 @@ void main() {
     await app.clearToasts();
   });
 
+  testWidgets('a sign-in reported twice asks once, and Add them still '
+      'moves the saves', (tester) async {
+    final app = _Harness(tester);
+    await tester.runAsync(
+      () => app.saves.set(_cafe('a'), CafeStatus.wantToTry),
+    );
+    await app.pump();
+    await app.failedMergeFor('u1');
+    analytics.events.clear();
+
+    // The auth state put back after an error: AuthAuthenticated again.
+    app.signedIn = true;
+    app.auth.push(AuthAuthenticated(_user('u2')));
+    app.auth.push(const AuthError('x'));
+    app.auth.push(AuthAuthenticated(_user('u2')));
+    await app.settle();
+    await app.settle();
+
+    expect(find.byType(MergeAskSheet), findsOneWidget);
+    await tester.tap(find.text(MergeAskSheet.addOneLabel));
+    await app.settle();
+    await app.settle();
+
+    expect(find.byType(MergeAskSheet), findsNothing);
+    expect(
+      analytics.names.where((n) => n == SavesEvents.guestSavesMergeAsked),
+      hasLength(1),
+    );
+    expect(app.repo.server, {'a': CafeStatus.wantToTry});
+    expect(app.saves.state.isEmpty, isTrue);
+    await app.clearToasts();
+  });
+
+  testWidgets('the toast counts a save that failed twice once', (tester) async {
+    final app = _Harness(tester);
+    await tester.runAsync(
+      () => app.saves.set(_cafe('a'), CafeStatus.wantToTry),
+    );
+    await app.pump();
+    await app.failedMergeFor('u1');
+    await tester.runAsync(() => app.saves.set(_cafe('c'), CafeStatus.been));
+    await app.settle();
+    app.repo.failWriteFor = {'c'};
+
+    await app.signIn('u2');
+    await tester.tap(find.text(MergeAskSheet.addOneLabel));
+    await app.settle();
+
+    expect(app.repo.server, {'a': CafeStatus.wantToTry});
+    // a moved; c failed in both merges but is one cafe.
+    expect(find.text('Moved 1 of 2 cafes to your account'), findsOneWidget);
+    await app.clearToasts();
+  });
+
+  testWidgets('a sheet that stays open does not hold back the merge toast', (
+    tester,
+  ) async {
+    final app = _Harness(tester);
+    await tester.runAsync(
+      () => app.saves.set(_cafe('a'), CafeStatus.wantToTry),
+    );
+    await app.pump();
+    await app.failedMergeFor('u1');
+    await tester.runAsync(() => app.saves.set(_cafe('c'), CafeStatus.been));
+    await app.settle();
+
+    unawaited(
+      showModalBottomSheet<void>(
+        context: app.navigator.currentContext!,
+        builder: (_) => const SizedBox(height: 200, child: Text('other sheet')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await app.signIn('u2');
+    expect(find.text('Moved 1 cafe to your account'), findsNothing);
+
+    await tester.pump(mergeAskMaxWait);
+    await app.settle();
+
+    expect(find.text('Moved 1 cafe to your account'), findsOneWidget);
+    expect(find.byType(MergeAskSheet), findsNothing);
+    // Not counted as asked: the next launch asks.
+    expect(await tester.runAsync(app.saves.mergeAskedFor), isNull);
+    app.navigator.currentState!.pop();
+    await app.clearToasts();
+  });
+
   testWidgets('a launch mid sign-up (username step) moves nothing until '
       'the account is finished', (tester) async {
     final repo = _Repo();

@@ -151,15 +151,27 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     );
   }
 
+  /// The account a sign-in's merge and ask are running for, so a second
+  /// sign-in event for it (the auth state put back after an error, or the
+  /// launch path and the listener both firing) does not run them twice.
+  String? _signingInFor;
+
   /// Moves the saves that are [accountId]'s to take (made while signed
   /// out, or left by an earlier merge into it), then asks about any another
   /// account left, then says what moved in one toast.
   Future<void> _onSignedIn(String accountId) async {
     _accountId = accountId;
-    var result = await _merge(accountId);
-    if (!mounted) return;
-    result += await _askAboutOthers(accountId);
-    if (mounted && _accountId == accountId) _confirm(result, accountId);
+    if (_signingInFor == accountId) return;
+    _signingInFor = accountId;
+    try {
+      var result = await _merge(accountId);
+      if (!mounted) return;
+      final asked = await _askAboutOthers(accountId);
+      if (asked != null) result = result.followedBy(asked);
+      if (mounted && _accountId == accountId) _confirm(result, accountId);
+    } finally {
+      if (_signingInFor == accountId) _signingInFor = null;
+    }
   }
 
   Future<GuestMergeResult> _merge(
@@ -170,6 +182,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     final result = await _merger.merge(
       accountId: accountId,
       includeOthers: includeOthers,
+      stillFor: () => mounted && _accountId == accountId,
     );
     // Saved-tab counts and previews come from the lists.
     if (result.added > 0 && mounted) lists.add(LoadUserLists());
@@ -185,29 +198,26 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
   /// Saves another account left on this phone: asked about once per
   /// sign-in, after any sheet already open closes, and moved only on "Add
   /// them". Otherwise they stay on the phone as guest saves, not this
-  /// account's.
-  Future<GuestMergeResult> _askAboutOthers(String accountId) async {
-    if (_asking) return GuestMergeResult.none;
-    final saves = context.read<GuestSavesCubit>();
-    if ((await _merger.othersFor(accountId)).isEmpty) {
-      return GuestMergeResult.none;
-    }
-    if (await saves.mergeAskedFor() == accountId) return GuestMergeResult.none;
+  /// account's. The merge "Add them" ran (it tried again everything on the
+  /// phone), or null when none ran.
+  Future<GuestMergeResult?> _askAboutOthers(String accountId) async {
+    if (_asking) return null;
     _asking = true;
     try {
+      final saves = context.read<GuestSavesCubit>();
+      if ((await _merger.othersFor(accountId)).isEmpty) return null;
+      if (await saves.mergeAskedFor() == accountId) return null;
       final sheetContext = await _clearNavigatorContext();
-      if (sheetContext == null || !_stillSignedInAs(accountId)) {
-        return GuestMergeResult.none;
-      }
+      if (sheetContext == null || !_stillSignedInAs(accountId)) return null;
       final others = await _merger.othersFor(accountId);
       final count = others.length;
       if (count == 0 || !sheetContext.mounted || !_stillSignedInAs(accountId)) {
-        return GuestMergeResult.none;
+        return null;
       }
       // Counted before it shows, so a sheet closed by the app going away
       // is not asked again this sign-in.
       await saves.setMergeAskedFor(accountId);
-      if (!sheetContext.mounted) return GuestMergeResult.none;
+      if (!sheetContext.mounted || !_stillSignedInAs(accountId)) return null;
       // A consequence of the sign-in, so it does not wait for the session's
       // budget; it takes it, so nothing else is pushed on top this session.
       SessionAskBudget.instance.spend(SessionAskKind.mergeAsk);
@@ -226,7 +236,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
         properties: {'count': count, 'answer': answer.wire},
       );
       if (answer != MergeAskAnswer.add || !_stillSignedInAs(accountId)) {
-        return GuestMergeResult.none;
+        return null;
       }
       return await _merge(accountId, includeOthers: true);
     } finally {
@@ -236,11 +246,23 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
 
   /// A context under the app's navigator with no sheet or dialog on top:
   /// waits for an open one to close, so the ask never stacks on it. Null
-  /// when there is no navigator, or the screen never clears.
+  /// when there is no navigator, or the screen does not clear within
+  /// [mergeAskMaxWait]: the sign-in's toast then shows without the ask,
+  /// which comes again on the next launch (it was not counted as asked).
   Future<BuildContext?> _clearNavigatorContext() async {
+    final deadline = Completer<void>();
+    final timer = Timer(mergeAskMaxWait, deadline.complete);
+    try {
+      return await _waitForClearNavigator(deadline);
+    } finally {
+      timer.cancel();
+    }
+  }
+
+  Future<BuildContext?> _waitForClearNavigator(Completer<void> deadline) async {
     // Let the sign-in's own sheet or page finish closing first.
     await Future<void>.delayed(mergeAskDelay);
-    for (var attempt = 0; attempt < 20; attempt++) {
+    while (!deadline.isCompleted) {
       if (!mounted) return null;
       final context = widget.toastContext?.call();
       if (context == null || !context.mounted) return null;
@@ -253,7 +275,8 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
       });
       final open = top;
       if (open is! PopupRoute) return context;
-      await open.popped;
+      await Future.any([open.popped, deadline.future]);
+      if (deadline.isCompleted) break;
       await Future<void>.delayed(mergeAskDelay);
     }
     return null;
@@ -297,6 +320,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
           listener: (context, state) {
             final left = _accountId;
             _accountId = null;
+            _signingInFor = null;
             final saves = context.read<GuestSavesCubit>();
             // The session ended: the next sign-in asks again.
             unawaited(saves.setMergeAskedFor(null));
@@ -368,6 +392,10 @@ void showMergeToast(
 /// How long the merge ask waits after a sign-in, and after a sheet on top
 /// closes, before it shows.
 const mergeAskDelay = Duration(milliseconds: 600);
+
+/// How long the merge ask waits at most for an open sheet or dialog to
+/// close; past it, the merge toast shows on its own.
+const mergeAskMaxWait = Duration(seconds: 20);
 
 const mergeViewLabel = 'View';
 const mergeRetryLabel = 'Retry';

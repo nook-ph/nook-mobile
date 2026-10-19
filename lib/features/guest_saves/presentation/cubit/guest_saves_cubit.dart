@@ -154,21 +154,25 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     return true;
   }
 
-  /// Drops the saves for [cafeIds] (they reached the account), and marks
-  /// the saves in [leftFor] as left by a merge into account [owner], so they
-  /// move on their own only into that account. One write.
-  Future<void> removeAll(
-    Set<String> cafeIds, {
-    Set<String> leftFor = const {},
+  /// Drops the saves in [moved] (they reached the account), and marks the
+  /// saves in [left] as left by a merge into account [owner], so they move
+  /// on their own only into that account. One write.
+  ///
+  /// Matched as they were read, not by cafe: a save changed or made again
+  /// while a merge ran (after a sign-out, say) is a new save, and is
+  /// neither dropped nor marked.
+  Future<void> settle(
+    Set<GuestSave> moved, {
+    Set<GuestSave> left = const {},
     String? owner,
   }) async {
-    if (cafeIds.isEmpty && (leftFor.isEmpty || owner == null)) return;
+    if (moved.isEmpty && (left.isEmpty || owner == null)) return;
     await load();
     if (_readFailed) return;
     final saves = [
       for (final s in state.saves)
-        if (!cafeIds.contains(s.cafeId))
-          owner != null && leftFor.contains(s.cafeId) ? s.withOwner(owner) : s,
+        if (!moved.contains(s))
+          owner != null && left.contains(s) ? s.withOwner(owner) : s,
     ];
     if (listEquals(saves, state.saves)) return;
     emit(state.copyWith(saves: saves));
@@ -177,7 +181,7 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     } catch (e) {
       // Left on disk: the next launch merges them again, which skips cafes
       // the account already has.
-      debugPrint('[GuestSaves] removeAll write failed: $e');
+      debugPrint('[GuestSaves] settle write failed: $e');
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +22,9 @@ class _StatusRepository implements ICafeRepository {
   Set<String> failWriteFor = {};
   final List<String> writes = [];
 
+  /// While set, writes wait for it.
+  Completer<void>? hold;
+
   @override
   Future<Map<String, CafeStatus>> getCafeStatuses(List<String> cafeIds) async {
     if (failRead) throw Exception('offline');
@@ -32,6 +36,7 @@ class _StatusRepository implements ICafeRepository {
 
   @override
   Future<CafeStatus> setCafeStatus(String cafeId, CafeStatus status) async {
+    await hold?.future;
     if (failWriteFor.contains(cafeId)) throw Exception('offline');
     writes.add(cafeId);
     return server[cafeId] = status;
@@ -304,6 +309,61 @@ void main() {
 
     expect(saves.state.saves.single.owner, 'u1');
     expect(saves.state.saves.single.status, CafeStatus.been);
+  });
+
+  test('a merge started while another runs waits for it, not skips', () async {
+    await saves.set(_cafe('b'), CafeStatus.been);
+    repo.failRead = true;
+    await merger.merge(accountId: 'u0');
+    repo.failRead = false;
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    repo.hold = Completer<void>();
+
+    final first = merger.merge(accountId: 'u1');
+    final asked = merger.merge(accountId: 'u1', includeOthers: true);
+    await Future<void>.delayed(Duration.zero);
+    repo.hold!.complete();
+
+    expect((await first).added, 1);
+    expect((await asked).added, 1);
+    expect(repo.server, {'a': CafeStatus.wantToTry, 'b': CafeStatus.been});
+    expect(saves.state.isEmpty, isTrue);
+  });
+
+  test('once the session is not the account\'s, nothing more is written '
+      'and the rest stays as its leftovers', () async {
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    await saves.set(_cafe('b'), CafeStatus.been);
+    repo.hold = Completer<void>();
+    var current = true;
+
+    final run = merger.merge(accountId: 'u1', stillFor: () => current);
+    await Future<void>.delayed(Duration.zero);
+    // Signed out (or another account signed in) while a was being written.
+    current = false;
+    repo.hold!.complete();
+    final result = await run;
+
+    expect(repo.writes, ['a']);
+    expect(result.moved, 1);
+    expect(result.failed, 1);
+    expect(saves.state.saves.single.cafeId, 'b');
+    expect(saves.state.saves.single.owner, 'u1');
+  });
+
+  test('a cafe saved again while a merge runs keeps the new save', () async {
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    repo.hold = Completer<void>();
+
+    final run = merger.merge(accountId: 'u1');
+    await Future<void>.delayed(Duration.zero);
+    // Signed out meanwhile, the next guest saves the same cafe.
+    await saves.set(_cafe('a'), CafeStatus.been);
+    repo.hold!.complete();
+    await run;
+
+    expect(saves.state.saves.single.status, CafeStatus.been);
+    expect(saves.state.saves.single.owner, isNull);
   });
 
   test('account deletion drops only the saves that account left', () async {

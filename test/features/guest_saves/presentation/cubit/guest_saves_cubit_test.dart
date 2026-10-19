@@ -150,15 +150,36 @@ void main() {
     await cubit.close();
   });
 
-  test('removeAll drops only the given cafes', () async {
+  test('settle drops only the given saves', () async {
     final cubit = newCubit();
     await cubit.set(_a, CafeStatus.wantToTry);
     await cubit.set(_b, CafeStatus.been);
 
-    await cubit.removeAll({'a'});
+    await cubit.settle(_savesOf(cubit, {'a'}));
 
     expect([for (final s in cubit.state.saves) s.cafeId], ['b']);
     expect([for (final s in await store.read()) s.cafeId], ['b']);
+    await cubit.close();
+  });
+
+  test('settle leaves a save made again since it was read', () async {
+    final cubit = newCubit();
+    await cubit.set(_a, CafeStatus.wantToTry);
+    await cubit.set(_b, CafeStatus.wantToTry);
+    final read = _savesOf(cubit, {'a', 'b'});
+    // While a merge runs, the guest saves cafe a again.
+    await cubit.set(_a, CafeStatus.been);
+
+    await cubit.settle(
+      read.where((s) => s.cafeId == 'a').toSet(),
+      left: read.where((s) => s.cafeId == 'b').toSet(),
+      owner: 'u1',
+    );
+
+    final a = cubit.state.saves.firstWhere((s) => s.cafeId == 'a');
+    expect(a.status, CafeStatus.been);
+    expect(a.owner, isNull);
+    expect(cubit.state.saves.firstWhere((s) => s.cafeId == 'b').owner, 'u1');
     await cubit.close();
   });
 
@@ -228,7 +249,7 @@ void main() {
     expect(raw, hasLength(4));
     expect(raw.last, {'cafe': 'not a map', 'status': 42, 'saved_at': 7});
     // Even once every readable save is gone.
-    await cubit.removeAll({'a', 'b', 'c'});
+    await cubit.settle(_savesOf(cubit, {'a', 'b', 'c'}));
     final left = jsonDecode(prefs.getString('guest_saves_v1')!) as List;
     expect(left, [
       {'cafe': 'not a map', 'status': 42, 'saved_at': 7},
@@ -246,7 +267,9 @@ void main() {
     // Loaded but unknown: the home-screen widget must not read it as empty.
     expect(cubit.readFailed, isTrue);
     expect(await cubit.set(_a, CafeStatus.wantToTry), isNull);
-    await cubit.removeAll({'a'});
+    await cubit.settle({
+      GuestSave(cafe: _a, status: CafeStatus.wantToTry, savedAt: clock),
+    });
     expect(failing.writes, 0);
 
     failing.fail = false;
@@ -268,8 +291,10 @@ class _FailingStore extends GuestSavesStore {
   }
 
   @override
-  Future<void> write(
-    List<GuestSave> saves, {
-    bool dropUnreadable = false,
-  }) async => writes++;
+  Future<void> write(List<GuestSave> saves) async => writes++;
 }
+
+Set<GuestSave> _savesOf(GuestSavesCubit cubit, Set<String> ids) => {
+  for (final s in cubit.state.saves)
+    if (ids.contains(s.cafeId)) s,
+};
