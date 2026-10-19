@@ -10,5 +10,11 @@ class TAppTheme {
     fontFamily: 'Poppins',
     textTheme: TTextTheme.lightTextTheme,
     colorScheme: TColorScheme.lightColorScheme,
+    // The scheme's surface is transparent (docs/design_system.md), and the
+    // date picker dialog draws on it: give it the app's white.
+    datePickerTheme: const DatePickerThemeData(
+      backgroundColor: Color(0xFFFEFEFE),
+      surfaceTintColor: Colors.transparent,
+    ),
   );
 }

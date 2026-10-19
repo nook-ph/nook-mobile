@@ -18,6 +18,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/review_sheet_she
 import 'package:nook/features/cups/domain/entities/cup.dart';
 import 'package:nook/features/cups/domain/i_cups_repository.dart';
 import 'package:nook/features/cups/presentation/cup_draft.dart';
+import 'package:nook/features/cups/presentation/share/cup_share_sheet.dart';
 import 'package:nook/features/cups/presentation/widgets/cup_card_view.dart';
 import 'package:nook/features/gallery/data/gallery_photo_picker.dart';
 import 'package:nook/features/gallery/domain/entities/gallery_photo.dart';
@@ -90,24 +91,61 @@ Future<CupComposerOutcome?> openCupComposer(
     final been =
         context.read<CafeStatusCubit?>()?.state.statusFor(cafe.id) ==
         CafeStatus.been;
-    if (ranking != null &&
+    final rankIt =
+        ranking != null &&
         offersRankIt(
           outcome,
           been: been,
           ranked:
               ranking.state.rankingFor(cafe.id) != null ||
               ranking.state.isPending(cafe.id),
-        )) {
+        );
+    final shareCup = shareableCup(outcome);
+    void rank() => _rankAfterCup(
+      context,
+      cafe: cafe,
+      ranking: ranking!,
+      toastOffset: toastOffset,
+    );
+    void share() {
+      if (!context.mounted) return;
+      showCupShareSheet(
+        context,
+        cup: shareCup!,
+        cafeId: cafe.id,
+        cafeName: cafe.name,
+        cafeArea: cafe.area,
+        entry: CupShareEntry.postedToast,
+      );
+    }
+
+    if (shareCup != null && rankIt) {
+      // Both actions only fit a 320pt screen with the short message.
+      showPrimaryToastWithAction(
+        context,
+        'Cup posted',
+        // The secondary action shows first: "Cup posted  Share  Rank it".
+        secondaryActionLabel: 'Share',
+        onSecondaryAction: share,
+        actionLabel: 'Rank it',
+        onAction: rank,
+        duration: const Duration(seconds: 6),
+        bottomOffset: toastOffset,
+      );
+    } else if (shareCup != null) {
+      showPrimaryToastWithAction(
+        context,
+        outcome.message,
+        actionLabel: 'Share',
+        onAction: share,
+        bottomOffset: toastOffset,
+      );
+    } else if (rankIt) {
       showPrimaryToastWithAction(
         context,
         outcome.message,
         actionLabel: rankItLabel,
-        onAction: () => _rankAfterCup(
-          context,
-          cafe: cafe,
-          ranking: ranking,
-          toastOffset: toastOffset,
-        ),
+        onAction: rank,
         bottomOffset: toastOffset,
       );
     } else {
@@ -115,6 +153,17 @@ Future<CupComposerOutcome?> openCupComposer(
     }
   }
   return outcome;
+}
+
+/// The cup a posted toast offers to Share: a new, visible cup the server
+/// sent back (a legacy backend may not). Edits and deletes never do.
+CupCard? shareableCup(CupComposerOutcome outcome) {
+  final cup = outcome.result?.cup;
+  if (outcome.action != CupComposerAction.posted || cup?.cupId == null) {
+    return null;
+  }
+  final status = cup!.moderationStatus;
+  return status == null || status == 'visible' ? cup : null;
 }
 
 /// The posted toast's action (REVIEWS_GALLERY_MERGE, "Posting marks the

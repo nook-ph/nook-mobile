@@ -120,6 +120,39 @@ abstract final class CupEvents {
   static const rankItTapped = 'cup_rank_it_tapped';
 }
 
+/// Sharing your own cup as a story image (docs/features/share_cup_story.md
+/// §1).
+abstract final class CupShareEvents {
+  /// The cup share sheet opened. Properties: `cafe_id`, `cup_id`, `entry`
+  /// (one of [CupShareEntry]), `has_photo`, `photo_count`, `layout`
+  /// (`photo` or `note`).
+  static const opened = 'cup_share_opened';
+
+  /// A target was handed the image or link. Properties: `cafe_id`,
+  /// `cup_id`, `entry`, `target` (`system`, `overlay` for the transparent
+  /// PNG, `copy_link`), `result` (the share sheet's status: on Android
+  /// `success` means a target was picked, not sent), `layout`,
+  /// `photo_source` (`cup`, `device` or `none`), `photo_index`,
+  /// `has_handle`.
+  static const shared = 'cup_shared';
+
+  /// Rendering or sharing failed. Properties: `stage` (`render`,
+  /// `write_file`), `target`, `error` (exception type only).
+  static const failed = 'cup_share_failed';
+
+  /// The cafe's @handle was copied. Properties: `cafe_id`, `entry`
+  /// (`share_sheet`).
+  static const handleCopied = 'cafe_handle_copied';
+}
+
+/// Where the cup share sheet was opened from, for [CupShareEvents].
+abstract final class CupShareEntry {
+  static const postedToast = 'posted_toast';
+  static const cupMenu = 'cup_menu';
+  static const storyViewer = 'story_viewer';
+  static const profile = 'profile';
+}
+
 /// Where the cup composer was opened from, for [CupEvents].
 abstract final class CupSource {
   static const cafeSection = 'cafe_section';

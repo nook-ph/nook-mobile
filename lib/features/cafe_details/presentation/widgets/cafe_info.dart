@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:nook/core/utils/social_handle.dart';
 
 import 'package:flutter/material.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -165,54 +166,6 @@ class CafeHoursLocationSection extends StatelessWidget {
   final CafeDetailsResult cafe;
   final CafeTagGroups groups;
 
-  /// First path segments that are a kind of content, not an account.
-  static const _nonProfileSegments = {
-    'p',
-    'reel',
-    'reels',
-    'tv',
-    'stories',
-    'explore',
-  };
-
-  @visibleForTesting
-  static String? socialHandle(String rawValue) => _extractHandle(rawValue);
-
-  static String? _extractHandle(String rawValue) {
-    final trimmed = rawValue.trim();
-    if (trimmed.isEmpty) return null;
-
-    var value = trimmed;
-    if (!value.contains('://') && value.startsWith('www.')) {
-      value = 'https://$value';
-    }
-
-    final parsed = Uri.tryParse(value);
-    String? handle;
-    if (parsed != null &&
-        (parsed.hasScheme || parsed.host.isNotEmpty) &&
-        parsed.pathSegments.isNotEmpty) {
-      // The profile is the first segment: ".../cafe/reels/" is still "cafe".
-      handle = parsed.pathSegments.firstWhere(
-        (segment) => segment.trim().isNotEmpty,
-        orElse: () => '',
-      );
-      // A link to a post or a reel names no profile; the link itself opens.
-      if (_nonProfileSegments.contains(handle.toLowerCase())) return null;
-      if (handle.isEmpty && parsed.queryParameters.isNotEmpty) {
-        handle = parsed.queryParameters['id'];
-      }
-    } else if (trimmed.contains('/')) {
-      handle = trimmed.split('/').last;
-    } else {
-      handle = trimmed;
-    }
-
-    final normalized = handle?.replaceFirst('@', '').trim();
-    if (normalized == null || normalized.isEmpty) return null;
-    return normalized;
-  }
-
   static Uri? _toWebUri(String value) {
     final trimmed = value.trim();
     if (trimmed.isEmpty) return null;
@@ -238,7 +191,7 @@ class CafeHoursLocationSection extends StatelessWidget {
       properties: {'cafe_id': cafe.cafeDetails.id, 'platform': platform},
     );
 
-    final handle = _extractHandle(value);
+    final handle = socialHandle(value);
     Uri? appUri;
     Uri? webUri = _toWebUri(value);
 

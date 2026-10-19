@@ -30,8 +30,8 @@ void showPrimaryToast(
 }
 
 /// Primary toast with a trailing action (e.g. "Added to Been · Add a note"),
-/// and optionally a second one before it ("Undo" · "View"). Tapping an
-/// action dismisses the toast first.
+/// and optionally a second one before it ("Undo" · "View", "Share" · "Rank
+/// it"). Tapping an action dismisses the toast first.
 ///
 /// [duration] null keeps the toast until it is acted on, closed (a close
 /// button is then shown) or replaced: see [toastDurationFor].

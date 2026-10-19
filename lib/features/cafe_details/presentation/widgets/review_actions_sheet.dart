@@ -14,7 +14,7 @@ import 'package:nook/injection_container.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// What the ⋯ sheet on a review can return.
-enum ReviewOption { report, block, edit, delete }
+enum ReviewOption { report, block, edit, delete, share }
 
 String? _currentUserId() => Supabase.instance.client.auth.currentUser?.id;
 
@@ -212,11 +212,22 @@ class ReviewOptionsSheet extends StatelessWidget {
   }
 
   /// Edit and delete, for the signed-in user's own cup.
-  factory ReviewOptionsSheet.forOwnCup({String? cafeName}) {
+  /// [canShare] adds Share cup first (docs/features/share_cup_story.md §3.3).
+  factory ReviewOptionsSheet.forOwnCup({
+    String? cafeName,
+    bool canShare = false,
+  }) {
     final cafe = cafeName?.trim() ?? '';
     return ReviewOptionsSheet._(
       title: 'Your cup',
       options: [
+        if (canShare)
+          (
+            option: ReviewOption.share,
+            label: 'Share cup',
+            detail: 'To your Instagram Story or anywhere',
+            danger: false,
+          ),
         (
           option: ReviewOption.edit,
           label: 'Edit cup',
