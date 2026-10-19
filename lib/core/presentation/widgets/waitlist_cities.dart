@@ -80,11 +80,13 @@ abstract final class WaitlistCities {
     'Malaybalay': [],
   };
 
+  /// Each name and alias as written, normalised. A typed answer is looked
+  /// up as it is, then without a "City" around it: so "Davao City" finds
+  /// Davao, while "Quezon" (the province) does not find Quezon City.
   static final Map<String, String> _byKey = {
-    for (final entry in _names.entries) ...{
-      key(entry.key): entry.key,
-      for (final alias in entry.value) key(alias): entry.key,
-    },
+    for (final entry in _names.entries)
+      for (final written in [entry.key, ...entry.value])
+        _normalise(written): entry.key,
   };
 
   /// The canonical name [typed] refers to, or null when it is not a city or
@@ -92,20 +94,24 @@ abstract final class WaitlistCities {
   /// "Philippines" / "PH", does not stop a match: "Davao City,
   /// Philippines" and "Iloilo City, Iloilo" match.
   static String? match(String typed) {
-    final whole = _byKey[_withoutCountry(key(typed))];
+    final whole = _lookup(typed);
     if (whole != null) return whole;
     final comma = typed.indexOf(',');
     if (comma <= 0) return null;
-    return _byKey[_withoutCountry(key(typed.substring(0, comma)))];
+    return _lookup(typed.substring(0, comma));
+  }
+
+  static String? _lookup(String typed) {
+    final k = _withoutCountry(_normalise(typed));
+    if (k.isEmpty) return null;
+    return _byKey[k] ?? _byKey[_stripCity(k)];
   }
 
   static const _countrySuffixes = [' philippines', ' ph'];
 
   static String _withoutCountry(String k) {
     for (final suffix in _countrySuffixes) {
-      if (k.endsWith(suffix)) {
-        return _stripCity(k.substring(0, k.length - suffix.length));
-      }
+      if (k.endsWith(suffix)) return k.substring(0, k.length - suffix.length);
     }
     return k;
   }
@@ -122,9 +128,8 @@ abstract final class WaitlistCities {
   };
 
   /// Lower case, accents dropped, anything but letters and digits as
-  /// spaces, single-spaced, and a leading "city of" or trailing "city"
-  /// taken off.
-  static String key(String text) {
+  /// spaces, single-spaced.
+  static String _normalise(String text) {
     final buffer = StringBuffer();
     for (final rune in text.toLowerCase().runes) {
       // A combining mark (an "n" typed with a separate tilde) goes with
@@ -133,13 +138,12 @@ abstract final class WaitlistCities {
       final char = String.fromCharCode(rune);
       buffer.write(_accents[char] ?? char);
     }
-    final k = buffer
+    return buffer
         .toString()
         // Anything but a letter or digit (punctuation, quotes, emoji)
         // separates words.
         .replaceAll(_nonAlphanumeric, ' ')
         .trim();
-    return _stripCity(k);
   }
 
   static String _stripCity(String key) {
