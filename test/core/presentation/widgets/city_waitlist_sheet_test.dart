@@ -29,21 +29,39 @@ void main() {
     expect(CityWaitlistSheet.clean('   '), '');
   });
 
-  test('analyticsCity sends place names, never contact details', () {
+  test('analyticsCity sends the canonical name of a matched city', () {
     expect(CityWaitlistSheet.analyticsCity('davao'), 'Davao');
-    expect(CityWaitlistSheet.analyticsCity(' Iloilo City '), 'Iloilo City');
-    expect(CityWaitlistSheet.analyticsCity('Dumaguete'), 'Dumaguete');
-    expect(CityWaitlistSheet.analyticsCity('Parañaque'), 'Parañaque');
-    expect(
-      CityWaitlistSheet.analyticsCity('Juan Dela Cruz, juan@gmail.com, Makati'),
-      CityWaitlistSheet.other,
-    );
-    expect(CityWaitlistSheet.analyticsCity('0917 123 4567'), 'other');
-    expect(CityWaitlistSheet.analyticsCity('123 Rizal St, Makati'), 'other');
-    expect(
-      CityWaitlistSheet.analyticsCity('my house near the old church plaza'),
-      'other',
-    );
+    expect(CityWaitlistSheet.analyticsCity(' Iloilo City '), 'Iloilo');
+    expect(CityWaitlistSheet.analyticsCity('DUMAGUETE'), 'Dumaguete');
+    expect(CityWaitlistSheet.analyticsCity('Paranaque'), 'Parañaque');
+    expect(CityWaitlistSheet.analyticsCity('parañaque city'), 'Parañaque');
+    expect(CityWaitlistSheet.analyticsCity('City of Makati'), 'Makati');
+    expect(CityWaitlistSheet.analyticsCity('quezon  city'), 'Quezon City');
+    expect(CityWaitlistSheet.analyticsCity('QC'), 'Quezon City');
+    expect(CityWaitlistSheet.analyticsCity('cdo'), 'Cagayan de Oro');
+    expect(CityWaitlistSheet.analyticsCity('Lapu Lapu'), 'Lapu-Lapu');
+    expect(CityWaitlistSheet.analyticsCity('Gen. San.'), 'General Santos');
+  });
+
+  test('analyticsCity sends other for anything not a known city', () {
+    for (final typed in [
+      'Juan Dela Cruz',
+      'Maria',
+      'Juan Dela Cruz, juan@gmail.com, Makati',
+      '0917 123 4567',
+      '123 Rizal St, Makati',
+      'my house near the old church plaza',
+      'Springfield',
+      '',
+    ]) {
+      expect(CityWaitlistSheet.analyticsCity(typed), CityWaitlistSheet.other);
+    }
+  });
+
+  test('every suggestion is a known city sent as written', () {
+    for (final city in CityWaitlistSheet.suggestions) {
+      expect(CityWaitlistSheet.analyticsCity(city), city);
+    }
   });
 
   testWidgets('a picked city is logged with its surface', (tester) async {
@@ -90,9 +108,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(analytics.propertiesOf(CityWaitlistEvents.requested), {
-      'city': 'Iloilo City',
+      'city': 'Iloilo',
       'surface': 'map',
     });
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a typed name that is not a city is sent as other, never raw', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_app());
+    await tester.tap(find.text('ask'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Juan Dela Cruz');
+    await tester.pump();
+    await tester.tap(find.text(CityWaitlistSheet.sendLabel));
+    await tester.pumpAndSettle();
+
+    expect(analytics.flat, [
+      [
+        CityWaitlistEvents.requested,
+        {'city': CityWaitlistSheet.other, 'surface': 'map'},
+      ],
+    ]);
+    expect(analytics.flat.toString(), isNot(contains('Juan')));
+    // Thanked all the same.
+    expect(find.text(CityWaitlistSheet.thanks), findsOneWidget);
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
   });

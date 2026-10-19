@@ -3,14 +3,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/retention_tracking_events.dart';
+import 'package:nook/core/presentation/widgets/waitlist_cities.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/core/widgets/error/state_styles.dart';
 
 /// Asks someone outside Cebu which city they want Nook in, logs it as
-/// `city_waitlist_requested` (see [CityWaitlistSheet.analyticsCity] for what
-/// is sent), and thanks them. Nothing is stored; the event
-/// is the count. The app has no reverse geocoder, so the user names the city.
+/// `city_waitlist_requested` with a matched city or `other` (see
+/// [CityWaitlistSheet.analyticsCity]), and thanks them. Nothing is stored
+/// and the typed text is never sent; the event is the count. The app has no reverse geocoder, so the user names the city.
 Future<void> requestCityWaitlist(
   BuildContext context, {
   required String surface,
@@ -65,31 +66,16 @@ class CityWaitlistSheet extends StatefulWidget {
     return text.length <= maxLength ? text : text.substring(0, maxLength);
   }
 
-  /// What goes to analytics for [city]: a suggestion as written, a typed
-  /// answer only if it reads like a place name (letters, spaces, `.'-`, at
-  /// most [maxAnalyticsLength] characters and four words), else [other].
-  /// The field is free text, and an email, phone number or street address
-  /// typed into it must not reach analytics.
-  static String analyticsCity(String city) {
-    final text = clean(city);
-    for (final s in suggestions) {
-      if (s.toLowerCase() == text.toLowerCase()) return s;
-    }
-    if (text.isEmpty ||
-        text.length > maxAnalyticsLength ||
-        text.split(' ').length > 4 ||
-        !_placeName.hasMatch(text)) {
-      return other;
-    }
-    return text;
-  }
+  /// What goes to analytics for [city]: the canonical name when it matches
+  /// a known city or area ([WaitlistCities], ignoring case, accents and
+  /// spacing), else [other]. The typed text itself is never sent or stored:
+  /// the field is free text, and a name, email, phone number or address
+  /// typed into it must not leave the phone.
+  static String analyticsCity(String city) =>
+      WaitlistCities.match(clean(city)) ?? other;
 
-  /// Logged for a typed answer that does not read like a city.
+  /// Logged for a typed answer that is not a known city or area.
   static const other = 'other';
-
-  static const maxAnalyticsLength = 30;
-
-  static final _placeName = RegExp(r"^[\p{L}][\p{L} .'\-]*$", unicode: true);
 
   @override
   State<CityWaitlistSheet> createState() => _CityWaitlistSheetState();

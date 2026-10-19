@@ -1,8 +1,8 @@
 // PostHog events for the retention review: where guests meet the sign-in
 // wall, what happens at the location prompt, which Home rails are seen and
 // used, where a screen ends up empty, and who asks for Nook in their city.
-// Sent through `logAppEvent`; snake_case object_verb, no free text except the
-// city a user types into the waitlist sheet.
+// Sent through `logAppEvent`; snake_case object_verb, no free text (the
+// waitlist sends a matched city name or `other`, never what was typed).
 
 /// The guest sign-in sheets (`GuestSignInSheet`, `CafeGuestSignInSheet`).
 abstract final class SignInPromptEvents {
@@ -85,7 +85,8 @@ abstract final class EmptyStateEvents {
 /// Demand outside Nook's coverage.
 abstract final class CityWaitlistEvents {
   /// A user outside Cebu asked for Nook in their city. Properties: `city`
-  /// (as typed, trimmed, at most 60 characters), `surface` (`map`, `search`).
+  /// (the canonical name of a known city or area the answer matched, else
+  /// `other`; never the typed text), `surface` (`map`, `search`).
   static const requested = 'city_waitlist_requested';
 }
 
