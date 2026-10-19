@@ -69,10 +69,15 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
   /// The account signed in, while one is.
   String? _accountId;
 
-  /// The account the merge ask is on screen for (or waiting for a sheet
-  /// to close), if any. An ask left over for an account that signed out
-  /// does not hold back the next account's.
-  String? _askingFor;
+  /// Counts sign-ins and sign-outs: work started for one session (a merge,
+  /// the ask, a Retry) checks it is still that session before it writes,
+  /// asks or toasts, even when the same account has signed in again since.
+  int _session = 0;
+
+  /// The session a sign-in's merge and ask are running for, so a second
+  /// sign-in event in it (the auth state put back after an error, or the
+  /// launch path and the listener both firing) does not run them twice.
+  int? _signingIn;
 
   bool get _signedIn =>
       widget.isSignedIn?.call() ??
@@ -153,51 +158,48 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     );
   }
 
-  /// The account a sign-in's merge and ask are running for, so a second
-  /// sign-in event for it (the auth state put back after an error, or the
-  /// launch path and the listener both firing) does not run them twice.
-  String? _signingInFor;
-
-  /// Which run of [_onSignedIn] holds [_signingInFor], so an older run
-  /// ending does not release a newer one's.
-  int _signInRun = 0;
-
   /// Moves the saves that are [accountId]'s to take (made while signed
   /// out, or left by an earlier merge into it), then asks about any another
   /// account left, then says what moved in one toast.
   Future<void> _onSignedIn(String accountId) async {
-    _accountId = accountId;
-    if (_signingInFor == accountId) return;
-    _signingInFor = accountId;
-    final run = ++_signInRun;
+    if (_accountId != accountId) {
+      _session++;
+      _accountId = accountId;
+    }
+    final session = _session;
+    if (_signingIn == session) return;
+    _signingIn = session;
     try {
-      var result = await _merge(accountId);
-      if (!mounted) return;
-      final asked = await _askAboutOthers(accountId);
+      var result = await _merge(accountId, session);
+      if (!_isCurrent(session)) return;
+      final asked = await _askAboutOthers(accountId, session);
       if (asked != null) result = result.followedBy(asked);
-      if (mounted && _accountId == accountId) _confirm(result, accountId);
+      if (_isCurrent(session)) _confirm(result, accountId, session);
     } finally {
-      if (_signInRun == run) _signingInFor = null;
+      if (_signingIn == session) _signingIn = null;
     }
   }
 
+  bool _isCurrent(int session) => mounted && _session == session;
+
   Future<GuestMergeResult> _merge(
-    String accountId, {
+    String accountId,
+    int session, {
     bool includeOthers = false,
   }) async {
     final lists = context.read<ListsBloc>();
     final result = await _merger.merge(
       accountId: accountId,
       includeOthers: includeOthers,
-      stillFor: () => mounted && _accountId == accountId,
+      stillFor: () => _isCurrent(session),
     );
     // Saved-tab counts and previews come from the lists.
-    if (result.added > 0 && mounted) lists.add(LoadUserLists());
+    if (result.added > 0 && _isCurrent(session)) lists.add(LoadUserLists());
     return result;
   }
 
-  bool _stillSignedInAs(String accountId) {
-    if (!mounted || _accountId != accountId) return false;
+  bool _stillSignedInAs(String accountId, int session) {
+    if (!_isCurrent(session)) return false;
     final auth = context.read<AuthBloc>().state;
     return auth is AuthAuthenticated && auth.user.id == accountId;
   }
@@ -207,48 +209,48 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
   /// them". Otherwise they stay on the phone as guest saves, not this
   /// account's. The merge "Add them" ran (it tried again everything on the
   /// phone), or null when none ran.
-  Future<GuestMergeResult?> _askAboutOthers(String accountId) async {
-    if (_askingFor == accountId) return null;
-    _askingFor = accountId;
-    try {
-      final saves = context.read<GuestSavesCubit>();
-      if ((await _merger.othersFor(accountId)).isEmpty) return null;
-      if (await saves.mergeAskedFor() == accountId) return null;
-      final sheetContext = await _clearNavigatorContext();
-      if (sheetContext == null || !_stillSignedInAs(accountId)) return null;
-      final others = await _merger.othersFor(accountId);
-      final count = others.length;
-      if (count == 0 || !sheetContext.mounted || !_stillSignedInAs(accountId)) {
-        return null;
-      }
-      // Counted before it shows, so a sheet closed by the app going away
-      // is not asked again this sign-in.
-      await saves.setMergeAskedFor(accountId);
-      if (!sheetContext.mounted || !_stillSignedInAs(accountId)) return null;
-      // A consequence of the sign-in, so it does not wait for the session's
-      // budget; it takes it, so nothing else is pushed on top this session.
-      SessionAskBudget.instance.spend(SessionAskKind.mergeAsk);
-      logAppEvent(
-        SavesEvents.guestSavesMergeAsked,
-        properties: {'count': count},
-      );
-      dismissToasts();
-      final answer = await MergeAskSheet.show(
-        sheetContext,
-        count: count,
-        names: [for (final s in others) s.cafe.name],
-      );
-      logAppEvent(
-        SavesEvents.guestSavesMergeAnswered,
-        properties: {'count': count, 'answer': answer.wire},
-      );
-      if (answer != MergeAskAnswer.add || !_stillSignedInAs(accountId)) {
-        return null;
-      }
-      return await _merge(accountId, includeOthers: true);
-    } finally {
-      if (_askingFor == accountId) _askingFor = null;
+  Future<GuestMergeResult?> _askAboutOthers(
+    String accountId,
+    int session,
+  ) async {
+    final saves = context.read<GuestSavesCubit>();
+    if (await saves.mergeAskedFor() == accountId) return null;
+    if ((await _merger.othersFor(accountId)).isEmpty) return null;
+    final sheetContext = await _clearNavigatorContext();
+    if (sheetContext == null || !_stillSignedInAs(accountId, session)) {
+      return null;
     }
+    final others = await _merger.othersFor(accountId);
+    final count = others.length;
+    if (count == 0 ||
+        !sheetContext.mounted ||
+        !_stillSignedInAs(accountId, session)) {
+      return null;
+    }
+    // Counted before it shows, so a sheet closed by the app going away
+    // is not asked again this sign-in.
+    await saves.setMergeAskedFor(accountId);
+    if (!sheetContext.mounted || !_stillSignedInAs(accountId, session)) {
+      return null;
+    }
+    // A consequence of the sign-in, so it does not wait for the session's
+    // budget; it takes it, so nothing else is pushed on top this session.
+    SessionAskBudget.instance.spend(SessionAskKind.mergeAsk);
+    logAppEvent(SavesEvents.guestSavesMergeAsked, properties: {'count': count});
+    dismissToasts();
+    final answer = await MergeAskSheet.show(
+      sheetContext,
+      count: count,
+      names: [for (final s in others) s.cafe.name],
+    );
+    logAppEvent(
+      SavesEvents.guestSavesMergeAnswered,
+      properties: {'count': count, 'answer': answer.wire},
+    );
+    if (answer != MergeAskAnswer.add || !_stillSignedInAs(accountId, session)) {
+      return null;
+    }
+    return await _merge(accountId, session, includeOthers: true);
   }
 
   /// A context under the app's navigator with no sheet or dialog on top:
@@ -289,15 +291,15 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     return null;
   }
 
-  void _confirm(GuestMergeResult result, String accountId) {
+  void _confirm(GuestMergeResult result, String accountId, int session) {
     final toast = widget.toastContext?.call();
     if (toast == null || !toast.mounted) return;
     showMergeToast(
       toast,
       result,
       onRetry: () => unawaited(
-        _merge(accountId).then((r) {
-          if (mounted && _accountId == accountId) _confirm(r, accountId);
+        _merge(accountId, session).then((r) {
+          if (_isCurrent(session)) _confirm(r, accountId, session);
         }),
       ),
     );
@@ -327,7 +329,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
           listener: (context, state) {
             final left = _accountId;
             _accountId = null;
-            _signingInFor = null;
+            _session++;
             final saves = context.read<GuestSavesCubit>();
             // The session ended: the next sign-in asks again.
             unawaited(saves.setMergeAskedFor(null));

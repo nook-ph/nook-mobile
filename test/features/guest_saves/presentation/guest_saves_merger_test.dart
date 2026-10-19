@@ -385,6 +385,23 @@ void main() {
     expect(saves.state.isEmpty, isTrue);
   });
 
+  test('a merge that never answers holds the next one only so long', () async {
+    final quick = GuestSavesMerger(
+      saves: saves,
+      statuses: statuses,
+      queueWait: const Duration(milliseconds: 50),
+    );
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    repo.hold = Completer<void>();
+    final stuck = quick.merge(accountId: 'u1');
+    await Future<void>.delayed(Duration.zero);
+
+    // The deletion clean-up still runs, though the merge is stuck.
+    await quick.dropOwnedBy('u9').timeout(const Duration(seconds: 2));
+    repo.hold!.complete();
+    await stuck;
+  });
+
   test('account deletion drops only the saves that account left', () async {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     repo.failRead = true;

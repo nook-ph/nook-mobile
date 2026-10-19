@@ -476,6 +476,47 @@ void main() {
     await app.clearToasts();
   });
 
+  testWidgets('signing out and back in while the ask waits asks once, '
+      'for the new sign-in', (tester) async {
+    final app = _Harness(tester);
+    await tester.runAsync(
+      () => app.saves.set(_cafe('a'), CafeStatus.wantToTry),
+    );
+    await app.pump();
+    await app.failedMergeFor('u1');
+    analytics.events.clear();
+
+    unawaited(
+      showModalBottomSheet<void>(
+        context: app.navigator.currentContext!,
+        builder: (_) => const SizedBox(height: 200, child: Text('other sheet')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await app.signIn('u2');
+    await app.signOut();
+    // Signed out for a moment, a guest save is made.
+    await tester.runAsync(() => app.saves.set(_cafe('d'), CafeStatus.been));
+    await app.signIn('u2');
+
+    app.navigator.currentState!.pop();
+    await app.settle();
+    await app.settle();
+
+    expect(find.byType(MergeAskSheet), findsOneWidget);
+    await tester.tap(find.text(MergeAskSheet.addOneLabel));
+    await app.settle();
+    await app.settle();
+    expect(
+      analytics.names.where((n) => n == SavesEvents.guestSavesMergeAsked),
+      hasLength(1),
+    );
+    expect(app.repo.server, {'a': CafeStatus.wantToTry, 'd': CafeStatus.been});
+    // One toast for the sign-in, with both.
+    expect(find.text('Moved 2 cafes to your account'), findsOneWidget);
+    await app.clearToasts();
+  });
+
   testWidgets('a launch mid sign-up (username step) moves nothing until '
       'the account is finished', (tester) async {
     final repo = _Repo();

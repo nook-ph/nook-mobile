@@ -18,7 +18,11 @@ import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.d
 /// for ([GuestSave.owner]): it moves on its own only into that account
 /// again, and stays a guest save after a sign-out.
 class GuestSavesMerger {
-  GuestSavesMerger({required this.saves, required this.statuses});
+  GuestSavesMerger({
+    required this.saves,
+    required this.statuses,
+    this.queueWait = const Duration(seconds: 20),
+  });
 
   final GuestSavesCubit saves;
   final CafeStatusCubit statuses;
@@ -45,16 +49,27 @@ class GuestSavesMerger {
     bool includeOthers = false,
     bool Function()? stillFor,
   }) {
-    final run = _last.then(
-      (_) => _guarded(
+    final previous = _last;
+    final run = () async {
+      await _after(previous);
+      return _guarded(
         accountId,
         includeOthers: includeOthers,
         stillFor: stillFor ?? () => true,
-      ),
-    );
+      );
+    }();
     _last = run.then<void>((_) {}, onError: (_) {});
     return run;
   }
+
+  /// How long a merge waits for the one before it. A network call with no
+  /// answer must not hold every later merge (or an account deletion's
+  /// clean-up) for good; past this, they run anyway, which is safe: a cafe
+  /// mid-write is skipped, and saves are settled as they were read.
+  final Duration queueWait;
+
+  Future<void> _after(Future<void> previous) =>
+      previous.timeout(queueWait, onTimeout: () {});
 
   Future<GuestMergeResult> _guarded(
     String accountId, {
@@ -167,7 +182,11 @@ class GuestSavesMerger {
   /// Waits for a merge still running: one into [accountId] marks what it
   /// did not finish as [accountId]'s, and those must go too.
   Future<void> dropOwnedBy(String accountId) {
-    final run = _last.then((_) => _dropOwnedBy(accountId));
+    final previous = _last;
+    final run = () async {
+      await _after(previous);
+      await _dropOwnedBy(accountId);
+    }();
     _last = run;
     return run;
   }
