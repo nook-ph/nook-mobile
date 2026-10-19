@@ -34,6 +34,10 @@ void main() {
     expect(CityWaitlistSheet.analyticsCity(' Iloilo City '), 'Iloilo');
     expect(CityWaitlistSheet.analyticsCity('DUMAGUETE'), 'Dumaguete');
     expect(CityWaitlistSheet.analyticsCity('Paranaque'), 'Parañaque');
+    // An n typed with a separate tilde, and stray punctuation.
+    expect(CityWaitlistSheet.analyticsCity('Paran\u0303aque'), 'Parañaque');
+    expect(CityWaitlistSheet.analyticsCity('Davao!'), 'Davao');
+    expect(CityWaitlistSheet.analyticsCity('"QC"'), 'Quezon City');
     expect(CityWaitlistSheet.analyticsCity('parañaque city'), 'Parañaque');
     expect(CityWaitlistSheet.analyticsCity('City of Makati'), 'Makati');
     expect(CityWaitlistSheet.analyticsCity('quezon  city'), 'Quezon City');

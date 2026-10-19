@@ -104,18 +104,23 @@ abstract final class WaitlistCities {
     'ñ': 'n', 'ç': 'c',
   };
 
-  /// Lower case, accents dropped, punctuation as spaces, single-spaced, and
-  /// a leading "city of" or trailing "city" taken off.
+  /// Lower case, accents dropped, anything but letters and digits as
+  /// spaces, single-spaced, and a leading "city of" or trailing "city"
+  /// taken off.
   static String key(String text) {
     final buffer = StringBuffer();
     for (final rune in text.toLowerCase().runes) {
+      // A combining mark (an "n" typed with a separate tilde) goes with
+      // the letter before it.
+      if (rune >= 0x0300 && rune <= 0x036F) continue;
       final char = String.fromCharCode(rune);
       buffer.write(_accents[char] ?? char);
     }
     var k = buffer
         .toString()
-        .replaceAll(RegExp(r"[.,'’\-_/()]"), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
+        // Anything but a letter or digit (punctuation, quotes, emoji)
+        // separates words.
+        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
         .trim();
     if (k.startsWith('city of ')) k = k.substring('city of '.length);
     if (k.endsWith(' city')) k = k.substring(0, k.length - ' city'.length);
