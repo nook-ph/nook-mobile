@@ -148,7 +148,7 @@ class HomeRatingPill extends StatelessWidget {
             rating.toStringAsFixed(1),
             style: context.textTheme.bodyExtraSmallMed.copyWith(
               color: context.colorScheme.black,
-              fontSize: 10,
+              fontSize: 11,
               height: 1.5,
             ),
           ),

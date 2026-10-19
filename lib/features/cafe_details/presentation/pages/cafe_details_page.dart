@@ -582,11 +582,13 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             automaticallyImplyLeading: false,
                             leadingWidth: 70,
                             leading: Padding(
-                              padding: const EdgeInsets.only(left: 22.0),
+                              // 22 to the circle; its 44 target adds 2.
+                              padding: const EdgeInsets.only(left: 20.0),
                               child: Center(
                                 child: AppBarCircleIconButton(
                                   icon: Icons.arrow_back,
                                   iconSize: 18,
+                                  label: 'Back',
                                   onTap: () => Navigator.pop(context),
                                 ),
                               ),
@@ -613,7 +615,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                       : '',
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              // 12 between the circles; each 44 target
+                              // reaches 2 past its circle.
+                              const SizedBox(width: 8),
                               Center(
                                 child: _SavedButton(
                                   cafeId: widget.cafeId,
@@ -623,7 +627,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   toastOffset: _toastOffset,
                                 ),
                               ),
-                              const SizedBox(width: 22),
+                              const SizedBox(width: 20),
                             ],
                             bottom: PreferredSize(
                               preferredSize: const Size.fromHeight(0.5),
@@ -705,6 +709,7 @@ class _ShareButton extends StatelessWidget {
     return AppBarCircleIconButton(
       icon: PhosphorIcons.shareNetwork(),
       iconSize: 18,
+      label: 'Share',
       onTap: () {
         // Details are still loading — a share with no name reads broken, and
         // the load takes well under a second.
