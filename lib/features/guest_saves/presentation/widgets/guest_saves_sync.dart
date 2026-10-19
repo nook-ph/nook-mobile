@@ -69,8 +69,10 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
   /// The account signed in, while one is.
   String? _accountId;
 
-  /// The merge ask is on screen (or waiting for a sheet to close).
-  bool _asking = false;
+  /// The account the merge ask is on screen for (or waiting for a sheet
+  /// to close), if any. An ask left over for an account that signed out
+  /// does not hold back the next account's.
+  String? _askingFor;
 
   bool get _signedIn =>
       widget.isSignedIn?.call() ??
@@ -156,6 +158,10 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
   /// launch path and the listener both firing) does not run them twice.
   String? _signingInFor;
 
+  /// Which run of [_onSignedIn] holds [_signingInFor], so an older run
+  /// ending does not release a newer one's.
+  int _signInRun = 0;
+
   /// Moves the saves that are [accountId]'s to take (made while signed
   /// out, or left by an earlier merge into it), then asks about any another
   /// account left, then says what moved in one toast.
@@ -163,6 +169,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     _accountId = accountId;
     if (_signingInFor == accountId) return;
     _signingInFor = accountId;
+    final run = ++_signInRun;
     try {
       var result = await _merge(accountId);
       if (!mounted) return;
@@ -170,7 +177,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
       if (asked != null) result = result.followedBy(asked);
       if (mounted && _accountId == accountId) _confirm(result, accountId);
     } finally {
-      if (_signingInFor == accountId) _signingInFor = null;
+      if (_signInRun == run) _signingInFor = null;
     }
   }
 
@@ -201,8 +208,8 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
   /// account's. The merge "Add them" ran (it tried again everything on the
   /// phone), or null when none ran.
   Future<GuestMergeResult?> _askAboutOthers(String accountId) async {
-    if (_asking) return null;
-    _asking = true;
+    if (_askingFor == accountId) return null;
+    _askingFor = accountId;
     try {
       final saves = context.read<GuestSavesCubit>();
       if ((await _merger.othersFor(accountId)).isEmpty) return null;
@@ -240,7 +247,7 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
       }
       return await _merge(accountId, includeOthers: true);
     } finally {
-      _asking = false;
+      if (_askingFor == accountId) _askingFor = null;
     }
   }
 

@@ -154,24 +154,25 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     return true;
   }
 
-  /// Drops the saves in [moved] (they reached the account), and marks the
-  /// saves in [left] as left by a merge into account [owner], so they move
-  /// on their own only into that account. One write.
+  /// Drops the saves in [drop] (they reached the account, or belonged to a
+  /// deleted one), and marks the saves in [left] as left by a merge into
+  /// account [owner], so they move on their own only into that account.
+  /// One write.
   ///
   /// Matched as they were read, not by cafe: a save changed or made again
   /// while a merge ran (after a sign-out, say) is a new save, and is
   /// neither dropped nor marked.
   Future<void> settle(
-    Set<GuestSave> moved, {
+    Set<GuestSave> drop, {
     Set<GuestSave> left = const {},
     String? owner,
   }) async {
-    if (moved.isEmpty && (left.isEmpty || owner == null)) return;
+    if (drop.isEmpty && (left.isEmpty || owner == null)) return;
     await load();
     if (_readFailed) return;
     final saves = [
       for (final s in state.saves)
-        if (!moved.contains(s))
+        if (!drop.contains(s))
           owner != null && left.contains(s) ? s.withOwner(owner) : s,
     ];
     if (listEquals(saves, state.saves)) return;

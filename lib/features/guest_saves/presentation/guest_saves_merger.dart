@@ -163,7 +163,16 @@ class GuestSavesMerger {
   /// On account deletion: drops the saves a merge into [accountId] left on
   /// this phone. The account and its data are gone; saves made while signed
   /// out, or left by another account, stay.
-  Future<void> dropOwnedBy(String accountId) async {
+  ///
+  /// Waits for a merge still running: one into [accountId] marks what it
+  /// did not finish as [accountId]'s, and those must go too.
+  Future<void> dropOwnedBy(String accountId) {
+    final run = _last.then((_) => _dropOwnedBy(accountId));
+    _last = run;
+    return run;
+  }
+
+  Future<void> _dropOwnedBy(String accountId) async {
     try {
       await saves.load();
       final owned = {

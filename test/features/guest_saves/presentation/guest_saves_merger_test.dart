@@ -366,6 +366,25 @@ void main() {
     expect(saves.state.saves.single.owner, isNull);
   });
 
+  test('account deletion waits for a running merge and drops what it '
+      'left', () async {
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    await saves.set(_cafe('b'), CafeStatus.been);
+    repo.hold = Completer<void>();
+    var current = true;
+
+    final run = merger.merge(accountId: 'u1', stillFor: () => current);
+    await Future<void>.delayed(Duration.zero);
+    // The account is deleted while a is being written.
+    current = false;
+    final drop = merger.dropOwnedBy('u1');
+    repo.hold!.complete();
+    await run;
+    await drop;
+
+    expect(saves.state.isEmpty, isTrue);
+  });
+
   test('account deletion drops only the saves that account left', () async {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     repo.failRead = true;
