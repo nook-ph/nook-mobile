@@ -88,18 +88,25 @@ class MergeAskSheet extends StatelessWidget {
     Future<void>? closeOn,
   }) async {
     BuildContext? sheetContext;
-    // The session it asked for ended: the question no longer applies.
+    var closed = false;
+    void close() {
+      final c = sheetContext;
+      if (c == null || !c.mounted) return;
+      final route = ModalRoute.of(c);
+      if (route == null || !route.isActive) return;
+      if (route.isCurrent) {
+        Navigator.of(c).pop();
+      } else {
+        Navigator.of(c).removeRoute(route);
+      }
+    }
+
+    // The session it asked for ended: the question no longer applies. If
+    // that happens before the sheet is built, it closes once it is.
     unawaited(
       closeOn?.then((_) {
-        final c = sheetContext;
-        if (c == null || !c.mounted) return;
-        final route = ModalRoute.of(c);
-        if (route == null || !route.isActive) return;
-        if (route.isCurrent) {
-          Navigator.of(c).pop();
-        } else {
-          Navigator.of(c).removeRoute(route);
-        }
+        closed = true;
+        close();
       }),
     );
     final answer = await showModalBottomSheet<MergeAskAnswer>(
@@ -111,7 +118,11 @@ class MergeAskSheet extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (c) {
+        final first = sheetContext == null;
         sheetContext = c;
+        if (first && closed) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => close());
+        }
         return MergeAskSheet(count: count, names: names);
       },
     );

@@ -97,4 +97,23 @@ void main() {
     await tester.pumpAndSettle();
     await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
   });
+
+  testWidgets('closes when the session ends, even before it is built', (
+    tester,
+  ) async {
+    final key = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(navigatorKey: key, home: const Scaffold()),
+    );
+    MergeAskAnswer? answer;
+    MergeAskSheet.show(
+      key.currentContext!,
+      count: 1,
+      closeOn: Future<void>.value(),
+    ).then((a) => answer = a);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MergeAskSheet), findsNothing);
+    expect(answer, MergeAskAnswer.dismissed);
+  });
 }

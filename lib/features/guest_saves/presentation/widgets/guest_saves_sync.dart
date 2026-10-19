@@ -196,6 +196,8 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     int session, {
     bool includeOthers = false,
   }) async {
+    // A Retry tapped after this widget went away.
+    if (!mounted) return GuestMergeResult.none;
     final lists = context.read<ListsBloc>();
     final result = await _merger.merge(
       accountId: accountId,
