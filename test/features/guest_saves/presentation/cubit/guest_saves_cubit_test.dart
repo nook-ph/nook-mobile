@@ -183,6 +183,34 @@ void main() {
     await cubit.close();
   });
 
+  test(
+    'settle drops a save that was given an owner since it was read',
+    () async {
+      final cubit = newCubit();
+      await cubit.set(_a, CafeStatus.wantToTry);
+      final read = _savesOf(cubit, {'a'});
+      // Another merge marks it meanwhile.
+      await cubit.settle(const {}, left: read, owner: 'u1');
+
+      await cubit.settle(read);
+
+      expect(cubit.state.isEmpty, isTrue);
+      await cubit.close();
+    },
+  );
+
+  test('a settle whose write fails changes nothing', () async {
+    final failing = _WriteFailingStore();
+    final cubit = GuestSavesCubit(store: failing, now: () => clock);
+    await cubit.set(_a, CafeStatus.wantToTry);
+    failing.fail = true;
+
+    await cubit.settle(const {}, left: _savesOf(cubit, {'a'}), owner: 'u1');
+
+    expect(cubit.state.saves.single.owner, isNull);
+    await cubit.close();
+  });
+
   test('the keep-saves prompt is claimed once per phone', () async {
     final cubit = newCubit();
 
@@ -292,6 +320,16 @@ class _FailingStore extends GuestSavesStore {
 
   @override
   Future<void> write(List<GuestSave> saves) async => writes++;
+}
+
+class _WriteFailingStore extends GuestSavesStore {
+  bool fail = false;
+
+  @override
+  Future<void> write(List<GuestSave> saves) async {
+    if (fail) throw Exception('disk full');
+    return super.write(saves);
+  }
 }
 
 Set<GuestSave> _savesOf(GuestSavesCubit cubit, Set<String> ids) => {

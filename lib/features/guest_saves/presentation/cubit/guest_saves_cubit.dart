@@ -157,11 +157,12 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
   /// Drops the saves in [drop] (they reached the account, or belonged to a
   /// deleted one), and marks the saves in [left] as left by a merge into
   /// account [owner], so they move on their own only into that account.
-  /// One write.
+  /// One write; if it fails, nothing changes, here or on disk.
   ///
-  /// Matched as they were read, not by cafe: a save changed or made again
-  /// while a merge ran (after a sign-out, say) is a new save, and is
-  /// neither dropped nor marked.
+  /// Matched as they were read (cafe, status and saved time), whatever
+  /// owner they have been given since: a save changed or made again while
+  /// a merge ran (after a sign-out, say) is a new save, and is neither
+  /// dropped nor marked.
   Future<void> settle(
     Set<GuestSave> drop, {
     Set<GuestSave> left = const {},
@@ -170,21 +171,30 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     if (drop.isEmpty && (left.isEmpty || owner == null)) return;
     await load();
     if (_readFailed) return;
+    final dropKeys = {for (final s in drop) _keyOf(s)};
+    final leftKeys = {for (final s in left) _keyOf(s)};
+    final before = state;
     final saves = [
-      for (final s in state.saves)
-        if (!drop.contains(s))
-          owner != null && left.contains(s) ? s.withOwner(owner) : s,
+      for (final s in before.saves)
+        if (!dropKeys.contains(_keyOf(s)))
+          owner != null && leftKeys.contains(_keyOf(s))
+              ? s.withOwner(owner)
+              : s,
     ];
-    if (listEquals(saves, state.saves)) return;
-    emit(state.copyWith(saves: saves));
+    if (listEquals(saves, before.saves)) return;
+    emit(before.copyWith(saves: saves));
     try {
       await _store.write(saves);
     } catch (e) {
-      // Left on disk: the next launch merges them again, which skips cafes
-      // the account already has.
+      // Kept as it is on disk, owners included: the next merge tries
+      // again, and skips cafes the account already has.
       debugPrint('[GuestSaves] settle write failed: $e');
+      if (!isClosed) emit(before);
     }
   }
+
+  static (String, CafeStatus, DateTime) _keyOf(GuestSave s) =>
+      (s.cafeId, s.status, s.savedAt);
 
   /// The account last asked whether to add saves another account left
   /// ([GuestSavesStore.mergeAskedFor]); null when unknown.

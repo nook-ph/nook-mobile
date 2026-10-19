@@ -63,9 +63,10 @@ class GuestSavesMerger {
   }
 
   /// How long a merge waits for the one before it. A network call with no
-  /// answer must not hold every later merge (or an account deletion's
-  /// clean-up) for good; past this, they run anyway, which is safe: a cafe
-  /// mid-write is skipped, and saves are settled as they were read.
+  /// answer must not hold every later merge for good; past this, they run
+  /// anyway, which is safe: a cafe mid-write is skipped by the other, and
+  /// saves are settled as they were read whatever owner the other gave
+  /// them.
   final Duration queueWait;
 
   Future<void> _after(Future<void> previous) =>
@@ -120,7 +121,7 @@ class GuestSavesMerger {
     // (as a guest, which the server answers with nothing) are not the
     // account's statuses, and writing over a Been deletes its rank and note.
     if (!await statuses.loadFor(ids)) {
-      await saves.settle(const {}, left: pending.toSet(), owner: accountId);
+      await _settle(accountId, const {}, pending.toSet());
       logAppEvent(
         SavesEvents.guestSavesMerged,
         properties: {'count': 0, 'moved': 0, 'failed': pending.length},
@@ -129,6 +130,7 @@ class GuestSavesMerger {
     }
 
     var merged = 0;
+    var stopped = false;
     final done = <GuestSave>{};
     try {
       // Oldest first, so the account's lists keep the order they were saved
@@ -136,7 +138,10 @@ class GuestSavesMerger {
       for (final save in pending.reversed) {
         // The session is no longer this account's: a write now would land
         // in whoever is signed in.
-        if (!stillFor()) break;
+        if (!stillFor()) {
+          stopped = true;
+          break;
+        }
         final id = save.cafeId;
         // The read failed: nothing is known, so nothing is written.
         if (!statuses.state.isKnown(id)) continue;
@@ -160,13 +165,11 @@ class GuestSavesMerger {
       debugPrint('[GuestSavesMerger] merge stopped: $e\n$st');
     }
 
-    await saves.settle(
-      done,
-      left: pending.toSet().difference(done),
-      owner: accountId,
-    );
+    await _settle(accountId, done, pending.toSet().difference(done));
     final failed = pending.length - done.length;
-    if (merged > 0 || failed > 0) {
+    // A merge cut short by a sign-out is not a failed merge, and the event
+    // would go out under whoever is next.
+    if (!stopped && (merged > 0 || failed > 0)) {
       logAppEvent(
         SavesEvents.guestSavesMerged,
         properties: {'count': merged, 'moved': done.length, 'failed': failed},
@@ -175,23 +178,34 @@ class GuestSavesMerger {
     return GuestMergeResult(added: merged, moved: done.length, failed: failed);
   }
 
-  /// On account deletion: drops the saves a merge into [accountId] left on
-  /// this phone. The account and its data are gone; saves made while signed
-  /// out, or left by another account, stay.
-  ///
-  /// Waits for a merge still running: one into [accountId] marks what it
-  /// did not finish as [accountId]'s, and those must go too.
-  Future<void> dropOwnedBy(String accountId) {
-    final previous = _last;
-    final run = () async {
-      await _after(previous);
-      await _dropOwnedBy(accountId);
-    }();
-    _last = run;
-    return run;
+  /// Accounts deleted on this phone, so a merge into one still running
+  /// when it went drops what it would have left as that account's.
+  final Set<String> _deleted = {};
+
+  /// Drops [done] from the phone, and marks [left] as [accountId]'s; for a
+  /// deleted account, drops the ones it already owned instead and leaves
+  /// the rest as they were.
+  Future<void> _settle(
+    String accountId,
+    Set<GuestSave> done,
+    Set<GuestSave> left,
+  ) {
+    if (_deleted.contains(accountId)) {
+      return saves.settle({
+        ...done,
+        for (final s in left)
+          if (s.owner == accountId) s,
+      });
+    }
+    return saves.settle(done, left: left, owner: accountId);
   }
 
-  Future<void> _dropOwnedBy(String accountId) async {
+  /// On account deletion: drops the saves a merge into [accountId] left on
+  /// this phone. The account and its data are gone; saves made while signed
+  /// out, or left by another account, stay. A merge into it still running
+  /// leaves nothing as its, either.
+  Future<void> dropOwnedBy(String accountId) async {
+    _deleted.add(accountId);
     try {
       await saves.load();
       final owned = {

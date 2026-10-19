@@ -172,8 +172,14 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     try {
       var result = await _merge(accountId, session);
       if (!_isCurrent(session)) return;
-      final asked = await _askAboutOthers(accountId, session);
-      if (asked != null) result = result.followedBy(asked);
+      try {
+        final asked = await _askAboutOthers(accountId, session);
+        if (asked != null) result = result.followedBy(asked);
+      } catch (e, st) {
+        // The ask broke (the navigator went away, say): still say what
+        // the sign-in moved.
+        debugPrint('[GuestSavesSync] merge ask failed: $e\n$st');
+      }
       if (_isCurrent(session)) _confirm(result, accountId, session);
     } finally {
       if (_signingIn == session) _signingIn = null;
@@ -217,22 +223,19 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     if (await saves.mergeAskedFor() == accountId) return null;
     if ((await _merger.othersFor(accountId)).isEmpty) return null;
     final sheetContext = await _clearNavigatorContext();
-    if (sheetContext == null || !_stillSignedInAs(accountId, session)) {
-      return null;
-    }
-    final others = await _merger.othersFor(accountId);
-    final count = others.length;
-    if (count == 0 ||
+    // From here to the sheet nothing waits, so no other sheet can open in
+    // between, and nothing can sign out between the check and the marker.
+    if (sheetContext == null ||
         !sheetContext.mounted ||
         !_stillSignedInAs(accountId, session)) {
       return null;
     }
-    // Counted before it shows, so a sheet closed by the app going away
-    // is not asked again this sign-in.
-    await saves.setMergeAskedFor(accountId);
-    if (!sheetContext.mounted || !_stillSignedInAs(accountId, session)) {
-      return null;
-    }
+    final others = saves.state.ownedByOthers(accountId);
+    final count = others.length;
+    if (count == 0) return null;
+    // Counted as it shows, so a sheet closed by the app going away is not
+    // asked again this sign-in.
+    unawaited(saves.setMergeAskedFor(accountId));
     // A consequence of the sign-in, so it does not wait for the session's
     // budget; it takes it, so nothing else is pushed on top this session.
     SessionAskBudget.instance.spend(SessionAskKind.mergeAsk);

@@ -349,6 +349,8 @@ void main() {
     expect(result.failed, 1);
     expect(saves.state.saves.single.cafeId, 'b');
     expect(saves.state.saves.single.owner, 'u1');
+    // Cut short by the session ending, not a failed merge.
+    expect(analytics.names, isNot(contains(SavesEvents.guestSavesMerged)));
   });
 
   test('a cafe saved again while a merge runs keeps the new save', () async {
@@ -366,23 +368,43 @@ void main() {
     expect(saves.state.saves.single.owner, isNull);
   });
 
-  test('account deletion waits for a running merge and drops what it '
-      'left', () async {
-    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+  test('an account deleted while its merge runs keeps nothing as its; a '
+      'save made signed out stays the guest\'s', () async {
     await saves.set(_cafe('b'), CafeStatus.been);
+    await saves.set(_cafe('d'), CafeStatus.wantToTry);
+    repo.failRead = true;
+    await merger.merge(accountId: 'u1');
+    repo.failRead = false;
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
     repo.hold = Completer<void>();
     var current = true;
 
     final run = merger.merge(accountId: 'u1', stillFor: () => current);
     await Future<void>.delayed(Duration.zero);
-    // The account is deleted while a is being written.
+    // The account is deleted while b is being written.
     current = false;
-    final drop = merger.dropOwnedBy('u1');
+    await merger.dropOwnedBy('u1');
     repo.hold!.complete();
     await run;
-    await drop;
 
-    expect(saves.state.isEmpty, isTrue);
+    expect(saves.state.saves.single.cafeId, 'a');
+    expect(saves.state.saves.single.owner, isNull);
+    expect((await GuestSavesStore().read()).single.cafeId, 'a');
+  });
+
+  test('a merge that finishes after its account was deleted marks '
+      'nothing as that account\'s', () async {
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    repo.failWriteFor = {'a'};
+    repo.hold = Completer<void>();
+
+    final run = merger.merge(accountId: 'u1');
+    await Future<void>.delayed(Duration.zero);
+    await merger.dropOwnedBy('u1');
+    repo.hold!.complete();
+    await run;
+
+    expect(saves.state.saves.single.owner, isNull);
   });
 
   test('a merge that never answers holds the next one only so long', () async {
