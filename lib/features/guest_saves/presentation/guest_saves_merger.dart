@@ -122,10 +122,13 @@ class GuestSavesMerger {
     // account's statuses, and writing over a Been deletes its rank and note.
     if (!await statuses.loadFor(ids)) {
       await _settle(accountId, const {}, pending.toSet());
-      logAppEvent(
-        SavesEvents.guestSavesMerged,
-        properties: {'count': 0, 'moved': 0, 'failed': pending.length},
-      );
+      // A read cut short by a sign-out is not a failed merge.
+      if (stillFor()) {
+        logAppEvent(
+          SavesEvents.guestSavesMerged,
+          properties: {'count': 0, 'moved': 0, 'failed': pending.length},
+        );
+      }
       return GuestMergeResult(added: 0, moved: 0, failed: pending.length);
     }
 

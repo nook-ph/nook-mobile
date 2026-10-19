@@ -157,7 +157,7 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
   /// Drops the saves in [drop] (they reached the account, or belonged to a
   /// deleted one), and marks the saves in [left] as left by a merge into
   /// account [owner], so they move on their own only into that account.
-  /// One write; if it fails, nothing changes, here or on disk.
+  /// One write.
   ///
   /// Matched as they were read (cafe, status and saved time), whatever
   /// owner they have been given since: a save changed or made again while
@@ -186,10 +186,10 @@ class GuestSavesCubit extends Cubit<GuestSavesState> {
     try {
       await _store.write(saves);
     } catch (e) {
-      // Kept as it is on disk, owners included: the next merge tries
-      // again, and skips cafes the account already has.
+      // Left on disk: the next launch merges them again, which skips cafes
+      // the account already has. Not rolled back here: another settle may
+      // have built on this state since.
       debugPrint('[GuestSaves] settle write failed: $e');
-      if (!isClosed) emit(before);
     }
   }
 

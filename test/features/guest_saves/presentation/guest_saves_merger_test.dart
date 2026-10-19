@@ -353,6 +353,18 @@ void main() {
     expect(analytics.names, isNot(contains(SavesEvents.guestSavesMerged)));
   });
 
+  test('a status read cut short by a sign-out logs no failed merge', () async {
+    await saves.set(_cafe('a'), CafeStatus.wantToTry);
+    repo.failRead = true;
+    analytics.events.clear();
+    var checks = 0;
+
+    await merger.merge(accountId: 'u1', stillFor: () => checks++ == 0);
+
+    expect(analytics.names, isNot(contains(SavesEvents.guestSavesMerged)));
+    expect(saves.state.saves.single.owner, 'u1');
+  });
+
   test('a cafe saved again while a merge runs keeps the new save', () async {
     await saves.set(_cafe('a'), CafeStatus.wantToTry);
     repo.hold = Completer<void>();

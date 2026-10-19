@@ -517,6 +517,29 @@ void main() {
     await app.clearToasts();
   });
 
+  testWidgets('the ask closes when the session ends, with no answer '
+      'logged', (tester) async {
+    final app = _Harness(tester);
+    await tester.runAsync(
+      () => app.saves.set(_cafe('a'), CafeStatus.wantToTry),
+    );
+    await app.pump();
+    await app.failedMergeFor('u1');
+    await app.signIn('u2');
+    expect(find.byType(MergeAskSheet), findsOneWidget);
+
+    await app.signOut();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MergeAskSheet), findsNothing);
+    expect(
+      analytics.names,
+      isNot(contains(SavesEvents.guestSavesMergeAnswered)),
+    );
+    expect(app.saves.state.saves.single.owner, 'u1');
+    await app.clearToasts();
+  });
+
   testWidgets('a launch mid sign-up (username step) moves nothing until '
       'the account is finished', (tester) async {
     final repo = _Repo();

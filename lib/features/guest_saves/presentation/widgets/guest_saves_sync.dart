@@ -79,6 +79,9 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
   /// launch path and the listener both firing) does not run them twice.
   int? _signingIn;
 
+  /// Completed when the session ends, to close a merge ask still open.
+  Completer<void>? _sessionEnded;
+
   bool get _signedIn =>
       widget.isSignedIn?.call() ??
       Supabase.instance.client.auth.currentSession != null;
@@ -241,11 +244,17 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
     SessionAskBudget.instance.spend(SessionAskKind.mergeAsk);
     logAppEvent(SavesEvents.guestSavesMergeAsked, properties: {'count': count});
     dismissToasts();
+    final ended = _sessionEnded = Completer<void>();
     final answer = await MergeAskSheet.show(
       sheetContext,
       count: count,
       names: [for (final s in others) s.cafe.name],
+      closeOn: ended.future,
     );
+    if (identical(_sessionEnded, ended)) _sessionEnded = null;
+    // Closed by the session ending: no answer, and the event would go out
+    // under whoever is next.
+    if (!_isCurrent(session)) return null;
     logAppEvent(
       SavesEvents.guestSavesMergeAnswered,
       properties: {'count': count, 'answer': answer.wire},
@@ -333,6 +342,9 @@ class _GuestSavesSyncState extends State<GuestSavesSync> {
             final left = _accountId;
             _accountId = null;
             _session++;
+            final ended = _sessionEnded;
+            _sessionEnded = null;
+            if (ended != null && !ended.isCompleted) ended.complete();
             final saves = context.read<GuestSavesCubit>();
             // The session ended: the next sign-in asks again.
             unawaited(saves.setMergeAskedFor(null));

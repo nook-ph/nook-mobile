@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -84,7 +85,23 @@ class MergeAskSheet extends StatelessWidget {
     BuildContext context, {
     required int count,
     List<String> names = const [],
+    Future<void>? closeOn,
   }) async {
+    BuildContext? sheetContext;
+    // The session it asked for ended: the question no longer applies.
+    unawaited(
+      closeOn?.then((_) {
+        final c = sheetContext;
+        if (c == null || !c.mounted) return;
+        final route = ModalRoute.of(c);
+        if (route == null || !route.isActive) return;
+        if (route.isCurrent) {
+          Navigator.of(c).pop();
+        } else {
+          Navigator.of(c).removeRoute(route);
+        }
+      }),
+    );
     final answer = await showModalBottomSheet<MergeAskAnswer>(
       context: context,
       isScrollControlled: true,
@@ -93,7 +110,10 @@ class MergeAskSheet extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => MergeAskSheet(count: count, names: names),
+      builder: (c) {
+        sheetContext = c;
+        return MergeAskSheet(count: count, names: names);
+      },
     );
     return answer ?? MergeAskAnswer.dismissed;
   }
