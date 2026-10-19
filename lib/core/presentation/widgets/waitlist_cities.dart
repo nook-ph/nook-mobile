@@ -52,9 +52,9 @@ abstract final class WaitlistCities {
     'El Nido': [],
     'Boracay': [],
     // Visayas
-    'Cebu': ['Cebu City'],
+    'Cebu': [],
     'Mandaue': [],
-    'Lapu-Lapu': ['Lapu Lapu', 'Mactan'],
+    'Lapu-Lapu': ['Mactan'],
     'Talisay': [],
     'Iloilo': [],
     'Bacolod': [],
@@ -88,12 +88,29 @@ abstract final class WaitlistCities {
   };
 
   /// The canonical name [typed] refers to, or null when it is not a city or
-  /// area on the list.
+  /// area on the list. A province or country after a comma, or a trailing
+  /// "Philippines" / "PH", does not stop a match: "Davao City,
+  /// Philippines" and "Iloilo City, Iloilo" match.
   static String? match(String typed) {
-    final k = key(typed);
-    if (k.isEmpty) return null;
-    return _byKey[k];
+    final whole = _byKey[_withoutCountry(key(typed))];
+    if (whole != null) return whole;
+    final comma = typed.indexOf(',');
+    if (comma <= 0) return null;
+    return _byKey[_withoutCountry(key(typed.substring(0, comma)))];
   }
+
+  static const _countrySuffixes = [' philippines', ' ph'];
+
+  static String _withoutCountry(String k) {
+    for (final suffix in _countrySuffixes) {
+      if (k.endsWith(suffix)) {
+        return _stripCity(k.substring(0, k.length - suffix.length));
+      }
+    }
+    return k;
+  }
+
+  static final _nonAlphanumeric = RegExp(r'[^a-z0-9]+');
 
   static const _accents = {
     'á': 'a', 'à': 'a', 'â': 'a', 'ä': 'a', 'ã': 'a', 'å': 'a', //
@@ -116,12 +133,17 @@ abstract final class WaitlistCities {
       final char = String.fromCharCode(rune);
       buffer.write(_accents[char] ?? char);
     }
-    var k = buffer
+    final k = buffer
         .toString()
         // Anything but a letter or digit (punctuation, quotes, emoji)
         // separates words.
-        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        .replaceAll(_nonAlphanumeric, ' ')
         .trim();
+    return _stripCity(k);
+  }
+
+  static String _stripCity(String key) {
+    var k = key.trim();
     if (k.startsWith('city of ')) k = k.substring('city of '.length);
     if (k.endsWith(' city')) k = k.substring(0, k.length - ' city'.length);
     return k.trim();
