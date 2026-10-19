@@ -54,7 +54,7 @@ abstract final class WaitlistCities {
     // Visayas
     'Cebu': [],
     'Mandaue': [],
-    'Lapu-Lapu': ['Mactan'],
+    'Lapu-Lapu': ['Lapulapu', 'Mactan'],
     'Talisay': [],
     'Iloilo': [],
     'Bacolod': [],

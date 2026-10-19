@@ -44,6 +44,7 @@ void main() {
     expect(CityWaitlistSheet.analyticsCity('Manila PH'), 'Manila');
     expect(CityWaitlistSheet.analyticsCity('Cebu City'), 'Cebu');
     expect(CityWaitlistSheet.analyticsCity('Lapu Lapu'), 'Lapu-Lapu');
+    expect(CityWaitlistSheet.analyticsCity('Lapulapu'), 'Lapu-Lapu');
     // Still nothing typed is sent.
     expect(CityWaitlistSheet.analyticsCity('12 Rizal St, Davao'), 'other');
     expect(CityWaitlistSheet.analyticsCity('parañaque city'), 'Parañaque');
@@ -52,6 +53,7 @@ void main() {
     expect(CityWaitlistSheet.analyticsCity('QC'), 'Quezon City');
     expect(CityWaitlistSheet.analyticsCity('cdo'), 'Cagayan de Oro');
     expect(CityWaitlistSheet.analyticsCity('Lapu Lapu'), 'Lapu-Lapu');
+    expect(CityWaitlistSheet.analyticsCity('Lapulapu'), 'Lapu-Lapu');
     expect(CityWaitlistSheet.analyticsCity('Gen. San.'), 'General Santos');
   });
 
