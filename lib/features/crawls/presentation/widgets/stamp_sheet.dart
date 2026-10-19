@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
@@ -63,7 +64,13 @@ class StampSheet extends StatelessWidget {
               CrawlSheet.grabber(),
               // Figma: 8 + an 8 spacer + 8 under the grabber.
               const SizedBox(height: 24),
-              BlocBuilder<CrawlRunCubit, CrawlRunState>(
+              BlocConsumer<CrawlRunCubit, CrawlRunState>(
+                listenWhen: (a, b) => a.stampPhase != b.stampPhase,
+                listener: (_, state) => switch (state.stampPhase) {
+                  StampPhase.stamped => HapticFeedback.successNotification(),
+                  StampPhase.failed => HapticFeedback.errorNotification(),
+                  _ => null,
+                },
                 builder: (context, state) {
                   return AnimatedSwitcher(
                     duration: const Duration(milliseconds: 180),

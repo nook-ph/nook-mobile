@@ -31,7 +31,8 @@ class ListCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => CafeDetailsPage(cafeId: cafe.id),
+              builder: (context) =>
+                  CafeDetailsPage(cafeId: cafe.id, preview: cafe),
             ),
           );
         },

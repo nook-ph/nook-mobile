@@ -279,6 +279,32 @@ void main() {
       });
     });
 
+    testWidgets('closing asks before a draft is thrown away', (tester) async {
+      await open(tester);
+      // Nothing in it yet: Close just closes.
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add your cup'), findsNothing);
+
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('4 stars'));
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('Discard this cup?'), findsOneWidget);
+      await tester.tap(find.text('Keep editing'));
+      await tester.pumpAndSettle();
+      expect(find.text('Great'), findsOneWidget);
+
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add your cup'), findsNothing);
+      expect(outcomes, [null, null]);
+    });
+
     testWidgets('stars are optional and can be cleared', (tester) async {
       await open(tester);
       await tester.tap(find.bySemanticsLabel('4 stars'));

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/utils/debounced_count.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -320,6 +321,7 @@ class _TagsSheetState extends State<_TagsSheet> {
                 label: tag,
                 selected: _selected.contains(tag),
                 onTap: () {
+                  HapticFeedback.selectionClick();
                   setState(() {
                     if (!_selected.remove(tag)) _selected.add(tag);
                   });

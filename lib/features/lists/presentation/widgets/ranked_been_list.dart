@@ -468,7 +468,9 @@ class _Band extends StatelessWidget {
 void _openCafe(BuildContext context, CafeSummary cafe) {
   Navigator.push(
     context,
-    MaterialPageRoute(builder: (_) => CafeDetailsPage(cafeId: cafe.id)),
+    MaterialPageRoute(
+      builder: (_) => CafeDetailsPage(cafeId: cafe.id, preview: cafe),
+    ),
   );
 }
 

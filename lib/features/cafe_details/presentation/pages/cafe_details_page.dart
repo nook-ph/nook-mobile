@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -69,9 +71,13 @@ double scrollOffsetUnderBar({
 }) => (reveal - bar + 8).clamp(min, max);
 
 class CafeDetailsPage extends StatefulWidget {
-  const CafeDetailsPage({super.key, required this.cafeId});
+  const CafeDetailsPage({super.key, required this.cafeId, this.preview});
 
   final String cafeId;
+
+  /// The card that was tapped, when there was one: its photo and name stand
+  /// in while the details load, so the page opens on the cafe, not on grey.
+  final CafeSummary? preview;
 
   @override
   State<CafeDetailsPage> createState() => _CafeDetailsPageState();
@@ -498,7 +504,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                 url != state.data.cafeDetails.featuredImageUrl,
                           ),
                         ]
-                      : const <String>[];
+                      : [
+                          if (isLoading &&
+                              (widget.preview?.coverImage ?? '').isNotEmpty)
+                            widget.preview!.coverImage!,
+                        ];
 
                   if (state is CafeDetailsError) {
                     final failure = CafeLoadFailure.from(state.error);
@@ -522,7 +532,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
 
                   final title = state is CafeDetailsLoaded
                       ? state.data.cafeDetails.name
-                      : '';
+                      : widget.preview?.name ?? '';
 
                   return CustomScrollView(
                     controller: _scrollController,
@@ -532,7 +542,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                         child: RepaintBoundary(
                           child: HeroImageSlider(
                             images: heroImages,
-                            isLoading: isLoading,
+                            isLoading: isLoading && heroImages.isEmpty,
                             bottomInset: _sheetLip,
                             placeholderSeed: state is CafeDetailsLoaded
                                 ? state.data.cafeDetails.name
@@ -572,11 +582,13 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             automaticallyImplyLeading: false,
                             leadingWidth: 70,
                             leading: Padding(
-                              padding: const EdgeInsets.only(left: 22.0),
+                              // 22 to the circle; its 44 target adds 2.
+                              padding: const EdgeInsets.only(left: 20.0),
                               child: Center(
                                 child: AppBarCircleIconButton(
                                   icon: Icons.arrow_back,
                                   iconSize: 18,
+                                  label: 'Back',
                                   onTap: () => Navigator.pop(context),
                                 ),
                               ),
@@ -603,7 +615,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                       : '',
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              // 12 between the circles; each 44 target
+                              // reaches 2 past its circle.
+                              const SizedBox(width: 8),
                               Center(
                                 child: _SavedButton(
                                   cafeId: widget.cafeId,
@@ -613,7 +627,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   toastOffset: _toastOffset,
                                 ),
                               ),
-                              const SizedBox(width: 22),
+                              const SizedBox(width: 20),
                             ],
                             bottom: PreferredSize(
                               preferredSize: const Size.fromHeight(0.5),
@@ -670,7 +684,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                       SliverToBoxAdapter(
                         child: state is CafeDetailsLoaded
                             ? _buildSections(context, state, menuCardWidth)
-                            : const CafeDetailsSkeleton(),
+                            : CafeDetailsSkeleton(name: widget.preview?.name),
                       ),
                     ],
                   );
@@ -695,6 +709,7 @@ class _ShareButton extends StatelessWidget {
     return AppBarCircleIconButton(
       icon: PhosphorIcons.shareNetwork(),
       iconSize: 18,
+      label: 'Share',
       onTap: () {
         // Details are still loading — a share with no name reads broken, and
         // the load takes well under a second.
@@ -874,6 +889,7 @@ class _SavedButtonState extends State<_SavedButton> {
     }
 
     // The bookmark fills at once and empties again if the save fails.
+    HapticFeedback.lightImpact();
     _savedStateRequest++;
     setState(() {
       _isSaving = true;
@@ -906,6 +922,7 @@ class _SavedButtonState extends State<_SavedButton> {
     } catch (e, st) {
       debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
       if (!mounted) return;
+      HapticFeedback.errorNotification();
       setState(() => _isSaved = false);
       _showErrorToast(context, e, goLogin: true);
     } finally {

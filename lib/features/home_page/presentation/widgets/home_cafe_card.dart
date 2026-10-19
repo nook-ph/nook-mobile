@@ -38,7 +38,7 @@ class HomeCafeCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       onTap: () {
         if (isSkeleton) return;
-        if (cafe.id.isNotEmpty) context.push('/cafe/${cafe.id}');
+        if (cafe.id.isNotEmpty) context.push('/cafe/${cafe.id}', extra: cafe);
       },
       child: SizedBox(
         width: width,
@@ -148,7 +148,7 @@ class HomeRatingPill extends StatelessWidget {
             rating.toStringAsFixed(1),
             style: context.textTheme.bodyExtraSmallMed.copyWith(
               color: context.colorScheme.black,
-              fontSize: 10,
+              fontSize: 11,
               height: 1.5,
             ),
           ),

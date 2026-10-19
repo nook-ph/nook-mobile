@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
@@ -58,10 +60,14 @@ class _ListDetailPageState extends State<ListDetailPage> {
   CafeList? _cachedList;
   bool _isDeleting = false;
 
-  /// The cafe whose removal is in flight, so the reload can offer Undo.
+  /// The cafe whose removal is in flight. Its row is already gone; a
+  /// failure reloads the list to put it back.
   CafeSummary? _removing;
 
-  /// The cafe an Undo is putting back, so the reload can say it is back.
+  /// Where [_removing]'s row was, for Undo to put it back in place.
+  int _removedAt = 0;
+
+  /// The cafe an Undo is putting back. Its row is already back.
   CafeSummary? _restoring;
 
   /// An edit is in flight, so the reload can say it was saved.
@@ -146,23 +152,31 @@ class _ListDetailPageState extends State<ListDetailPage> {
   }
 
   Future<void> _editList(ListsBloc bloc, CafeList list) async {
-    final input = await showEditListSheet(
+    await showEditListSheet(
       context,
       name: list.name,
       description: list.description,
+      save: (input) async {
+        // "List updated." waits for the reload that brings the new name in.
+        _editing = true;
+        final done = Completer<void>();
+        bloc.add(
+          UpdateList(
+            listId: list.id,
+            name: input.name,
+            description: input.description,
+            isPublic: list.isPublic,
+            done: done,
+          ),
+        );
+        try {
+          await done.future;
+        } catch (_) {
+          _editing = false;
+          rethrow;
+        }
+      },
     );
-    if (input == null || !mounted) return;
-
-    bloc.add(
-      UpdateList(
-        listId: list.id,
-        name: input.name,
-        description: input.description,
-        isPublic: list.isPublic,
-      ),
-    );
-    // "List updated." waits for the reload that proves it.
-    _editing = true;
   }
 
   Future<void> _confirmDelete(ListsBloc bloc, CafeList list) async {
@@ -179,7 +193,9 @@ class _ListDetailPageState extends State<ListDetailPage> {
   void _openCafe(CafeSummary cafe) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CafeDetailsPage(cafeId: cafe.id)),
+      MaterialPageRoute(
+        builder: (_) => CafeDetailsPage(cafeId: cafe.id, preview: cafe),
+      ),
     );
   }
 
@@ -196,18 +212,38 @@ class _ListDetailPageState extends State<ListDetailPage> {
     );
   }
 
+  /// The row goes at once, with Undo; the server catches up behind it.
   void _removeCafe(CafeSummary cafe) {
+    final cafes = _cachedCafes ?? const [];
+    _removedAt = cafes.indexWhere((c) => c.id == cafe.id).clamp(0, 1 << 30);
     _removing = cafe;
     _restoring = null;
-    context.read<ListsBloc>().add(
-      RemoveCafeFromList(listId: widget.listId, cafeId: cafe.id),
+    setState(() {
+      _cachedCafes = [
+        for (final c in cafes)
+          if (c.id != cafe.id) c,
+      ];
+    });
+    showPrimaryToastWithAction(
+      context,
+      'Removed "${cafe.name}".',
+      actionLabel: 'Undo',
+      onAction: () => _undoRemove(cafe),
     );
+    _listsBloc.add(RemoveCafeFromList(listId: widget.listId, cafeId: cafe.id));
   }
 
   /// Runs from the toast, which can outlive this page: no context lookups.
   void _undoRemove(CafeSummary cafe) {
     _restoring = cafe;
     _removing = null;
+    final cafes = _cachedCafes;
+    if (mounted && cafes != null && !cafes.any((c) => c.id == cafe.id)) {
+      setState(() {
+        _cachedCafes = [...cafes]
+          ..insert(_removedAt.clamp(0, cafes.length), cafe);
+      });
+    }
     _listsBloc.add(AddCafeToList(listId: widget.listId, cafeId: cafe.id));
   }
 
@@ -233,12 +269,16 @@ class _ListDetailPageState extends State<ListDetailPage> {
     }
 
     if (state is ListsError) {
-      // A failed remove or undo must not leave a stale toast armed.
       final failed = _removing ?? _restoring;
       final editFailed = _editing;
       _removing = null;
       _restoring = null;
       _editing = false;
+      if (failed != null) {
+        // The row moved before the server answered: show the list as the
+        // server has it.
+        context.read<ListsBloc>().add(LoadListCafes(listId: widget.listId));
+      }
       if ((failed != null || editFailed) && _cachedCafes != null) {
         showPrimaryToast(context, "Couldn't update. Please try again.");
       }
@@ -247,9 +287,15 @@ class _ListDetailPageState extends State<ListDetailPage> {
 
     if (state is! ListCafesLoaded || state.list.id != widget.listId) return;
 
-    final before = _cachedCafes?.length ?? 0;
-    final removed = _removing;
-    final restored = _restoring;
+    // A reload from before the latest remove or Undo: the rows on screen
+    // are ahead of it, and the next reload catches up.
+    bool has(CafeSummary? cafe) =>
+        cafe != null && state.cafes.any((c) => c.id == cafe.id);
+    if (has(_removing) || (_restoring != null && !has(_restoring))) return;
+
+    final changed = _removing ?? _restoring;
+    _removing = null;
+    _restoring = null;
     setState(() {
       _cachedCafes = state.cafes;
       _cachedList = state.list;
@@ -258,22 +304,8 @@ class _ListDetailPageState extends State<ListDetailPage> {
 
     // Want to Try is a status: a row removed or put back here has to reach
     // the badges and pills that read CafeStatusCubit.
-    final changed = removed ?? restored;
     if (changed != null && state.list.isSystem) {
       context.read<CafeStatusCubit>().loadFor([changed.id]);
-    }
-
-    if (removed != null && state.cafes.length < before) {
-      _removing = null;
-      showPrimaryToastWithAction(
-        context,
-        'Removed "${removed.name}".',
-        actionLabel: 'Undo',
-        onAction: () => _undoRemove(removed),
-      );
-    } else if (restored != null && state.cafes.length > before) {
-      _restoring = null;
-      showPrimaryToast(context, '"${restored.name}" is back in $_title.');
     }
   }
 

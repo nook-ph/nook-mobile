@@ -66,6 +66,11 @@ String cupDraftMessage(CupDraftIssue issue) => switch (issue) {
   CupDraftIssue.objectionable => ContentFilter.rejectionMessage,
 };
 
+/// Whether a failed post found no session: the server's own check, or
+/// PostgREST refusing an expired token.
+bool isSignedOutCupError(String? code) =>
+    code == 'not_authenticated' || code == 'JWT expired';
+
 /// The server's reason for refusing a cup, in words. Null for an error
 /// with no cup code, where the caller's own message stands.
 String? cupErrorMessage(String? code) => switch (code) {
@@ -76,7 +81,7 @@ String? cupErrorMessage(String? code) => switch (code) {
   'legacy_needs_rating' => cupDraftMessage(CupDraftIssue.needsRating),
   'invalid_rating' => 'Pick between 1 and 5 stars, or none.',
   'email_not_verified' => 'Verify your email to post cups.',
-  'not_authenticated' => 'Sign in to add your cup.',
+  'not_authenticated' || 'JWT expired' => 'You were signed out.',
   'cup_removed' => 'This cup was removed by Nook and can’t be edited.',
   'cup_not_found' => 'This cup is gone. Pull to refresh.',
   'cafe_not_found' => 'This cafe is no longer on Nook.',

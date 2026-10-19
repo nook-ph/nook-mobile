@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_state.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
@@ -241,7 +242,11 @@ GoRouter createAppRouter(AuthBloc authBloc) {
         path: '/cafe/:id',
         builder: (context, state) {
           final id = state.pathParameters['id'] ?? '';
-          return CafeDetailsPage(cafeId: id);
+          // A tapped card passes itself to show while the details load.
+          final preview = state.extra is CafeSummary
+              ? state.extra! as CafeSummary
+              : null;
+          return CafeDetailsPage(cafeId: id, preview: preview);
         },
       ),
 

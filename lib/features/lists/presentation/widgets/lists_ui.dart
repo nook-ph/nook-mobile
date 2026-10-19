@@ -121,8 +121,9 @@ class ListsSheet extends StatelessWidget {
                           size: 20,
                           label: 'Back',
                           onTap: back,
+                          nudge: -6,
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 6),
                       ],
                       Expanded(
                         child: heading == null
@@ -138,12 +139,13 @@ class ListsSheet extends StatelessWidget {
                               ),
                       ),
                       if (extra != null) ...[const SizedBox(width: 12), extra],
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 6),
                       _HeaderIcon(
                         icon: LucideIcons.x,
                         size: 22,
                         label: 'Close',
                         onTap: onClose ?? () => Navigator.of(context).pop(),
+                        nudge: 6,
                       ),
                     ],
                   ),
@@ -172,32 +174,38 @@ class ListsSheet extends StatelessWidget {
   }
 }
 
-/// A 32 header control. The tap target reaches past the drawn box so it
-/// stays usable at the design's size.
+/// A header control drawn where the design's 32 box puts it, with a 44 tap
+/// target. [nudge] shifts it outward by the extra 6 so the icon keeps its
+/// place against the sheet's edge.
 class _HeaderIcon extends StatelessWidget {
   const _HeaderIcon({
     required this.icon,
     required this.size,
     required this.label,
     required this.onTap,
+    this.nudge = 0,
   });
 
   final IconData icon;
   final double size;
   final String label;
   final VoidCallback onTap;
+  final double nudge;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: AdaptiveTap(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: SizedBox.square(
-          dimension: 32,
-          child: Icon(icon, size: size, color: ListsTokens.ink),
+    return Transform.translate(
+      offset: Offset(nudge, 0),
+      child: Semantics(
+        button: true,
+        label: label,
+        child: AdaptiveTap(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(22),
+          child: SizedBox.square(
+            dimension: 44,
+            child: Icon(icon, size: size, color: ListsTokens.ink),
+          ),
         ),
       ),
     );

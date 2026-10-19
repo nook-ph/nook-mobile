@@ -168,14 +168,13 @@ class _CafeStatusPillsState extends State<CafeStatusPills> {
       if (!confirmed || !mounted) return;
     }
 
-    if (next != CafeStatus.none) {
-      // The "stamp" moment — make it feel good.
-      HapticFeedback.lightImpact();
-    }
+    // The press, not the result: a failure follows with its own.
+    if (next != CafeStatus.none) HapticFeedback.lightImpact();
 
     final ok = await cubit.set(_cafeId, next);
     if (!mounted) return;
     if (!ok) {
+      HapticFeedback.errorNotification();
       showPrimaryToast(
         context,
         "Couldn't update. Please try again.",

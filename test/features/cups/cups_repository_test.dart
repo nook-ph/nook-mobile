@@ -406,6 +406,88 @@ void main() {
       expect(items[0]['object_key'], 'gallery/$_me/cafe-1/a.jpg');
       expect(items[1], {'kind': 'food', 'item_name': 'Banana bread'});
     });
+
+    group('a post_cup that gets no answer', () {
+      late List<Map<String, Object?>> myCups;
+
+      setUp(() {
+        myCups = [];
+        final cups = answer;
+        answer = (request) {
+          final name = request.url.pathSegments.last;
+          if (name == 'post_cup') {
+            // The server took it, but the answer never arrives.
+            myCups.add({
+              'id': 'cup-new',
+              'rating': 4,
+              'note': 'Good for work.',
+              'visited_at': '2026-10-10T00:00:00Z',
+              'items': [],
+            });
+            throw http.ClientException('Connection closed');
+          }
+          if (name == 'get_cafe_cups') {
+            return http.Response(
+              jsonEncode({
+                'cafe_id': 'cafe-1',
+                'cards': [],
+                'my_cups': [...myCups],
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+              request: request,
+            );
+          }
+          return cups(request);
+        };
+      });
+
+      test('is the cup when it landed, and keeps its files', () async {
+        myCups.add({
+          'id': 'cup-old',
+          'rating': 4,
+          'note': 'Good for work.',
+          'visited_at': '2026-09-01T00:00:00Z',
+          'items': [],
+        });
+        final r = await repo();
+        final result = await r.postCup(
+          cafeId: 'cafe-1',
+          rating: 4,
+          note: 'Good for work.',
+          items: [
+            CupItemDraft(file: File('/tmp/e.jpg'), kind: CupItemKind.coffee),
+          ],
+        );
+
+        expect(result.cup?.id, 'cup-new');
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(
+          requests.where((r) => r.url.path.startsWith('/functions/')),
+          isEmpty,
+        );
+      });
+
+      test('fails as before when nothing landed', () async {
+        final r = await repo();
+        await expectLater(
+          r.postCup(
+            cafeId: 'cafe-1',
+            rating: 5,
+            note: 'Different cup.',
+            items: [
+              CupItemDraft(file: File('/tmp/f.jpg'), kind: CupItemKind.coffee),
+            ],
+          ),
+          throwsA(isA<CupsException>()),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(
+          requests.where((r) => r.url.path.startsWith('/functions/')),
+          isNotEmpty,
+        );
+      });
+    });
   });
 
   group('posting on the legacy backend', () {

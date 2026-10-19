@@ -54,7 +54,7 @@ class CafeStatusBadge extends StatelessWidget {
                 isBeen ? 'Been' : 'Want to try',
                 style: context.textTheme.bodySmallMed.copyWith(
                   color: _ink,
-                  fontSize: 10,
+                  fontSize: 11,
                   height: 1.5,
                 ),
               ),
