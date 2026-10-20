@@ -4,6 +4,7 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 class ListCard extends StatelessWidget {
   const ListCard({super.key, required this.cafe});
@@ -31,6 +32,7 @@ class ListCard extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
+              settings: const RouteSettings(name: ScreenNames.cafeDetails),
               builder: (context) =>
                   CafeDetailsPage(cafeId: cafe.id, preview: cafe),
             ),

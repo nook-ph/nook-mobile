@@ -15,6 +15,7 @@ import 'package:nook/features/lists/presentation/widgets/list_form_sheet.dart';
 import 'package:nook/features/profile/presentation/profile_logic.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_tokens.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The Lists tab of the profile: every list the user has, same as the Saved
 /// tab, read from the app-wide [ListsBloc]. Creating one goes through the
@@ -50,6 +51,7 @@ class _ProfileListsTabState extends State<ProfileListsTab> {
     Navigator.push(
       context,
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.listDetail),
         builder: (_) => ListDetailPage(
           listId: list.id,
           title: list.name,

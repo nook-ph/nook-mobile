@@ -6,6 +6,7 @@ import 'package:nook/features/crawls/presentation/widgets/crawl_ui.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The end of a crawl: the seal, three numbers, and the way to share them.
 class CrawlCompletePage extends StatelessWidget {
@@ -140,7 +141,10 @@ class CrawlCompletePage extends StatelessWidget {
               label: 'Share',
               icon: LucideIcons.share,
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => CrawlSharePage(run: run)),
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: ScreenNames.crawlShare),
+                  builder: (_) => CrawlSharePage(run: run),
+                ),
               ),
             ),
             const SizedBox(height: 6),

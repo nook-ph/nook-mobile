@@ -17,3 +17,30 @@ const bool _forceAnalytics = bool.fromEnvironment('NOOK_FORCE_ANALYTICS');
 ///
 /// TestFlight and store builds are release builds, so they still report.
 const bool kAnalyticsEnabled = kReleaseMode || _forceAnalytics;
+
+/// Session replay settings, read from `.env` so a build can turn replay off or
+/// sample it locally without a code change.
+///
+/// - `POSTHOG_SESSION_REPLAY`: `false` turns recording off. Anything else
+///   (including unset) leaves it on.
+/// - `POSTHOG_REPLAY_SAMPLE_RATE`: a number from 0 to 1. Unset leaves sampling
+///   to the project's remote setting (Settings > Session replay > Sampling),
+///   which is where volume should normally be tuned. A local value overrides
+///   the remote one, so only set it to pin a build's rate.
+class ReplaySettings {
+  const ReplaySettings({required this.enabled, this.sampleRate});
+
+  final bool enabled;
+  final double? sampleRate;
+
+  static ReplaySettings fromEnv(Map<String, String> env) {
+    final flag = env['POSTHOG_SESSION_REPLAY']?.trim().toLowerCase();
+    final rate = double.tryParse(
+      env['POSTHOG_REPLAY_SAMPLE_RATE']?.trim() ?? '',
+    );
+    return ReplaySettings(
+      enabled: flag != 'false' && flag != '0',
+      sampleRate: rate == null || rate.isNaN ? null : rate.clamp(0.0, 1.0),
+    );
+  }
+}

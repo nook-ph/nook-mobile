@@ -35,6 +35,23 @@ class MapSheetStateView extends StatelessWidget {
     );
   }
 
+  /// "No cafes in this area" for someone clearly outside Cebu: says Nook is
+  /// Cebu-only for now and asks which city they want instead.
+  factory MapSheetStateView.outsideCebu({required VoidCallback onRequestCity}) {
+    return MapSheetStateView(
+      icon: LucideIcons.mapPinned,
+      iconColor: MapTokens.ink,
+      title: outsideCebuTitle,
+      subtitle: outsideCebuSubtitle,
+      actionLabel: requestCityLabel,
+      onAction: onRequestCity,
+    );
+  }
+
+  static const outsideCebuTitle = 'Nook covers Cebu for now';
+  static const outsideCebuSubtitle = 'Want us in your city?';
+  static const requestCityLabel = 'Ask for my city';
+
   /// A failed load, with the icon and copy for its kind. A session that ran
   /// out offers Sign in; everything else offers Try again.
   factory MapSheetStateView.error({
@@ -154,13 +171,19 @@ class MapPillButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(100),
         border: filled ? null : Border.all(color: MapTokens.border),
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: filled ? MapTokens.surface : MapTokens.ink,
+      // Two buttons side by side in the dialog leave "Open Settings" a few
+      // points short on a 411-wide phone; it shrank to a clipped "Open".
+      // Scale the label down instead of cutting it.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          maxLines: 1,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: filled ? MapTokens.surface : MapTokens.ink,
+          ),
         ),
       ),
     );
@@ -233,9 +256,17 @@ class MapSheetSkeleton extends StatelessWidget {
   }
 }
 
-/// Shown when location permission is permanently denied, before sending the
-/// user to Settings. Resolves true when they chose Open Settings.
-Future<bool> showMapLocationDeniedDialog(BuildContext context) async {
+/// Shown when the map cannot reach the user's location, before sending them
+/// to Settings: by default for a permission that is permanently denied, or
+/// with [title] and [message] for another cause (Location Services off).
+/// Resolves true when they chose Open Settings.
+Future<bool> showMapLocationDeniedDialog(
+  BuildContext context, {
+  String title = 'Location is off for Nook',
+  String message =
+      'Turn it on in Settings to center the map on you and sort '
+      'cafes by distance.',
+}) async {
   final result = await showDialog<bool>(
     context: context,
     barrierColor: Colors.black.withValues(alpha: 0.4),
@@ -253,7 +284,7 @@ Future<bool> showMapLocationDeniedDialog(BuildContext context) async {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Location is off for Nook',
+                title,
                 style: textTheme.bodyLarge?.copyWith(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -262,8 +293,7 @@ Future<bool> showMapLocationDeniedDialog(BuildContext context) async {
               ),
               const SizedBox(height: 8),
               Text(
-                'Turn it on in Settings to center the map on you and sort '
-                'cafes by distance.',
+                message,
                 style: textTheme.bodyMedium?.copyWith(
                   fontSize: 14,
                   color: MapTokens.muted,

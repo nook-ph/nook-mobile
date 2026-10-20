@@ -5,6 +5,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/presentation/bottom_nav.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
 import 'package:nook/core/presentation/widgets/guest_sign_in_sheet.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
+
+import '../../analytics/recording_analytics.dart';
 
 /// [MainShell] with placeholder pages, behind a router that has `/login`.
 Widget _app({required bool signedIn}) {
@@ -40,30 +44,16 @@ int _currentTab(WidgetTester tester) =>
     tester.widget<BottomNav>(find.byType(BottomNav)).currentIndex;
 
 void main() {
-  testWidgets('a guest tapping Saved gets the save sheet and stays on Home', (
-    tester,
-  ) async {
+  testWidgets('a guest tapping Saved opens it, no sheet', (tester) async {
     await tester.pumpWidget(_app(signedIn: false));
 
     await tester.tap(_tab('Saved'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(GuestSignInSheet), findsOneWidget);
-    expect(find.text('Sign in to save cafes'), findsOneWidget);
-    expect(
-      find.text('Keep lists, mark the places you have been, and rank them.'),
-      findsOneWidget,
-    );
-    // The tab bar draws the same glyph, so look inside the sheet.
-    expect(
-      find.descendant(
-        of: find.byType(GuestSignInSheet),
-        matching: find.byIcon(LucideIcons.bookmark),
-      ),
-      findsOneWidget,
-    );
-    expect(_currentTab(tester), 0);
-    expect(find.text('login page'), findsNothing);
+    // Saves kept on this phone live there; no sign-in wall.
+    expect(find.byType(GuestSignInSheet), findsNothing);
+    expect(_currentTab(tester), 2);
+    expect(find.text('saved page'), findsOneWidget);
   });
 
   testWidgets('a guest tapping Profile gets the profile sheet', (tester) async {
@@ -100,19 +90,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(_currentTab(tester), 1);
 
-    await tester.tap(_tab('Saved'));
+    await tester.tap(_tab('Profile'));
     await tester.pumpAndSettle();
 
     expect(find.byType(GuestSignInSheet), findsOneWidget);
     expect(_currentTab(tester), 1);
   });
 
-  testWidgets('the primary button opens /login', (tester) async {
+  testWidgets('Continue with email opens /login', (tester) async {
     await tester.pumpWidget(_app(signedIn: false));
 
-    await tester.tap(_tab('Saved'));
+    await tester.tap(_tab('Profile'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in or create account'));
+    await tester.tap(find.text('Continue with email'));
     await tester.pumpAndSettle();
 
     expect(find.byType(GuestSignInSheet), findsNothing);
@@ -180,5 +170,31 @@ void main() {
     // Still in the tree, only off stage.
     expect(find.text('map page', skipOffstage: false), findsOneWidget);
     expect(find.text('map page'), findsNothing);
+  });
+
+  testWidgets('tab taps are logged and each tab becomes the screen', (
+    tester,
+  ) async {
+    final analytics = RecordingAnalytics.install(addTearDown);
+    ScreenTracker.instance.resetForTest();
+    await tester.pumpWidget(_app(signedIn: false));
+    expect(ScreenTracker.instance.current, ScreenNames.home);
+
+    await tester.tap(_tab('Map'));
+    await tester.pumpAndSettle();
+    expect(ScreenTracker.instance.current, ScreenNames.map);
+    expect(analytics.propertiesOf(NavEvents.tabTapped), {
+      'tab': ScreenNames.map,
+      'from_tab': ScreenNames.home,
+      'result': 'switched',
+    });
+
+    await tester.tap(_tab('Profile'));
+    await tester.pumpAndSettle();
+    expect(ScreenTracker.instance.current, ScreenNames.map);
+    expect(
+      analytics.propertiesOf(NavEvents.tabTapped)?['result'],
+      'sign_in_required',
+    );
   });
 }

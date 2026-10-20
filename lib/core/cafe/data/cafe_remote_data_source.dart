@@ -573,6 +573,7 @@ class CafeRemoteDataSource {
                 rating,
                 review_count,
                 featured_image_url,
+                operating_hours,
                 cafe_tags ( is_featured, tags ( name ) )
               )
             ''')

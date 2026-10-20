@@ -5,6 +5,7 @@ import 'package:nook/features/lists/bloc/lists_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/bloc/lists_state.dart';
 import 'package:nook/features/lists/presentation/pages/list_detail_page.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// Opens the caller's Been list — the ranked one (docs/RANKING_DESIGN.md §3.2).
 ///
@@ -36,6 +37,7 @@ Future<void> openBeenList(BuildContext context) async {
 
   await navigator.push(
     MaterialPageRoute(
+      settings: const RouteSettings(name: ScreenNames.listDetail),
       builder: (_) => ListDetailPage(
         listId: list.id,
         title: list.name,

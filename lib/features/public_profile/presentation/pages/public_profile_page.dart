@@ -26,6 +26,7 @@ import 'package:nook/features/cups/presentation/cubit/profile_cups_cubit.dart';
 import 'package:nook/features/cups/presentation/widgets/profile_cafe_cups_sheet.dart';
 import 'package:nook/features/cups/presentation/widgets/profile_cups_grid.dart';
 import 'package:nook/injection_container.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// Shares [profile]'s web link. Swapped in tests.
 typedef ShareProfile =
@@ -87,6 +88,7 @@ class PublicProfilePage extends StatelessWidget {
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.publicProfile),
         builder: (_) => PublicProfilePage(
           username: username,
           userId: userId,

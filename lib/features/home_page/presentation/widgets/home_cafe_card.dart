@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_badge.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_layout_scope.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_tag_chip.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -18,11 +22,21 @@ class HomeCafeCard extends StatelessWidget {
   final double width;
   final double height;
 
+  /// The shelf this card sits in and its place there, for analytics.
+  final String? section;
+  final int? position;
+
+  /// The Home rail id; with it a tap also logs `home_rail_card_tapped`.
+  final String? rail;
+
   const HomeCafeCard({
     super.key,
     required this.cafe,
     required this.width,
     required this.height,
+    this.section,
+    this.position,
+    this.rail,
     this.isSkeleton = false,
   });
 
@@ -37,8 +51,27 @@ class HomeCafeCard extends StatelessWidget {
     return AdaptiveTap(
       borderRadius: BorderRadius.circular(12),
       onTap: () {
-        if (isSkeleton) return;
-        if (cafe.id.isNotEmpty) context.push('/cafe/${cafe.id}', extra: cafe);
+        if (isSkeleton || cafe.id.isEmpty) return;
+        logAppEvent(
+          HomeEvents.cafeCardTapped,
+          properties: {
+            'cafe_id': cafe.id,
+            'section': ?section,
+            'position': ?position,
+          },
+        );
+        final rail = this.rail;
+        if (rail != null) {
+          logAppEvent(
+            HomeRailEvents.cardTapped,
+            properties: HomeLayoutScope.withVersion(context, {
+              'rail': rail,
+              'position': position ?? -1,
+              'cafe_id': cafe.id,
+            }),
+          );
+        }
+        context.push('/cafe/${cafe.id}', extra: cafe);
       },
       child: SizedBox(
         width: width,

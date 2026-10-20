@@ -5,6 +5,8 @@ import 'package:nook/core/auth/auth_return.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/auth_events.dart';
+import 'package:nook/features/auth/presentation/auth_step_tracker.dart';
 
 /// "Create your account" (Figma C1–C5).
 class SignupDetailsScreen extends StatefulWidget {
@@ -23,10 +25,17 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
   String? _nameError;
   String? _passwordError;
   bool _obscurePassword = true;
+  late final AuthStepTracker _stepTracker;
 
   @override
   void initState() {
     super.initState();
+    final bloc = context.read<AuthBloc>();
+    _stepTracker = AuthStepTracker(
+      step: AuthStep.details,
+      currentState: () => bloc.state,
+      method: () => bloc.signInMethod,
+    );
     _nameController.addListener(() {
       setState(() {
         if (_nameController.text.trim().isNotEmpty) _nameError = null;
@@ -44,6 +53,7 @@ class _SignupDetailsScreenState extends State<SignupDetailsScreen> {
 
   @override
   void dispose() {
+    _stepTracker.dispose();
     _nameController.dispose();
     _passwordController.dispose();
     _passwordFocus.dispose();

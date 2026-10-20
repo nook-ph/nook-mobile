@@ -12,6 +12,7 @@ import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart'
 import 'package:nook/features/gallery/presentation/widgets/community_photo_actions.dart';
 import 'package:nook/injection_container.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// Every community photo of a cafe, two to a row, a page at a time as it
 /// scrolls (Luma's grid with the credit under each tile, Givingli's
@@ -42,6 +43,7 @@ class CafePhotosPage extends StatelessWidget {
   }) {
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
+        settings: const RouteSettings(name: ScreenNames.cafePhotos),
         builder: (_) =>
             CafePhotosPage(cafeId: cafeId, cafeName: cafeName, seed: seed),
       ),

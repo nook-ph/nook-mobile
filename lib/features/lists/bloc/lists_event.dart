@@ -50,7 +50,12 @@ class RemoveCafeFromList extends ListsEvent {
   final String listId;
   final String cafeId;
 
-  RemoveCafeFromList({required this.listId, required this.cafeId});
+  /// Completes once the remove has been answered (done, failed or skipped),
+  /// with [ListsBloc.settledWrites] at that point: a [ListCafesLoaded] whose
+  /// `afterWrites` reaches it read the list after the remove.
+  final Completer<int>? done;
+
+  RemoveCafeFromList({required this.listId, required this.cafeId, this.done});
 }
 
 class UpdateList extends ListsEvent {

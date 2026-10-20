@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,6 +10,8 @@ import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/auth/presentation/widgets/auth_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/auth_events.dart';
+import 'package:nook/features/auth/presentation/auth_step_tracker.dart';
 
 /// Asks the server whether a username is free. Swappable in tests.
 typedef UsernameAvailabilityCheck = Future<bool> Function(String username);
@@ -29,6 +32,33 @@ String suggestUsername(String fullName) {
       .replaceAll(RegExp(r'_+'), '_')
       .replaceAll(RegExp(r'^_|_$'), '');
   return cleaned.length > 20 ? cleaned.substring(0, 20) : cleaned;
+}
+
+/// Usernames to offer, best first: the handle from [fullName], then up to
+/// [variants] numbered ones ("maria_cruz27") to fall back on when it is
+/// taken, so the step stays a single tap for someone with a common name.
+/// Empty when there is no name to build from, or it is not allowed.
+List<String> usernameSuggestions(
+  String? fullName, {
+  required Random random,
+  int variants = 3,
+}) {
+  final base = suggestUsername(fullName ?? '');
+  if (base.isEmpty) return const [];
+  final out = <String>[if (validateUsername(base) == null) base];
+  // Room for four digits within the 20-character limit.
+  final stem = base.length > 16 ? base.substring(0, 16) : base;
+  for (
+    var tries = 0;
+    out.length < variants + 1 && tries < variants * 4;
+    tries++
+  ) {
+    final candidate = '$stem${10 + random.nextInt(9990)}';
+    if (validateUsername(candidate) == null && !out.contains(candidate)) {
+      out.add(candidate);
+    }
+  }
+  return out;
 }
 
 /// The format rules, in the order the user meets them. Null when [value] is
@@ -53,11 +83,15 @@ class UsernameSetupScreen extends StatefulWidget {
   final String? avatarUrl;
   final UsernameAvailabilityCheck checkAvailability;
 
+  /// Picks the numbered fallbacks ([usernameSuggestions]). Seeded in tests.
+  final Random? random;
+
   const UsernameSetupScreen({
     super.key,
     this.fullName,
     this.avatarUrl,
     this.checkAvailability = _rpcUsernameAvailable,
+    this.random,
   });
 
   @override
@@ -74,12 +108,29 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
   bool _isChecking = false;
   String? _validationError;
 
+  /// The handle this screen filled in, while it is still the one in the
+  /// field, and the fallbacks left to try if it turns out to be taken.
+  String? _suggestion;
+  final List<String> _fallbacks = [];
+  late final AuthStepTracker _stepTracker;
+
   @override
   void initState() {
     super.initState();
-    final name = widget.fullName?.trim();
-    if (name != null && name.isNotEmpty) {
-      _usernameController.text = suggestUsername(name);
+    final bloc = context.read<AuthBloc>();
+    _stepTracker = AuthStepTracker(
+      step: AuthStep.username,
+      currentState: () => bloc.state,
+      method: () => bloc.signInMethod,
+    );
+    final suggestions = usernameSuggestions(
+      widget.fullName?.trim(),
+      random: widget.random ?? Random(),
+    );
+    if (suggestions.isNotEmpty) {
+      _suggestion = suggestions.first;
+      _fallbacks.addAll(suggestions.skip(1));
+      _usernameController.text = suggestions.first;
     }
     _usernameController.addListener(_onUsernameChanged);
     // The suggestion is checked like anything typed, so a free one can be
@@ -91,6 +142,7 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
 
   @override
   void dispose() {
+    _stepTracker.dispose();
     _debounce?.cancel();
     _usernameController.dispose();
     super.dispose();
@@ -121,6 +173,14 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
     try {
       final available = await widget.checkAvailability(username);
       if (!mounted || username != _usernameController.text) return;
+      // Our own suggestion was taken: offer the next one rather than make
+      // the user invent a handle. Something they typed is left alone.
+      if (!available && username == _suggestion && _fallbacks.isNotEmpty) {
+        final next = _fallbacks.removeAt(0);
+        _suggestion = next;
+        _usernameController.text = next;
+        return;
+      }
       setState(() {
         _isAvailable = available;
         _isChecking = false;
@@ -155,14 +215,12 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
-          final suggested = widget.fullName?.trim();
+          final suggested = _suggestion;
           logAppEvent(
             'signup_username_set',
             properties: {
               'kept_suggestion':
-                  suggested != null &&
-                  suggested.isNotEmpty &&
-                  _usernameController.text == suggestUsername(suggested),
+                  suggested != null && _usernameController.text == suggested,
             },
           );
           finishSignIn(context);
@@ -225,9 +283,10 @@ class _UsernameSetupScreenState extends State<UsernameSetupScreen> {
                 color: AuthColors.muted,
                 onTap: isSubmitting
                     ? null
-                    : () => context.read<AuthBloc>().add(
-                        const AuthSignOutEvent(),
-                      ),
+                    : () {
+                        _stepTracker.abandon(AuthAbandonReason.switchedAccount);
+                        context.read<AuthBloc>().add(const AuthSignOutEvent());
+                      },
               ),
             ),
           ],

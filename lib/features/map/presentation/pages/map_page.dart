@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' show Point;
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/session_ask_budget.dart';
 import 'package:nook/core/presentation/tab_back.dart';
 import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -22,6 +23,8 @@ import 'package:nook/features/map/bloc/map_event.dart';
 import 'package:nook/features/map/bloc/map_states.dart';
 import 'package:nook/injection_container.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
+import 'package:nook/core/preferences/home_location_prompt_store.dart';
+import 'package:nook/core/location/location_prompt_tracking.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/filters/coffee_tag_catalog.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
@@ -29,6 +32,8 @@ import 'package:nook/core/filters/models/cafe_filter.dart';
 import 'package:nook/core/utils/geo.dart' as geo;
 import 'package:nook/features/search/presentation/widgets/search_entry_button.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
 import 'package:nook/features/map/presentation/widgets/map_sheet_states.dart';
 import 'package:nook/core/bloc/features/navigation/bloc/navigation_bloc.dart';
 import 'package:nook/features/search/data/search_origin_store.dart';
@@ -213,19 +218,43 @@ class _MapPageState extends State<MapPage>
     _hasRequestedPermission = true;
 
     final store = sl<LocationPromptStore>();
-    if (await store.hasRequested()) return;
-    await store.markRequested();
+    if (!await mapMayAskLocation(
+      promptStore: store,
+      homeStore: sl.isRegistered<HomeLocationPromptStore>()
+          ? sl<HomeLocationPromptStore>()
+          : null,
+    )) {
+      return;
+    }
+    // The app opens this sheet itself, so it takes the session's one ask.
+    // Another sheet already had it: not this visit, and not used up (a
+    // later visit asks).
+    final budget = SessionAskBudget.instance;
+    if (!budget.canShowSheet) {
+      _hasRequestedPermission = false;
+      return;
+    }
 
+    final prompt = LocationPromptTracker(LocationPromptSurface.map);
     try {
       final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.whileInUse ||
           permission == LocationPermission.always) {
+        await store.markRequested();
         return;
       }
       if (permission == LocationPermission.deniedForever) {
+        await store.markRequested();
         return;
       }
+      if (!mounted || !budget.canShowSheet) {
+        _hasRequestedPermission = false;
+        return;
+      }
+      await store.markRequested();
       if (!mounted) return;
+      budget.spend(SessionAskKind.mapLocationAsk);
+      prompt.shown();
       // Say why before the system asks, and offer the alternative: a
       // cold prompt that was refused left the map on Cebu with nothing
       // said.
@@ -239,6 +268,9 @@ class _MapPageState extends State<MapPage>
         cancelLabel: 'Choose an area',
         destructive: false,
       );
+      if (!useLocation) {
+        prompt.result('denied', systemPrompt: false);
+      }
       if (!mounted) return;
       if (!useLocation) {
         await _chooseOrigin();
@@ -247,8 +279,11 @@ class _MapPageState extends State<MapPage>
       // The recenter button's path: ask, then centre on the phone and reload,
       // so "Nearby" sorts and the rows measure from the position just
       // granted rather than from the none they started with.
-      await _requestLocationAccessUnguarded();
+      final outcome = await _requestLocationAccessUnguarded(prompt: prompt);
       if (!mounted) return;
+      // A refused prompt already got its toast, with Settings: replacing it
+      // would take that way out away.
+      if (outcome.result == 'prompt_denied') return;
       final answer = await Geolocator.checkPermission();
       if (!mounted) return;
       if (answer != LocationPermission.whileInUse &&
@@ -260,6 +295,7 @@ class _MapPageState extends State<MapPage>
       }
     } catch (_) {
       // Best-effort: the user can re-enable via Settings.
+      if (prompt.wasShown) prompt.result('unavailable');
     }
   }
 
@@ -318,6 +354,7 @@ class _MapPageState extends State<MapPage>
   /// Map/list switch. An open list slides away; from the bare map or the
   /// collapsed chips, the sheet comes up to the full list.
   void _toggleList() {
+    logAppEvent(MapEvents.listToggled, properties: {'open': !_listOpen});
     if (_listOpen) {
       _listHidden.value = true;
       _sheetHide.forward();
@@ -777,6 +814,7 @@ class _MapPageState extends State<MapPage>
 
   /// The "Near …" line: the same sheet search opens.
   Future<void> _chooseOrigin() async {
+    logAppEvent(MapEvents.originTapped);
     final pick = await pickSearchOrigin(
       context,
       current: _origin,
@@ -790,7 +828,11 @@ class _MapPageState extends State<MapPage>
     // "Current location" recentres on the phone, asking for access if needed.
     if (pick.origin == null) {
       await WidgetsBinding.instance.endOfFrame;
-      if (mounted) await _requestLocationAccess();
+      if (mounted) {
+        await _requestLocationAccess(
+          prompt: LocationPromptTracker(LocationPromptSurface.map),
+        );
+      }
     }
   }
 
@@ -1155,6 +1197,7 @@ class _MapPageState extends State<MapPage>
 
     final selectedCafe = _cafeById[id];
     if (selectedCafe == null) return;
+    logAppEvent(MapEvents.pinTapped, properties: {'cafe_id': selectedCafe.id});
 
     unawaited(_applySelectionFilters(selectedCafe.id));
 
@@ -1285,75 +1328,148 @@ class _MapPageState extends State<MapPage>
 
   /// Recenter. With a place chosen, that means going back to the phone:
   /// the blue dot is hidden while a place is in force.
+  ///
+  /// Every tap is logged as `map_recenter_tapped` with what it found and
+  /// what came of it, so a run of taps on a button that seems dead can be
+  /// told apart from one that is working.
   Future<void> _defaultView() async {
-    if (_origin != null) {
+    final hadPlace = _origin != null;
+    final wasFollowing = _following.value;
+    if (hadPlace) {
       _originStore.set(null);
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted) return;
     }
-    await _requestLocationAccess();
+    final outcome = await _requestLocationAccess();
+    logAppEvent(
+      MapEvents.recenterTapped,
+      properties: {
+        'location_permission': outcome.permission,
+        'location_service_enabled': ?outcome.serviceEnabled,
+        'result': outcome.result,
+        'had_place': hadPlace,
+        'was_following': wasFollowing,
+      },
+    );
   }
 
   /// Geolocator and the map plugin both throw (a second permission request
   /// while one is open, a platform error); a tap on recenter must not turn
-  /// that into an unhandled error.
-  Future<void> _requestLocationAccess() async {
+  /// that into an unhandled error. It still says something: a tap that
+  /// shows nothing reads as a broken button and gets tapped again.
+  Future<_RecenterOutcome> _requestLocationAccess({
+    LocationPromptTracker? prompt,
+  }) async {
+    final tracker =
+        prompt ?? LocationPromptTracker(LocationPromptSurface.mapFab);
     try {
-      await _requestLocationAccessUnguarded();
+      return await _requestLocationAccessUnguarded(prompt: tracker);
     } catch (e) {
+      if (tracker.wasShown) tracker.result('unavailable');
       debugPrint('MapPage: location access failed: $e');
+      if (mounted) {
+        showPrimaryToast(
+          context,
+          "Couldn't find your location. Try again in a moment.",
+          bottomOffset: _visibleSheetTop(_sheetMetrics.value),
+        );
+      }
+      return const (
+        permission: 'unknown',
+        serviceEnabled: null,
+        result: 'error',
+      );
     }
   }
 
-  Future<void> _requestLocationAccessUnguarded() async {
+  /// Every prompt it shows (the Settings dialogs, the system prompt) is
+  /// logged on [prompt], `map_fab` unless the caller passes its own.
+  Future<_RecenterOutcome> _requestLocationAccessUnguarded({
+    LocationPromptTracker? prompt,
+  }) async {
+    final tracker =
+        prompt ?? LocationPromptTracker(LocationPromptSurface.mapFab);
     final permission = await Geolocator.checkPermission();
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    _RecenterOutcome outcome(String result) => (
+      permission: permission.name,
+      serviceEnabled: serviceEnabled,
+      result: result,
+    );
+
+    // Location Services is the phone-wide switch: with the permission
+    // granted, nothing else helps while it is off, so say so with the way
+    // to turn it on. Without the permission the system prompt comes first
+    // (it can be granted with Services off, and the first-visit ask is used
+    // only once).
+    Future<_RecenterOutcome> servicesOff({required bool track}) async {
+      if (!mounted) return outcome('services_off');
+      if (track) tracker.shown();
+      final open = await showMapLocationDeniedDialog(
+        context,
+        title: 'Location Services are off',
+        message:
+            'Turn on Location Services in Settings to center the map on you '
+            'and sort cafes by distance.',
+      );
+      if (track) tracker.result('unavailable');
+      if (open) await Geolocator.openLocationSettings();
+      return outcome(open ? 'services_off_settings' : 'services_off');
+    }
 
     if (permission == LocationPermission.whileInUse ||
         permission == LocationPermission.always) {
-      if (!serviceEnabled) {
-        if (!mounted) return;
-        showPrimaryToast(
-          context,
-          'Turn on Location Services to center the map on you.',
-          bottomOffset: _visibleSheetTop(_sheetMetrics.value),
-        );
-        return;
-      }
+      if (!serviceEnabled) return servicesOff(track: true);
       // Permission granted somewhere else (search, a crawl, Settings) never
       // went through the branch below, so the location layer is still off;
       // tracking does nothing without it.
+      if (tracker.wasShown) tracker.resultFor(permission);
       if (!_myLocationEnabled) {
-        if (!mounted) return;
+        if (!mounted) return outcome('tracking');
         setState(() => _myLocationEnabled = true);
         await WidgetsBinding.instance.endOfFrame;
       }
       await _enterTrackingMode();
-      return;
+      return outcome('tracking');
     }
 
     if (permission == LocationPermission.deniedForever) {
-      if (!mounted) return;
+      if (!mounted) return outcome('denied_forever');
       // Say why before leaving the app; the system won't ask again.
-      if (await showMapLocationDeniedDialog(context)) {
-        await Geolocator.openAppSettings();
-      }
-      return;
+      tracker.shown();
+      final open = await showMapLocationDeniedDialog(context);
+      tracker.result('denied_forever');
+      if (open) await Geolocator.openAppSettings();
+      return outcome(open ? 'denied_forever_settings' : 'denied_forever');
     }
 
-    final updated = await Geolocator.requestPermission();
-    if (!mounted) return;
+    final updated = await tracker.request();
+    if (!mounted) return outcome('prompt_${updated.name}');
     if (updated == LocationPermission.whileInUse ||
         updated == LocationPermission.always) {
       setState(() => _myLocationEnabled = true);
-      if (await Geolocator.isLocationServiceEnabled()) {
-        await _enterTrackingMode();
-        if (!mounted) return;
-        // The filter in force now, not the one captured when the app
-        // started: the chips still show whatever the user has since chosen.
-        _mapBloc?.add(LoadMapDataEvent(filter: sl<FilterCubit>().state));
+      // The prompt was the tracked step; this dialog follows it.
+      if (!serviceEnabled && !await Geolocator.isLocationServiceEnabled()) {
+        return servicesOff(track: false);
       }
+      await _enterTrackingMode();
+      if (!mounted) return outcome('granted_tracking');
+      // The filter in force now, not the one captured when the app
+      // started: the chips still show whatever the user has since chosen.
+      _mapBloc?.add(LoadMapDataEvent(filter: sl<FilterCubit>().state));
+      return outcome('granted_tracking');
     }
+
+    // Just said no to the system prompt. The next tap asks again where the
+    // platform allows it; Settings works either way.
+    showPrimaryToastWithAction(
+      context,
+      'Allow location to center the map on you.',
+      actionLabel: 'Settings',
+      onAction: () => unawaited(Geolocator.openAppSettings()),
+      bottomOffset: _visibleSheetTop(_sheetMetrics.value),
+    );
+    return outcome('prompt_denied');
   }
 
   Future<void> _enterTrackingMode() async {
@@ -1419,4 +1535,29 @@ List<CafeSummary> mapCoreCafes(List<CafeSummary> cafes) {
       )
       .toList();
   return core.length >= cafes.length * 0.6 ? core : cafes;
+}
+
+/// What one recenter tap found and did, for `map_recenter_tapped`.
+typedef _RecenterOutcome = ({
+  String permission,
+  bool? serviceEnabled,
+  String result,
+});
+
+/// Whether the Map's first visit may ask for location by itself: not when
+/// the system prompt was shown from anywhere ([LocationPromptStore]), and
+/// not when the person turned down Home's "See cafes near you" ("Not now"
+/// or its close): the Map would ask the same question again, often minutes
+/// later in the same session. The recenter button still asks.
+Future<bool> mapMayAskLocation({
+  required LocationPromptStore promptStore,
+  HomeLocationPromptStore? homeStore,
+}) async {
+  if (await promptStore.hasRequested()) return false;
+  try {
+    if (await homeStore?.isDismissed() ?? false) return false;
+  } catch (_) {
+    // Unreadable: ask as before.
+  }
+  return true;
 }

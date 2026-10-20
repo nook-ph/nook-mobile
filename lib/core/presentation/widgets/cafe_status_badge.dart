@@ -26,42 +26,43 @@ class CafeStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<CafeStatusCubit, CafeStatusState>(
-      buildWhen: (previous, current) =>
-          previous.statusFor(cafeId) != current.statusFor(cafeId),
-      builder: (context, state) {
-        final status = state.statusFor(cafeId);
-        if (status == CafeStatus.none) return const SizedBox.shrink();
+    // Selected by this widget's current [cafeId], not a `buildWhen` on the
+    // one it was first built for: a rail that reorders (Your places puts the
+    // newest save first) hands this element to another cafe, and the old
+    // check then left it showing the previous cafe's status (review #1).
+    final status = context.select(
+      (CafeStatusCubit cubit) => cubit.state.statusFor(cafeId),
+    );
+    if (status == CafeStatus.none) return const SizedBox.shrink();
 
-        final isBeen = status == CafeStatus.been;
+    final isBeen = status == CafeStatus.been;
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: _fill,
-            borderRadius: BorderRadius.circular(999),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: _fill,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isBeen ? LucideIcons.check : LucideIcons.bookmark,
+            size: 12,
+            color: _brand,
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isBeen ? LucideIcons.check : LucideIcons.bookmark,
-                size: 12,
-                color: _brand,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                isBeen ? 'Been' : 'Want to try',
-                style: context.textTheme.bodySmallMed.copyWith(
-                  color: _ink,
-                  fontSize: 11,
-                  height: 1.5,
-                ),
-              ),
-            ],
+          const SizedBox(width: 4),
+          Text(
+            isBeen ? 'Been' : 'Want to try',
+            style: context.textTheme.bodySmallMed.copyWith(
+              color: _ink,
+              // 11: the platform floor for any text (review, Home scorecard).
+              fontSize: 11,
+              height: 1.5,
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }

@@ -84,10 +84,12 @@ class ListsSheet extends StatelessWidget {
         child: SafeArea(
           top: false,
           child: Padding(
+            // The header's 44 targets reach [_reach] past the gutter, so
+            // the column starts there and everything else keeps the gutter.
             padding: const EdgeInsets.fromLTRB(
-              ListsTokens.gutter,
+              ListsTokens.gutter - _reach,
               8,
-              ListsTokens.gutter,
+              ListsTokens.gutter - _reach,
               16,
             ),
             child: Column(
@@ -115,15 +117,16 @@ class ListsSheet extends StatelessWidget {
                   constraints: const BoxConstraints(minHeight: 32),
                   child: Row(
                     children: [
+                      // Without Back the title starts at the gutter.
+                      if (back == null) const SizedBox(width: _reach),
                       if (back != null) ...[
                         _HeaderIcon(
                           icon: LucideIcons.arrowLeft,
                           size: 20,
                           label: 'Back',
                           onTap: back,
-                          nudge: -6,
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 12),
                       ],
                       Expanded(
                         child: heading == null
@@ -139,19 +142,19 @@ class ListsSheet extends StatelessWidget {
                               ),
                       ),
                       if (extra != null) ...[const SizedBox(width: 12), extra],
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 12),
                       _HeaderIcon(
                         icon: LucideIcons.x,
                         size: 22,
                         label: 'Close',
                         onTap: onClose ?? () => Navigator.of(context).pop(),
-                        nudge: 6,
                       ),
                     ],
                   ),
                 ),
                 Flexible(
                   child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: _reach),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -164,7 +167,13 @@ class ListsSheet extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (pinned != null) ...[SizedBox(height: gap), pinned],
+                if (pinned != null) ...[
+                  SizedBox(height: gap),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: _reach),
+                    child: pinned,
+                  ),
+                ],
               ],
             ),
           ),
@@ -174,38 +183,38 @@ class ListsSheet extends StatelessWidget {
   }
 }
 
+/// How far a header control's 44 target reaches past the design's 32 box,
+/// on the sheet's edge side.
+const double _reach = 6;
+
 /// A header control drawn where the design's 32 box puts it, with a 44 tap
-/// target. [nudge] shifts it outward by the extra 6 so the icon keeps its
-/// place against the sheet's edge.
+/// target. The sheet's column starts [_reach] outside the gutter so the
+/// whole target sits inside it: a target moved out by a paint transform
+/// loses the part past its parent to hit testing.
 class _HeaderIcon extends StatelessWidget {
   const _HeaderIcon({
     required this.icon,
     required this.size,
     required this.label,
     required this.onTap,
-    this.nudge = 0,
   });
 
   final IconData icon;
   final double size;
   final String label;
   final VoidCallback onTap;
-  final double nudge;
 
   @override
   Widget build(BuildContext context) {
-    return Transform.translate(
-      offset: Offset(nudge, 0),
-      child: Semantics(
-        button: true,
-        label: label,
-        child: AdaptiveTap(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: SizedBox.square(
-            dimension: 44,
-            child: Icon(icon, size: size, color: ListsTokens.ink),
-          ),
+    return Semantics(
+      button: true,
+      label: label,
+      child: AdaptiveTap(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: SizedBox.square(
+          dimension: 44,
+          child: Icon(icon, size: size, color: ListsTokens.ink),
         ),
       ),
     );

@@ -1,4 +1,6 @@
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:nook/core/preferences/onboarding_purpose_store.dart';
+import 'package:nook/features/home_page/domain/home_layout.dart';
 
 abstract class HomeState {}
 
@@ -46,6 +48,17 @@ class HomeLoadedState extends HomeState {
   /// it. Null on every other emission, so it is reported once.
   final Object? refreshError;
 
+  /// What the user said they are looking for at onboarding; its shelf
+  /// leads the feed. Null for anyone who never answered.
+  final OnboardingPurpose? purpose;
+
+  /// The published Home layout, or null for the built-in Home.
+  final HomeLayout? layout;
+
+  /// The cafes [layout] adds, by section id: hand-picked House picks
+  /// (`featured`) and custom shelves. A section missing here failed to load.
+  final Map<String, List<CafeSummary>> layoutShelves;
+
   HomeLoadedState({
     required this.featuredCafes,
     this.nearbyCafes = const [],
@@ -61,6 +74,9 @@ class HomeLoadedState extends HomeState {
     this.allEmpty = false,
     this.newCafeIds,
     this.refreshError,
+    this.purpose,
+    this.layout,
+    this.layoutShelves = const {},
   });
 
   /// Every cafe on the feed, for the one batched status lookup.
@@ -73,6 +89,8 @@ class HomeLoadedState extends HomeState {
     for (final cafe in specialtyNearbyCafes) cafe.id,
     for (final cafe in laptopFriendlyCafes) cafe.id,
     for (final cafe in localBeansCafes) cafe.id,
+    for (final cafes in layoutShelves.values)
+      for (final cafe in cafes) cafe.id,
   };
 
   bool get hasCafes => cafeIds.isNotEmpty;
@@ -96,6 +114,12 @@ class HomeLoadedState extends HomeState {
     bool? allEmpty,
     Set<String>? newCafeIds,
     Object? refreshError,
+    OnboardingPurpose? purpose,
+    HomeLayout? layout,
+    Map<String, List<CafeSummary>>? layoutShelves,
+
+    /// Back to the built-in Home ([layout] null).
+    bool clearLayout = false,
   }) {
     return HomeLoadedState(
       featuredCafes: featuredCafes ?? this.featuredCafes,
@@ -113,6 +137,11 @@ class HomeLoadedState extends HomeState {
       allEmpty: allEmpty ?? this.allEmpty,
       newCafeIds: newCafeIds ?? this.newCafeIds,
       refreshError: refreshError,
+      purpose: purpose ?? this.purpose,
+      layout: clearLayout ? null : (layout ?? this.layout),
+      layoutShelves: clearLayout
+          ? const {}
+          : (layoutShelves ?? this.layoutShelves),
     );
   }
 }

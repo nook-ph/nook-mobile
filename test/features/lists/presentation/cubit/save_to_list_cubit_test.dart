@@ -195,6 +195,98 @@ void main() {
       expect(state.refreshNonce, 1);
     });
 
+    test('a cafe that fails to save into a new list does not throw: a retry '
+        'from the form would make the list twice', () async {
+      final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+      final cubit = _buildCubit(repository);
+      await cubit.load('cafe-1');
+      repository.failNextAdd = true;
+
+      final saved = await cubit.createListAndSave(
+        cafeId: 'cafe-1',
+        name: 'Weekend Cafes',
+      );
+
+      expect(saved, isFalse);
+      expect(repository.createCalls, 1);
+      final state = cubit.state as SaveToListLoaded;
+      expect(state.lists.map((list) => list.id), contains('created-list'));
+      expect(state.savedListIds, isNot(contains('created-list')));
+      expect(state.isCreating, isFalse);
+      expect(state.listActionError, isNotNull);
+    });
+
+    test('a reload that fails after the cafe is saved is not reported as a '
+        'failed save', () async {
+      final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+      final cubit = _buildCubit(repository);
+      await cubit.load('cafe-1');
+      repository.failListsLoad = true;
+
+      final saved = await cubit.createListAndSave(
+        cafeId: 'cafe-1',
+        name: 'Weekend Cafes',
+      );
+
+      expect(saved, isTrue);
+      expect(repository.memberships, contains('created-list'));
+      final state = cubit.state as SaveToListLoaded;
+      expect(state.listActionError, isNull);
+      expect(state.isCreating, isFalse);
+    });
+
+    test(
+      'a toggle whose refresh fails after the write keeps its checkmark',
+      () async {
+        final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+        final cubit = _buildCubit(repository);
+        await cubit.load('cafe-1');
+        repository.failListsLoad = true;
+
+        await cubit.toggleList(cafeId: 'cafe-1', listId: 'list-1');
+
+        final state = cubit.state as SaveToListLoaded;
+        expect(repository.memberships, contains('list-1'));
+        expect(state.savedListIds, contains('list-1'));
+        expect(state.pendingListIds, isEmpty);
+        expect(state.listActionError, isNull);
+      },
+    );
+
+    test(
+      'a new list whose save and reload both fail is still in the picker',
+      () async {
+        final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+        final cubit = _buildCubit(repository);
+        await cubit.load('cafe-1');
+        repository
+          ..failNextAdd = true
+          ..failListsLoad = true;
+
+        final saved = await cubit.createListAndSave(
+          cafeId: 'cafe-1',
+          name: 'Weekend Cafes',
+        );
+
+        expect(saved, isFalse);
+        final state = cubit.state as SaveToListLoaded;
+        final made = state.lists.singleWhere((l) => l.id == 'created-list');
+        expect(made.name, 'Weekend Cafes');
+        expect(state.listActionError, isNotNull);
+      },
+    );
+
+    test('creating a list before the lists load throws, not "done"', () async {
+      final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+      final cubit = _buildCubit(repository);
+
+      await expectLater(
+        cubit.createListAndSave(cafeId: 'cafe-1', name: 'Weekend Cafes'),
+        throwsStateError,
+      );
+      expect(repository.createCalls, 0);
+    });
+
     test(
       'sortListsForSaveSheet pins default first; rest by lastSavedAt else updatedAt desc',
       () {
@@ -285,6 +377,8 @@ class _FakeCafeRepository implements ICafeRepository {
   bool failNextAdd;
   bool failNextRemove;
   Completer<void>? addCompleter;
+  int createCalls = 0;
+  bool failListsLoad = false;
 
   @override
   Future<bool> isCafeSavedToAnyUserList(String cafeId) async {
@@ -332,6 +426,7 @@ class _FakeCafeRepository implements ICafeRepository {
     String? description,
     required bool isPublic,
   }) async {
+    createCalls++;
     const listId = 'created-list';
     lists.add(_list(id: listId));
     return listId;
@@ -346,7 +441,10 @@ class _FakeCafeRepository implements ICafeRepository {
   }
 
   @override
-  Future<List<CafeList>> getUserLists() async => lists;
+  Future<List<CafeList>> getUserLists() async {
+    if (failListsLoad) throw StateError('lists failed');
+    return lists;
+  }
 
   @override
   Future<void> removeCafeFromList(String listId, String cafeId) async {

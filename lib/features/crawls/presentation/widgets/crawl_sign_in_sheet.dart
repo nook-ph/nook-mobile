@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:nook/features/auth/presentation/sheet_sign_in.dart';
+import 'package:nook/features/auth/presentation/widgets/sign_in_choices.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_ui.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Asks a signed-out user to sign in before an action that needs an account,
-/// saying what the account is for. "Not now" leaves them where they were.
+/// saying what the account is for. Google and Apple sign in from the sheet;
+/// email opens the login page. "Not now" leaves them where they were.
 class CrawlSignInSheet extends StatelessWidget {
   const CrawlSignInSheet({
     super.key,
@@ -17,17 +19,17 @@ class CrawlSignInSheet extends StatelessWidget {
   final String title;
   final String message;
 
-  /// Opens the sheet; "Sign in or create account" pushes `/login`.
+  /// Opens the sheet ([continueSignInFromSheet] acts on the choice).
   static Future<void> show(
     BuildContext context, {
     required String title,
     required String message,
   }) async {
-    final signIn = await CrawlSheet.show<bool>(
+    final choice = await CrawlSheet.show<SignInChoice>(
       context,
       builder: (_) => CrawlSignInSheet(title: title, message: message),
     );
-    if (signIn == true && context.mounted) context.push('/login');
+    if (context.mounted) await continueSignInFromSheet(context, choice);
   }
 
   @override
@@ -66,15 +68,14 @@ class CrawlSignInSheet extends StatelessWidget {
           ),
           // Figma: 8 + a 12 spacer + 8.
           const SizedBox(height: 28),
-          CrawlPrimaryButton(
-            label: 'Sign in or create account',
-            onTap: () => Navigator.of(context).pop(true),
+          SheetSignInChoices(
+            onChoice: (choice) => Navigator.of(context).pop(choice),
           ),
           CrawlTextButton(
             label: 'Not now',
             color: ListsTokens.muted,
             minHeight: 40,
-            onTap: () => Navigator.of(context).pop(false),
+            onTap: () => Navigator.of(context).pop(),
           ),
         ],
       ),

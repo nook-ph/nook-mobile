@@ -11,6 +11,7 @@ import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:nook/features/crawls/presentation/widgets/enter_crawl_code_sheet.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The Crawls block on the Lists tab: runs in progress first, then finished
 /// runs, then crawls the user made. With nothing to show it explains how to
@@ -206,9 +207,12 @@ class _ErrorCard extends StatelessWidget {
 }
 
 void _openRun(BuildContext context, CrawlRunSummary run) {
-  Navigator.of(
-    context,
-  ).push(MaterialPageRoute(builder: (_) => CrawlRunPage(runId: run.runId)));
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      settings: const RouteSettings(name: ScreenNames.crawlRun),
+      builder: (_) => CrawlRunPage(runId: run.runId),
+    ),
+  );
 }
 
 class _ActiveRunCard extends StatelessWidget {
@@ -347,6 +351,7 @@ class _CreatedCrawlRow extends StatelessWidget {
       ].join(' · '),
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
+          settings: const RouteSettings(name: ScreenNames.crawlDetail),
           builder: (_) =>
               CrawlDetailPage(shareCode: crawl.shareCode, initial: crawl),
         ),

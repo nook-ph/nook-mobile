@@ -5,7 +5,11 @@ import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
+import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/discovery_events.dart';
 import 'package:nook/core/analytics/profile_events.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/cups/domain/entities/cup.dart';
@@ -21,16 +25,24 @@ import 'package:nook/features/gallery/presentation/cubit/cafe_photos_cubit.dart'
 import 'package:nook/core/services/share_service.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/core/utils/error_info.dart';
-import 'package:nook/core/presentation/widgets/bookmark_icon_button.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
+import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/save_actions.dart';
 import 'package:nook/core/cafe/domain/use_cases/resolve_quick_save_list_usecase.dart';
+import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/guest_saves/domain/cafe_snapshot.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/widgets/directions_save_nudge.dart';
 import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/injection_container.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import 'package:nook/features/cafe_details/bloc/cafe_details_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/cafe_details_event.dart';
@@ -71,9 +83,33 @@ double scrollOffsetUnderBar({
 }) => (reveal - bar + 8).clamp(min, max);
 
 class CafeDetailsPage extends StatefulWidget {
-  const CafeDetailsPage({super.key, required this.cafeId, this.preview});
+  const CafeDetailsPage({
+    super.key,
+    required this.cafeId,
+    this.wentOnOpen = false,
+    this.preview,
+  });
 
   final String cafeId;
+
+  /// Opened from the visit reminder ("I went"): mark the cafe Been once it
+  /// has loaded, then the one "How was it?" step.
+  final bool wentOnOpen;
+
+  /// Cafe pages open now, newest last.
+  static final List<_CafeDetailsPageState> _open = [];
+
+  /// Closes the page for [cafeId] if it is the one on screen, so opening
+  /// it again (from the visit reminder) replaces it instead of stacking a
+  /// second copy on top.
+  static void closeIfOnTop(String cafeId) {
+    if (_open.isEmpty) return;
+    final top = _open.last;
+    if (top.widget.cafeId != cafeId || !top.mounted) return;
+    final route = ModalRoute.of(top.context);
+    if (route == null || !route.isCurrent) return;
+    Navigator.of(top.context).pop();
+  }
 
   /// The card that was tapped, when there was one: its photo and name stand
   /// in while the details load, so the page opens on the cafe, not on grey.
@@ -125,9 +161,32 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
     param1: widget.cafeId,
   )..load();
 
+  /// The loaded cafe, kept for the directions nudge.
+  CafeSnapshot? _snapshot;
+
+  /// "Save to Want to try?" after directions to this cafe, if it isn't saved.
+  late final DirectionsSaveNudge _directionsNudge;
+
+  /// [CafeDetailsPage.wentOnOpen], used once: a reload of the cafe must not
+  /// mark it again.
+  late bool _wentRequested = widget.wentOnOpen;
+
+  bool _takeWentRequest() {
+    final requested = _wentRequested;
+    _wentRequested = false;
+    return requested;
+  }
+
   @override
   void initState() {
     super.initState();
+    CafeDetailsPage._open.add(this);
+    _directionsNudge = DirectionsSaveNudge(
+      cafeId: widget.cafeId,
+      host: this,
+      cafe: () => _snapshot,
+      toastOffset: _toastOffset,
+    );
     _pendingAddCup =
         Supabase.instance.client.auth.currentSession != null &&
         GuestActionReplay.take(CafeGuestAction.writeReview, widget.cafeId);
@@ -150,14 +209,30 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
       AnalyticsService.viewDetails,
       metadata: {AnalyticsMetadataKeys.screen: 'cafe_details'},
     );
+    recordEngagement(EngagementAction.cafeView);
+    // A cafe has been seen: Home may now offer "See cafes near you".
+    if (sl.isRegistered<HomeLocationPromptStore>()) {
+      unawaited(
+        sl<HomeLocationPromptStore>().markCafeViewed().catchError((_) {}),
+      );
+    }
+  }
+
+  /// Home's "Your places" row leads with the cafes opened lately.
+  void _onCafeLoaded(BuildContext context, CafeDetailsLoaded state) {
+    final snapshot = CafeSnapshot.fromDetails(state.data.cafeDetails);
+    _snapshot = snapshot;
+    context.read<RecentlyViewedCubit>().record(snapshot);
   }
 
   @override
   void dispose() {
+    CafeDetailsPage._open.remove(this);
     _scrollController.dispose();
     _collapseProgress.dispose();
     _cups.close();
     _photos.close();
+    _directionsNudge.dispose();
     super.dispose();
   }
 
@@ -367,7 +442,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
         // Imported from public sources and unchecked: say so under the name.
         CafeUnverifiedNote(cafeId: widget.cafeId, isClaimed: details.isClaimed),
         const SizedBox(height: 16),
-        CafeStatusPills(cafe: cafe, toastOffset: _toastOffset),
+        CafeStatusPills(
+          cafe: cafe,
+          toastOffset: _toastOffset,
+          takeWentRequest: _takeWentRequest,
+        ),
         // Your own history with the cafe, right under the actions that
         // create it. Renders nothing unless it's a Been.
         CafeYourVisitBlock(
@@ -480,7 +559,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                   ),
               body: BlocConsumer<CafeDetailsBloc, CafeDetailsState>(
                 listenWhen: (_, current) => current is CafeDetailsLoaded,
-                listener: (_, _) => _trackViewDetails(),
+                listener: (context, state) {
+                  _trackViewDetails();
+                  if (state is CafeDetailsLoaded) _onCafeLoaded(context, state);
+                },
                 buildWhen: (previous, current) {
                   if (previous is CafeDetailsLoaded &&
                       current is CafeDetailsLoading) {
@@ -581,9 +663,10 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             ),
                             automaticallyImplyLeading: false,
                             leadingWidth: 70,
+                            // The circles keep their 22 edge; their 48 touch
+                            // squares reach 4 past it (review N2).
                             leading: Padding(
-                              // 22 to the circle; its 44 target adds 2.
-                              padding: const EdgeInsets.only(left: 20.0),
+                              padding: const EdgeInsets.only(left: 18.0),
                               child: Center(
                                 child: AppBarCircleIconButton(
                                   icon: Icons.arrow_back,
@@ -615,19 +698,18 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                       : '',
                                 ),
                               ),
-                              // 12 between the circles; each 44 target
-                              // reaches 2 past its circle.
-                              const SizedBox(width: 8),
+                              const SizedBox(width: 4),
                               Center(
                                 child: _SavedButton(
                                   cafeId: widget.cafeId,
                                   cafeName: state is CafeDetailsLoaded
                                       ? state.data.cafeDetails.name
                                       : '',
+                                  snapshot: () => _snapshot,
                                   toastOffset: _toastOffset,
                                 ),
                               ),
-                              const SizedBox(width: 20),
+                              const SizedBox(width: 18),
                             ],
                             bottom: PreferredSize(
                               preferredSize: const Size.fromHeight(0.5),
@@ -698,6 +780,35 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
   }
 }
 
+/// The app bar's white circle with one icon, and the name it is read by.
+class _TopBarSaveIcon extends StatelessWidget {
+  const _TopBarSaveIcon({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBarCircleIconButton(
+      icon: icon,
+      iconSize: 18,
+      iconColor: color,
+      label: label,
+      selected: selected,
+      onTap: onTap,
+    );
+  }
+}
+
 class _ShareButton extends StatelessWidget {
   const _ShareButton({required this.cafeId, required this.cafeName});
 
@@ -713,7 +824,13 @@ class _ShareButton extends StatelessWidget {
       onTap: () {
         // Details are still loading — a share with no name reads broken, and
         // the load takes well under a second.
-        if (cafeName.isEmpty) return;
+        if (cafeName.isEmpty) {
+          logAppEvent(
+            CafeDetailsEvents.shareNotReady,
+            properties: {'cafe_id': cafeId},
+          );
+          return;
+        }
 
         // iPadOS anchors its share popover to this rect; everywhere else it
         // is ignored.
@@ -741,15 +858,24 @@ class _ShareButton extends StatelessWidget {
   }
 }
 
+/// Top right of the cafe page. Signed in, it adds the cafe to a custom list
+/// (a list-plus icon, so it no longer looks like the Want to try pill's
+/// bookmark). For a guest it is the same Want to try save as the pill, kept
+/// on this phone: the most familiar save spot must not be a sign-in wall
+/// (review #2).
 class _SavedButton extends StatefulWidget {
   const _SavedButton({
     required this.cafeId,
     required this.cafeName,
+    required this.snapshot,
     required this.toastOffset,
   });
 
   final String cafeId;
   final String cafeName;
+
+  /// The loaded cafe, for a guest's save; null while loading.
+  final CafeSnapshot? Function() snapshot;
 
   /// Height of the pinned action bar, so the saved toast lands above it.
   final double Function() toastOffset;
@@ -815,11 +941,60 @@ class _SavedButtonState extends State<_SavedButton> {
 
   @override
   Widget build(BuildContext context) {
-    return BookmarkIconButton(
-      isSaved: _isSaved,
-      isEnabled: !_isSaving,
-      onTap: _onTap,
+    return BlocConsumer<AuthBloc, AuthState>(
+      listenWhen: (previous, current) =>
+          current is AuthAuthenticated && previous is! AuthAuthenticated,
+      listener: (_, _) => _savedStateLoad = _loadSavedState(),
+      buildWhen: (previous, current) =>
+          (previous is AuthAuthenticated) != (current is AuthAuthenticated),
+      builder: (context, _) {
+        if (Supabase.instance.client.auth.currentSession == null) {
+          // Filled for any status, so a Been cafe never looks unsaved
+          // here (review N3).
+          return BlocSelector<GuestSavesCubit, GuestSavesState, CafeStatus>(
+            selector: (saves) => saves.statusFor(widget.cafeId),
+            builder: (context, status) {
+              final saved = status != CafeStatus.none;
+              return _TopBarSaveIcon(
+                icon: PhosphorIcons.bookmarkSimple(
+                  saved ? PhosphorIconsStyle.fill : PhosphorIconsStyle.regular,
+                ),
+                color: saved ? _brand : Colors.black,
+                label: switch (status) {
+                  CafeStatus.been => 'In Been',
+                  CafeStatus.wantToTry => 'Saved to Want to try',
+                  _ => 'Want to try',
+                },
+                selected: saved,
+                onTap: _onGuestTap,
+              );
+            },
+          );
+        }
+        return _TopBarSaveIcon(
+          icon: _isSaved ? LucideIcons.listChecks : LucideIcons.listPlus,
+          color: _isSaved ? _brand : Colors.black,
+          label: _isSaved ? 'In your lists' : 'Add to list',
+          selected: _isSaved,
+          onTap: _isSaving ? null : _onTap,
+        );
+      },
     );
+  }
+
+  static const _brand = Color(0xFF3A5A40);
+
+  /// A guest's tap: Want to try on this phone, the same toggle and toasts
+  /// as the pill under the name; on a Been cafe, an offer to move it.
+  Future<void> _onGuestTap() async {
+    final cafe = widget.snapshot();
+    if (cafe == null) {
+      _logSave('busy');
+      return;
+    }
+    _logSave('guest_want_to_try');
+    dismissToasts();
+    await guestTopSave(context, cafe: cafe, bottomOffset: widget.toastOffset());
   }
 
   Future<void> _loadSavedState() async {
@@ -866,24 +1041,26 @@ class _SavedButtonState extends State<_SavedButton> {
     }
   }
 
+  void _logSave(String result) => logAppEvent(
+    CafeDetailsEvents.saveTapped,
+    properties: {'cafe_id': widget.cafeId, 'result': result},
+  );
+
   Future<void> _onTap() async {
     final session = Supabase.instance.client.auth.currentSession;
-    if (session == null) {
-      dismissToasts();
-      await CafeGuestSignInSheet.show(
-        context,
-        action: CafeGuestAction.saveToList,
-        cafeName: widget.cafeName,
-        cafeId: widget.cafeId,
-      );
+    // A guest's tap is a Want to try ([_onGuestTap]); the list sheet needs
+    // an account.
+    if (session == null) return;
+
+    if (_isSaving) {
+      _logSave('busy');
       return;
     }
-
-    if (_isSaving) return;
     await _savedStateLoad;
     if (!mounted) return;
 
     if (_isSaved) {
+      _logSave('opened_lists');
       await _showSaveToListSheet();
       return;
     }
@@ -912,6 +1089,7 @@ class _SavedButtonState extends State<_SavedButton> {
 
       listsBloc.add(LoadUserLists());
 
+      _logSave('saved');
       if (!mounted) return;
       showSavedToListToast(
         context,
@@ -921,6 +1099,7 @@ class _SavedButtonState extends State<_SavedButton> {
       );
     } catch (e, st) {
       debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
+      _logSave('failed');
       if (!mounted) return;
       HapticFeedback.errorNotification();
       setState(() => _isSaved = false);

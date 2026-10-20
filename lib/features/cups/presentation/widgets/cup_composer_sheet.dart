@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/profile_events.dart';
@@ -130,10 +131,11 @@ Future<CupComposerOutcome?> openCupComposer(
       showPrimaryToastWithAction(
         context,
         'Cup posted',
-        actionLabel: 'Share',
-        onAction: share,
-        secondaryActionLabel: 'Rank it',
-        onSecondaryAction: rank,
+        // The secondary action shows first: "Cup posted  Share  Rank it".
+        secondaryActionLabel: 'Share',
+        onSecondaryAction: share,
+        actionLabel: 'Rank it',
+        onAction: rank,
         duration: const Duration(seconds: 6),
         bottomOffset: toastOffset,
       );
@@ -280,17 +282,76 @@ class _Item {
   );
 }
 
-/// A new cup kept while its author signs in again: the post found the
-/// session gone, and the login screen replaces the page under the sheet.
-/// The next composer for the same cafe picks it up, once. In memory only.
-({
+/// A new cup kept while its author signs in again.
+typedef _KeptCup = ({
   String cafeId,
   List<_Item> items,
   String note,
   int? rating,
   DateTime visitedAt,
-})?
-_keptDraft;
+  String? userId,
+  DateTime keptAt,
+});
+
+/// A new cup kept while its author signs in again: the post found the
+/// session gone, and the login screen replaces the page under the sheet.
+/// The next composer for the same cafe picks it up, once, if it is the same
+/// account and the sign-in was recent ([GuestActionReplay.maxAge], the
+/// same window as the composer reopening by itself). In memory only.
+_KeptCup? _keptDraft;
+
+/// The signed-in account's id, or null (also when Supabase is not set up,
+/// as in tests).
+String? currentCupUserId() {
+  try {
+    return Supabase.instance.client.auth.currentUser?.id;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// The account the kept-draft checks read. Overridable for tests.
+@visibleForTesting
+String? Function() cupDraftUserId = currentCupUserId;
+
+/// Drops a cup kept for a sign-in (log out, account deleted).
+void discardKeptCupDraft() => _keptDraft = null;
+
+/// Whether a cup is kept for a sign-in. For tests.
+@visibleForTesting
+bool get debugHasKeptCupDraft => _keptDraft != null;
+
+/// Keeps a draft with just a note, as [_CupComposerSheetState] does on
+/// Sign in. For tests.
+@visibleForTesting
+void debugKeepCupDraft({
+  required String cafeId,
+  required String note,
+  String? userId,
+  DateTime? keptAt,
+}) {
+  final at = keptAt ?? GuestActionReplay.now();
+  _keptDraft = (
+    cafeId: cafeId,
+    items: const [],
+    note: note,
+    rating: null,
+    visitedAt: at,
+    userId: userId,
+    keptAt: at,
+  );
+}
+
+bool _isStale(_KeptCup kept) =>
+    GuestActionReplay.now().difference(kept.keptAt) > GuestActionReplay.maxAge;
+
+/// Whether [kept] may fill a composer for [cafeId] now: the same cafe, not
+/// stale, and the account it was kept for (one kept without an account is
+/// let through: the composer is only open to a signed-in person).
+bool _canRestore(_KeptCup kept, String cafeId) {
+  if (kept.cafeId != cafeId || _isStale(kept)) return false;
+  return kept.userId == null || kept.userId == cupDraftUserId();
+}
 
 class CupComposerSheet extends StatefulWidget {
   const CupComposerSheet({
@@ -356,6 +417,9 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
   /// The post found no session: the error offers Sign in.
   bool _signedOut = false;
 
+  /// Who opened the sheet, for a draft kept after the session is gone.
+  final String? _openedAs = cupDraftUserId();
+
   CupCard? get _editing => widget.editing;
   bool get _busy => _posting || _deleting;
 
@@ -390,8 +454,12 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       _items.addAll(widget.initialPhotos.map(_Item.photo));
       _note.text = widget.initialNote?.trim() ?? '';
       _visitedAt = _dayFromPhotos(widget.initialPhotos) ?? _now;
-      if (kept != null && kept.cafeId == widget.cafe.id) {
+      if (kept != null && (kept.cafeId == widget.cafe.id || _isStale(kept))) {
+        // Used or not, it is spent: a stale or other account's draft must
+        // not wait for a later visit (or hold its photos meanwhile).
         _keptDraft = null;
+      }
+      if (kept != null && _canRestore(kept, widget.cafe.id)) {
         _items.insertAll(0, kept.items);
         if (kept.note.isNotEmpty) _note.text = kept.note;
         _rating = kept.rating;
@@ -767,6 +835,9 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       note: _note.text.trim(),
       rating: _rating,
       visitedAt: _visitedAt,
+      // The session may already be gone: the account the sheet opened as.
+      userId: cupDraftUserId() ?? _openedAs,
+      keptAt: GuestActionReplay.now(),
     );
     GuestActionReplay.remember(CafeGuestAction.writeReview, widget.cafe.id);
     final router = GoRouter.of(context);

@@ -7,6 +7,7 @@ import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.
 import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 import 'package:nook/utils/theme/custom_themes/color_scheme.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 class CafeCard extends StatefulWidget {
   final CafeSummary cafe;
@@ -29,6 +30,7 @@ class _CafeCardState extends State<CafeCard> {
         Navigator.push(
           context,
           MaterialPageRoute(
+            settings: const RouteSettings(name: ScreenNames.cafeDetails),
             builder: (context) =>
                 CafeDetailsPage(cafeId: widget.cafe.id), // change
           ),

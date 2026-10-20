@@ -220,6 +220,41 @@ void main() {
       expect(state.locationUnavailable, isTrue);
     });
 
+    test(
+      'a shelf link to sort=nearby with no position sorts by rating, tag kept',
+      () async {
+        // What /search?tag=Specialty%20Coffee&sort=nearby sends
+        // (nook://shelf/specialty), as SearchResultsPage does.
+        location = _off;
+        final bloc = build();
+        bloc
+          ..add(const SearchSortChanged('nearby'))
+          ..add(const SearchTagsChanged({'Specialty Coffee'}));
+        final state = await bloc.stream.firstWhere(
+          (s) => s.status == SearchStatus.success && s.tags.isNotEmpty,
+        );
+        expect(search.queries.last.sort, 'top_rated');
+        expect(search.queries.last.tags, ['Specialty Coffee']);
+        expect(state.sortFellBack, isTrue);
+        expect(state.shownSort, 'top_rated');
+      },
+    );
+
+    test(
+      'a sort=nearby link with no tag and no position sorts by rating',
+      () async {
+        // nook://shelf/nearby -> /search?sort=nearby.
+        location = _off;
+        final bloc = build();
+        bloc.add(const SearchSortChanged('nearby'));
+        final state = await bloc.stream.firstWhere(
+          (s) => s.status == SearchStatus.success,
+        );
+        expect(search.queries.last.sort, 'top_rated');
+        expect(state.shownSort, 'top_rated');
+      },
+    );
+
     test('a plain denial is treated the same as a permanent one', () async {
       // The resolver reports a once-denied permission as off; the bloc has
       // no deniedForever special case left.

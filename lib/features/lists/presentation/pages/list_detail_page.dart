@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/empty_state_tracker.dart';
 import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +29,7 @@ import 'package:nook/features/lists/presentation/widgets/list_options_bottom_she
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 import 'package:nook/features/lists/presentation/widgets/ranked_been_list.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// One list opened from the Saved tab: Been as the ranked diary, everything
 /// else as plain cafe rows (Figma "Been — ranked", "Want to try", "Custom
@@ -66,6 +68,16 @@ class _ListDetailPageState extends State<ListDetailPage> {
 
   /// Where [_removing]'s row was, for Undo to put it back in place.
   int _removedAt = 0;
+
+  /// [_removing]'s request, so an earlier remove's answer (the same cafe,
+  /// removed, put back and removed again) is not taken for this one's.
+  Completer<int>? _removeRequest;
+
+  /// The bloc's settled-write count once [_removing]'s remove was answered.
+  /// A reload read from then on that still has the cafe is the server's
+  /// list (a delete that matched nothing) and is shown; an earlier one is
+  /// from before the remove and is not.
+  int? _removeSettledAt;
 
   /// The cafe an Undo is putting back. Its row is already back.
   CafeSummary? _restoring;
@@ -122,6 +134,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     if (cafes == null) return;
     Navigator.of(context).push(
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.crawlBuilder),
         builder: (_) => CrawlBuilderPage(
           listId: widget.listId,
           listName: _title,
@@ -194,6 +207,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.cafeDetails),
         builder: (_) => CafeDetailsPage(cafeId: cafe.id, preview: cafe),
       ),
     );
@@ -217,6 +231,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     final cafes = _cachedCafes ?? const [];
     _removedAt = cafes.indexWhere((c) => c.id == cafe.id).clamp(0, 1 << 30);
     _removing = cafe;
+    _removeSettledAt = null;
     _restoring = null;
     setState(() {
       _cachedCafes = [
@@ -230,13 +245,22 @@ class _ListDetailPageState extends State<ListDetailPage> {
       actionLabel: 'Undo',
       onAction: () => _undoRemove(cafe),
     );
-    _listsBloc.add(RemoveCafeFromList(listId: widget.listId, cafeId: cafe.id));
+    final done = Completer<int>();
+    _removeRequest = done;
+    unawaited(
+      done.future.then((settled) {
+        if (identical(_removeRequest, done)) _removeSettledAt = settled;
+      }),
+    );
+    _listsBloc.add(
+      RemoveCafeFromList(listId: widget.listId, cafeId: cafe.id, done: done),
+    );
   }
 
   /// Runs from the toast, which can outlive this page: no context lookups.
   void _undoRemove(CafeSummary cafe) {
+    _clearPending();
     _restoring = cafe;
-    _removing = null;
     final cafes = _cachedCafes;
     if (mounted && cafes != null && !cafes.any((c) => c.id == cafe.id)) {
       setState(() {
@@ -245,6 +269,14 @@ class _ListDetailPageState extends State<ListDetailPage> {
       });
     }
     _listsBloc.add(AddCafeToList(listId: widget.listId, cafeId: cafe.id));
+  }
+
+  /// No remove or Undo is waiting on a reload any more.
+  void _clearPending() {
+    _removing = null;
+    _restoring = null;
+    _removeRequest = null;
+    _removeSettledAt = null;
   }
 
   void _onListsState(BuildContext context, ListsState state) {
@@ -271,8 +303,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     if (state is ListsError) {
       final failed = _removing ?? _restoring;
       final editFailed = _editing;
-      _removing = null;
-      _restoring = null;
+      _clearPending();
       _editing = false;
       if (failed != null) {
         // The row moved before the server answered: show the list as the
@@ -291,11 +322,15 @@ class _ListDetailPageState extends State<ListDetailPage> {
     // are ahead of it, and the next reload catches up.
     bool has(CafeSummary? cafe) =>
         cafe != null && state.cafes.any((c) => c.id == cafe.id);
-    if (has(_removing) || (_restoring != null && !has(_restoring))) return;
+    final settledAt = _removeSettledAt;
+    final readAfterRemove = settledAt != null && state.afterWrites >= settledAt;
+    if ((has(_removing) && !readAfterRemove) ||
+        (_restoring != null && !has(_restoring))) {
+      return;
+    }
 
     final changed = _removing ?? _restoring;
-    _removing = null;
-    _restoring = null;
+    _clearPending();
     setState(() {
       _cachedCafes = state.cafes;
       _cachedList = state.list;
@@ -397,13 +432,17 @@ class ListDetailView extends StatelessWidget {
       // Been gets its own empty state and no title: it is the one list a
       // user never creates, so "no cafes yet" is a beginning, not an error.
       if (_isBeen) {
-        return _EmptyList(
-          title: 'Nowhere yet',
-          subtitle:
-              'Mark a cafe as Been and your diary starts here — ranked by '
-              'you, not by ratings.',
-          filled: true,
-          onFind: onFindCafe,
+        return EmptyStateTracker(
+          screen: 'list_detail',
+          reason: 'empty_been',
+          child: _EmptyList(
+            title: 'Nowhere yet',
+            subtitle:
+                'Mark a cafe as Been and your diary starts here — ranked by '
+                'you, not by ratings.',
+            filled: true,
+            onFind: onFindCafe,
+          ),
         );
       }
       return Column(
@@ -411,13 +450,19 @@ class ListDetailView extends StatelessWidget {
         children: [
           _ListTitle(title: title, subtitle: null),
           Expanded(
-            child: _EmptyList(
-              title: 'No cafes in this list yet.',
-              subtitle: listType == 'want_to_try'
-                  ? 'Tap Want to try on a cafe and it waits here.'
-                  : 'Save a cafe from its page and choose this list.',
-              filled: false,
-              onFind: onFindCafe,
+            child: EmptyStateTracker(
+              screen: 'list_detail',
+              reason: listType == 'want_to_try'
+                  ? 'empty_want_to_try'
+                  : 'empty_list',
+              child: _EmptyList(
+                title: 'No cafes in this list yet.',
+                subtitle: listType == 'want_to_try'
+                    ? 'Tap Want to try on a cafe and it waits here.'
+                    : 'Save a cafe from its page and choose this list.',
+                filled: false,
+                onFind: onFindCafe,
+              ),
             ),
           ),
         ],

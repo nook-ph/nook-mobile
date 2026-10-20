@@ -10,6 +10,7 @@ import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// A Been cafe paired with its place in the ranking.
 typedef RankedCafe = ({CafeSummary cafe, CafeRanking ranking});
@@ -469,6 +470,7 @@ void _openCafe(BuildContext context, CafeSummary cafe) {
   Navigator.push(
     context,
     MaterialPageRoute(
+      settings: const RouteSettings(name: ScreenNames.cafeDetails),
       builder: (_) => CafeDetailsPage(cafeId: cafe.id, preview: cafe),
     ),
   );

@@ -14,7 +14,9 @@ import 'package:nook/features/search/data/supabase_saved_places_repository.dart'
 import 'package:nook/features/search/domain/repositories/i_place_search_repository.dart';
 import 'package:nook/features/search/domain/repositories/i_saved_places_repository.dart';
 import 'package:nook/core/preferences/last_saved_list_store.dart';
+import 'package:nook/core/preferences/home_location_prompt_store.dart';
 import 'package:nook/core/preferences/location_prompt_store.dart';
+import 'package:nook/core/preferences/onboarding_purpose_store.dart';
 import 'package:nook/core/preferences/review_draft_store.dart';
 import 'package:nook/core/preferences/terms_acceptance_store.dart';
 import 'package:nook/core/analytics/analytics_service.dart';
@@ -94,7 +96,13 @@ import 'package:nook/features/crawls/domain/use_cases/start_crawl_run_usecase.da
 import 'package:nook/features/crawls/domain/use_cases/enable_crawl_link_usecase.dart';
 import 'package:nook/features/crawls/domain/use_cases/update_crawl_title_usecase.dart';
 import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
+import 'package:nook/features/home_page/data/home_banner_dismiss_store.dart';
+import 'package:nook/features/home_page/data/home_layout_repository.dart';
+import 'package:nook/features/home_page/debug/home_layout_fixture.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_home_shelf_usecase.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_layout_shelves_usecase.dart';
 import 'package:nook/features/home_page/domain/use_cases/get_cafe_summaries_usecase.dart';
+import 'package:nook/features/onboarding/domain/get_purpose_suggestions_usecase.dart';
 import 'package:nook/features/profile/bloc/avatar_upload_bloc.dart';
 import 'package:nook/features/profile/data/profile_remote_data_source.dart';
 import 'package:nook/features/profile/data/profile_repository_impl.dart';
@@ -110,6 +118,14 @@ import 'package:nook/features/cafe_details/bloc/review_submit_bloc.dart';
 import 'package:nook/features/cafe_details/bloc/reviews_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/guest_saves/data/engagement_store.dart';
+import 'package:nook/features/guest_saves/data/guest_saves_store.dart';
+import 'package:nook/features/guest_saves/presentation/engagement_score.dart';
+import 'package:nook/features/visit_reminders/data/local_notifier.dart';
+import 'package:nook/features/visit_reminders/data/visit_reminder_store.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
 import 'package:nook/features/lists/presentation/cubit/save_to_list_cubit.dart';
 import 'package:nook/features/map/bloc/map_bloc.dart';
 import 'package:nook/features/map/data/datasources/cafe_tags_remote_data_source.dart';
@@ -118,6 +134,9 @@ import 'package:nook/features/map/domain/use_cases/get_cafe_cards_usecase.dart';
 import 'package:nook/features/map/domain/use_cases/get_cafes_for_viewport_usecase.dart';
 import 'package:nook/features/map/domain/use_cases/get_filter_tags_usecase.dart';
 import 'package:nook/features/map/domain/repositories/i_cafe_tags_repository.dart';
+import 'package:nook/features/saver_survey/data/save_dates_source.dart';
+import 'package:nook/features/saver_survey/data/saver_survey_store.dart';
+import 'package:nook/features/saver_survey/presentation/saver_survey_gate.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -130,9 +149,20 @@ Future<void> initDependencies() async {
 
   sl.registerLazySingleton<LastSavedListStore>(() => LastSavedListStore());
   sl.registerLazySingleton<LocationPromptStore>(() => LocationPromptStore());
+  sl.registerLazySingleton<HomeLocationPromptStore>(
+    () => HomeLocationPromptStore(),
+  );
+  sl.registerLazySingleton<OnboardingPurposeStore>(
+    () => OnboardingPurposeStore(),
+  );
   sl.registerLazySingleton<ReviewDraftStore>(() => ReviewDraftStore());
   sl.registerLazySingleton<TermsAcceptanceStore>(() => TermsAcceptanceStore());
   sl.registerLazySingleton<FakeStampStore>(() => FakeStampStore());
+  sl.registerLazySingleton<GuestSavesStore>(() => GuestSavesStore());
+  sl.registerLazySingleton<RecentlyViewedStore>(() => RecentlyViewedStore());
+  sl.registerLazySingleton<EngagementStore>(() => EngagementStore());
+  sl.registerLazySingleton<VisitReminderStore>(() => VisitReminderStore());
+  sl.registerLazySingleton<LocalNotifier>(() => PluginLocalNotifier());
 
   sl.registerLazySingleton<http.Client>(() => http.Client());
 
@@ -174,6 +204,10 @@ Future<void> initDependencies() async {
     () => CrawlRemoteDataSource(sl<SupabaseClient>()),
   );
 
+  sl.registerLazySingleton<HomeLayoutRemoteSource>(
+    () => HomeLayoutRemoteSource(sl<SupabaseClient>()),
+  );
+  sl.registerLazySingleton<HomeBannerDismissStore>(HomeBannerDismissStore.new);
   sl.registerLazySingleton<CafeListingStatusSource>(
     () => CafeListingStatusSource(sl<SupabaseClient>()),
   );
@@ -284,6 +318,13 @@ Future<void> initDependencies() async {
     () => CrawlRepositoryImpl(sl<CrawlRemoteDataSource>()),
   );
 
+  sl.registerLazySingleton<HomeLayoutRepository>(
+    () => HomeLayoutRepository(
+      fetch: sl<HomeLayoutRemoteSource>().fetchLayout,
+      cache: HomeLayoutCache(),
+    ),
+  );
+
   // 4) Use cases
   sl.registerLazySingleton<GetCafeCardUseCase>(
     () => GetCafeCardUseCase(sl<ICafeRepository>()),
@@ -294,8 +335,28 @@ Future<void> initDependencies() async {
   sl.registerLazySingleton<GetHomeFeedUseCase>(
     () => GetHomeFeedUseCase(sl<ICafeRepository>()),
   );
+  sl.registerLazySingleton<GetLayoutShelvesUseCase>(
+    () => GetLayoutShelvesUseCase(
+      repository: sl<ICafeRepository>(),
+      cafesByIds: homeLayoutFixtureEnabled
+          ? fixtureCafesByIds
+          : sl<HomeLayoutRemoteSource>().fetchCafesByIds,
+    ),
+  );
+  sl.registerLazySingleton<CurrentHomeLayout>(CurrentHomeLayout.new);
+  sl.registerLazySingleton<GetHomeShelfUseCase>(
+    () => GetHomeShelfUseCase(
+      current: sl<CurrentHomeLayout>(),
+      // The fixture is not on the server: the shelf page reads Home's copy.
+      repository: homeLayoutFixtureEnabled ? null : sl<HomeLayoutRepository>(),
+      loadShelves: sl<GetLayoutShelvesUseCase>().call,
+    ),
+  );
   sl.registerLazySingleton<GetCafesUseCase>(
     () => GetCafesUseCase(sl<ICafeRepository>()),
+  );
+  sl.registerLazySingleton<GetPurposeSuggestionsUseCase>(
+    () => GetPurposeSuggestionsUseCase(sl<ICafeRepository>()),
   );
   sl.registerLazySingleton<GetSimilarCafesUseCase>(
     () => GetSimilarCafesUseCase(sl<ICafeRepository>()),
@@ -451,7 +512,14 @@ Future<void> initDependencies() async {
     ),
   );
   sl.registerFactory<HomeBloc>(
-    () => HomeBloc(getHomeFeedUseCase: sl<GetHomeFeedUseCase>()),
+    () => HomeBloc(
+      getHomeFeedUseCase: sl<GetHomeFeedUseCase>(),
+      readPurpose: sl<OnboardingPurposeStore>().read,
+      layoutRepository: sl<HomeLayoutRepository>(),
+      getLayoutShelves: sl<GetLayoutShelvesUseCase>(),
+      debugLayoutFixture: homeLayoutFixtureEnabled ? homeLayoutFixture : null,
+      currentLayout: sl<CurrentHomeLayout>(),
+    ),
   );
   sl.registerFactory<CafeDetailsBloc>(
     () => CafeDetailsBloc(getCafeDetailsUseCase: sl<GetCafeDetailsUseCase>()),
@@ -481,6 +549,40 @@ Future<void> initDependencies() async {
     () => CafeStatusCubit(
       getCafeStatusesUseCase: sl<GetCafeStatusesUseCase>(),
       setCafeStatusUseCase: sl<SetCafeStatusUseCase>(),
+    ),
+  );
+
+  // A guest's on-phone Want to Try / Been, and the cafes last opened here.
+  // App-wide (like CafeStatusCubit): badges, Saved and Home all read them.
+  sl.registerLazySingleton<GuestSavesCubit>(
+    () => GuestSavesCubit(store: sl<GuestSavesStore>()),
+  );
+  sl.registerLazySingleton<RecentlyViewedCubit>(
+    () => RecentlyViewedCubit(store: sl<RecentlyViewedStore>()),
+  );
+  // The guest's engagement score and the soft keep-saves ask it triggers.
+  sl.registerLazySingleton<EngagementScore>(
+    () => EngagementScore(store: sl<EngagementStore>()),
+  );
+
+  // "How was [cafe]?" after Directions: the one notification sent from the
+  // phone. Started from main once the status cubit exists.
+  sl.registerLazySingleton<VisitReminderService>(
+    () => VisitReminderService(
+      notifier: sl<LocalNotifier>(),
+      store: sl<VisitReminderStore>(),
+      delayOverride: debugVisitReminderDelay(),
+    ),
+  );
+
+  // The one-time saver survey on Home: one gate per app run, so it is
+  // decided at app open and never again mid-task.
+  sl.registerLazySingleton<SaverSurveyGate>(
+    () => SaverSurveyGate(
+      store: SaverSurveyStore(),
+      saves: () => sl<SupabaseClient>().auth.currentSession != null
+          ? AccountSaveDatesSource(client: sl<SupabaseClient>())
+          : GuestSaveDatesSource(sl<GuestSavesCubit>()),
     ),
   );
 

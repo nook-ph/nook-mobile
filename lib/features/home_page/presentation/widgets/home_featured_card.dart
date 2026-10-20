@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nook/core/analytics/log_app_event.dart';
+import 'package:nook/core/analytics/retention_tracking_events.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/extensions/extensions.dart';
 import 'package:nook/core/presentation/widgets/cafe_card_image.dart';
 import 'package:nook/core/presentation/widgets/cafe_status_badge.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/responsive_card_sizes.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_layout_scope.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_meta_line.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_rail_impression.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_tag_chip.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -19,12 +23,19 @@ class FeaturedCard extends StatelessWidget {
   final double width;
   final double height;
 
+  /// The Home rail and the card's place in it; with [rail] a tap logs
+  /// `home_rail_card_tapped`.
+  final String? rail;
+  final int? position;
+
   const FeaturedCard({
     super.key,
     required this.width,
     required this.height,
     required this.cafe,
     this.isSkeleton = false,
+    this.rail,
+    this.position,
   });
 
   @override
@@ -34,8 +45,19 @@ class FeaturedCard extends StatelessWidget {
     return AdaptiveTap(
       borderRadius: BorderRadius.circular(16),
       onTap: () {
-        if (isSkeleton) return;
-        if (cafe.id.isNotEmpty) context.push('/cafe/${cafe.id}', extra: cafe);
+        if (isSkeleton || cafe.id.isEmpty) return;
+        final rail = this.rail;
+        if (rail != null) {
+          logAppEvent(
+            HomeRailEvents.cardTapped,
+            properties: HomeLayoutScope.withVersion(context, {
+              'rail': rail,
+              'position': position ?? -1,
+              'cafe_id': cafe.id,
+            }),
+          );
+        }
+        context.push('/cafe/${cafe.id}', extra: cafe);
       },
       child: SizedBox(
         width: width,
@@ -148,10 +170,15 @@ class FeaturedCarousel extends StatefulWidget {
     super.key,
     required this.cafes,
     this.isSkeleton = false,
+    this.rail = 'house_picks',
   });
 
   final List<CafeSummary> cafes;
   final bool isSkeleton;
+
+  /// The analytics id of this rail (`home_rail_impression`,
+  /// `home_rail_card_tapped`).
+  final String rail;
 
   @override
   State<FeaturedCarousel> createState() => _FeaturedCarouselState();
@@ -208,7 +235,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
         MediaQuery.sizeOf(context).width - ResponsiveCardSizes.homeGutter;
     final controller = _controllerFor(cardWidth, viewportWidth);
 
-    return Column(
+    final carousel = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Padding(
@@ -246,6 +273,8 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                       height: imageHeight,
                       cafe: cafes[i],
                       isSkeleton: widget.isSkeleton,
+                      rail: widget.isSkeleton ? null : widget.rail,
+                      position: i,
                     ),
                   ),
                 ),
@@ -260,6 +289,8 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
         ],
       ],
     );
+    if (widget.isSkeleton || cafes.isEmpty) return carousel;
+    return HomeRailImpression(rail: widget.rail, child: carousel);
   }
 }
 

@@ -14,6 +14,7 @@ import 'package:nook/features/gallery/presentation/stories/story_position.dart';
 import 'package:nook/features/gallery/presentation/stories/story_seen_cubit.dart';
 import 'package:nook/features/gallery/presentation/widgets/gallery_image.dart';
 import 'package:nook/features/profile/presentation/widgets/profile_ui.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The story viewer's dark ground and text, the gallery viewer's green-black
 /// rather than pure black.
@@ -89,6 +90,7 @@ class CafeStoryViewerPage extends StatefulWidget {
     final still = MediaQuery.disableAnimationsOf(context);
     return Navigator.of(context).push(
       PageRouteBuilder<void>(
+        settings: const RouteSettings(name: ScreenNames.storyViewer),
         opaque: true,
         transitionDuration: still
             ? Duration.zero

@@ -74,11 +74,10 @@ PODS:
     - MapLibre (= 6.19.1)
   - package_info_plus (0.4.5):
     - Flutter
-  - PostHog (3.58.1)
   - posthog_flutter (0.0.1):
     - Flutter
     - FlutterMacOS
-    - PostHog (< 4.0.0, >= 3.50.0)
+    - PostHog (< 4.0.0, >= 3.84.0)
   - PromisesObjC (2.4.0)
   - SDWebImage (5.21.7):
     - SDWebImage/Core (= 5.21.7)
@@ -129,7 +128,6 @@ SPEC REPOS:
     - libwebp
     - Mantle
     - MapLibre
-    - PostHog
     - PromisesObjC
     - SDWebImage
     - SDWebImageWebPCoder
@@ -188,7 +186,6 @@ SPEC CHECKSUMS:
   MapLibre: 7f24faba45439f80ccb0f83393c29fa32cb81952
   maplibre_gl: a2114567cbd1065866614fbd34dfb75ab782aaa2
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
-  PostHog: 162c013c6a8e442382f6804076bf3ad072c8778a
   posthog_flutter: 7d1eca9c14e96d1fb31cf35d75a32c31fbc776c5
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf

@@ -39,6 +39,7 @@ import 'package:nook/features/lists/bloc/lists_event.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/injection_container.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// The live screen of a crawl: progress, the crew, and a Stamp button at the
 /// stop you are standing in.
@@ -194,6 +195,7 @@ class _CrawlRunViewState extends State<_CrawlRunView>
     if (result == StampSheetResult.shareStop) {
       await Navigator.of(context).push(
         MaterialPageRoute(
+          settings: const RouteSettings(name: ScreenNames.crawlShare),
           builder: (_) => CrawlSharePage(run: run, stampStop: stop),
         ),
       );
@@ -205,9 +207,12 @@ class _CrawlRunViewState extends State<_CrawlRunView>
   }
 
   void _openRecap(CrawlRun run) {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => CrawlCompletePage(run: run)));
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.crawlComplete),
+        builder: (_) => CrawlCompletePage(run: run),
+      ),
+    );
   }
 
   void _invite(CrawlRun run) {
@@ -229,6 +234,7 @@ class _CrawlRunViewState extends State<_CrawlRunView>
       case RunOption.viewCrawl:
         await Navigator.of(context).push(
           MaterialPageRoute(
+            settings: const RouteSettings(name: ScreenNames.crawlDetail),
             builder: (_) => CrawlDetailPage(
               shareCode: run.crawl.shareCode,
               initial: run.crawl,

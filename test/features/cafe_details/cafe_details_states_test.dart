@@ -277,6 +277,35 @@ void main() {
       );
     });
 
+    testWidgets('a caller title and reason replace the action copy', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => CafeGuestSignInSheet.show(
+                  context,
+                  action: CafeGuestAction.saveToList,
+                  cafeName: 'Tadaima',
+                  title: 'Keep your saves',
+                  reason: 'Keep your saves on any phone',
+                ),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.text('Keep your saves'), findsOneWidget);
+      expect(find.text('Keep your saves on any phone'), findsOneWidget);
+      expect(find.text('Sign in to save to a list'), findsNothing);
+      expect(find.text('Continue with Google'), findsOneWidget);
+    });
+
     testWidgets('Not now closes the sheet without signing in', (tester) async {
       await tester.pumpWidget(
         _host(
@@ -298,7 +327,7 @@ void main() {
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
       expect(find.text('Sign in to keep a Been list'), findsOneWidget);
-      expect(find.text('Sign in or create account'), findsOneWidget);
+      expect(find.text('Continue with email'), findsOneWidget);
 
       await tester.tap(find.text('Not now'));
       await tester.pumpAndSettle();

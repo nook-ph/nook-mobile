@@ -28,7 +28,12 @@ class CafeStatusControl extends StatelessWidget {
     this.rankLabel,
     this.compact = false,
     this.fill = false,
+    this.suggestWantToTry = false,
   });
+
+  /// Tints the unselected Want to try pill: an offer to save that is still
+  /// open (after the directions nudge's toast has gone).
+  final bool suggestWantToTry;
 
   final CafeStatus status;
   final VoidCallback onTapBeen;
@@ -81,6 +86,7 @@ class CafeStatusControl extends StatelessWidget {
               label: 'Want to try',
               compactLabel: compact ? 'Try' : null,
               fill: true,
+              suggested: suggestWantToTry,
             ),
           ),
         ],
@@ -106,6 +112,7 @@ class CafeStatusControl extends StatelessWidget {
           icon: PhosphorIcons.bookmarkSimple,
           label: 'Want to try',
           compactLabel: showsScore || compact ? 'Try' : null,
+          suggested: suggestWantToTry,
         ),
       ],
     );
@@ -122,7 +129,11 @@ class _Pill extends StatelessWidget {
     this.rankLabel,
     this.compactLabel,
     this.fill = false,
+    this.suggested = false,
   });
+
+  /// Unselected but offered: a light brand tint and a brand edge.
+  final bool suggested;
 
   final VoidCallback? onTap;
   final bool isSelected;
@@ -139,6 +150,9 @@ class _Pill extends StatelessWidget {
   final bool fill;
 
   static const _selectedBg = Color(0xFF3A5A40);
+
+  /// [_selectedBg] at 8% on white, for a suggested pill.
+  static const _suggestedBg = Color(0xFFEFF2EF);
   static const _border = Color(0xFFE0E0E0);
   static const _ink = Color(0xFF0A0F0D);
 
@@ -196,6 +210,7 @@ class _Pill extends StatelessWidget {
         button: true,
         selected: isSelected,
         label: _semanticLabel,
+        hint: suggested && !isSelected ? 'Suggested' : null,
         child: AdaptiveTap(
           onTap: onTap ?? () {},
           borderRadius: BorderRadius.circular(999),
@@ -209,9 +224,13 @@ class _Pill extends StatelessWidget {
             // the width it is offered, which would break the hugging pills.
             alignment: fill ? Alignment.center : null,
             decoration: BoxDecoration(
-              color: isSelected ? _selectedBg : Colors.white,
+              color: isSelected
+                  ? _selectedBg
+                  : (suggested ? _suggestedBg : Colors.white),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: isSelected ? _selectedBg : _border),
+              border: Border.all(
+                color: isSelected || suggested ? _selectedBg : _border,
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

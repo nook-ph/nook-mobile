@@ -17,7 +17,9 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 /// Previously the whole diary lived in the bottom bar as a bare score chip,
 /// with the note behind a long-press on the Been pill and re-ranking behind an
 /// unmarked tap on the chip. Both are surfaced here, next to the thing they
-/// describe. Renders nothing unless the cafe is marked Been.
+/// describe. Renders nothing unless the account has the cafe as Been: a
+/// guest's on-phone Been does not count, since ranking and the note both
+/// need an account.
 class CafeYourVisitBlock extends StatefulWidget {
   const CafeYourVisitBlock({
     super.key,
@@ -51,7 +53,7 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
   /// A note only exists on a Been, and the block renders nothing otherwise,
   /// so any other cafe is not asked about.
   bool get _isBeen =>
-      context.read<CafeStatusCubit>().state.statusFor(widget.cafeId) ==
+      context.read<CafeStatusCubit>().state.serverStatusFor(widget.cafeId) ==
       CafeStatus.been;
 
   @override
@@ -132,13 +134,14 @@ class _CafeYourVisitBlockState extends State<CafeYourVisitBlock> {
       // The status usually lands after this block is built; the note is
       // fetched when it turns out to be a Been.
       listenWhen: (previous, current) =>
-          previous.statusFor(widget.cafeId) != CafeStatus.been &&
-          current.statusFor(widget.cafeId) == CafeStatus.been,
+          previous.serverStatusFor(widget.cafeId) != CafeStatus.been &&
+          current.serverStatusFor(widget.cafeId) == CafeStatus.been,
       listener: (context, _) => _loadNote(),
       buildWhen: (previous, current) =>
-          previous.statusFor(widget.cafeId) != current.statusFor(widget.cafeId),
+          previous.serverStatusFor(widget.cafeId) !=
+          current.serverStatusFor(widget.cafeId),
       builder: (context, statusState) {
-        if (statusState.statusFor(widget.cafeId) != CafeStatus.been) {
+        if (statusState.serverStatusFor(widget.cafeId) != CafeStatus.been) {
           return const SizedBox.shrink();
         }
 

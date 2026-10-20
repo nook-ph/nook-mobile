@@ -16,6 +16,7 @@ import 'package:nook/features/search/presentation/cubit/saved_places_cubit.dart'
 import 'package:nook/features/search/presentation/pages/saved_place_editor_page.dart';
 import 'package:nook/features/search/presentation/pages/search_pick_on_map_page.dart';
 import 'package:nook/features/search/presentation/widgets/search_origin_sheet.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// What the "Search near" flow ended with: a place, or the phone's location
 /// when [origin] is null.
@@ -64,6 +65,7 @@ Future<SearchOriginPick?> pickSearchOrigin(
   }) {
     return Navigator.of(sheetContext, rootNavigator: true).push<SavedPlace>(
       MaterialPageRoute(
+        settings: const RouteSettings(name: ScreenNames.savedPlaceEditor),
         builder: (_) => SavedPlaceEditorPage(
           cubit: saved,
           kind: kind,
@@ -121,6 +123,7 @@ Future<SearchOriginPick?> pickSearchOrigin(
           reason:
               'Keep Home, School or work and your own places, and search '
               'near them in one tap. Only you can see them.',
+          trigger: 'save_place',
         );
       }
       return null;
@@ -136,6 +139,7 @@ Future<SearchOriginPick?> pickSearchOrigin(
       final pin = await Navigator.of(context, rootNavigator: true)
           .push<SearchOrigin>(
             MaterialPageRoute(
+              settings: const RouteSettings(name: ScreenNames.pickOnMap),
               builder: (_) => SearchPickOnMapPage(
                 start: start,
                 places: places.index(),

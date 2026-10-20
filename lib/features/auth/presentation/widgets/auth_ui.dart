@@ -492,12 +492,16 @@ class AuthOutlineButton extends StatelessWidget {
     required this.onPressed,
     this.icon,
     this.loading = false,
+    this.loadingLabel,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final Widget? icon;
   final bool loading;
+
+  /// Shown in place of [label] while [loading] ("Checking…").
+  final String? loadingLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -525,9 +529,15 @@ class AuthOutlineButton extends StatelessWidget {
               children: [
                 if (loading) const AuthSpinner() else ?icon,
                 if (loading || icon != null) const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: AuthText.button.copyWith(color: AuthColors.ink),
+                // Flexible so a long label on a narrow phone or at a large
+                // text size ends in an ellipsis instead of overflowing.
+                Flexible(
+                  child: Text(
+                    loading ? loadingLabel ?? label : label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AuthText.button.copyWith(color: AuthColors.ink),
+                  ),
                 ),
               ],
             ),

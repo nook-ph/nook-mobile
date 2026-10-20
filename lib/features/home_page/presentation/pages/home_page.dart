@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -15,10 +17,20 @@ import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_bloc.dart';
 import 'package:nook/features/home_page/bloc/home_event.dart';
 import 'package:nook/features/home_page/bloc/home_states.dart';
+import 'package:nook/features/home_page/domain/home_layout.dart';
+import 'package:nook/features/home_page/domain/home_layout_plan.dart';
+import 'package:nook/features/home_page/domain/home_rail_order.dart';
+import 'package:nook/features/home_page/domain/use_cases/get_layout_shelves_usecase.dart';
+import 'package:nook/features/home_page/presentation/pages/home_shelf_page.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_banner_card.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_card_section.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_featured_card.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_layout_scope.dart';
+import 'package:nook/features/home_page/presentation/widgets/home_location_prompt.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_state_view.dart';
 import 'package:nook/features/home_page/presentation/widgets/home_top_bar.dart';
+import 'package:nook/features/home_page/presentation/widgets/your_places_rail.dart';
+import 'package:nook/features/saver_survey/presentation/saver_survey_host.dart';
 import 'package:nook/injection_container.dart';
 
 class HomePage extends StatelessWidget {
@@ -65,7 +77,8 @@ class HomePage extends StatelessWidget {
                   curr is HomeLoadedState &&
                   (prev is! HomeLoadedState ||
                       curr.refreshError != null ||
-                      !identical(prev.featuredCafes, curr.featuredCafes)),
+                      !identical(prev.featuredCafes, curr.featuredCafes) ||
+                      !identical(prev.layoutShelves, curr.layoutShelves)),
               listener: (context, state) {
                 if (state is! HomeLoadedState) return;
 
@@ -88,9 +101,14 @@ class HomePage extends StatelessWidget {
                   context.read<CafeStatusCubit>().loadFor(ids.toList());
                 }
 
-                final firstCover = state.featuredCafes.isEmpty
+                // The carousel's first card: hand-picked House picks when
+                // the layout has them.
+                final picks =
+                    state.layoutShelves[HomeBuiltin.featured.id] ?? const [];
+                final featured = picks.isNotEmpty ? picks : state.featuredCafes;
+                final firstCover = featured.isEmpty
                     ? null
-                    : state.featuredCafes.first.coverImage?.trim();
+                    : featured.first.coverImage?.trim();
                 if (firstCover != null && firstCover.isNotEmpty) {
                   final url = firstCover;
                   precacheImage(
@@ -118,15 +136,20 @@ class HomePage extends StatelessWidget {
                     );
                   }
                 },
-                child: Column(
-                  children: [
-                    const HomeTopBar(),
-                    Expanded(
-                      child: BlocBuilder<HomeBloc, HomeState>(
-                        builder: (context, state) => _feedArea(context, state),
+                // At app open, once the feed is in: the one-time "What's
+                // kept you from going?" for savers who have not been.
+                child: SaverSurveyHost(
+                  child: Column(
+                    children: [
+                      const HomeTopBar(),
+                      Expanded(
+                        child: BlocBuilder<HomeBloc, HomeState>(
+                          builder: (context, state) =>
+                              _feedArea(context, state),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -180,8 +203,17 @@ class HomePage extends StatelessWidget {
         onRefresh: () => _onRefresh(context),
         children: [
           ?banner,
+          if (banner == null)
+            HomeLocationPrompt(
+              onGranted: () => context.read<HomeBloc>().add(
+                LoadHomeDataEvent(refresh: true),
+              ),
+            ),
           const SizedBox(height: 12),
-          _HomeContent(state: state),
+          HomeScheduleClock(
+            hasSchedules: state.layout?.hasSchedules ?? false,
+            builder: (_) => HomeContent(state: state),
+          ),
           const SizedBox(height: 36),
         ],
       );
@@ -238,13 +270,41 @@ class _HomeScrollView extends StatelessWidget {
   }
 }
 
-class _HomeContent extends StatelessWidget {
+/// The shelves, in the built-in order or the published layout's.
+class HomeContent extends StatelessWidget {
   final HomeLoadedState state;
 
-  const _HomeContent({required this.state});
+  /// Schedules are evaluated at this time; defaults to now. Tests pin it.
+  final DateTime Function() clock;
+
+  const HomeContent({
+    super.key,
+    required this.state,
+    this.clock = DateTime.now,
+    this.isSignedIn,
+  });
+
+  /// Passed to Your places; tests set it so no Supabase session is read.
+  final bool Function()? isSignedIn;
+
+  /// The shelves' default titles, also their `section` on card taps.
+  static const titles = {
+    HomeBuiltin.yourPlaces: YourPlacesRail.defaultTitle,
+    HomeBuiltin.nearby: 'Near you',
+    HomeBuiltin.featured: 'House picks',
+    HomeBuiltin.specialty: 'Specialty coffee near you',
+    HomeBuiltin.localBeans: 'Local beans',
+    HomeBuiltin.newest: 'Fresh on Nook',
+    HomeBuiltin.laptopFriendly: 'Laptop-friendly',
+    HomeBuiltin.trending: 'Crowd favorites',
+    HomeBuiltin.topRated: 'Highest rated',
+  };
 
   @override
   Widget build(BuildContext context) {
+    final layout = state.layout;
+    final now = clock();
+
     // Near you leads when the phone has a position: the job is somewhere to
     // go now, and a featured cafe 10 km away answered it worst. A cafe is
     // shown in one shelf's first cards only, so the screen does not repeat
@@ -257,60 +317,235 @@ class _HomeContent extends StatelessWidget {
       return shelf;
     }
 
-    final nearby = fresh(state.nearbyCafes);
-    final featured = fresh(state.featuredCafes);
-    final specialty = fresh(state.specialtyNearbyCafes);
-    final beans = fresh(state.localBeansCafes);
-    final newest = fresh(state.newestCafes);
-    final laptop = fresh(state.laptopFriendlyCafes);
-    final trending = fresh(state.trendingCafes);
-    final topRated = fresh(state.topRatedCafes);
+    // Hand-picked cafes are shown as the admin ordered them.
+    List<CafeSummary> exact(List<CafeSummary> cafes) {
+      seen.addAll(cafes.take(3).map((c) => c.id));
+      return cafes;
+    }
+
+    final picks = state.layoutShelves[HomeBuiltin.featured.id] ?? const [];
+    final shelves = <HomeRail, List<CafeSummary>>{
+      HomeRail.nearby: state.nearbyCafes,
+      HomeRail.featured: picks.isNotEmpty ? picks : state.featuredCafes,
+      HomeRail.specialty: state.specialtyNearbyCafes,
+      HomeRail.localBeans: state.localBeansCafes,
+      HomeRail.newest: state.newestCafes,
+      HomeRail.laptopFriendly: state.laptopFriendlyCafes,
+      HomeRail.trending: state.trendingCafes,
+      HomeRail.topRated: state.topRatedCafes,
+    };
+    // The shelf for the onboarding purpose leads, and so also gets first
+    // pick of the cafes for its opening cards.
+    final slots = planHomeSlots(
+      layout: layout,
+      purpose: state.purpose,
+      available: {
+        for (final e in shelves.entries)
+          if (e.value.isNotEmpty) e.key,
+      },
+      now: now,
+      // A custom shelf under three cafes is left out below, so it takes no
+      // place in the top three either.
+      customShows: (slot) =>
+          (state.layoutShelves[slot.custom!.id]?.length ?? 0) >=
+          minCustomShelfCafes,
+    );
 
     // Sections with no cafes are left out, so the gap goes between the ones
     // that remain rather than around blank space. Titles only, no
     // subtitles: the home page reads cleaner without a second line.
-    final sections = <Widget>[
-      if (nearby.isNotEmpty)
-        HomeCafeSection(title: 'Near you', cafes: nearby, sort: 'nearby'),
-      if (featured.isNotEmpty) _FeaturedSection(cafes: featured),
-      if (specialty.isNotEmpty)
-        HomeCafeSection(title: 'Specialty coffee near you', cafes: specialty),
-      // Hidden by the bloc until three cafes have the Philippine Beans tag.
-      if (beans.isNotEmpty) HomeCafeSection(title: 'Local beans', cafes: beans),
-      if (newest.isNotEmpty)
-        HomeCafeSection(title: 'Fresh on Nook', cafes: newest, sort: 'newest'),
-      if (laptop.isNotEmpty)
-        HomeCafeSection(title: 'Laptop-friendly', cafes: laptop),
-      // Hidden by the bloc until enough cafes have enough reviews.
-      if (trending.isNotEmpty)
-        HomeCafeSection(
-          title: 'Crowd favorites',
-          cafes: trending,
+    final children = <Widget>[];
+    var hasShelf = false;
+    // Keyed by shelf: a layout or pin that moves a shelf keeps its state
+    // (Your places loads its own cafes) instead of rebuilding it.
+    late HomeSlot current;
+    void add(Widget section) {
+      if (hasShelf) children.add(const SizedBox(height: 28));
+      children.add(KeyedSubtree(key: ValueKey('$current'), child: section));
+      hasShelf = true;
+    }
+
+    for (final slot in slots) {
+      current = slot;
+      final custom = slot.custom;
+      if (custom != null) {
+        final loaded = state.layoutShelves[custom.id] ?? const [];
+        final cafes = custom.source == HomeShelfSource.picked
+            ? exact(loaded)
+            : fresh(loaded);
+        if (cafes.length < minCustomShelfCafes) continue;
+        add(
+          HomeCafeSection(
+            title: custom.title!,
+            cafes: cafes,
+            rail: custom.railId,
+            section: custom.railId,
+            // Picked and rule shelves both open their own page in full.
+            seeAllLocation: homeShelfLocation(custom.id),
+          ),
+        );
+        continue;
+      }
+
+      final builtin = slot.builtin!;
+      final defaultTitle = titles[builtin]!;
+      final title = slot.titleOverride ?? defaultTitle;
+      final rail = railFor(builtin);
+      if (rail == null) {
+        // Your places carries its own gap, so an empty row leaves none.
+        children.add(
+          YourPlacesRail(
+            key: const ValueKey(YourPlacesRail.railId),
+            isSignedIn: isSignedIn,
+            title: title,
+            padding: hasShelf
+                ? YourPlacesRow.followingPadding
+                : YourPlacesRow.leadingPadding,
+          ),
+        );
+        continue;
+      }
+
+      final cafes = rail == HomeRail.featured && picks.isNotEmpty
+          ? exact(picks)
+          : fresh(shelves[rail]!);
+      if (cafes.isEmpty) continue;
+      add(switch (rail) {
+        HomeRail.nearby => HomeCafeSection(
+          title: title,
+          cafes: cafes,
+          sort: 'nearby',
+        ),
+        HomeRail.featured => _FeaturedSection(title: title, cafes: cafes),
+        HomeRail.specialty => HomeCafeSection(
+          title: title,
+          cafes: cafes,
+          rail: 'specialty_coffee_near_you',
+          section: defaultTitle,
+        ),
+        // Hidden by the bloc until three cafes have the Philippine Beans tag.
+        HomeRail.localBeans => HomeCafeSection(
+          title: title,
+          cafes: cafes,
+          rail: 'local_beans',
+          section: defaultTitle,
+        ),
+        HomeRail.newest => HomeCafeSection(
+          title: title,
+          cafes: cafes,
+          sort: 'newest',
+        ),
+        HomeRail.laptopFriendly => HomeCafeSection(
+          title: title,
+          cafes: cafes,
+          rail: 'laptop_friendly',
+          section: defaultTitle,
+        ),
+        // Hidden by the bloc until enough cafes have enough reviews.
+        HomeRail.trending => HomeCafeSection(
+          title: title,
+          cafes: cafes,
           sort: 'trending',
         ),
-      if (topRated.isNotEmpty)
-        HomeCafeSection(
-          title: 'Highest rated',
-          cafes: topRated,
+        HomeRail.topRated => HomeCafeSection(
+          title: title,
+          cafes: cafes,
           sort: 'top_rated',
         ),
-    ];
+      });
+    }
 
-    return Column(
+    final banner = layout?.banner;
+    final column = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < sections.length; i++) ...[
-          if (i > 0) const SizedBox(height: 28),
-          sections[i],
-        ],
+        if (layout != null && banner != null)
+          HomeBannerSlot(banner: banner, version: layout.version, now: now),
+        ...children,
       ],
     );
+    // Always there, so a layout arriving (or going) does not move the
+    // shelves in the tree and rebuild them from scratch.
+    return HomeLayoutScope(version: layout?.version, child: column);
   }
 }
 
-class _FeaturedSection extends StatelessWidget {
-  const _FeaturedSection({required this.cafes});
+/// Rebuilds Home's shelves when schedules may have moved on: on returning
+/// to the app, and each minute while the layout has a schedule. Otherwise a
+/// banner or shelf would stay on (or off) past its window until something
+/// else rebuilt Home.
+class HomeScheduleClock extends StatefulWidget {
+  const HomeScheduleClock({
+    super.key,
+    required this.hasSchedules,
+    required this.builder,
+  });
 
+  final bool hasSchedules;
+  final WidgetBuilder builder;
+
+  @override
+  State<HomeScheduleClock> createState() => _HomeScheduleClockState();
+}
+
+class _HomeScheduleClockState extends State<HomeScheduleClock>
+    with WidgetsBindingObserver {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _syncTimer();
+  }
+
+  @override
+  void didUpdateWidget(HomeScheduleClock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.hasSchedules != widget.hasSchedules) _syncTimer();
+  }
+
+  /// On each minute boundary, where schedule windows start and end (an
+  /// end of HH:MM:59.999 is over at the next minute).
+  void _syncTimer() {
+    _timer?.cancel();
+    _timer = null;
+    if (!widget.hasSchedules) return;
+    final now = DateTime.now();
+    final toNextMinute = Duration(
+      seconds: 60 - now.second,
+      milliseconds: -now.millisecond,
+    );
+    _timer = Timer(toNextMinute, () {
+      _tick();
+      _syncTimer();
+    });
+  }
+
+  void _tick() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _tick();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context);
+}
+
+class _FeaturedSection extends StatelessWidget {
+  const _FeaturedSection({required this.title, required this.cafes});
+
+  final String title;
   final List<CafeSummary> cafes;
 
   @override
@@ -318,7 +553,7 @@ class _FeaturedSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const HomeSectionTitle('House picks'),
+        HomeSectionTitle(title),
         const SizedBox(height: 12),
         FeaturedCarousel(cafes: cafes),
       ],

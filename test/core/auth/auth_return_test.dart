@@ -49,6 +49,21 @@ Future<GoRouter> _pump(WidgetTester tester) async {
 void main() {
   setUp(AuthReturn.take);
 
+  testWidgets('a cafe opened by the reminder\'s "I went" returns without '
+      'it, so the page does not mark Been again', (tester) async {
+    final router = await _pump(tester);
+    router.push('/cafe/abc?went=1');
+    await tester.pumpAndSettle();
+    AuthReturn.rememberCurrent(router);
+    expect(AuthReturn.take(), '/cafe/abc');
+
+    router.push('/cafe/abc?went=1&tab=menu');
+    await tester.pumpAndSettle();
+    router.push('/login');
+    await tester.pumpAndSettle();
+    expect(AuthReturn.take(), '/cafe/abc?tab=menu');
+  });
+
   testWidgets('login pushed from a cafe returns to that cafe', (tester) async {
     final router = await _pump(tester);
     router.push('/cafe/abc');

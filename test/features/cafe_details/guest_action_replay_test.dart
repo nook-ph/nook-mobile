@@ -87,7 +87,7 @@ void main() {
     await tester.pumpWidget(host());
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in or create account'));
+    await tester.tap(find.text('Continue with email'));
     await tester.pumpAndSettle();
     expect(find.text('login page'), findsOneWidget);
     expect(GuestActionReplay.take(CafeGuestAction.been, 'cafe-1'), isTrue);

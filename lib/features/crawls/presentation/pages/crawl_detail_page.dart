@@ -31,6 +31,7 @@ import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/injection_container.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// A crawl before you start it: the stops, the route, and "Start a run".
 class CrawlDetailPage extends StatelessWidget {
@@ -171,7 +172,10 @@ class _CrawlDetailView extends StatelessWidget {
           );
     if (active != null) {
       await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => CrawlRunPage(runId: active.runId)),
+        MaterialPageRoute(
+          settings: const RouteSettings(name: ScreenNames.crawlRun),
+          builder: (_) => CrawlRunPage(runId: active.runId),
+        ),
       );
       return;
     }
@@ -193,6 +197,7 @@ class _CrawlDetailView extends StatelessWidget {
           context.read<MyCrawlsCubit>().load();
           Navigator.of(context).push(
             MaterialPageRoute(
+              settings: const RouteSettings(name: ScreenNames.crawlRun),
               builder: (_) => CrawlRunPage(runId: run.id, initial: run),
             ),
           );

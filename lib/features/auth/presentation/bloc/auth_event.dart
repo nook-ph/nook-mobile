@@ -9,10 +9,14 @@ abstract class AuthEvent extends Equatable {
 
 class AuthCheckEmailEvent extends AuthEvent {
   final String email;
-  const AuthCheckEmailEvent(this.email);
+
+  /// Where the attempt started, for the sign-in funnel ([AuthSurface]).
+  final String surface;
+
+  const AuthCheckEmailEvent(this.email, {this.surface = AuthSurface.login});
 
   @override
-  List<Object?> get props => [email];
+  List<Object?> get props => [email, surface];
 }
 
 class AuthSignUpEvent extends AuthEvent {
@@ -60,11 +64,23 @@ class AuthPasswordRecoveryEvent extends AuthEvent {
 }
 
 class AuthSignInWithAppleEvent extends AuthEvent {
-  const AuthSignInWithAppleEvent();
+  /// Where the attempt started, for the sign-in funnel ([AuthSurface]).
+  final String surface;
+
+  const AuthSignInWithAppleEvent({this.surface = AuthSurface.login});
+
+  @override
+  List<Object?> get props => [surface];
 }
 
 class AuthSignInWithGoogleEvent extends AuthEvent {
-  const AuthSignInWithGoogleEvent();
+  /// Where the attempt started, for the sign-in funnel ([AuthSurface]).
+  final String surface;
+
+  const AuthSignInWithGoogleEvent({this.surface = AuthSurface.login});
+
+  @override
+  List<Object?> get props => [surface];
 }
 
 /// The auth stream reported an error: a link that could not be used.

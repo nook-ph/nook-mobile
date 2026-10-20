@@ -23,6 +23,7 @@ import 'package:nook/features/crawls/presentation/widgets/crawl_widgets.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/injection_container.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 
 /// Where a crew invite lands: who started the run, which crawl, and a button
 /// to join. Opened with the run's invite code.
@@ -66,6 +67,7 @@ class _CrewInviteView extends StatelessWidget {
           context.read<MyCrawlsCubit>().load();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
+              settings: const RouteSettings(name: ScreenNames.crawlRun),
               builder: (_) => CrawlRunPage(runId: run.id, initial: run),
             ),
           );
@@ -149,6 +151,7 @@ class _CrewInviteView extends StatelessWidget {
         label: 'Start your own run',
         onTap: () => Navigator.of(context).pushReplacement(
           MaterialPageRoute(
+            settings: const RouteSettings(name: ScreenNames.crawlDetail),
             builder: (_) => CrawlDetailPage(
               shareCode: preview.shareCode,
               initial: state.crawl,

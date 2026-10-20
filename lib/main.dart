@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:nook/features/home_widget/presentation/widget_links.dart';
+import 'package:nook/features/home_widget/presentation/saved_cafes_widget_sync.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -12,6 +15,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:nook/utils/theme/theme.dart';
 import 'package:nook/core/app_bloc.dart';
+import 'package:nook/features/cups/presentation/widgets/cup_composer_sheet.dart'
+    show discardKeptCupDraft;
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/auth/google_auth_state.dart';
 import 'package:nook/core/services/timeout_http_client.dart';
@@ -19,6 +24,7 @@ import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
 import 'package:nook/core/router/app_router.dart';
+import 'package:nook/features/cafe_details/presentation/pages/cafe_details_page.dart';
 import 'package:nook/features/gallery/presentation/cubit/gallery_cubit.dart';
 import 'package:nook/features/auth/auth_injection.dart';
 import 'package:nook/features/auth/presentation/bloc/auth_bloc.dart';
@@ -26,14 +32,21 @@ import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/features/crawls/presentation/cubit/my_crawls_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/features/lists/bloc/lists_bloc.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/guest_saves_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/cubit/recently_viewed_cubit.dart';
+import 'package:nook/features/guest_saves/presentation/widgets/guest_saves_sync.dart';
 import 'package:nook/features/public_profile/presentation/cubit/profile_visibility_cubit.dart';
 import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:nook/features/search/data/search_origin_store.dart';
+import 'package:nook/features/visit_reminders/presentation/visit_reminder_service.dart';
 import 'package:nook/core/presentation/widgets/default_system_ui.dart';
 import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/injection_container.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:nook/core/analytics/analytics_config.dart';
+import 'package:nook/core/analytics/install_source.dart';
+import 'package:nook/core/analytics/rage_tap_detector.dart';
+import 'package:nook/core/analytics/screen_tracking.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 void main() async {
@@ -68,17 +81,46 @@ void main() async {
     // and no queued events on disk waiting to flush from a dev device.
     debugPrint('PostHog setup skipped: analytics disabled outside release.');
   } else if (posthogToken.isNotEmpty) {
+    final replay = ReplaySettings.fromEnv(dotenv.env);
     final config = PostHogConfig(posthogToken)
       ..host = dotenv.env['POSTHOG_HOST']?.trim() ?? 'https://us.i.posthog.com'
-      ..debug = kDebugMode;
+      ..debug = kDebugMode
+      ..sessionReplay = replay.enabled
+      ..beforeSend = [addScreenSize];
+    // Privacy first: every text (inputs included) and every image is masked
+    // in recordings. Layout, taps and screen names are what replay is for
+    // here; reviews, names and photos stay out of it.
+    config.sessionReplayConfig
+      ..maskAllTexts = true
+      ..maskAllImages = true
+      ..sampleRate = replay.sampleRate;
+    // The native iOS rage-click detector only sees the Flutter host view, so
+    // every `$rageclick` it sent said "Flutter". RageTapDetector replaces it.
+    config.rageClickConfig.enabled = false;
+    // Uncaught Dart errors go to error tracking as `$exception`. The SDK
+    // wraps FlutterError.onError and PlatformDispatcher.onError and calls
+    // whatever handler was there before, so console output and any other
+    // reporter keep working.
+    config.errorTrackingConfig
+      ..captureFlutterErrors = true
+      ..capturePlatformDispatcherErrors = true
+      ..captureIsolateErrors = true
+      ..inAppIncludes.add('nook');
 
     await Posthog().setup(config);
+    unawaited(InstallSourceRecorder().recordOnFirstOpen());
   } else {
     debugPrint('PostHog setup skipped: missing POSTHOG_PROJECT_TOKEN in .env');
   }
 
   await initDependencies();
-  runApp(const MyApp());
+  // Sets notifications up without asking for anything; the ask comes at a
+  // Directions tap.
+  unawaited(sl<VisitReminderService>().start(statuses: sl<CafeStatusCubit>()));
+  // The session replay root: a frame is only captured inside it.
+  runApp(
+    kAnalyticsEnabled ? const PostHogWidget(child: MyApp()) : const MyApp(),
+  );
 }
 
 String _googleSignInNonce() {
@@ -105,6 +147,50 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   GoRouter? _router;
 
+  final VisitReminderService _reminders = sl<VisitReminderService>();
+
+  @override
+  void initState() {
+    super.initState();
+    _reminders.openRequests.addListener(_openFromReminder);
+    WidgetLinks.pending.addListener(_showShellForWidgetLink);
+    // A cold start from the notification set it before this listened.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openFromReminder());
+  }
+
+  @override
+  void dispose() {
+    _reminders.openRequests.removeListener(_openFromReminder);
+    WidgetLinks.pending.removeListener(_showShellForWidgetLink);
+    super.dispose();
+  }
+
+  /// A widget tap while the tab shell is not built (`/login` after a
+  /// sign-out): back to `/`, where the shell opens it. After the frame, so
+  /// a router redirect that set it has built the shell by then.
+  void _showShellForWidgetLink() {
+    if (WidgetLinks.pending.value == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && WidgetLinks.needsShell) _router?.go('/');
+    });
+  }
+
+  /// "Did you make it to [cafe]?" was tapped (the body or "I went"): open
+  /// that cafe and mark it Been.
+  void _openFromReminder() {
+    final request = _reminders.openRequests.value;
+    final router = _router;
+    if (request == null || router == null) return;
+    _reminders.openRequests.value = null;
+    CafeDetailsPage.closeIfOnTop(request.cafeId);
+    router.push(
+      Uri(
+        path: '/cafe/${request.cafeId}',
+        queryParameters: const {'went': '1'},
+      ).toString(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
@@ -122,6 +208,10 @@ class _MyAppState extends State<MyApp> {
         BlocProvider<FilterCubit>(create: (_) => sl<FilterCubit>()),
         BlocProvider<BlockCubit>(create: (_) => sl<BlockCubit>()),
         BlocProvider<MyCrawlsCubit>(create: (_) => sl<MyCrawlsCubit>()),
+        BlocProvider<GuestSavesCubit>(create: (_) => sl<GuestSavesCubit>()),
+        BlocProvider<RecentlyViewedCubit>(
+          create: (_) => sl<RecentlyViewedCubit>(),
+        ),
         BlocProvider<AuthBloc>(
           create: (context) =>
               AuthInjection.createAuthBloc(listsBloc: context.read<ListsBloc>())
@@ -151,6 +241,8 @@ class _MyAppState extends State<MyApp> {
                 // next only within the same sign-in flow.
                 if (state is AuthLoggedOut || state is AuthAccountDeleted) {
                   GuestActionReplay.clear();
+                  // So is a cup kept for signing in again.
+                  discardKeptCupDraft();
                 }
                 blockCubit.clear();
                 // Been / Want to Try statuses and rankings are per-user.
@@ -174,13 +266,22 @@ class _MyAppState extends State<MyApp> {
                   showPrimaryToast(shown, state.message);
                 }
               },
-              child: MaterialApp.router(
-                debugShowCheckedModeBanner: false,
-                title: 'Nook',
-                theme: TAppTheme.lightTheme,
-                routerConfig: _router,
-                builder: (context, child) =>
-                    DefaultSystemUi(child: child ?? const SizedBox.shrink()),
+              child: GuestSavesSync(
+                toastContext: () =>
+                    _router?.routerDelegate.navigatorKey.currentContext,
+                child: SavedCafesWidgetSync(
+                  child: MaterialApp.router(
+                    debugShowCheckedModeBanner: false,
+                    title: 'Nook',
+                    theme: TAppTheme.lightTheme,
+                    routerConfig: _router,
+                    builder: (context, child) => RageTapDetector(
+                      child: DefaultSystemUi(
+                        child: child ?? const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           );
