@@ -235,6 +235,47 @@ void main() {
       expect(state.isCreating, isFalse);
     });
 
+    test(
+      'a toggle whose refresh fails after the write keeps its checkmark',
+      () async {
+        final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+        final cubit = _buildCubit(repository);
+        await cubit.load('cafe-1');
+        repository.failListsLoad = true;
+
+        await cubit.toggleList(cafeId: 'cafe-1', listId: 'list-1');
+
+        final state = cubit.state as SaveToListLoaded;
+        expect(repository.memberships, contains('list-1'));
+        expect(state.savedListIds, contains('list-1'));
+        expect(state.pendingListIds, isEmpty);
+        expect(state.listActionError, isNull);
+      },
+    );
+
+    test(
+      'a new list whose save and reload both fail is still in the picker',
+      () async {
+        final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+        final cubit = _buildCubit(repository);
+        await cubit.load('cafe-1');
+        repository
+          ..failNextAdd = true
+          ..failListsLoad = true;
+
+        final saved = await cubit.createListAndSave(
+          cafeId: 'cafe-1',
+          name: 'Weekend Cafes',
+        );
+
+        expect(saved, isFalse);
+        final state = cubit.state as SaveToListLoaded;
+        final made = state.lists.singleWhere((l) => l.id == 'created-list');
+        expect(made.name, 'Weekend Cafes');
+        expect(state.listActionError, isNotNull);
+      },
+    );
+
     test('creating a list before the lists load throws, not "done"', () async {
       final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
       final cubit = _buildCubit(repository);

@@ -23,13 +23,19 @@ typedef ListFormSave = Future<void> Function(ListFormInput input);
 /// creates it with [save]. The sheet stays open until [save] is done, and
 /// on a failure keeps what was typed. Resolves null when closed without
 /// creating.
+///
+/// Closed while [save] runs, the sheet still says "List created." once it
+/// lands, unless [confirmAfterClose] says no (the caller has its own word,
+/// as Save to does when the cafe did not go in).
 Future<ListFormInput?> showCreateListSheet(
   BuildContext context, {
   required ListFormSave save,
+  bool Function()? confirmAfterClose,
 }) {
   return ListsSheet.show<ListFormInput>(
     context,
-    builder: (_) => ListFormSheet(save: save),
+    builder: (_) =>
+        ListFormSheet(save: save, confirmAfterClose: confirmAfterClose),
   );
 }
 
@@ -61,6 +67,7 @@ class ListFormSheet extends StatefulWidget {
     this.initialName,
     this.initialDescription,
     this.save,
+    this.confirmAfterClose,
   });
 
   final String? initialName;
@@ -68,6 +75,10 @@ class ListFormSheet extends StatefulWidget {
 
   /// Runs before the sheet closes. Null closes it with the input at once.
   final ListFormSave? save;
+
+  /// For a create that lands after the sheet was closed: whether to say
+  /// "List created.". Null says it.
+  final bool Function()? confirmAfterClose;
 
   @override
   State<ListFormSheet> createState() => _ListFormSheetState();
@@ -139,7 +150,9 @@ class _ListFormSheetState extends State<ListFormSheet> {
       if (!mounted) {
         // Closed while it saved: the caller got null and says nothing, so
         // a new list is confirmed here. (An edit is confirmed by its page.)
-        if (!_isEdit && under.mounted) {
+        if (!_isEdit &&
+            under.mounted &&
+            (widget.confirmAfterClose?.call() ?? true)) {
           showPrimaryToast(under, 'List created.');
         }
         return;

@@ -18,11 +18,13 @@ class ListCafesLoaded extends ListsState {
   final List<CafeSummary> cafes;
 
   /// How many add/remove writes had been answered when this load started
-  /// ([ListsBloc.settledWrites]): it reflects every one of them, and none
-  /// after. A page uses it to tell a reload from before its write.
+  /// ([ListsBloc.settledWrites]): it reflects at least every one of them
+  /// (a write settling while it reads may show too). A page uses it to
+  /// tell a reload from before its write. Required, so no load can pass
+  /// for one from before every write by leaving it out.
   final int afterWrites;
 
-  ListCafesLoaded(this.list, this.cafes, {this.afterWrites = 0});
+  ListCafesLoaded(this.list, this.cafes, {required this.afterWrites});
 }
 
 class ListsError extends ListsState {

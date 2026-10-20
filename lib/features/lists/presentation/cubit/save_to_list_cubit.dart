@@ -109,22 +109,7 @@ class SaveToListCubit extends Cubit<SaveToListState> {
         await removeCafeFromListUseCase(listId, cafeId);
       } else {
         await addCafeToListUseCase(listId, cafeId);
-        await _persistLastSavedList(listId);
       }
-
-      final refreshedLists = await _loadListsForPicker();
-      if (isClosed) return;
-      final latest = state;
-      if (latest is! SaveToListLoaded) return;
-      final pending = Set<String>.from(latest.pendingListIds)..remove(listId);
-      emit(
-        latest.copyWith(
-          lists: refreshedLists,
-          pendingListIds: pending,
-          refreshNonce: latest.refreshNonce + 1,
-          clearListActionError: true,
-        ),
-      );
     } catch (e) {
       if (isClosed) return;
       final latest = state;
@@ -145,7 +130,25 @@ class SaveToListCubit extends Cubit<SaveToListState> {
           listActionError: e,
         ),
       );
+      return;
     }
+
+    // The write is in: what follows only refreshes, and a failure there is
+    // not a failed toggle (the checkmark stays as the server has it).
+    if (!wasSaved) await _persistLastSavedList(listId);
+    final refreshedLists = await _tryLoadListsForPicker();
+    if (isClosed) return;
+    final latest = state;
+    if (latest is! SaveToListLoaded) return;
+    final pending = Set<String>.from(latest.pendingListIds)..remove(listId);
+    emit(
+      latest.copyWith(
+        lists: refreshedLists,
+        pendingListIds: pending,
+        refreshNonce: latest.refreshNonce + 1,
+        clearListActionError: true,
+      ),
+    );
   }
 
   /// Throws when the list couldn't be made, so the form asking for it can
@@ -192,23 +195,11 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     } catch (e) {
       saveError = e;
     }
-    if (saved) {
-      try {
-        await _persistLastSavedList(listId);
-      } catch (e) {
-        // Only the picker's "last used" hint: the save itself is in.
-        debugPrint('[SaveToList] last list not kept: $e');
-      }
-    }
-
-    // A failed reload is not a failed save: the picker keeps its rows and
-    // shows the new list next time it opens.
-    List<CafeList>? lists;
-    try {
-      lists = await _loadListsForPicker();
-    } catch (e) {
-      debugPrint('[SaveToList] lists not reloaded after create: $e');
-    }
+    // A failed reload is not a failed save.
+    final (_, reloaded) = await (
+      saved ? _persistLastSavedList(listId) : Future<void>.value(),
+      _tryLoadListsForPicker(),
+    ).wait;
     if (isClosed) return saved;
     // Build on the state as it is now: toggles made while the list was
     // being created must survive it.
@@ -216,6 +207,15 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     if (latest is! SaveToListLoaded) return saved;
     final savedListIds = Set<String>.from(latest.savedListIds);
     if (saved) savedListIds.add(listId);
+    // Without a reload the new list still goes in the picker, so a failed
+    // save into it is one more tap there, not a second New list.
+    final lists =
+        reloaded ??
+        [
+          ...latest.lists,
+          if (!latest.lists.any((l) => l.id == listId))
+            _justMade(listId, name, description, saved: saved),
+        ];
 
     emit(
       latest.copyWith(
@@ -241,10 +241,47 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     );
   }
 
+  /// Only the picker's "last used" hint: a failure is logged, not thrown.
   Future<void> _persistLastSavedList(String listId) async {
     final uid = currentUserId();
     if (uid == null || uid.isEmpty) return;
-    await lastSavedListStore.setLastSavedListId(uid, listId);
+    try {
+      await lastSavedListStore.setLastSavedListId(uid, listId);
+    } catch (e) {
+      debugPrint('[SaveToList] last list not kept: $e');
+    }
+  }
+
+  /// The picker's lists, or null when they couldn't be read.
+  Future<List<CafeList>?> _tryLoadListsForPicker() async {
+    try {
+      return await _loadListsForPicker();
+    } catch (e) {
+      debugPrint('[SaveToList] lists not reloaded: $e');
+      return null;
+    }
+  }
+
+  /// A row for a list made here, until the next reload brings the real one.
+  static CafeList _justMade(
+    String id,
+    String name,
+    String? description, {
+    required bool saved,
+  }) {
+    final now = DateTime.now();
+    return CafeList(
+      id: id,
+      name: name,
+      description: description,
+      isDefault: false,
+      isPublic: false,
+      cafeCount: saved ? 1 : 0,
+      createdAt: now,
+      updatedAt: now,
+      lastSavedAt: saved ? now : null,
+      listType: 'custom',
+    );
   }
 }
 

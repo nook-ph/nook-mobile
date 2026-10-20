@@ -400,7 +400,9 @@ void main() {
       usePhone(tester);
       final ranking = rankingCubit(FakeRankingRepository());
       addTearDown(ranking.close);
-      final lists = _FakeListsBloc(ListCafesLoaded(list, cafes));
+      final lists = _FakeListsBloc(
+        ListCafesLoaded(list, cafes, afterWrites: 0),
+      );
       addTearDown(lists.close);
       await tester.pumpWidget(
         MultiBlocProvider(
@@ -460,7 +462,9 @@ void main() {
         expect(lists.events.last, isA<RemoveCafeFromList>());
 
         // A reload from before the remove doesn't bring it back.
-        lists.push(ListCafesLoaded(list, [cafe('a', name: 'Tadaima')]));
+        lists.push(
+          ListCafesLoaded(list, [cafe('a', name: 'Tadaima')], afterWrites: 0),
+        );
         await tester.pump();
         expect(find.text('Tadaima'), findsNothing);
 
@@ -470,7 +474,9 @@ void main() {
         expect(lists.events.last, isA<AddCafeToList>());
 
         // The server refuses the next remove: the list is read again.
-        lists.push(ListCafesLoaded(list, [cafe('a', name: 'Tadaima')]));
+        lists.push(
+          ListCafesLoaded(list, [cafe('a', name: 'Tadaima')], afterWrites: 0),
+        );
         await tester.pump();
         await remove('Tadaima');
         lists.push(ListsError(Exception('no')));

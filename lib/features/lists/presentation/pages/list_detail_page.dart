@@ -273,6 +273,14 @@ class _ListDetailPageState extends State<ListDetailPage> {
     _listsBloc.add(AddCafeToList(listId: widget.listId, cafeId: cafe.id));
   }
 
+  /// No remove or Undo is waiting on a reload any more.
+  void _clearPending() {
+    _removing = null;
+    _restoring = null;
+    _removeRequest = null;
+    _removeSettledAt = null;
+  }
+
   void _onListsState(BuildContext context, ListsState state) {
     // An edit reloads the user's lists, not this list's cafes: pick the new
     // name and description up from there.
@@ -297,8 +305,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     if (state is ListsError) {
       final failed = _removing ?? _restoring;
       final editFailed = _editing;
-      _removing = null;
-      _restoring = null;
+      _clearPending();
       _editing = false;
       if (failed != null) {
         // The row moved before the server answered: show the list as the
@@ -325,8 +332,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     }
 
     final changed = _removing ?? _restoring;
-    _removing = null;
-    _restoring = null;
+    _clearPending();
     setState(() {
       _cachedCafes = state.cafes;
       _cachedList = state.list;

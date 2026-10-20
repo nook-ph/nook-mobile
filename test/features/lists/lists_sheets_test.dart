@@ -138,6 +138,35 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('a late create the caller declines is not confirmed', (
+      tester,
+    ) async {
+      usePhone(tester);
+      final pending = Completer<void>();
+      await tester.pumpWidget(
+        SheetOpener<ListFormInput>(
+          sheet: ListFormSheet(
+            save: (_) => pending.future,
+            confirmAfterClose: () => false,
+          ),
+          onResult: (_) {},
+        ),
+      );
+      await openSheet(tester);
+      await tester.enterText(find.byType(TextField).first, 'Study spots');
+      await tester.pump();
+      await tester.tap(find.text('Create'));
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+
+      pending.complete();
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.text('List created.'), findsNothing);
+    });
+
     testWidgets('an empty description resolves as null', (tester) async {
       usePhone(tester);
       ListFormInput? result;

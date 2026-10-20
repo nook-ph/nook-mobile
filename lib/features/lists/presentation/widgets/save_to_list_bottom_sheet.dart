@@ -175,6 +175,8 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
           description: input.description,
         );
       },
+      // Made but the cafe not saved into it: the error toast says so.
+      confirmAfterClose: () => saved,
     );
     // Made but the cafe not saved into it: the error toast already said so.
     if (input != null && saved && mounted) {
