@@ -259,10 +259,8 @@ class _ListDetailPageState extends State<ListDetailPage> {
 
   /// Runs from the toast, which can outlive this page: no context lookups.
   void _undoRemove(CafeSummary cafe) {
+    _clearPending();
     _restoring = cafe;
-    _removing = null;
-    _removeRequest = null;
-    _removeSettledAt = null;
     final cafes = _cachedCafes;
     if (mounted && cafes != null && !cafes.any((c) => c.id == cafe.id)) {
       setState(() {

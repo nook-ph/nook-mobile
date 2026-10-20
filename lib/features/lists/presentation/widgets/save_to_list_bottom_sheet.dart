@@ -175,10 +175,10 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
           description: input.description,
         );
       },
-      // Made but the cafe not saved into it: the error toast says so.
-      confirmAfterClose: () => saved,
+      // Made but the cafe not saved into it: this sheet's error toast says
+      // so, while it is open. Closed too, the list is at least confirmed.
+      confirmAfterClose: () => saved || !mounted,
     );
-    // Made but the cafe not saved into it: the error toast already said so.
     if (input != null && saved && mounted) {
       showPrimaryToast(context, 'List created.');
     }

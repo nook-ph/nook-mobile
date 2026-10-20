@@ -211,11 +211,11 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     // save into it is one more tap there, not a second New list.
     final lists =
         reloaded ??
-        [
+        sortListsForSaveSheet([
           ...latest.lists,
           if (!latest.lists.any((l) => l.id == listId))
             _justMade(listId, name, description, saved: saved),
-        ];
+        ]);
 
     emit(
       latest.copyWith(
