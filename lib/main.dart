@@ -15,6 +15,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:nook/utils/theme/theme.dart';
 import 'package:nook/core/app_bloc.dart';
+import 'package:nook/features/cups/presentation/widgets/cup_composer_sheet.dart'
+    show discardKeptCupDraft;
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/auth/google_auth_state.dart';
 import 'package:nook/core/services/timeout_http_client.dart';
@@ -239,6 +241,8 @@ class _MyAppState extends State<MyApp> {
                 // next only within the same sign-in flow.
                 if (state is AuthLoggedOut || state is AuthAccountDeleted) {
                   GuestActionReplay.clear();
+                  // So is a cup kept for signing in again.
+                  discardKeptCupDraft();
                 }
                 blockCubit.clear();
                 // Been / Want to Try statuses and rankings are per-user.

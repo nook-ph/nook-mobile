@@ -165,15 +165,21 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
 
   Future<void> _createList() async {
     final cubit = context.read<SaveToListCubit>();
+    var saved = false;
     final input = await showCreateListSheet(
       context,
-      save: (input) => cubit.createListAndSave(
-        cafeId: widget.cafeId,
-        name: input.name,
-        description: input.description,
-      ),
+      save: (input) async {
+        saved = await cubit.createListAndSave(
+          cafeId: widget.cafeId,
+          name: input.name,
+          description: input.description,
+        );
+      },
     );
-    if (input != null && mounted) showPrimaryToast(context, 'List created.');
+    // Made but the cafe not saved into it: the error toast already said so.
+    if (input != null && saved && mounted) {
+      showPrimaryToast(context, 'List created.');
+    }
   }
 }
 

@@ -44,6 +44,9 @@ class BookmarkIconButton extends StatelessWidget {
       button: true,
       enabled: isEnabled,
       label: isSaved ? 'Saved. Change list' : 'Save',
+      // The action has to be on this node: excluding the children drops
+      // the tap handler below with their semantics.
+      onTap: handleTap,
       excludeSemantics: true,
       child: AdaptiveTap(
         onTap: handleTap ?? () {},

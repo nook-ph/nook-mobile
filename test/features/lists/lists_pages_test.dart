@@ -482,6 +482,44 @@ void main() {
       },
     );
 
+    testWidgets(
+      'a remove the server answered without deleting does not hide the list '
+      'from later reloads',
+      (tester) async {
+        final list = cafeList(id: 'l1', name: 'Study spots', cafeCount: 2);
+        final lists = await pump(
+          tester,
+          list: list,
+          cafes: [
+            cafe('a', name: 'Tadaima'),
+            cafe('b', name: 'Kamp'),
+          ],
+        );
+        await tester.tap(find.bySemanticsLabel('Options for Tadaima'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Remove from list'));
+        await tester.pumpAndSettle();
+        expect(find.text('Tadaima'), findsNothing);
+
+        // Answered, but the row is still on the server.
+        (lists.events.last as RemoveCafeFromList).done!.complete();
+        await tester.pump();
+        lists.push(
+          ListCafesLoaded(list, [
+            cafe('a', name: 'Tadaima'),
+            cafe('b', name: 'Kamp'),
+            cafe('c', name: 'Abaca'),
+          ]),
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(find.text('Tadaima'), findsOneWidget);
+        expect(find.text('Abaca'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 10));
+        await tester.pumpAndSettle();
+      },
+    );
+
     testWidgets('reloads its cafes when the list count moves under it', (
       tester,
     ) async {

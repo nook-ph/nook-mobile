@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -75,6 +76,36 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('New list'), findsNothing);
       expect(result?.name, 'Study spots');
+    });
+
+    testWidgets('a create that fails after the sheet closed still says so', (
+      tester,
+    ) async {
+      usePhone(tester);
+      final pending = Completer<void>();
+      await tester.pumpWidget(
+        SheetOpener<ListFormInput>(
+          sheet: ListFormSheet(save: (_) => pending.future),
+          onResult: (_) {},
+        ),
+      );
+      await openSheet(tester);
+      await tester.enterText(find.byType(TextField).first, 'Study spots');
+      await tester.pump();
+      await tester.tap(find.text('Create'));
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      expect(find.text('New list'), findsNothing);
+
+      pending.completeError(const SocketException('offline'));
+      // The toast enters the overlay over a few frames.
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.textContaining('offline'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('an empty description resolves as null', (tester) async {

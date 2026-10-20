@@ -3,6 +3,7 @@ import 'dart:ui' show Tristate;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_ranking.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
@@ -276,6 +277,53 @@ void main() {
         await open(tester, editing: earlier, myCups: [earlier]);
         expect(find.textContaining('Your last'), findsNothing);
         expect(find.textContaining('Replaces'), findsNothing);
+      });
+    });
+
+    group('a cup kept for signing in again', () {
+      setUp(() {
+        GuestActionReplay.now = () => _now;
+        cupDraftUserId = () => 'user-a';
+      });
+      tearDown(() {
+        GuestActionReplay.now = DateTime.now;
+        cupDraftUserId = () => null;
+        discardKeptCupDraft();
+      });
+
+      String note(WidgetTester tester) => tester
+          .widget<TextField>(find.widgetWithText(TextField, 'Note (optional)'))
+          .controller!
+          .text;
+
+      testWidgets('comes back for the same account, once', (tester) async {
+        debugKeepCupDraft(cafeId: _cafe.id, note: 'Kept', userId: 'user-a');
+        await open(tester);
+        expect(note(tester), 'Kept');
+      });
+
+      testWidgets('never fills another account\'s composer', (tester) async {
+        debugKeepCupDraft(cafeId: _cafe.id, note: 'Kept', userId: 'user-b');
+        await open(tester);
+        expect(note(tester), isEmpty);
+      });
+
+      testWidgets('is dropped once it is stale', (tester) async {
+        debugKeepCupDraft(
+          cafeId: _cafe.id,
+          note: 'Kept',
+          userId: 'user-a',
+          keptAt: _now.subtract(const Duration(hours: 2)),
+        );
+        await open(tester);
+        expect(note(tester), isEmpty);
+      });
+
+      testWidgets('is gone after a log out', (tester) async {
+        debugKeepCupDraft(cafeId: _cafe.id, note: 'Kept', userId: 'user-a');
+        discardKeptCupDraft();
+        await open(tester);
+        expect(note(tester), isEmpty);
       });
     });
 

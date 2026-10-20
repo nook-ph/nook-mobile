@@ -195,6 +195,38 @@ void main() {
       expect(state.refreshNonce, 1);
     });
 
+    test('a cafe that fails to save into a new list does not throw: a retry '
+        'from the form would make the list twice', () async {
+      final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+      final cubit = _buildCubit(repository);
+      await cubit.load('cafe-1');
+      repository.failNextAdd = true;
+
+      final saved = await cubit.createListAndSave(
+        cafeId: 'cafe-1',
+        name: 'Weekend Cafes',
+      );
+
+      expect(saved, isFalse);
+      expect(repository.createCalls, 1);
+      final state = cubit.state as SaveToListLoaded;
+      expect(state.lists.map((list) => list.id), contains('created-list'));
+      expect(state.savedListIds, isNot(contains('created-list')));
+      expect(state.isCreating, isFalse);
+      expect(state.listActionError, isNotNull);
+    });
+
+    test('creating a list before the lists load throws, not "done"', () async {
+      final repository = _FakeCafeRepository(lists: [_list(id: 'list-1')]);
+      final cubit = _buildCubit(repository);
+
+      await expectLater(
+        cubit.createListAndSave(cafeId: 'cafe-1', name: 'Weekend Cafes'),
+        throwsStateError,
+      );
+      expect(repository.createCalls, 0);
+    });
+
     test(
       'sortListsForSaveSheet pins default first; rest by lastSavedAt else updatedAt desc',
       () {
@@ -285,6 +317,7 @@ class _FakeCafeRepository implements ICafeRepository {
   bool failNextAdd;
   bool failNextRemove;
   Completer<void>? addCompleter;
+  int createCalls = 0;
 
   @override
   Future<bool> isCafeSavedToAnyUserList(String cafeId) async {
@@ -332,6 +365,7 @@ class _FakeCafeRepository implements ICafeRepository {
     String? description,
     required bool isPublic,
   }) async {
+    createCalls++;
     const listId = 'created-list';
     lists.add(_list(id: listId));
     return listId;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:nook/core/utils/app_error_copy.dart';
+import 'package:nook/core/utils/toast_helper.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 
@@ -111,6 +112,9 @@ class _ListFormSheetState extends State<ListFormSheet> {
     );
     final save = widget.save;
     if (save != null) {
+      // Outlives the sheet: closed while the save runs, a failure is still
+      // said there (the bloc reports it to this sheet only).
+      final under = Navigator.of(context).context;
       setState(() {
         _saving = true;
         _error = null;
@@ -118,9 +122,14 @@ class _ListFormSheetState extends State<ListFormSheet> {
       try {
         await save(input);
       } catch (e) {
-        if (!mounted) return;
         HapticFeedback.errorNotification();
         final info = AppErrorCopy.fromException(e);
+        if (!mounted) {
+          if (under.mounted) {
+            showPrimaryToast(under, '${info.title} · ${info.subtitle}');
+          }
+          return;
+        }
         setState(() {
           _saving = false;
           _error = '${info.title} · ${info.subtitle}';

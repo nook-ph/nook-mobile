@@ -212,17 +212,23 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     RemoveCafeFromList event,
     Emitter<ListsState> emit,
   ) async {
-    if (!_isAuthenticated) return;
+    if (!_isAuthenticated) {
+      event.done?.complete();
+      return;
+    }
 
     try {
       await _inOrder(
         () => removeCafeFromListUseCase(event.listId, event.cafeId),
       );
+      event.done?.complete();
       // Always reload: the state may have moved off this list's cafes (an
       // edit leaves ListsLoaded) while its page is still on screen.
       add(LoadListCafes(listId: event.listId));
     } catch (e, st) {
       debugPrint('ListsBloc._onRemoveCafeFromList error: $e\n$st');
+      // The failure is the ListsError below; [done] only marks the answer.
+      event.done?.complete();
       emit(ListsError(e));
     }
   }

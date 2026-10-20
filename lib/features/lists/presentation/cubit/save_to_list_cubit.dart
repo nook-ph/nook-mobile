@@ -147,44 +147,33 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     }
   }
 
-  /// Throws when the list couldn't be made or the cafe saved to it, so the
-  /// form asking for it can stay open with what was typed.
-  Future<void> createListAndSave({
+  /// Throws when the list couldn't be made, so the form asking for it can
+  /// stay open with what was typed. Once the list exists it does not throw:
+  /// a retry from the form would make a second list with the same name. A
+  /// failure to save the cafe into it then shows as [listActionError], with
+  /// the new list in the picker for one more tap. Returns whether the cafe
+  /// was saved into the new list.
+  Future<bool> createListAndSave({
     required String cafeId,
     required String name,
     String? description,
   }) async {
     final current = state;
-    if (current is! SaveToListLoaded || current.isCreating) return;
+    // Not a quiet return: the form would take it as done and say
+    // "List created." for a list that was never made.
+    if (current is! SaveToListLoaded) {
+      throw StateError('Lists are not loaded yet');
+    }
+    if (current.isCreating) throw StateError('A list is already being made');
 
     emit(current.copyWith(isCreating: true, clearListActionError: true));
 
+    final String listId;
     try {
-      final listId = await createListUseCase(
+      listId = await createListUseCase(
         name: name,
         description: description,
         isPublic: false,
-      );
-      await addCafeToListUseCase(listId, cafeId);
-
-      await _persistLastSavedList(listId);
-
-      final lists = await _loadListsForPicker();
-      if (isClosed) return;
-      // Build on the state as it is now: toggles made while the list was
-      // being created must survive it.
-      final latest = state;
-      if (latest is! SaveToListLoaded) return;
-      final savedListIds = Set<String>.from(latest.savedListIds)..add(listId);
-
-      emit(
-        latest.copyWith(
-          lists: lists,
-          savedListIds: savedListIds,
-          isCreating: false,
-          refreshNonce: latest.refreshNonce + 1,
-          clearListActionError: true,
-        ),
       );
     } catch (_) {
       final latest = state;
@@ -193,6 +182,42 @@ class SaveToListCubit extends Cubit<SaveToListState> {
       }
       rethrow;
     }
+
+    Object? saveError;
+    var saved = false;
+    try {
+      await addCafeToListUseCase(listId, cafeId);
+      saved = true;
+      await _persistLastSavedList(listId);
+    } catch (e) {
+      saveError = e;
+    }
+
+    List<CafeList>? lists;
+    try {
+      lists = await _loadListsForPicker();
+    } catch (e) {
+      saveError ??= e;
+    }
+    if (isClosed) return saved;
+    // Build on the state as it is now: toggles made while the list was
+    // being created must survive it.
+    final latest = state;
+    if (latest is! SaveToListLoaded) return saved;
+    final savedListIds = Set<String>.from(latest.savedListIds);
+    if (saved) savedListIds.add(listId);
+
+    emit(
+      latest.copyWith(
+        lists: lists,
+        savedListIds: savedListIds,
+        isCreating: false,
+        refreshNonce: latest.refreshNonce + 1,
+        listActionError: saveError,
+        clearListActionError: saveError == null,
+      ),
+    );
+    return saved;
   }
 
   /// Includes the default (Favorites) list so it matches the details-page bookmark.

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/profile_events.dart';
@@ -283,15 +284,77 @@ class _Item {
 
 /// A new cup kept while its author signs in again: the post found the
 /// session gone, and the login screen replaces the page under the sheet.
-/// The next composer for the same cafe picks it up, once. In memory only.
+/// The next composer for the same cafe picks it up, once, if it is the same
+/// account and the sign-in was recent ([GuestActionReplay.maxAge], the
+/// same window as the composer reopening by itself). In memory only.
 ({
   String cafeId,
   List<_Item> items,
   String note,
   int? rating,
   DateTime visitedAt,
+  String? userId,
+  DateTime keptAt,
 })?
 _keptDraft;
+
+/// The signed-in account's id, or null. Overridable for tests.
+@visibleForTesting
+String? Function() cupDraftUserId = () {
+  try {
+    return Supabase.instance.client.auth.currentUser?.id;
+  } catch (_) {
+    return null; // Supabase not set up (tests).
+  }
+};
+
+/// Drops a cup kept for a sign-in (the account was deleted, say).
+void discardKeptCupDraft() => _keptDraft = null;
+
+/// Keeps a draft with just a note, as [_CupComposerSheetState] does on
+/// Sign in. For tests.
+@visibleForTesting
+void debugKeepCupDraft({
+  required String cafeId,
+  required String note,
+  String? userId,
+  DateTime? keptAt,
+}) {
+  _keptDraft = (
+    cafeId: cafeId,
+    items: const [],
+    note: note,
+    rating: null,
+    visitedAt: keptAt ?? GuestActionReplay.now(),
+    userId: userId,
+    keptAt: keptAt ?? GuestActionReplay.now(),
+  );
+}
+
+/// Whether [kept] may fill a composer for [cafeId] now: the same cafe, not
+/// stale, and not another account's (a session that ran out leaves no id to
+/// compare, so an unknown side is let through).
+bool _canRestore(
+  ({
+    String cafeId,
+    List<_Item> items,
+    String note,
+    int? rating,
+    DateTime visitedAt,
+    String? userId,
+    DateTime keptAt,
+  })
+  kept,
+  String cafeId,
+) {
+  if (kept.cafeId != cafeId) return false;
+  if (GuestActionReplay.now().difference(kept.keptAt) >
+      GuestActionReplay.maxAge) {
+    return false;
+  }
+  final now = cupDraftUserId();
+  return kept.userId == null || now == null || kept.userId == now;
+}
 
 class CupComposerSheet extends StatefulWidget {
   const CupComposerSheet({
@@ -392,7 +455,11 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       _note.text = widget.initialNote?.trim() ?? '';
       _visitedAt = _dayFromPhotos(widget.initialPhotos) ?? _now;
       if (kept != null && kept.cafeId == widget.cafe.id) {
+        // Used or not, it is spent: a stale or other account's draft must
+        // not wait for a later visit.
         _keptDraft = null;
+      }
+      if (kept != null && _canRestore(kept, widget.cafe.id)) {
         _items.insertAll(0, kept.items);
         if (kept.note.isNotEmpty) _note.text = kept.note;
         _rating = kept.rating;
@@ -768,6 +835,8 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       note: _note.text.trim(),
       rating: _rating,
       visitedAt: _visitedAt,
+      userId: cupDraftUserId(),
+      keptAt: GuestActionReplay.now(),
     );
     GuestActionReplay.remember(CafeGuestAction.writeReview, widget.cafe.id);
     final router = GoRouter.of(context);

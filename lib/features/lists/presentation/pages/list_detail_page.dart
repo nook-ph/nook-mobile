@@ -69,6 +69,11 @@ class _ListDetailPageState extends State<ListDetailPage> {
   /// Where [_removing]'s row was, for Undo to put it back in place.
   int _removedAt = 0;
 
+  /// [_removing]'s remove has been answered: a reload that still has the
+  /// cafe is the server's list (a delete that matched nothing), not one
+  /// from before the remove, and is shown.
+  bool _removeAnswered = false;
+
   /// The cafe an Undo is putting back. Its row is already back.
   CafeSummary? _restoring;
 
@@ -221,6 +226,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     final cafes = _cachedCafes ?? const [];
     _removedAt = cafes.indexWhere((c) => c.id == cafe.id).clamp(0, 1 << 30);
     _removing = cafe;
+    _removeAnswered = false;
     _restoring = null;
     setState(() {
       _cachedCafes = [
@@ -234,7 +240,15 @@ class _ListDetailPageState extends State<ListDetailPage> {
       actionLabel: 'Undo',
       onAction: () => _undoRemove(cafe),
     );
-    _listsBloc.add(RemoveCafeFromList(listId: widget.listId, cafeId: cafe.id));
+    final done = Completer<void>();
+    unawaited(
+      done.future.then((_) {
+        if (identical(_removing, cafe)) _removeAnswered = true;
+      }),
+    );
+    _listsBloc.add(
+      RemoveCafeFromList(listId: widget.listId, cafeId: cafe.id, done: done),
+    );
   }
 
   /// Runs from the toast, which can outlive this page: no context lookups.
@@ -295,7 +309,10 @@ class _ListDetailPageState extends State<ListDetailPage> {
     // are ahead of it, and the next reload catches up.
     bool has(CafeSummary? cafe) =>
         cafe != null && state.cafes.any((c) => c.id == cafe.id);
-    if (has(_removing) || (_restoring != null && !has(_restoring))) return;
+    if ((has(_removing) && !_removeAnswered) ||
+        (_restoring != null && !has(_restoring))) {
+      return;
+    }
 
     final changed = _removing ?? _restoring;
     _removing = null;
