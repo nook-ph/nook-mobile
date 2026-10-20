@@ -108,6 +108,36 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    testWidgets('a create that lands after the sheet closed is confirmed', (
+      tester,
+    ) async {
+      usePhone(tester);
+      final pending = Completer<void>();
+      ListFormInput? result;
+      await tester.pumpWidget(
+        SheetOpener<ListFormInput>(
+          sheet: ListFormSheet(save: (_) => pending.future),
+          onResult: (value) => result = value,
+        ),
+      );
+      await openSheet(tester);
+      await tester.enterText(find.byType(TextField).first, 'Study spots');
+      await tester.pump();
+      await tester.tap(find.text('Create'));
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Close'));
+      await tester.pumpAndSettle();
+      expect(result, isNull);
+
+      pending.complete();
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+      expect(find.text('List created.'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
+    });
+
     testWidgets('an empty description resolves as null', (tester) async {
       usePhone(tester);
       ListFormInput? result;

@@ -83,4 +83,17 @@ void main() {
     expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
     handle.dispose();
   });
+
+  testWidgets('a Lists sheet title without Back starts at the gutter', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      const ListsSheet(title: 'Save to…', children: [Text('row')]),
+    );
+    expect(
+      tester.getTopLeft(find.text('Save to…')).dx,
+      tester.getTopLeft(find.text('row')).dx,
+    );
+  });
 }

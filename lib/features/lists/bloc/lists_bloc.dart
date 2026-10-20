@@ -50,8 +50,15 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
   /// tapped while its remove is still out must land after it.
   Future<void> _membershipWrites = Future.value();
 
+  /// Add/remove writes answered so far, done or failed. Stamped on each
+  /// [ListCafesLoaded] as the count when its read started.
+  int get settledWrites => _settledWrites;
+  int _settledWrites = 0;
+
   Future<void> _inOrder(Future<void> Function() write) {
-    final run = _membershipWrites.then((_) => write());
+    final run = _membershipWrites
+        .then((_) => write())
+        .whenComplete(() => _settledWrites++);
     _membershipWrites = run.catchError((_) {});
     return run;
   }
@@ -111,6 +118,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     if (!_isAuthenticated) return;
 
     emit(ListsLoading());
+    final afterWrites = _settledWrites;
     try {
       final results = await Future.wait([
         getUserListsUseCase(),
@@ -126,7 +134,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
         orElse: () => throw StateError('List ${event.listId} not found.'),
       );
 
-      emit(ListCafesLoaded(targetList, cafes));
+      emit(ListCafesLoaded(targetList, cafes, afterWrites: afterWrites));
     } catch (e, st) {
       debugPrint('ListsBloc._onLoadListCafes error: $e\n$st');
       emit(ListsError(e));
@@ -213,7 +221,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     Emitter<ListsState> emit,
   ) async {
     if (!_isAuthenticated) {
-      event.done?.complete();
+      event.done?.complete(_settledWrites);
       return;
     }
 
@@ -221,14 +229,14 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       await _inOrder(
         () => removeCafeFromListUseCase(event.listId, event.cafeId),
       );
-      event.done?.complete();
+      event.done?.complete(_settledWrites);
       // Always reload: the state may have moved off this list's cafes (an
       // edit leaves ListsLoaded) while its page is still on screen.
       add(LoadListCafes(listId: event.listId));
     } catch (e, st) {
       debugPrint('ListsBloc._onRemoveCafeFromList error: $e\n$st');
       // The failure is the ListsError below; [done] only marks the answer.
-      event.done?.complete();
+      event.done?.complete(_settledWrites);
       emit(ListsError(e));
     }
   }

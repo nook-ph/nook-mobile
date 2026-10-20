@@ -117,6 +117,8 @@ class ListsSheet extends StatelessWidget {
                   constraints: const BoxConstraints(minHeight: 32),
                   child: Row(
                     children: [
+                      // Without Back the title starts at the gutter.
+                      if (back == null) const SizedBox(width: _reach),
                       if (back != null) ...[
                         _HeaderIcon(
                           icon: LucideIcons.arrowLeft,

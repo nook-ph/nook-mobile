@@ -51,9 +51,9 @@ class RemoveCafeFromList extends ListsEvent {
   final String cafeId;
 
   /// Completes once the remove has been answered (done, failed or skipped),
-  /// before the reload it starts: from then on a list that still has the
-  /// cafe is the server's word, not a reload from before it.
-  final Completer<void>? done;
+  /// with [ListsBloc.settledWrites] at that point: a [ListCafesLoaded] whose
+  /// `afterWrites` reaches it read the list after the remove.
+  final Completer<int>? done;
 
   RemoveCafeFromList({required this.listId, required this.cafeId, this.done});
 }

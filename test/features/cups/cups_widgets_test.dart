@@ -287,7 +287,7 @@ void main() {
       });
       tearDown(() {
         GuestActionReplay.now = DateTime.now;
-        cupDraftUserId = () => null;
+        cupDraftUserId = currentCupUserId;
         discardKeptCupDraft();
       });
 
@@ -317,6 +317,18 @@ void main() {
         );
         await open(tester);
         expect(note(tester), isEmpty);
+      });
+
+      testWidgets('a stale one for another cafe is let go too', (tester) async {
+        debugKeepCupDraft(
+          cafeId: 'elsewhere',
+          note: 'Kept',
+          userId: 'user-a',
+          keptAt: _now.subtract(const Duration(hours: 2)),
+        );
+        await open(tester);
+        expect(note(tester), isEmpty);
+        expect(debugHasKeptCupDraft, isFalse);
       });
 
       testWidgets('is gone after a log out', (tester) async {

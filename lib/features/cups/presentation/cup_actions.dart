@@ -18,15 +18,6 @@ import 'package:nook/features/cups/data/cups_community_photos_repository.dart';
 import 'package:nook/features/gallery/domain/entities/picked_cafe.dart';
 import 'package:nook/features/gallery/presentation/widgets/community_photo_actions.dart';
 import 'package:nook/injection_container.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show Supabase;
-
-String? _signedInUserId() {
-  try {
-    return Supabase.instance.client.auth.currentUser?.id;
-  } catch (_) {
-    return null;
-  }
-}
 
 /// "Add your cup" / "Edit your cup" from anywhere: a guest gets the sign-in
 /// sheet (and the composer after signing in, through
@@ -43,7 +34,7 @@ Future<CupComposerOutcome?> startCup(
   double toastOffset = 0,
   ValueGetter<String?>? currentUserId,
 }) async {
-  final me = (currentUserId ?? _signedInUserId)();
+  final me = (currentUserId ?? currentCupUserId)();
   if (me == null) {
     await CafeGuestSignInSheet.show(
       context,
@@ -90,7 +81,7 @@ Future<void> toggleCupHelpful(
   ValueGetter<String?>? currentUserId,
 }) async {
   if (card.isMine || !card.canVote) return;
-  if ((currentUserId ?? _signedInUserId)() == null) {
+  if ((currentUserId ?? currentCupUserId)() == null) {
     await CafeGuestSignInSheet.show(
       context,
       action: CafeGuestAction.helpfulReview,
@@ -193,7 +184,7 @@ Future<void> showCupOptions(
     builder: (_) => ReviewOptionsSheet.forOtherCup(authorLabel: card.label),
   );
   if (choice == null || !context.mounted) return;
-  if ((currentUserId ?? _signedInUserId)() == null) {
+  if ((currentUserId ?? currentCupUserId)() == null) {
     await CafeGuestSignInSheet.show(
       context,
       action: CafeGuestAction.reportReview,

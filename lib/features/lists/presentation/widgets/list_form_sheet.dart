@@ -136,7 +136,14 @@ class _ListFormSheetState extends State<ListFormSheet> {
         });
         return;
       }
-      if (!mounted) return;
+      if (!mounted) {
+        // Closed while it saved: the caller got null and says nothing, so
+        // a new list is confirmed here. (An edit is confirmed by its page.)
+        if (!_isEdit && under.mounted) {
+          showPrimaryToast(under, 'List created.');
+        }
+        return;
+      }
     }
     Navigator.of(context).pop(input);
   }

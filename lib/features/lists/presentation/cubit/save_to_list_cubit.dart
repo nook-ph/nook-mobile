@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_list.dart';
 import 'package:nook/core/cafe/domain/use_cases/add_cafe_to_list_usecase.dart';
@@ -188,16 +189,25 @@ class SaveToListCubit extends Cubit<SaveToListState> {
     try {
       await addCafeToListUseCase(listId, cafeId);
       saved = true;
-      await _persistLastSavedList(listId);
     } catch (e) {
       saveError = e;
     }
+    if (saved) {
+      try {
+        await _persistLastSavedList(listId);
+      } catch (e) {
+        // Only the picker's "last used" hint: the save itself is in.
+        debugPrint('[SaveToList] last list not kept: $e');
+      }
+    }
 
+    // A failed reload is not a failed save: the picker keeps its rows and
+    // shows the new list next time it opens.
     List<CafeList>? lists;
     try {
       lists = await _loadListsForPicker();
     } catch (e) {
-      saveError ??= e;
+      debugPrint('[SaveToList] lists not reloaded after create: $e');
     }
     if (isClosed) return saved;
     // Build on the state as it is now: toggles made while the list was

@@ -501,20 +501,77 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Tadaima'), findsNothing);
 
-        // Answered, but the row is still on the server.
-        (lists.events.last as RemoveCafeFromList).done!.complete();
+        // A reload read before the remove was answered stays hidden.
+        (lists.events.last as RemoveCafeFromList).done!.complete(2);
         await tester.pump();
         lists.push(
           ListCafesLoaded(list, [
             cafe('a', name: 'Tadaima'),
             cafe('b', name: 'Kamp'),
+          ], afterWrites: 1),
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(find.text('Tadaima'), findsNothing);
+
+        // Read after it, and the row is still on the server: shown.
+        lists.push(
+          ListCafesLoaded(list, [
+            cafe('a', name: 'Tadaima'),
+            cafe('b', name: 'Kamp'),
             cafe('c', name: 'Abaca'),
-          ]),
+          ], afterWrites: 2),
         );
         await tester.pump();
         await tester.pump();
         expect(find.text('Tadaima'), findsOneWidget);
         expect(find.text('Abaca'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 10));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      "an earlier remove's answer does not count for the cafe removed again",
+      (tester) async {
+        final list = cafeList(id: 'l1', name: 'Study spots', cafeCount: 2);
+        final lists = await pump(
+          tester,
+          list: list,
+          cafes: [
+            cafe('a', name: 'Tadaima'),
+            cafe('b', name: 'Kamp'),
+          ],
+        );
+        Future<RemoveCafeFromList> remove() async {
+          await tester.tap(find.bySemanticsLabel('Options for Tadaima'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Remove from list'));
+          await tester.pumpAndSettle();
+          return lists.events.whereType<RemoveCafeFromList>().last;
+        }
+
+        final first = await remove();
+        await tester.tap(find.text('Undo'));
+        await tester.pumpAndSettle();
+        expect(find.text('Tadaima'), findsOneWidget);
+        await remove();
+        expect(find.text('Tadaima'), findsNothing);
+
+        // The first remove is answered; the second is still out. A reload
+        // read after the Undo's add but before the second remove has the
+        // cafe, and must stay hidden.
+        first.done!.complete(2);
+        await tester.pump();
+        lists.push(
+          ListCafesLoaded(list, [
+            cafe('a', name: 'Tadaima'),
+            cafe('b', name: 'Kamp'),
+          ], afterWrites: 2),
+        );
+        await tester.pump();
+        await tester.pump();
+        expect(find.text('Tadaima'), findsNothing);
         await tester.pump(const Duration(seconds: 10));
         await tester.pumpAndSettle();
       },

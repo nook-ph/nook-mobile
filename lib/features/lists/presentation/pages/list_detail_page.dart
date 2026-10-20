@@ -69,10 +69,15 @@ class _ListDetailPageState extends State<ListDetailPage> {
   /// Where [_removing]'s row was, for Undo to put it back in place.
   int _removedAt = 0;
 
-  /// [_removing]'s remove has been answered: a reload that still has the
-  /// cafe is the server's list (a delete that matched nothing), not one
-  /// from before the remove, and is shown.
-  bool _removeAnswered = false;
+  /// [_removing]'s request, so an earlier remove's answer (the same cafe,
+  /// removed, put back and removed again) is not taken for this one's.
+  Completer<int>? _removeRequest;
+
+  /// The bloc's settled-write count once [_removing]'s remove was answered.
+  /// A reload read from then on that still has the cafe is the server's
+  /// list (a delete that matched nothing) and is shown; an earlier one is
+  /// from before the remove and is not.
+  int? _removeSettledAt;
 
   /// The cafe an Undo is putting back. Its row is already back.
   CafeSummary? _restoring;
@@ -226,7 +231,7 @@ class _ListDetailPageState extends State<ListDetailPage> {
     final cafes = _cachedCafes ?? const [];
     _removedAt = cafes.indexWhere((c) => c.id == cafe.id).clamp(0, 1 << 30);
     _removing = cafe;
-    _removeAnswered = false;
+    _removeSettledAt = null;
     _restoring = null;
     setState(() {
       _cachedCafes = [
@@ -240,10 +245,11 @@ class _ListDetailPageState extends State<ListDetailPage> {
       actionLabel: 'Undo',
       onAction: () => _undoRemove(cafe),
     );
-    final done = Completer<void>();
+    final done = Completer<int>();
+    _removeRequest = done;
     unawaited(
-      done.future.then((_) {
-        if (identical(_removing, cafe)) _removeAnswered = true;
+      done.future.then((settled) {
+        if (identical(_removeRequest, done)) _removeSettledAt = settled;
       }),
     );
     _listsBloc.add(
@@ -255,6 +261,8 @@ class _ListDetailPageState extends State<ListDetailPage> {
   void _undoRemove(CafeSummary cafe) {
     _restoring = cafe;
     _removing = null;
+    _removeRequest = null;
+    _removeSettledAt = null;
     final cafes = _cachedCafes;
     if (mounted && cafes != null && !cafes.any((c) => c.id == cafe.id)) {
       setState(() {
@@ -309,7 +317,9 @@ class _ListDetailPageState extends State<ListDetailPage> {
     // are ahead of it, and the next reload catches up.
     bool has(CafeSummary? cafe) =>
         cafe != null && state.cafes.any((c) => c.id == cafe.id);
-    if ((has(_removing) && !_removeAnswered) ||
+    final settledAt = _removeSettledAt;
+    final readAfterRemove = settledAt != null && state.afterWrites >= settledAt;
+    if ((has(_removing) && !readAfterRemove) ||
         (_restoring != null && !has(_restoring))) {
       return;
     }
