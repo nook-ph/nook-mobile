@@ -434,6 +434,54 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets(
+      'Remove takes the row at once; Undo and a failure put it back',
+      (tester) async {
+        final list = cafeList(id: 'l1', name: 'Study spots', cafeCount: 2);
+        final lists = await pump(
+          tester,
+          list: list,
+          cafes: [
+            cafe('a', name: 'Tadaima'),
+            cafe('b', name: 'Kamp'),
+          ],
+        );
+        Future<void> remove(String name) async {
+          await tester.tap(find.bySemanticsLabel('Options for $name'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Remove from list'));
+          await tester.pumpAndSettle();
+        }
+
+        await remove('Tadaima');
+        // Gone before the server says so, with Undo.
+        expect(find.text('Tadaima'), findsNothing);
+        expect(find.text('Removed "Tadaima".'), findsOneWidget);
+        expect(lists.events.last, isA<RemoveCafeFromList>());
+
+        // A reload from before the remove doesn't bring it back.
+        lists.push(ListCafesLoaded(list, [cafe('a', name: 'Tadaima')]));
+        await tester.pump();
+        expect(find.text('Tadaima'), findsNothing);
+
+        await tester.tap(find.text('Undo'));
+        await tester.pumpAndSettle();
+        expect(find.text('Tadaima'), findsOneWidget);
+        expect(lists.events.last, isA<AddCafeToList>());
+
+        // The server refuses the next remove: the list is read again.
+        lists.push(ListCafesLoaded(list, [cafe('a', name: 'Tadaima')]));
+        await tester.pump();
+        await remove('Tadaima');
+        lists.push(ListsError(Exception('no')));
+        await tester.pumpAndSettle();
+        expect(lists.events.last, isA<LoadListCafes>());
+        expect(find.text("Couldn't update. Please try again."), findsOneWidget);
+        await tester.pump(const Duration(seconds: 10));
+        await tester.pumpAndSettle();
+      },
+    );
+
     testWidgets('reloads its cafes when the list count moves under it', (
       tester,
     ) async {

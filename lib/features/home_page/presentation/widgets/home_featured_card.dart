@@ -57,7 +57,7 @@ class FeaturedCard extends StatelessWidget {
             }),
           );
         }
-        context.push('/cafe/${cafe.id}');
+        context.push('/cafe/${cafe.id}', extra: cafe);
       },
       child: SizedBox(
         width: width,

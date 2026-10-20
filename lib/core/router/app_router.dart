@@ -7,6 +7,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nook/features/public_profile/presentation/pages/public_profile_page.dart';
 import 'package:nook/core/analytics/screen_tracking.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_state.dart';
 import 'package:nook/core/presentation/pages/main_screen.dart';
@@ -269,7 +270,15 @@ GoRouter createAppRouter(AuthBloc authBloc) {
           final id = state.pathParameters['id'] ?? '';
           // From the visit reminder: "I went".
           final went = state.uri.queryParameters['went'] == '1';
-          return CafeDetailsPage(cafeId: id, wentOnOpen: went);
+          // A tapped card passes itself to show while the details load.
+          final preview = state.extra is CafeSummary
+              ? state.extra! as CafeSummary
+              : null;
+          return CafeDetailsPage(
+            cafeId: id,
+            wentOnOpen: went,
+            preview: preview,
+          );
         },
       ),
 

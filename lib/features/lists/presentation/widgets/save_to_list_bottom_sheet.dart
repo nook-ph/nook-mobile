@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -29,7 +30,6 @@ class SaveToListBottomSheet extends StatefulWidget {
 
 class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
   int _lastRefreshNonce = 0;
-  bool _pendingCreateToast = false;
 
   @override
   void initState() {
@@ -57,16 +57,11 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
 
           final actionErr = state.listActionError;
           if (actionErr != null) {
-            _pendingCreateToast = false;
+            HapticFeedback.errorNotification();
             final info = AppErrorCopy.fromException(actionErr);
             showPrimaryToast(context, '${info.title} · ${info.subtitle}');
             context.read<SaveToListCubit>().acknowledgeListActionError();
-          } else if (_pendingCreateToast && !state.isCreating) {
-            _pendingCreateToast = false;
-            showPrimaryToast(context, 'List created.');
           }
-        } else if (state is SaveToListError) {
-          _pendingCreateToast = false;
         }
       },
       builder: (context, state) {
@@ -156,25 +151,29 @@ class _SaveToListBottomSheetState extends State<SaveToListBottomSheet> {
           isEnabled:
               !state.isCreating &&
               !state.pendingListIds.contains(state.lists[i].id),
-          onToggle: () => context.read<SaveToListCubit>().toggleList(
-            cafeId: widget.cafeId,
-            listId: state.lists[i].id,
-          ),
+          onToggle: () {
+            HapticFeedback.lightImpact();
+            context.read<SaveToListCubit>().toggleList(
+              cafeId: widget.cafeId,
+              listId: state.lists[i].id,
+            );
+          },
         ),
       ],
     ];
   }
 
   Future<void> _createList() async {
-    final input = await showCreateListSheet(context);
-    if (!mounted || input == null) return;
-
-    _pendingCreateToast = true;
-    await context.read<SaveToListCubit>().createListAndSave(
-      cafeId: widget.cafeId,
-      name: input.name,
-      description: input.description,
+    final cubit = context.read<SaveToListCubit>();
+    final input = await showCreateListSheet(
+      context,
+      save: (input) => cubit.createListAndSave(
+        cafeId: widget.cafeId,
+        name: input.name,
+        description: input.description,
+      ),
     );
+    if (input != null && mounted) showPrimaryToast(context, 'List created.');
   }
 }
 

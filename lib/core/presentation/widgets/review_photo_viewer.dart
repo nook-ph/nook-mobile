@@ -424,10 +424,10 @@ class _CircleIconButton extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: AdaptiveTap(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         child: SizedBox(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           child: Icon(icon, color: _viewerInk, size: 24),
         ),
       ),

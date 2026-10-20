@@ -83,7 +83,7 @@ class SearchMatchRow extends StatelessWidget {
     return AdaptiveTap(
       onTap: () {
         onOpen?.call();
-        context.push('/cafe/${cafe.id}');
+        context.push('/cafe/${cafe.id}', extra: cafe);
       },
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -171,7 +171,7 @@ class SearchResultRow extends StatelessWidget {
     ].join(' · ');
 
     return AdaptiveTap(
-      onTap: () => context.push('/cafe/${cafe.id}'),
+      onTap: () => context.push('/cafe/${cafe.id}', extra: cafe),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Row(

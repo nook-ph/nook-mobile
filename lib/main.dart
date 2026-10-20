@@ -17,6 +17,7 @@ import 'package:nook/utils/theme/theme.dart';
 import 'package:nook/core/app_bloc.dart';
 import 'package:nook/core/app_event.dart';
 import 'package:nook/core/auth/google_auth_state.dart';
+import 'package:nook/core/services/timeout_http_client.dart';
 import 'package:nook/core/block/block_cubit.dart';
 import 'package:nook/core/constants/app_constants.dart';
 import 'package:nook/core/filters/cubit/filter_cubit.dart';
@@ -64,6 +65,7 @@ void main() async {
     url: dotenv.env['SUPABASE_URL']!,
     anonKey: dotenv.env['SUPABASE_KEY']!,
     authOptions: FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce),
+    httpClient: TimeoutHttpClient(),
   );
 
   await GoogleSignIn.instance.initialize(

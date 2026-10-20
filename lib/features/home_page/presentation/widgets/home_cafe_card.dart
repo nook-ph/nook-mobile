@@ -71,7 +71,7 @@ class HomeCafeCard extends StatelessWidget {
             }),
           );
         }
-        context.push('/cafe/${cafe.id}');
+        context.push('/cafe/${cafe.id}', extra: cafe);
       },
       child: SizedBox(
         width: width,
@@ -181,7 +181,7 @@ class HomeRatingPill extends StatelessWidget {
             rating.toStringAsFixed(1),
             style: context.textTheme.bodyExtraSmallMed.copyWith(
               color: context.colorScheme.black,
-              fontSize: 10,
+              fontSize: 11,
               height: 1.5,
             ),
           ),

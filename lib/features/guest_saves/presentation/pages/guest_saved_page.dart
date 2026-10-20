@@ -86,6 +86,7 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
     final outcome = await saves.set(cafe, CafeStatus.been);
     if (!mounted) return;
     if (outcome == null) {
+      HapticFeedback.errorNotification();
       showPrimaryToast(context, "Couldn't save. Please try again.");
       return;
     }

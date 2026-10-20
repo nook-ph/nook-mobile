@@ -56,7 +56,7 @@ class HomeTagChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: context.textTheme.bodySmall?.copyWith(
                 color: context.colorScheme.black,
-                fontSize: 10,
+                fontSize: 11,
                 height: 1.5,
               ),
             ),

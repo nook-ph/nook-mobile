@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/profile_events.dart';
@@ -96,6 +97,7 @@ Future<void> toggleCupHelpful(
     );
     return;
   }
+  HapticFeedback.lightImpact();
   try {
     if (!await cubit.toggleHelpful(card)) return;
     logAppEvent(
@@ -108,6 +110,7 @@ Future<void> toggleCupHelpful(
     );
   } catch (_) {
     if (!context.mounted) return;
+    HapticFeedback.errorNotification();
     showPrimaryToast(
       context,
       "Couldn't update. Please try again.",

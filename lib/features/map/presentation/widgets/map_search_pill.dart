@@ -24,19 +24,19 @@ class MapSearchPill extends StatelessWidget {
   /// The design's height at the default text size.
   static const double height = 52;
 
-  /// The height at [scaler]: 8 above and below the two lines (14pt and
-  /// 10pt, line height 1.5), never under [height]. A fixed 52 overflowed
+  /// The height at [scaler]: 7 above and below the two lines (14pt and
+  /// 11pt, line height 1.5), never under [height]. A fixed 52 overflowed
   /// from about 2.1x.
   static double heightFor(TextScaler scaler) {
-    final text = scaler.scale(14) * 1.5 + scaler.scale(10) * 1.5;
-    return (16 + text).ceilToDouble().clamp(height, double.infinity);
+    final text = scaler.scale(14) * 1.5 + scaler.scale(11) * 1.5;
+    return (14 + text).ceilToDouble().clamp(height, double.infinity);
   }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final near = textTheme.bodySmall?.copyWith(
-      fontSize: 10,
+      fontSize: 11,
       height: 1.5,
       color: MapTokens.muted,
     );
@@ -76,7 +76,7 @@ class MapSearchPill extends StatelessWidget {
             const Icon(LucideIcons.search, size: 18, color: MapTokens.ink),
             const SizedBox(width: 10),
             Expanded(
-              // 21 + 15 of text, centred in 52: 8 above and below.
+              // 21 + 16.5 of text, centred in 52: about 7 above and below.
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:nook/core/analytics/log_app_event.dart';
 import 'package:nook/core/analytics/profile_events.dart';
@@ -9,8 +11,11 @@ import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/cafe/presentation/cafe_ranking_cubit.dart';
 import 'package:nook/core/cafe/presentation/cafe_status_cubit.dart';
 import 'package:nook/core/extensions/extensions.dart';
+import 'package:nook/core/presentation/widgets/confirm_sheet.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/core/utils/toast_helper.dart';
+import 'package:nook/features/cafe_details/presentation/guest_action_replay.dart';
+import 'package:nook/features/cafe_details/presentation/widgets/cafe_guest_sign_in_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_note_sheet.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_ranking_flow.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/review_actions_sheet.dart';
@@ -74,6 +79,7 @@ Future<CupComposerOutcome?> openCupComposer(
   dismissToasts();
   final outcome = await ReviewSheetShell.show<CupComposerOutcome>(
     context,
+    enableDrag: false,
     builder: (_) => CupComposerSheet(
       cafe: cafe,
       source: source,
@@ -275,6 +281,18 @@ class _Item {
   );
 }
 
+/// A new cup kept while its author signs in again: the post found the
+/// session gone, and the login screen replaces the page under the sheet.
+/// The next composer for the same cafe picks it up, once. In memory only.
+({
+  String cafeId,
+  List<_Item> items,
+  String note,
+  int? rating,
+  DateTime visitedAt,
+})?
+_keptDraft;
+
 class CupComposerSheet extends StatefulWidget {
   const CupComposerSheet({
     super.key,
@@ -336,8 +354,26 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
   /// Your cups here before this one, newest visit first.
   List<CupCard> _earlier = const [];
 
+  /// The post found no session: the error offers Sign in.
+  bool _signedOut = false;
+
   CupCard? get _editing => widget.editing;
   bool get _busy => _posting || _deleting;
+
+  /// Something closing the sheet would throw away.
+  bool get _dirty {
+    final cup = _editing;
+    final note = _note.text.trim();
+    if (cup == null) {
+      return _items.isNotEmpty || note.isNotEmpty || _rating != null;
+    }
+    return _removed.isNotEmpty ||
+        _items.any((i) => i.isNew) ||
+        _rating != cup.rating ||
+        note != (cup.note?.trim() ?? '') ||
+        _visitedAt != cup.visitedAt;
+  }
+
   bool get _legacy => _repository.mode == CupsMode.legacy;
   DateTime get _now => (widget.now ?? DateTime.now)();
 
@@ -351,9 +387,17 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       _note.text = cup.note?.trim() ?? '';
       _visitedAt = cup.visitedAt;
     } else {
+      final kept = _keptDraft;
       _items.addAll(widget.initialPhotos.map(_Item.photo));
       _note.text = widget.initialNote?.trim() ?? '';
       _visitedAt = _dayFromPhotos(widget.initialPhotos) ?? _now;
+      if (kept != null && kept.cafeId == widget.cafe.id) {
+        _keptDraft = null;
+        _items.insertAll(0, kept.items);
+        if (kept.note.isNotEmpty) _note.text = kept.note;
+        _rating = kept.rating;
+        _visitedAt = kept.visitedAt;
+      }
       _loadEarlier();
     }
     _syncNameField();
@@ -567,6 +611,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
     setState(() {
       _posting = true;
       _error = null;
+      _signedOut = false;
       for (final i in _items) {
         i.uploaded = false;
       }
@@ -620,6 +665,7 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
         },
       );
       if (!mounted) return;
+      HapticFeedback.successNotification();
       Navigator.of(context).pop(
         CupComposerOutcome(
           cup == null ? CupComposerAction.posted : CupComposerAction.updated,
@@ -628,13 +674,16 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
       );
     } on CupsException catch (e) {
       if (!mounted) return;
+      HapticFeedback.errorNotification();
       setState(() {
         _posting = false;
         _tried = true;
+        _signedOut = cup == null && isSignedOutCupError(e.code);
         _error = cupErrorMessage(e.code) ?? e.message;
       });
     } catch (_) {
       if (!mounted) return;
+      HapticFeedback.errorNotification();
       setState(() {
         _posting = false;
         _tried = true;
@@ -693,13 +742,49 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
               '(${earlier.rating}★).';
   }
 
+  /// Back, the scrim and the close button with something typed or picked:
+  /// ask before it goes.
+  Future<void> _confirmDiscard() async {
+    final editing = _editing != null;
+    final discard = await showConfirmSheet(
+      context,
+      title: editing ? 'Discard your changes?' : 'Discard this cup?',
+      message: editing
+          ? 'Your cup stays as it was before you opened it.'
+          : 'Your photos, note and stars for ${widget.cafe.name} '
+                'won’t be posted.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+    );
+    if (discard && mounted) Navigator.of(context).pop();
+  }
+
+  /// Keeps the draft, closes the sheet and opens the login screen. Signing
+  /// in returns to the cafe, which reopens the composer with the draft.
+  void _signIn() {
+    _keptDraft = (
+      cafeId: widget.cafe.id,
+      items: [for (final i in _items) i..uploaded = false],
+      note: _note.text.trim(),
+      rating: _rating,
+      visitedAt: _visitedAt,
+    );
+    GuestActionReplay.remember(CafeGuestAction.writeReview, widget.cafe.id);
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    router.push('/login');
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: !_busy,
+      canPop: !_busy && !_dirty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_busy) _confirmDiscard();
+      },
       child: ReviewSheetShell(
         title: _editing == null ? 'Add your cup' : 'Edit your cup',
-        onClose: _busy ? () {} : null,
+        onClose: () => Navigator.of(context).maybePop(),
         child: _form(context),
       ),
     );
@@ -838,6 +923,15 @@ class _CupComposerSheetState extends State<CupComposerSheet> {
               ),
             ),
           ),
+          if (_signedOut)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _TextAction(
+                icon: LucideIcons.logIn,
+                label: 'Sign in · your cup stays as it is',
+                onTap: _busy ? null : _signIn,
+              ),
+            ),
         ] else if (issue == CupDraftIssue.empty) ...[
           const SizedBox(height: 8),
           Text(

@@ -39,17 +39,29 @@ class BookmarkIconButton extends StatelessWidget {
       );
     }
 
-    return Container(
-      width: 40,
-      height: 40,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: Colors.white,
-      ),
+    // A 40 circle in a 44 tap target.
+    return Semantics(
+      button: true,
+      enabled: isEnabled,
+      label: isSaved ? 'Saved. Change list' : 'Save',
+      excludeSemantics: true,
       child: AdaptiveTap(
         onTap: handleTap ?? () {},
-        borderRadius: BorderRadius.circular(20),
-        child: Center(child: icon),
+        borderRadius: BorderRadius.circular(22),
+        child: SizedBox.square(
+          dimension: 44,
+          child: Center(
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+              ),
+              child: Center(child: icon),
+            ),
+          ),
+        ),
       ),
     );
   }

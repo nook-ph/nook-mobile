@@ -46,6 +46,16 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     on<RemoveCafeFromList>(_onRemoveCafeFromList);
   }
 
+  /// Adds and removes run one after another, in the order asked: an Undo
+  /// tapped while its remove is still out must land after it.
+  Future<void> _membershipWrites = Future.value();
+
+  Future<void> _inOrder(Future<void> Function() write) {
+    final run = _membershipWrites.then((_) => write());
+    _membershipWrites = run.catchError((_) {});
+    return run;
+  }
+
   bool get _isAuthenticated =>
       Supabase.instance.client.auth.currentSession != null;
 
@@ -124,7 +134,10 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
   }
 
   Future<void> _onCreateList(CreateList event, Emitter<ListsState> emit) async {
-    if (!_isAuthenticated) return;
+    if (!_isAuthenticated) {
+      event.done?.completeError(const AuthException('Not signed in.'));
+      return;
+    }
 
     try {
       await createListUseCase(
@@ -133,14 +146,20 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
         isPublic: event.isPublic,
       );
       add(LoadUserLists());
+      event.done?.complete();
     } catch (e, st) {
       debugPrint('ListsBloc._onCreateList error: $e\n$st');
+      // The caller that waits says so itself (the form keeps its input).
+      if (event.done case final done?) return done.completeError(e);
       emit(ListsError(e));
     }
   }
 
   Future<void> _onUpdateList(UpdateList event, Emitter<ListsState> emit) async {
-    if (!_isAuthenticated) return;
+    if (!_isAuthenticated) {
+      event.done?.completeError(const AuthException('Not signed in.'));
+      return;
+    }
 
     try {
       await repository.updateList(
@@ -151,8 +170,10 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
       );
       unawaited(analytics.logEvent('list_updated'));
       add(LoadUserLists());
+      event.done?.complete();
     } catch (e, st) {
       debugPrint('ListsBloc._onUpdateList error: $e\n$st');
+      if (event.done case final done?) return done.completeError(e);
       emit(ListsError(e));
     }
   }
@@ -177,7 +198,7 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     if (!_isAuthenticated) return;
 
     try {
-      await addCafeToListUseCase(event.listId, event.cafeId);
+      await _inOrder(() => addCafeToListUseCase(event.listId, event.cafeId));
       // Always reload: the state may have moved off this list's cafes (an
       // edit leaves ListsLoaded) while its page is still on screen.
       add(LoadListCafes(listId: event.listId));
@@ -194,7 +215,9 @@ class ListsBloc extends Bloc<ListsEvent, ListsState> {
     if (!_isAuthenticated) return;
 
     try {
-      await removeCafeFromListUseCase(event.listId, event.cafeId);
+      await _inOrder(
+        () => removeCafeFromListUseCase(event.listId, event.cafeId),
+      );
       // Always reload: the state may have moved off this list's cafes (an
       // edit leaves ListsLoaded) while its page is still on screen.
       add(LoadListCafes(listId: event.listId));

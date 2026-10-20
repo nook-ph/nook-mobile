@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nook/features/guest_saves/domain/sign_up_ask_rules.dart';
@@ -85,6 +87,7 @@ class CafeDetailsPage extends StatefulWidget {
     super.key,
     required this.cafeId,
     this.wentOnOpen = false,
+    this.preview,
   });
 
   final String cafeId;
@@ -107,6 +110,10 @@ class CafeDetailsPage extends StatefulWidget {
     if (route == null || !route.isCurrent) return;
     Navigator.of(top.context).pop();
   }
+
+  /// The card that was tapped, when there was one: its photo and name stand
+  /// in while the details load, so the page opens on the cafe, not on grey.
+  final CafeSummary? preview;
 
   @override
   State<CafeDetailsPage> createState() => _CafeDetailsPageState();
@@ -579,7 +586,11 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                 url != state.data.cafeDetails.featuredImageUrl,
                           ),
                         ]
-                      : const <String>[];
+                      : [
+                          if (isLoading &&
+                              (widget.preview?.coverImage ?? '').isNotEmpty)
+                            widget.preview!.coverImage!,
+                        ];
 
                   if (state is CafeDetailsError) {
                     final failure = CafeLoadFailure.from(state.error);
@@ -603,7 +614,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
 
                   final title = state is CafeDetailsLoaded
                       ? state.data.cafeDetails.name
-                      : '';
+                      : widget.preview?.name ?? '';
 
                   return CustomScrollView(
                     controller: _scrollController,
@@ -613,7 +624,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                         child: RepaintBoundary(
                           child: HeroImageSlider(
                             images: heroImages,
-                            isLoading: isLoading,
+                            isLoading: isLoading && heroImages.isEmpty,
                             bottomInset: _sheetLip,
                             placeholderSeed: state is CafeDetailsLoaded
                                 ? state.data.cafeDetails.name
@@ -660,7 +671,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                 child: AppBarCircleIconButton(
                                   icon: Icons.arrow_back,
                                   iconSize: 18,
-                                  semanticLabel: 'Back',
+                                  label: 'Back',
                                   onTap: () => Navigator.pop(context),
                                 ),
                               ),
@@ -755,7 +766,7 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                       SliverToBoxAdapter(
                         child: state is CafeDetailsLoaded
                             ? _buildSections(context, state, menuCardWidth)
-                            : const CafeDetailsSkeleton(),
+                            : CafeDetailsSkeleton(name: widget.preview?.name),
                       ),
                     ],
                   );
@@ -791,7 +802,7 @@ class _TopBarSaveIcon extends StatelessWidget {
       icon: icon,
       iconSize: 18,
       iconColor: color,
-      semanticLabel: label,
+      label: label,
       selected: selected,
       onTap: onTap,
     );
@@ -809,7 +820,7 @@ class _ShareButton extends StatelessWidget {
     return AppBarCircleIconButton(
       icon: PhosphorIcons.shareNetwork(),
       iconSize: 18,
-      semanticLabel: 'Share',
+      label: 'Share',
       onTap: () {
         // Details are still loading — a share with no name reads broken, and
         // the load takes well under a second.
@@ -1055,6 +1066,7 @@ class _SavedButtonState extends State<_SavedButton> {
     }
 
     // The bookmark fills at once and empties again if the save fails.
+    HapticFeedback.lightImpact();
     _savedStateRequest++;
     setState(() {
       _isSaving = true;
@@ -1089,6 +1101,7 @@ class _SavedButtonState extends State<_SavedButton> {
       debugPrint('[CafeDetailsSave] instant save failed error=$e\n$st');
       _logSave('failed');
       if (!mounted) return;
+      HapticFeedback.errorNotification();
       setState(() => _isSaved = false);
       _showErrorToast(context, e, goLogin: true);
     } finally {

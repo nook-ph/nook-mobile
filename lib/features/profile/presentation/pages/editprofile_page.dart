@@ -198,6 +198,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
     };
   }
 
+  Future<void> _confirmDiscard() async {
+    final discard = await showProfileConfirmSheet(
+      context,
+      title: 'Discard your changes?',
+      message: 'Your profile stays as it was before you opened it.',
+      confirmLabel: 'Discard',
+      cancelLabel: 'Keep editing',
+      destructive: true,
+    );
+    if (discard && mounted) Navigator.of(context).pop();
+  }
+
   // --- Avatar Logic ---
   static Future<File> _compressImage(File file) async {
     final filePath = file.path;
@@ -470,9 +482,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       8,
                     ),
                     // Held while saving or uploading, like the bar's arrow:
-                    // leaving then would drop the result.
+                    // leaving then would drop the result. Unsaved edits ask
+                    // before they go.
                     child: PopScope(
-                      canPop: !busy,
+                      canPop: !busy && !_isDirty,
+                      onPopInvokedWithResult: (didPop, _) {
+                        if (!didPop && !busy) _confirmDiscard();
+                      },
                       child: ProfilePillButton(
                         label: 'Save changes',
                         busy: _saving,

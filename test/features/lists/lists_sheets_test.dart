@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nook/features/lists/presentation/widgets/cafe_actions_bottom_sheet.dart';
@@ -39,6 +41,40 @@ void main() {
       await tester.pumpAndSettle();
       expect(result?.name, 'Study spots');
       expect(result?.description, 'Quiet.');
+    });
+
+    testWidgets('a failed create stays open with what was typed', (
+      tester,
+    ) async {
+      usePhone(tester);
+      ListFormInput? result;
+      var fail = true;
+      await tester.pumpWidget(
+        SheetOpener<ListFormInput>(
+          sheet: ListFormSheet(
+            save: (_) async {
+              if (fail) throw const SocketException('offline');
+            },
+          ),
+          onResult: (value) => result = value,
+        ),
+      );
+      await openSheet(tester);
+      await tester.enterText(find.byType(TextField).first, 'Study spots');
+      await tester.pump();
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('New list'), findsOneWidget);
+      expect(find.text('Study spots'), findsOneWidget);
+      expect(find.textContaining('offline'), findsOneWidget);
+      expect(result, isNull);
+
+      fail = false;
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+      expect(find.text('New list'), findsNothing);
+      expect(result?.name, 'Study spots');
     });
 
     testWidgets('an empty description resolves as null', (tester) async {

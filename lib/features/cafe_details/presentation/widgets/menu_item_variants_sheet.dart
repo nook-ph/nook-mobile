@@ -164,7 +164,7 @@ class _VariantRow extends StatelessWidget {
                     child: Text(
                       'Default',
                       style: textTheme.bodySmall?.copyWith(
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: CafeDetailsTokens.ink,
                       ),

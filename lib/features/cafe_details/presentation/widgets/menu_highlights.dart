@@ -45,9 +45,10 @@ class MenuHighlights extends StatelessWidget {
                     ),
                   );
                 },
+                // A 44 target around the label; the row grows to fit it.
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
+                  minimumSize: const Size(44, 44),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 child: Text(
@@ -62,7 +63,8 @@ class MenuHighlights extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 12),
+        // 12 under the label; the 44 row already holds 10 of it.
+        const SizedBox(height: 2),
 
         PrototypeHeight(
           prototype: MenuHighlightCard(

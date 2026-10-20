@@ -88,6 +88,7 @@ Future<void> markBeenFromReminder(
     );
     if (!context.mounted) return;
     if (outcome == null) {
+      HapticFeedback.errorNotification();
       showPrimaryToast(context, "Couldn't save. Please try again.");
     }
   }
@@ -127,6 +128,7 @@ Future<void> toggleGuestStatus(
   );
   if (!context.mounted) return;
   if (outcome == null) {
+    HapticFeedback.errorNotification();
     showPrimaryToast(
       context,
       "Couldn't save. Please try again.",
@@ -332,6 +334,7 @@ Future<bool> saveWantToTry(
   if (!cubit.state.isKnown(cafe.id)) await cubit.loadFor([cafe.id]);
   if (!context.mounted) return false;
   if (!cubit.state.isKnown(cafe.id)) {
+    HapticFeedback.errorNotification();
     showPrimaryToast(
       context,
       "Couldn't save. Please try again.",
@@ -345,6 +348,7 @@ Future<bool> saveWantToTry(
   final ok = await cubit.set(cafe.id, CafeStatus.wantToTry);
   if (!context.mounted) return ok;
   if (!ok) {
+    HapticFeedback.errorNotification();
     showPrimaryToast(
       context,
       "Couldn't save. Please try again.",

@@ -98,7 +98,7 @@ class MapSheetCafeCard extends StatelessWidget {
     return SizedBox(
       width: width,
       child: AdaptiveTap(
-        onTap: () => context.push('/cafe/${cafe.id}'),
+        onTap: () => context.push('/cafe/${cafe.id}', extra: cafe),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

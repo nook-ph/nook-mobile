@@ -471,7 +471,7 @@ void _openCafe(BuildContext context, CafeSummary cafe) {
     context,
     MaterialPageRoute(
       settings: const RouteSettings(name: ScreenNames.cafeDetails),
-      builder: (_) => CafeDetailsPage(cafeId: cafe.id),
+      builder: (_) => CafeDetailsPage(cafeId: cafe.id, preview: cafe),
     ),
   );
 }

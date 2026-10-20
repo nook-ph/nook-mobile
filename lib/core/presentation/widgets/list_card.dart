@@ -33,7 +33,8 @@ class ListCard extends StatelessWidget {
             context,
             MaterialPageRoute(
               settings: const RouteSettings(name: ScreenNames.cafeDetails),
-              builder: (context) => CafeDetailsPage(cafeId: cafe.id),
+              builder: (context) =>
+                  CafeDetailsPage(cafeId: cafe.id, preview: cafe),
             ),
           );
         },

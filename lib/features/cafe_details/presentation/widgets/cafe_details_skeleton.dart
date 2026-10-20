@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 import 'package:nook/features/cafe_details/presentation/widgets/cafe_details_common.dart';
+import 'package:nook/utils/theme/custom_themes/text_theme.dart';
 
 /// Bone colour while the cafe loads; the pulse brightens it slightly.
 const _bone = Color(0xFFEEEEEE);
@@ -8,9 +9,12 @@ const _pulse = PulseEffect(from: _bone, to: Color(0xFFF6F6F6));
 
 /// The sheet's shape while the cafe loads: name, area and status lines, the
 /// two action pills, then an amenities grid and a row of chips, so nothing
-/// jumps when the data arrives.
+/// jumps when the data arrives. A known [name] (from the tapped card) is
+/// shown as the header will show it instead of its bone.
 class CafeDetailsSkeleton extends StatelessWidget {
-  const CafeDetailsSkeleton({super.key});
+  const CafeDetailsSkeleton({super.key, this.name});
+
+  final String? name;
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +34,23 @@ class CafeDetailsSkeleton extends StatelessWidget {
         effect: _pulse,
         // The photo runs 24 under the sheet; the sheet pads 28 above the
         // name, so 4 more here.
-        child: const Padding(
-          padding: EdgeInsets.fromLTRB(20, 4, 20, 20),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
           child: Column(
             children: [
-              Bone(width: 170, height: 26, uniRadius: 6),
+              if (name case final name? when name.trim().isNotEmpty)
+                Skeleton.keep(
+                  child: Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLargeSemi.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: CafeDetailsTokens.ink,
+                    ),
+                  ),
+                )
+              else
+                const Bone(width: 170, height: 26, uniRadius: 6),
               gap,
               Bone(width: 120, height: 14, uniRadius: 6),
               gap,

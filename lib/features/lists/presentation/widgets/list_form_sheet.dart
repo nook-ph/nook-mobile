@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nook/core/utils/app_error_copy.dart';
 import 'package:nook/features/lists/presentation/widgets/list_tokens.dart';
 import 'package:nook/features/lists/presentation/widgets/lists_ui.dart';
 
@@ -14,26 +15,39 @@ class ListFormInput {
 /// Longest list name the sheets accept.
 const listNameLimit = 50;
 
-/// Asks for a new list's name and description (Figma "New list sheet").
-/// Resolves null when the sheet is closed without creating.
-Future<ListFormInput?> showCreateListSheet(BuildContext context) {
+/// Writes what the sheet asked for; throws when it couldn't.
+typedef ListFormSave = Future<void> Function(ListFormInput input);
+
+/// Asks for a new list's name and description (Figma "New list sheet") and
+/// creates it with [save]. The sheet stays open until [save] is done, and
+/// on a failure keeps what was typed. Resolves null when closed without
+/// creating.
+Future<ListFormInput?> showCreateListSheet(
+  BuildContext context, {
+  required ListFormSave save,
+}) {
   return ListsSheet.show<ListFormInput>(
     context,
-    builder: (_) => const ListFormSheet(),
+    builder: (_) => ListFormSheet(save: save),
   );
 }
 
-/// Edits a list's name and description (Figma "Edit list sheet"). Resolves
-/// null when nothing was saved.
+/// Edits a list's name and description (Figma "Edit list sheet") with
+/// [save], as [showCreateListSheet] does. Resolves null when nothing was
+/// saved.
 Future<ListFormInput?> showEditListSheet(
   BuildContext context, {
   required String name,
   String? description,
+  required ListFormSave save,
 }) {
   return ListsSheet.show<ListFormInput>(
     context,
-    builder: (_) =>
-        ListFormSheet(initialName: name, initialDescription: description ?? ''),
+    builder: (_) => ListFormSheet(
+      initialName: name,
+      initialDescription: description ?? '',
+      save: save,
+    ),
   );
 }
 
@@ -41,10 +55,18 @@ Future<ListFormInput?> showEditListSheet(
 /// the title and button change, and Save stays dimmed until something
 /// differs. Create stays dimmed until a name is typed.
 class ListFormSheet extends StatefulWidget {
-  const ListFormSheet({super.key, this.initialName, this.initialDescription});
+  const ListFormSheet({
+    super.key,
+    this.initialName,
+    this.initialDescription,
+    this.save,
+  });
 
   final String? initialName;
   final String? initialDescription;
+
+  /// Runs before the sheet closes. Null closes it with the input at once.
+  final ListFormSave? save;
 
   @override
   State<ListFormSheet> createState() => _ListFormSheetState();
@@ -62,8 +84,11 @@ class _ListFormSheetState extends State<ListFormSheet> {
   String get _trimmedName => _name.text.trim();
   String get _trimmedDescription => _description.text.trim();
 
+  bool _saving = false;
+  String? _error;
+
   bool get _canSubmit {
-    if (_trimmedName.isEmpty) return false;
+    if (_saving || _trimmedName.isEmpty) return false;
     if (!_isEdit) return true;
     return _trimmedName != widget.initialName!.trim() ||
         _trimmedDescription != (widget.initialDescription ?? '').trim();
@@ -78,14 +103,33 @@ class _ListFormSheetState extends State<ListFormSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_canSubmit) return;
-    Navigator.of(context).pop(
-      ListFormInput(
-        name: _trimmedName,
-        description: _trimmedDescription.isEmpty ? null : _trimmedDescription,
-      ),
+    final input = ListFormInput(
+      name: _trimmedName,
+      description: _trimmedDescription.isEmpty ? null : _trimmedDescription,
     );
+    final save = widget.save;
+    if (save != null) {
+      setState(() {
+        _saving = true;
+        _error = null;
+      });
+      try {
+        await save(input);
+      } catch (e) {
+        if (!mounted) return;
+        HapticFeedback.errorNotification();
+        final info = AppErrorCopy.fromException(e);
+        setState(() {
+          _saving = false;
+          _error = '${info.title} · ${info.subtitle}';
+        });
+        return;
+      }
+      if (!mounted) return;
+    }
+    Navigator.of(context).pop(input);
   }
 
   @override
@@ -124,8 +168,14 @@ class _ListFormSheetState extends State<ListFormSheet> {
             ),
           ),
         ),
+        if (_error case final error?)
+          Semantics(
+            liveRegion: true,
+            child: Text(error, style: listsText(13, color: ListsTokens.danger)),
+          ),
         ListsPillButton(
           label: _isEdit ? 'Save' : 'Create',
+          busy: _saving,
           onTap: _canSubmit ? _submit : null,
         ),
       ],

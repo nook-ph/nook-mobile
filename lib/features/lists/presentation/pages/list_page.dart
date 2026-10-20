@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:nook/features/home_widget/presentation/widgets/home_widget_promo_card.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_status.dart';
 import 'package:nook/core/analytics/saves_events.dart';
@@ -39,9 +41,6 @@ class ListsPage extends StatefulWidget {
 }
 
 class _ListsPageState extends State<ListsPage> {
-  String? _pendingCreateName;
-  bool _isCreating = false;
-
   @override
   void initState() {
     super.initState();
@@ -64,7 +63,6 @@ class _ListsPageState extends State<ListsPage> {
           // full-page error (no lists to show), and not from a hidden tab
           // (the page is kept alive behind Profile and Home, where it
           // stacked an offline toast over their own offline state).
-          final failedCreate = _pendingCreateName != null;
           final showsFullPageError = context
               .read<ListsBloc>()
               .userLists
@@ -72,11 +70,9 @@ class _ListsPageState extends State<ListsPage> {
           final visible =
               TickerMode.valuesOf(context).enabled &&
               (ModalRoute.of(context)?.isCurrent ?? true);
-          if (visible && (failedCreate || !showsFullPageError)) {
+          if (visible && !showsFullPageError) {
             showPrimaryToast(context, '${info.title} · ${info.subtitle}');
           }
-          _pendingCreateName = null;
-          if (mounted) setState(() => _isCreating = false);
           return;
         }
 
@@ -90,12 +86,6 @@ class _ListsPageState extends State<ListsPage> {
               status == MyCrawlsStatus.error) {
             crawls.load();
           }
-        }
-
-        if (state is ListsLoaded && _pendingCreateName != null) {
-          showPrimaryToast(context, 'List created.');
-          _pendingCreateName = null;
-          if (mounted) setState(() => _isCreating = false);
         }
       },
       child: Scaffold(
@@ -129,9 +119,7 @@ class _ListsPageState extends State<ListsPage> {
                 lists: lists,
                 previews: listsBloc.listPreviews,
                 onOpenList: (list) => _openList(context, list),
-                onCreate: _isCreating
-                    ? null
-                    : () => _showCreateListSheet(context),
+                onCreate: () => _showCreateListSheet(context),
               );
             },
           ),
@@ -143,18 +131,24 @@ class _ListsPageState extends State<ListsPage> {
   Future<void> _showCreateListSheet(BuildContext context) async {
     final listsBloc = context.read<ListsBloc>();
 
-    final input = await showCreateListSheet(context);
-    if (input == null || !mounted) return;
-
-    setState(() => _isCreating = true);
-    _pendingCreateName = input.name;
-    listsBloc.add(
-      CreateList(
-        name: input.name,
-        description: input.description,
-        isPublic: false,
-      ),
+    final input = await showCreateListSheet(
+      context,
+      save: (input) {
+        final done = Completer<void>();
+        listsBloc.add(
+          CreateList(
+            name: input.name,
+            description: input.description,
+            isPublic: false,
+            done: done,
+          ),
+        );
+        return done.future;
+      },
     );
+    if (input != null && context.mounted) {
+      showPrimaryToast(context, 'List created.');
+    }
   }
 
   void _openList(BuildContext context, CafeList list) {

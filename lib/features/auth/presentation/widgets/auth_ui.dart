@@ -376,7 +376,7 @@ class AuthFieldIconButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: SizedBox(
-          width: 32,
+          width: 44,
           height: 44,
           child: Align(
             alignment: Alignment.centerRight,
