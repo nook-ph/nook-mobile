@@ -28,7 +28,20 @@ class MainScreen extends StatelessWidget {
           Supabase.instance.client.auth.currentSession != null,
       pagesBuilder: (tabIndex) => [
         const HomePage(),
-        MapPage(isActive: tabIndex == 1),
+        // The map's sheet and card are measured from its bottom edge, so
+        // it stops at the bar instead of running behind the glass.
+        Builder(
+          builder: (context) => Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.paddingOf(context).bottom,
+            ),
+            child: MediaQuery.removePadding(
+              context: context,
+              removeBottom: true,
+              child: MapPage(isActive: tabIndex == 1),
+            ),
+          ),
+        ),
         const SavedTab(),
         ProfileRedesignPage(isActive: tabIndex == 3),
       ],
@@ -193,6 +206,9 @@ class _MainShellState extends State<MainShell> {
           },
           child: Scaffold(
             backgroundColor: Colors.white,
+            // Pages run behind the glass tab bar; the bar's height arrives
+            // as the bottom MediaQuery padding, which scroll views add.
+            extendBody: true,
             body: IndexedStack(
               index: state.tabIndex,
               children: [

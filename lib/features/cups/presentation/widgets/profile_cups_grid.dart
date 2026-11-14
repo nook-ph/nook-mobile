@@ -71,7 +71,17 @@ class ProfileCupsGrid extends StatelessWidget {
             }
         }
         if (!scrollable) return body;
-        return CustomScrollView(slivers: [SliverToBoxAdapter(child: body)]);
+        // Clears the glass tab bar on the Profile tab.
+        return CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.paddingOf(context).bottom,
+              ),
+              sliver: SliverToBoxAdapter(child: body),
+            ),
+          ],
+        );
       },
     );
   }

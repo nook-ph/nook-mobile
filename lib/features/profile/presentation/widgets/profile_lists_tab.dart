@@ -133,11 +133,11 @@ class ProfileListsView extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         ProfileTokens.gutter,
         16,
         ProfileTokens.gutter,
-        24,
+        24 + MediaQuery.paddingOf(context).bottom,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

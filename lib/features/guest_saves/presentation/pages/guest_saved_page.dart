@@ -212,11 +212,11 @@ class _GuestSavedPageState extends State<GuestSavedPage> {
 
                 return ListView(
                   key: _listKey,
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     ListsTokens.gutter,
                     8,
                     ListsTokens.gutter,
-                    40,
+                    40 + MediaQuery.paddingOf(context).bottom,
                   ),
                   children: [
                     Row(

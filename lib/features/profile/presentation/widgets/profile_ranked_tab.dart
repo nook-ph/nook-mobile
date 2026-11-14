@@ -139,7 +139,7 @@ class _ProfileRankedTabState extends State<ProfileRankedTab> {
           ProfileTokens.gutter,
           widget.onPreview != null ? 4 : 16,
           ProfileTokens.gutter,
-          24,
+          24 + MediaQuery.paddingOf(context).bottom,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

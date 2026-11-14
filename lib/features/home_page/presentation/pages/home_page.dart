@@ -68,7 +68,10 @@ class HomePage extends StatelessWidget {
       create: (_) => sl<HomeBloc>()..add(LoadHomeDataEvent()),
       child: Scaffold(
         backgroundColor: Colors.white,
+        // The bottom is left to the scroll view, which runs behind the
+        // glass tab bar.
         body: SafeArea(
+          bottom: false,
           child: RetryOnResume(
             child: BlocListener<HomeBloc, HomeState>(
               // Fires for a first load and for a refresh, but not for a banner
@@ -257,6 +260,9 @@ class _HomeScrollView extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.paddingOf(context).bottom,
+          ),
           child: ConstrainedBox(
             constraints: BoxConstraints(minWidth: constraints.maxWidth),
             child: Column(
