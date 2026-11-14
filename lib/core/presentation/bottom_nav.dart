@@ -80,10 +80,10 @@ class _BottomNavState extends State<BottomNav> {
   /// The bar: frosted, with the page bent at its rim.
   static const _barGlass = LiquidGlassSettings(
     glassColor: Color(0x8CFFFFFF),
-    thickness: 22,
+    thickness: 34,
     blur: 8,
-    refractiveIndex: 1.25,
-    chromaticAberration: 0.01,
+    refractiveIndex: 1.5,
+    chromaticAberration: 0.03,
     lightIntensity: 0.7,
     ambientStrength: 0.4,
     saturation: 1.3,
@@ -93,10 +93,10 @@ class _BottomNavState extends State<BottomNav> {
   /// at the edge.
   static const _lensGlass = LiquidGlassSettings(
     glassColor: Color(0x0FFFFFFF),
-    thickness: 32,
+    thickness: 50,
     blur: 0,
-    refractiveIndex: 1.45,
-    chromaticAberration: 0.04,
+    refractiveIndex: 1.75,
+    chromaticAberration: 0.08,
     lightIntensity: 1,
     ambientStrength: 0.2,
     saturation: 1.2,
