@@ -51,6 +51,11 @@ class _BottomNavState extends State<BottomNav> {
   /// The tab under the finger while pressed or dragged; null otherwise.
   int? _held;
 
+  /// Where the finger is along the bar while it is down; the lens is
+  /// centred on it, so it rides under the thumb rather than hopping
+  /// between tabs.
+  double? _thumbX;
+
   static const _pad = 4.0;
   static const _spring = Duration(milliseconds: 420);
 
@@ -116,116 +121,134 @@ class _BottomNavState extends State<BottomNav> {
     final held = _held;
     final at = held ?? widget.currentIndex;
 
-    return GestureDetector(
-      onHorizontalDragStart: (d) => _hold(_indexAt(d.localPosition.dx, width)),
-      onHorizontalDragUpdate: (d) => _hold(_indexAt(d.localPosition.dx, width)),
-      onHorizontalDragEnd: (_) => _release(select: true),
-      onHorizontalDragCancel: _release,
-      // The lens swells past the bar's edge, so nothing here clips.
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(999),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: LayoutBuilder(
-                builder: (context, box) => LiquidGlass.withOwnLayer(
-                  settings: _barGlass,
-                  shape: LiquidRoundedSuperellipse(
-                    borderRadius: box.maxHeight / 2,
-                  ),
-                  child: const SizedBox.expand(),
-                ),
-              ),
-            ),
-          ),
-          // The selection capsule, hidden while the lens stands in for it.
-          AnimatedPositioned(
-            duration: _spring,
-            curve: Curves.easeOutBack,
-            left: _pad + at * tabWidth,
-            top: _pad,
-            bottom: _pad,
-            width: tabWidth,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 160),
-              opacity: held == null ? 1 : 0,
+    final thumbX = _thumbX;
+    void follow(double dx) {
+      setState(() => _thumbX = dx);
+      _hold(_indexAt(dx, width));
+    }
+
+    // Runs before the tap and drag below see the event, so the pointer-up
+    // only lets go of the thumb; the drag's end still picks the tab.
+    return Listener(
+      onPointerDown: (e) => follow(e.localPosition.dx),
+      onPointerMove: (e) {
+        if (_held != null) follow(e.localPosition.dx);
+      },
+      onPointerUp: (_) => setState(() => _thumbX = null),
+      onPointerCancel: (_) => setState(() => _thumbX = null),
+      child: GestureDetector(
+        onHorizontalDragStart: (_) {},
+        onHorizontalDragEnd: (_) => _release(select: true),
+        onHorizontalDragCancel: _release,
+        // The lens swells past the bar's edge, so nothing here clips.
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: BottomNav._brand.withValues(alpha: 0.10),
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            // 10 above and below the glyph and label inside the 4pt rim. No
-            // fixed height, so a larger text size cannot overflow.
-            padding: const EdgeInsets.symmetric(horizontal: _pad),
-            child: Row(
-              children: [
-                for (var i = 0; i < BottomNav.tabs.length; i++)
-                  Expanded(
-                    child: _Tab(
-                      label: BottomNav.tabs[i].label,
-                      icon: i == widget.currentIndex
-                          ? BottomNav.tabs[i].activeIcon
-                          : BottomNav.tabs[i].icon,
-                      selected: i == widget.currentIndex,
-                      onDown: () => _hold(i),
-                      onCancel: _release,
-                      onTap: () {
-                        setState(() => _held = null);
-                        widget.onTap(i);
-                      },
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x14000000),
+                      blurRadius: 20,
+                      offset: Offset(0, 6),
                     ),
+                  ],
+                ),
+                child: LayoutBuilder(
+                  builder: (context, box) => LiquidGlass.withOwnLayer(
+                    settings: _barGlass,
+                    shape: LiquidRoundedSuperellipse(
+                      borderRadius: box.maxHeight / 2,
+                    ),
+                    child: const SizedBox.expand(),
                   ),
-              ],
-            ),
-          ),
-          // The lens: drawn over the icons, so they bend inside it.
-          AnimatedPositioned(
-            duration: _spring,
-            curve: Curves.easeOutBack,
-            left: _pad + at * tabWidth,
-            top: _pad,
-            bottom: _pad,
-            width: tabWidth,
-            child: IgnorePointer(
-              child: AnimatedScale(
-                duration: const Duration(milliseconds: 260),
-                curve: held != null ? Curves.easeOutBack : Curves.easeInCubic,
-                scale: held != null ? 1.3 : 0.7,
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween(end: held != null ? 1 : 0),
-                  duration: const Duration(milliseconds: 200),
-                  builder: (context, visibility, _) => visibility == 0
-                      ? const SizedBox.expand()
-                      : LayoutBuilder(
-                          builder: (context, box) => LiquidGlass.withOwnLayer(
-                            settings: _lensGlass.copyWith(
-                              visibility: visibility,
-                            ),
-                            shape: LiquidRoundedSuperellipse(
-                              borderRadius: box.maxHeight / 2,
-                            ),
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
                 ),
               ),
             ),
-          ),
-        ],
+            // The selection capsule, hidden while the lens stands in for it.
+            AnimatedPositioned(
+              duration: _spring,
+              curve: Curves.easeOutBack,
+              left: _pad + at * tabWidth,
+              top: _pad,
+              bottom: _pad,
+              width: tabWidth,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 160),
+                opacity: held == null ? 1 : 0,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    color: BottomNav._brand.withValues(alpha: 0.10),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              // 10 above and below the glyph and label inside the 4pt rim. No
+              // fixed height, so a larger text size cannot overflow.
+              padding: const EdgeInsets.symmetric(horizontal: _pad),
+              child: Row(
+                children: [
+                  for (var i = 0; i < BottomNav.tabs.length; i++)
+                    Expanded(
+                      child: _Tab(
+                        label: BottomNav.tabs[i].label,
+                        icon: i == widget.currentIndex
+                            ? BottomNav.tabs[i].activeIcon
+                            : BottomNav.tabs[i].icon,
+                        selected: i == widget.currentIndex,
+                        onDown: () => _hold(i),
+                        onCancel: _release,
+                        onTap: () {
+                          setState(() => _held = null);
+                          widget.onTap(i);
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            // The lens: drawn over the icons, so they bend inside it. Glued
+            // to the thumb while it is down; springs to the tab on release.
+            AnimatedPositioned(
+              duration: thumbX != null ? Duration.zero : _spring,
+              curve: Curves.easeOutBack,
+              left: thumbX != null
+                  ? (thumbX - tabWidth / 2).clamp(_pad, width - _pad - tabWidth)
+                  : _pad + at * tabWidth,
+              top: _pad,
+              bottom: _pad,
+              width: tabWidth,
+              child: IgnorePointer(
+                child: AnimatedScale(
+                  duration: const Duration(milliseconds: 260),
+                  curve: held != null ? Curves.easeOutBack : Curves.easeInCubic,
+                  scale: held != null ? 1.3 : 0.7,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: held != null ? 1 : 0),
+                    duration: const Duration(milliseconds: 200),
+                    builder: (context, visibility, _) => visibility == 0
+                        ? const SizedBox.expand()
+                        : LayoutBuilder(
+                            builder: (context, box) => LiquidGlass.withOwnLayer(
+                              settings: _lensGlass.copyWith(
+                                visibility: visibility,
+                              ),
+                              shape: LiquidRoundedSuperellipse(
+                                borderRadius: box.maxHeight / 2,
+                              ),
+                              child: const SizedBox.expand(),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
