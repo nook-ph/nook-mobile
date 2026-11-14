@@ -211,11 +211,11 @@ class ListsOverview extends StatelessWidget {
         .firstOrNull;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         ListsTokens.gutter,
         8,
         ListsTokens.gutter,
-        40,
+        40 + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
         ListsTitleRow(

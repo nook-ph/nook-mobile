@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -11,7 +13,11 @@ class BottomNav extends StatelessWidget {
 
   static const _brand = Color(0xFF344E41);
   static const _idle = Color(0xFF868584);
-  static const _border = Color(0xFFE0E0E0);
+
+  /// Frosted glass, as on the iOS tab bar: the page shows through, blurred,
+  /// under a white tint. `MainShell` extends the tabs behind the bar.
+  static const _tint = Color(0xB8FFFFFF);
+  static const _border = Color(0x1F000000);
 
   /// Tab order is the page order in `MainScreen`.
   static final List<({String label, IconData icon, IconData activeIcon})> tabs =
@@ -43,29 +49,36 @@ class BottomNav extends StatelessWidget {
   }
 
   Widget _bar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: _border)),
-      ),
-      child: SafeArea(
-        top: false,
-        // Figma: 8 above, 2 below, 12 at the sides; 53 tall at the default
-        // text size. No fixed height, so a larger text size cannot overflow.
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
-          child: Row(
-            children: [
-              for (var i = 0; i < tabs.length; i++)
-                Expanded(
-                  child: _Tab(
-                    label: tabs[i].label,
-                    icon: i == currentIndex ? tabs[i].activeIcon : tabs[i].icon,
-                    selected: i == currentIndex,
-                    onTap: () => onTap(i),
-                  ),
-                ),
-            ],
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: _tint,
+            border: Border(top: BorderSide(color: _border, width: 0.5)),
+          ),
+          child: SafeArea(
+            top: false,
+            // Figma: 8 above, 2 below, 12 at the sides; 53 tall at the default
+            // text size. No fixed height, so a larger text size cannot overflow.
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+              child: Row(
+                children: [
+                  for (var i = 0; i < tabs.length; i++)
+                    Expanded(
+                      child: _Tab(
+                        label: tabs[i].label,
+                        icon: i == currentIndex
+                            ? tabs[i].activeIcon
+                            : tabs[i].icon,
+                        selected: i == currentIndex,
+                        onTap: () => onTap(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
