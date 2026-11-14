@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/glass_surface.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 
-/// White circular control matching cafe details app bar back/save affordances.
+/// Frosted-glass circular control matching cafe details app bar back/save affordances.
 ///
 /// The circle is [dimension] (40) but the touch area is [hitDimension] (48,
 /// above the 44 floor): a tap just outside the circle still counts. Screen
@@ -63,18 +64,17 @@ class AppBarCircleIconButton extends StatelessWidget {
         child: SizedBox.square(
           dimension: target,
           child: Center(
-            child: Container(
-              width: dimension,
-              height: dimension,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-              ),
-              child: AdaptiveTap(
-                onTap: tap,
-                borderRadius: borderRadius,
-                child: Center(
-                  child: Icon(icon, color: iconColor, size: iconSize),
+            child: GlassSurface(
+              shape: const CircleBorder(),
+              shadow: false,
+              child: SizedBox.square(
+                dimension: dimension,
+                child: AdaptiveTap(
+                  onTap: tap,
+                  borderRadius: borderRadius,
+                  child: Center(
+                    child: Icon(icon, color: iconColor, size: iconSize),
+                  ),
                 ),
               ),
             ),
