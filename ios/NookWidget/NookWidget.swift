@@ -245,13 +245,10 @@ struct NookWidget: Widget {
 
   var body: some WidgetConfiguration {
     StaticConfiguration(kind: kind, provider: Provider()) { entry in
-      if #available(iOS 17.0, *) {
-        // iOS turns this background into glass in the Clear and Tinted
-        // home screen looks (iOS 26).
-        NookWidgetView(entry: entry).containerBackground(Color.white, for: .widget)
-      } else {
-        NookWidgetView(entry: entry).padding().background(Color.white)
-      }
+      // iOS turns this background into glass in the Clear and Tinted home
+      // screen looks (iOS 26). The extension needs iOS 17 for it; on older
+      // phones the app runs without the widget.
+      NookWidgetView(entry: entry).containerBackground(Color.white, for: .widget)
     }
     .configurationDisplayName("Your saved cafes")
     .description("Your Want to try cafes and when they're open")
