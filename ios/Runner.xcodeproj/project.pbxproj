@@ -7,15 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		145ECA8B8F09095B09941289 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5BAB95985D1D13DBAD013022 /* WidgetKit.framework */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		6457A1C1B611E611347D01E4 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 560C642DC1FAEC87505F84A3 /* Foundation.framework */; };
 		6574DB3893E7D47E2CDFFEF8 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AD1D80DD4F3E766A36F7A3F8 /* Pods_RunnerTests.framework */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		D3041D4A0EFDD2129C120D58 /* NookWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B167FC43CA22E4C2546F780 /* NookWidget.swift */; };
+		D37D7BA029503F3E4EBDA0CA /* NookWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 315BF2B7E629B4EEA224EDBA /* NookWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E94A7DCA344A3C82F264E3FB /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4C9583004BB34CAB30B3857B /* Pods_Runner.framework */; };
+		F741D17E353A679850C1308D /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 10C7A8FDFDB078B0BAB48DF6 /* SwiftUI.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,9 +31,27 @@
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
 		};
+		A72FFCB342E883704D39AEAE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 59351E87A2D40512A1D90F52;
+			remoteInfo = NookWidget;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		5EA236FE4BDD1801BEC5D771 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D37D7BA029503F3E4EBDA0CA /* NookWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9705A1C41CF9048500538489 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -43,14 +66,20 @@
 
 /* Begin PBXFileReference section */
 		029D03F8E497BF90C19DAE35 /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
+		0968CF4563EE01FDE9AFD9AD /* NookWidget.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = NookWidget.xcconfig; sourceTree = "<group>"; };
+		10C7A8FDFDB078B0BAB48DF6 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		129DB4F69E144057A6E7479A /* Pods-Runner.debug-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug-dev.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug-dev.xcconfig"; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
+		28B9471F4A11E28555B7330B /* NookWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = NookWidget.entitlements; sourceTree = "<group>"; };
+		315BF2B7E629B4EEA224EDBA /* NookWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NookWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4C9583004BB34CAB30B3857B /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		510F823C80F33E9C24CBC314 /* Pods-Runner.profile-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile-dev.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile-dev.xcconfig"; sourceTree = "<group>"; };
+		560C642DC1FAEC87505F84A3 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		5BAB95985D1D13DBAD013022 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		6C16EBF729200C8DD91A59D8 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		6F0F5C36B11CE876DAF6378E /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -58,6 +87,7 @@
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		80B8B67EDF2B4D070DEE0EDB /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		8237F50A51D694912C0BF8AF /* Pods-Runner.release-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release-dev.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release-dev.xcconfig"; sourceTree = "<group>"; };
+		8B167FC43CA22E4C2546F780 /* NookWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NookWidget.swift; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -74,10 +104,21 @@
 		D3F0000000000000000000A4 /* Pods-RunnerTests.debug-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug-dev.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug-dev.xcconfig"; sourceTree = "<group>"; };
 		D3F0000000000000000000A5 /* Pods-RunnerTests.release-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release-dev.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release-dev.xcconfig"; sourceTree = "<group>"; };
 		D3F0000000000000000000A6 /* Pods-RunnerTests.profile-dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile-dev.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile-dev.xcconfig"; sourceTree = "<group>"; };
+		DC33889C643E1BE918575BBB /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		F53A27DBA42DE5A35B607B7C /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1AF50FDB76358B6909C10D38 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6457A1C1B611E611347D01E4 /* Foundation.framework in Frameworks */,
+				F741D17E353A679850C1308D /* SwiftUI.framework in Frameworks */,
+				145ECA8B8F09095B09941289 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EB1CF9000F007C117D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -102,6 +143,9 @@
 			children = (
 				4C9583004BB34CAB30B3857B /* Pods_Runner.framework */,
 				AD1D80DD4F3E766A36F7A3F8 /* Pods_RunnerTests.framework */,
+				5C51B6236749906F70D4380A /* iOS */,
+				10C7A8FDFDB078B0BAB48DF6 /* SwiftUI.framework */,
+				5BAB95985D1D13DBAD013022 /* WidgetKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -112,6 +156,14 @@
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
 			);
 			path = RunnerTests;
+			sourceTree = "<group>";
+		};
+		5C51B6236749906F70D4380A /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				560C642DC1FAEC87505F84A3 /* Foundation.framework */,
+			);
+			name = iOS;
 			sourceTree = "<group>";
 		};
 		9740EEB11CF90186004384FC /* Flutter */ = {
@@ -137,6 +189,7 @@
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				CEDD6E787BD504D58465DE88 /* Pods */,
 				2EF8AA30753EB0B1EF5B209D /* Frameworks */,
+				BE815E9481B822B102A9BF49 /* NookWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -145,6 +198,7 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
+				315BF2B7E629B4EEA224EDBA /* NookWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -163,6 +217,18 @@
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
+			sourceTree = "<group>";
+		};
+		BE815E9481B822B102A9BF49 /* NookWidget */ = {
+			isa = PBXGroup;
+			children = (
+				8B167FC43CA22E4C2546F780 /* NookWidget.swift */,
+				DC33889C643E1BE918575BBB /* Info.plist */,
+				28B9471F4A11E28555B7330B /* NookWidget.entitlements */,
+				0968CF4563EE01FDE9AFD9AD /* NookWidget.xcconfig */,
+			);
+			name = NookWidget;
+			path = NookWidget;
 			sourceTree = "<group>";
 		};
 		CEDD6E787BD504D58465DE88 /* Pods */ = {
@@ -206,6 +272,23 @@
 			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		59351E87A2D40512A1D90F52 /* NookWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 50155507DF9D71C7BBDE1C20 /* Build configuration list for PBXNativeTarget "NookWidget" */;
+			buildPhases = (
+				6A0B192CA94C212D2CC72E22 /* Sources */,
+				1AF50FDB76358B6909C10D38 /* Frameworks */,
+				2B519BDD25F4272339058A24 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NookWidget;
+			productName = NookWidget;
+			productReference = 315BF2B7E629B4EEA224EDBA /* NookWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		97C146ED1CF9000F007C117D /* Runner */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
@@ -216,6 +299,7 @@
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
+				5EA236FE4BDD1801BEC5D771 /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				0E34B61E9B0E006B17C0F91C /* [CP] Embed Pods Frameworks */,
 				1159BB40AD8A3FCDC2CBA64A /* [CP] Copy Pods Resources */,
@@ -223,6 +307,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				88840139EE8764ADD464041A /* PBXTargetDependency */,
 			);
 			name = Runner;
 			productName = Runner;
@@ -264,11 +349,19 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
+				59351E87A2D40512A1D90F52 /* NookWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		2B519BDD25F4272339058A24 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		331C807F294A63A400263BE5 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -410,6 +503,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6A0B192CA94C212D2CC72E22 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D3041D4A0EFDD2129C120D58 /* NookWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		97C146EA1CF9000F007C117D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -426,6 +527,12 @@
 			isa = PBXTargetDependency;
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
+		};
+		88840139EE8764ADD464041A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = NookWidget;
+			target = 59351E87A2D40512A1D90F52 /* NookWidget */;
+			targetProxy = A72FFCB342E883704D39AEAE /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -449,6 +556,34 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		0990C9170DB6E19847A4E9A3 /* Debug-dev */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0968CF4563EE01FDE9AFD9AD /* NookWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NookWidget/NookWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = WD8496XKN8;
+				INFOPLIST_FILE = NookWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				NOOK_APP_GROUP = group.app.nookph.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.dev.NookWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Debug-dev";
+		};
 		249021D3217E4FDB00AE95B9 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -520,6 +655,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				NOOK_APP_GROUP = group.app.nookph;
 				PRODUCT_BUNDLE_IDENTIFIER = app.nookph;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -577,6 +713,90 @@
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
 			};
 			name = Profile;
+		};
+		63364C44EFC9D9EFF254821C /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0968CF4563EE01FDE9AFD9AD /* NookWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NookWidget/NookWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = WD8496XKN8;
+				INFOPLIST_FILE = NookWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				NOOK_APP_GROUP = group.app.nookph;
+				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.NookWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
+		82AA762D8807ED2B8B292D42 /* Profile-dev */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0968CF4563EE01FDE9AFD9AD /* NookWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NookWidget/NookWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = WD8496XKN8;
+				INFOPLIST_FILE = NookWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				NOOK_APP_GROUP = group.app.nookph.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.dev.NookWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Profile-dev";
+		};
+		86BD3F078F5975E0F84C9689 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0968CF4563EE01FDE9AFD9AD /* NookWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NookWidget/NookWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = WD8496XKN8;
+				INFOPLIST_FILE = NookWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				NOOK_APP_GROUP = group.app.nookph;
+				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.NookWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
 		};
 		97C147031CF9000F007C117D /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -708,6 +928,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				NOOK_APP_GROUP = group.app.nookph;
 				PRODUCT_BUNDLE_IDENTIFIER = app.nookph;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -736,6 +957,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				NOOK_APP_GROUP = group.app.nookph;
 				PRODUCT_BUNDLE_IDENTIFIER = app.nookph;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -743,6 +965,62 @@
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
+		};
+		B0540FB829646512CD9D26A0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0968CF4563EE01FDE9AFD9AD /* NookWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NookWidget/NookWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = WD8496XKN8;
+				INFOPLIST_FILE = NookWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				NOOK_APP_GROUP = group.app.nookph;
+				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.NookWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BE59143089FB6742EDA25159 /* Release-dev */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 0968CF4563EE01FDE9AFD9AD /* NookWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NookWidget/NookWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = WD8496XKN8;
+				INFOPLIST_FILE = NookWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				NOOK_APP_GROUP = group.app.nookph.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.dev.NookWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release-dev";
 		};
 		D3F0000000000000000000B1 /* Debug-dev */ = {
 			isa = XCBuildConfiguration;
@@ -926,6 +1204,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				NOOK_APP_GROUP = group.app.nookph.dev;
 				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -954,6 +1233,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				NOOK_APP_GROUP = group.app.nookph.dev;
 				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -981,6 +1261,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				NOOK_APP_GROUP = group.app.nookph.dev;
 				PRODUCT_BUNDLE_IDENTIFIER = app.nookph.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -1051,6 +1332,19 @@
 				D3F0000000000000000000E1 /* Debug-dev */,
 				D3F0000000000000000000E2 /* Release-dev */,
 				D3F0000000000000000000E3 /* Profile-dev */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		50155507DF9D71C7BBDE1C20 /* Build configuration list for PBXNativeTarget "NookWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B0540FB829646512CD9D26A0 /* Debug */,
+				86BD3F078F5975E0F84C9689 /* Release */,
+				63364C44EFC9D9EFF254821C /* Profile */,
+				0990C9170DB6E19847A4E9A3 /* Debug-dev */,
+				BE59143089FB6742EDA25159 /* Release-dev */,
+				82AA762D8807ED2B8B292D42 /* Profile-dev */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

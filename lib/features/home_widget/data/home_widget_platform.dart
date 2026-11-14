@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:nook/core/constants/app_constants.dart';
 
 /// The phone's side of the home-screen widget, behind one seam so the sync
 /// and the promo can be tested without a launcher.
 abstract class HomeWidgetPlatform {
-  /// Whether this platform has the widget at all (Android for now; the iOS
-  /// WidgetKit extension is not built yet, see `docs/features/home_widget.md`).
+  /// Whether this platform has the widget at all: Android, and iOS through
+  /// the `NookWidget` WidgetKit extension (see `docs/features/home_widget.md`).
   bool get isSupported;
 
   Future<void> write(String key, String json);
@@ -44,18 +45,42 @@ class HomeWidgetPluginPlatform implements HomeWidgetPlatform {
   static const _qualified = 'app.nookph.$androidName';
   static const _notifications = MethodChannel('app.nookph/notifications');
 
+  /// `ios/NookWidget/NookWidget.swift`, the widget's `kind`.
+  static const iOSName = 'NookWidget';
+
+  /// The App Group the app and the extension share (`NOOK_APP_GROUP` in the
+  /// Xcode project); the dev flavor has its own.
+  static const iOSAppGroup = AppConstants.scheme == 'ph.nook.app.dev'
+      ? 'group.app.nookph.dev'
+      : 'group.app.nookph';
+
+  static bool get _isIOS =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// iOS reads and writes the group's defaults, so it must be named before
+  /// the first write.
+  static Future<void>? _groupSet;
+  static Future<void> _ready() async {
+    if (_isIOS) await (_groupSet ??= HomeWidget.setAppGroupId(iOSAppGroup));
+  }
+
   @override
   bool get isSupported =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || _isIOS);
 
   @override
   Future<void> write(String key, String json) async {
+    await _ready();
     await HomeWidget.saveWidgetData<String>(key, json);
   }
 
   @override
   Future<void> redraw() async {
-    await HomeWidget.updateWidget(qualifiedAndroidName: _qualified);
+    await _ready();
+    await HomeWidget.updateWidget(
+      qualifiedAndroidName: _qualified,
+      iOSName: iOSName,
+    );
   }
 
   @override
@@ -71,7 +96,11 @@ class HomeWidgetPluginPlatform implements HomeWidgetPlatform {
     if (!isSupported) return null;
     final widgets = await HomeWidget.getInstalledWidgets();
     return widgets
-        .where((w) => w.androidClassName?.endsWith(androidName) ?? false)
+        .where(
+          (w) =>
+              (w.androidClassName?.endsWith(androidName) ?? false) ||
+              w.iOSKind == iOSName,
+        )
         .length;
   }
 

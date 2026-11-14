@@ -1,0 +1,3 @@
+// Flutter's version and build number only: the Runner configs also pull in
+// the CocoaPods settings, which the extension does not link.
+#include "../Flutter/Generated.xcconfig"
