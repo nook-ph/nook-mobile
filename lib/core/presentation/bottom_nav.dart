@@ -1,7 +1,6 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// The four app tabs, each with its label. The second tab opens the map, so
@@ -73,6 +72,31 @@ class _BottomNavState extends State<BottomNav> {
     if (select && index != null) widget.onTap(index);
   }
 
+  /// The bar: frosted, with the page bent at its rim.
+  static const _barGlass = LiquidGlassSettings(
+    glassColor: Color(0x8CFFFFFF),
+    thickness: 22,
+    blur: 8,
+    refractiveIndex: 1.25,
+    chromaticAberration: 0.01,
+    lightIntensity: 0.7,
+    ambientStrength: 0.4,
+    saturation: 1.3,
+  );
+
+  /// The lens: clear and thick, so the icons under it bend and split
+  /// at the edge.
+  static const _lensGlass = LiquidGlassSettings(
+    glassColor: Color(0x0FFFFFFF),
+    thickness: 32,
+    blur: 0,
+    refractiveIndex: 1.45,
+    chromaticAberration: 0.04,
+    lightIntensity: 1,
+    ambientStrength: 0.2,
+    saturation: 1.2,
+  );
+
   @override
   Widget build(BuildContext context) {
     final inset = MediaQuery.paddingOf(context).bottom;
@@ -81,37 +105,7 @@ class _BottomNavState extends State<BottomNav> {
         // Floats over the page: clear of the screen edges and resting just
         // above the home indicator.
         padding: EdgeInsets.fromLTRB(20, 0, 20, inset > 0 ? inset - 6 : 12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1F000000),
-                blurRadius: 24,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  // Brighter at the top edge, like light caught in glass.
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xA6FFFFFF), Color(0x73FFFFFF)],
-                  ),
-                  border: Border.all(color: const Color(0xB3FFFFFF)),
-                ),
-                child: LayoutBuilder(builder: _tabs),
-              ),
-            ),
-          ),
-        ),
+        child: LayoutBuilder(builder: _tabs),
       ),
     );
   }
@@ -127,9 +121,34 @@ class _BottomNavState extends State<BottomNav> {
       onHorizontalDragUpdate: (d) => _hold(_indexAt(d.localPosition.dx, width)),
       onHorizontalDragEnd: (_) => _release(select: true),
       onHorizontalDragCancel: _release,
+      // The lens swells past the bar's edge, so nothing here clips.
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          // The selection capsule; swells into a lens while held.
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x14000000),
+                    blurRadius: 20,
+                    offset: Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: LayoutBuilder(
+                builder: (context, box) => LiquidGlass.withOwnLayer(
+                  settings: _barGlass,
+                  shape: LiquidRoundedSuperellipse(
+                    borderRadius: box.maxHeight / 2,
+                  ),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ),
+          // The selection capsule, hidden while the lens stands in for it.
           AnimatedPositioned(
             duration: _spring,
             curve: Curves.easeOutBack,
@@ -137,38 +156,19 @@ class _BottomNavState extends State<BottomNav> {
             top: _pad,
             bottom: _pad,
             width: tabWidth,
-            child: AnimatedScale(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              scale: held != null ? 1.12 : 1,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 160),
+              opacity: held == null ? 1 : 0,
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
-                  color: held != null
-                      ? const Color(0x33FFFFFF)
-                      : BottomNav._brand.withValues(alpha: 0.10),
-                  border: Border.all(
-                    color: held != null
-                        ? const Color(0xE6FFFFFF)
-                        : const Color(0x00FFFFFF),
-                    width: 1.5,
-                  ),
-                  boxShadow: held != null
-                      ? const [
-                          BoxShadow(
-                            color: Color(0x26000000),
-                            blurRadius: 16,
-                            offset: Offset(0, 4),
-                          ),
-                        ]
-                      : const [],
+                  color: BottomNav._brand.withValues(alpha: 0.10),
                 ),
               ),
             ),
           ),
           Padding(
-            // 8 above and below the glyph and label inside the 4pt rim. No
+            // 10 above and below the glyph and label inside the 4pt rim. No
             // fixed height, so a larger text size cannot overflow.
             padding: const EdgeInsets.symmetric(horizontal: _pad),
             child: Row(
@@ -181,7 +181,6 @@ class _BottomNavState extends State<BottomNav> {
                           ? BottomNav.tabs[i].activeIcon
                           : BottomNav.tabs[i].icon,
                       selected: i == widget.currentIndex,
-                      lifted: i == held,
                       onDown: () => _hold(i),
                       onCancel: _release,
                       onTap: () {
@@ -191,6 +190,39 @@ class _BottomNavState extends State<BottomNav> {
                     ),
                   ),
               ],
+            ),
+          ),
+          // The lens: drawn over the icons, so they bend inside it.
+          AnimatedPositioned(
+            duration: _spring,
+            curve: Curves.easeOutBack,
+            left: _pad + at * tabWidth,
+            top: _pad,
+            bottom: _pad,
+            width: tabWidth,
+            child: IgnorePointer(
+              child: AnimatedScale(
+                duration: const Duration(milliseconds: 260),
+                curve: held != null ? Curves.easeOutBack : Curves.easeInCubic,
+                scale: held != null ? 1.3 : 0.7,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(end: held != null ? 1 : 0),
+                  duration: const Duration(milliseconds: 200),
+                  builder: (context, visibility, _) => visibility == 0
+                      ? const SizedBox.expand()
+                      : LayoutBuilder(
+                          builder: (context, box) => LiquidGlass.withOwnLayer(
+                            settings: _lensGlass.copyWith(
+                              visibility: visibility,
+                            ),
+                            shape: LiquidRoundedSuperellipse(
+                              borderRadius: box.maxHeight / 2,
+                            ),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                ),
+              ),
             ),
           ),
         ],
@@ -204,7 +236,6 @@ class _Tab extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.selected,
-    required this.lifted,
     required this.onDown,
     required this.onCancel,
     required this.onTap,
@@ -213,9 +244,6 @@ class _Tab extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool selected;
-
-  /// Under the lens: drawn a touch larger, as if magnified.
-  final bool lifted;
   final VoidCallback onDown;
   final VoidCallback onCancel;
   final VoidCallback onTap;
@@ -233,31 +261,26 @@ class _Tab extends StatelessWidget {
         onTapDown: (_) => onDown(),
         onTapCancel: onCancel,
         onTap: onTap,
-        child: AnimatedScale(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          scale: lifted ? 1.12 : 1,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 22, color: color),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 11,
-                    height: 1.4,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: color,
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 22, color: color),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Poppins',
+                  fontSize: 11,
+                  height: 1.4,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: color,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
