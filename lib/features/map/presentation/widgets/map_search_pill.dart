@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/presentation/widgets/glass_surface.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
 
@@ -63,63 +64,60 @@ class MapSearchPill extends StatelessWidget {
     return AdaptiveTap(
       onTap: () => context.push('/search'),
       borderRadius: BorderRadius.circular(100),
-      child: Container(
-        height: heightFor(MediaQuery.textScalerOf(context)),
-        padding: const EdgeInsets.only(left: 16),
-        decoration: BoxDecoration(
-          color: MapTokens.surface,
-          borderRadius: BorderRadius.circular(100),
-          boxShadow: MapTokens.floatShadow(blur: 10, y: 2),
-        ),
-        child: Row(
-          children: [
-            const Icon(LucideIcons.search, size: 18, color: MapTokens.ink),
-            const SizedBox(width: 10),
-            Expanded(
-              // 21 + 16.5 of text, centred in 52: about 7 above and below.
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 8),
-                  Semantics(
-                    button: true,
-                    label: 'Search cafes',
-                    excludeSemantics: true,
-                    child: Text(
-                      'Search cafes',
-                      maxLines: 1,
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontSize: 14,
-                        height: 1.5,
-                        color: MapTokens.muted,
+      child: GlassSurface(
+        child: Container(
+          height: heightFor(MediaQuery.textScalerOf(context)),
+          padding: const EdgeInsets.only(left: 16),
+          child: Row(
+            children: [
+              const Icon(LucideIcons.search, size: 18, color: MapTokens.ink),
+              const SizedBox(width: 10),
+              Expanded(
+                // 21 + 16.5 of text, centred in 52: about 7 above and below.
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    Semantics(
+                      button: true,
+                      label: 'Search cafes',
+                      excludeSemantics: true,
+                      child: Text(
+                        'Search cafes',
+                        maxLines: 1,
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: MapTokens.muted,
+                        ),
                       ),
                     ),
-                  ),
-                  // The line takes what is left of the pill's height, so its
-                  // target runs to the bottom edge and large text clips
-                  // instead of overflowing.
-                  Expanded(
-                    child: originTap == null
-                        ? Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: Align(
-                              alignment: Alignment.topLeft,
-                              child: nearLine,
-                            ),
-                          )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Flexible(
-                                child: _originTarget(originTap, nearLine),
+                    // The line takes what is left of the pill's height, so its
+                    // target runs to the bottom edge and large text clips
+                    // instead of overflowing.
+                    Expanded(
+                      child: originTap == null
+                          ? Padding(
+                              padding: const EdgeInsets.only(right: 16),
+                              child: Align(
+                                alignment: Alignment.topLeft,
+                                child: nearLine,
                               ),
-                            ],
-                          ),
-                  ),
-                ],
+                            )
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Flexible(
+                                  child: _originTarget(originTap, nearLine),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -171,18 +169,16 @@ class MapRecenterButton extends StatelessWidget {
       child: AdaptiveTap(
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: active ? MapTokens.brand : MapTokens.surface,
-            shape: BoxShape.circle,
-            boxShadow: MapTokens.floatShadow(),
-          ),
-          child: Icon(
-            LucideIcons.locate,
-            size: 20,
-            color: active ? MapTokens.surface : MapTokens.ink,
+        child: GlassSurface(
+          shape: const CircleBorder(),
+          tint: active ? MapTokens.brand : GlassSurface.defaultTint,
+          child: SizedBox.square(
+            dimension: 44,
+            child: Icon(
+              LucideIcons.locate,
+              size: 20,
+              color: active ? MapTokens.surface : MapTokens.ink,
+            ),
           ),
         ),
       ),

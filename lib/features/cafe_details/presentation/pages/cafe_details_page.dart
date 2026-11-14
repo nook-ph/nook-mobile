@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:nook/core/cafe/domain/entities/cafe_summary.dart';
@@ -498,8 +499,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
         ],
         SimilarCafesSection(cafeId: widget.cafeId),
         CafeClaimLink(cafeId: widget.cafeId, isClaimed: details.isClaimed),
-        // Clearance above the pinned bar.
-        const SizedBox(height: 24),
+        // Clearance above the pinned bar; with extendBody the bar's height
+        // arrives as the bottom padding.
+        SizedBox(height: 24 + MediaQuery.paddingOf(context).bottom),
       ],
     );
   }
@@ -541,6 +543,8 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
             child: Scaffold(
               backgroundColor: Colors.white,
               extendBodyBehindAppBar: true,
+              // The glass actions bar shows the page through it.
+              extendBody: true,
               bottomNavigationBar:
                   BlocBuilder<CafeDetailsBloc, CafeDetailsState>(
                     builder: (context, state) {
@@ -658,9 +662,9 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                             collapsedHeight: _collapsedHeight,
                             pinned: true,
                             elevation: 0,
-                            backgroundColor: Colors.white.withValues(
-                              alpha: collapseProgress,
-                            ),
+                            // Clear: the frosted overlay below is the bar's
+                            // surface once collapsed.
+                            backgroundColor: Colors.transparent,
                             automaticallyImplyLeading: false,
                             leadingWidth: 70,
                             // The circles keep their 22 edge; their 48 touch
@@ -732,26 +736,41 @@ class _CafeDetailsPageState extends State<CafeDetailsPage> {
                                   collapseMode: CollapseMode.parallax,
                                   background: heroSlider,
                                 ),
+                                // Frosts in as the bar collapses, so the page
+                                // scrolling under it shows through, blurred.
                                 IgnorePointer(
-                                  child: ColoredBox(
-                                    color: Colors.white.withValues(
-                                      alpha: collapseProgress,
+                                  child: ClipRect(
+                                    child: BackdropFilter(
+                                      filter: ImageFilter.blur(
+                                        sigmaX: 14 * collapseProgress,
+                                        sigmaY: 14 * collapseProgress,
+                                      ),
+                                      child: ColoredBox(
+                                        color: Colors.white.withValues(
+                                          alpha: collapseProgress * 0.72,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
                                 // The sheet's rounded top edge, pinned to the
                                 // bar's bottom so it travels with the sheet.
-                                const Align(
+                                // Fades as the bar frosts, or it would draw
+                                // a solid band along the glass.
+                                Align(
                                   alignment: Alignment.bottomCenter,
-                                  child: IgnorePointer(
-                                    child: SizedBox(
-                                      height: _sheetLip,
-                                      width: double.infinity,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.vertical(
-                                            top: Radius.circular(_sheetLip),
+                                  child: Opacity(
+                                    opacity: 1 - collapseProgress,
+                                    child: const IgnorePointer(
+                                      child: SizedBox(
+                                        height: _sheetLip,
+                                        width: double.infinity,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(_sheetLip),
+                                            ),
                                           ),
                                         ),
                                       ),

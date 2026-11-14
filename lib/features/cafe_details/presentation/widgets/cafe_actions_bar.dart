@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nook/core/presentation/widgets/glass_surface.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/cafe_details/domain/use_cases/get_cafe_details_usecase.dart';
 import 'package:nook/features/cafe_details/presentation/utils/cafe_open_status.dart';
@@ -25,11 +26,10 @@ class CafeActionsBar extends StatelessWidget {
       DateTime.now(),
     );
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: CafeDetailsTokens.border)),
-      ),
+    // Frosted, so the page scrolls on under it (the page sets extendBody).
+    return GlassSurface(
+      shape: const Border(top: BorderSide(color: CafeDetailsTokens.border)),
+      shadow: false,
       child: SafeArea(
         top: false,
         child: Padding(

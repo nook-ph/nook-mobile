@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:nook/core/presentation/widgets/glass_surface.dart';
 import 'package:nook/core/utils/adaptive_tap.dart';
 import 'package:nook/features/map/presentation/widgets/map_search_pill.dart';
 import 'package:nook/features/map/presentation/widgets/map_tokens.dart';
@@ -33,21 +34,18 @@ class MapListToggleButton extends StatelessWidget {
         key: const ValueKey('map-list-toggle'),
         onTap: onTap,
         borderRadius: BorderRadius.circular(size / 2),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            color: MapTokens.surface,
-            shape: BoxShape.circle,
-            boxShadow: MapTokens.floatShadow(blur: 10, y: 2),
-          ),
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 180),
-            child: Icon(
-              listOpen ? LucideIcons.map : LucideIcons.list,
-              key: ValueKey(listOpen),
-              size: 20,
-              color: MapTokens.ink,
+        child: GlassSurface(
+          shape: const CircleBorder(),
+          child: SizedBox.square(
+            dimension: size,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: Icon(
+                listOpen ? LucideIcons.map : LucideIcons.list,
+                key: ValueKey(listOpen),
+                size: 20,
+                color: MapTokens.ink,
+              ),
             ),
           ),
         ),
